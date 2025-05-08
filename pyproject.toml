@@ -13,6 +13,7 @@ dependencies = [
     "pillow>=11.2.1",
     "psycopg2-binary>=2.9.10",
     "python-dotenv>=1.1.0",
-    "python-telegram-bot[job-queue]==13.15",
+    "python-telegram-bot==13.7",
+    "telegram>=0.0.1",
     "werkzeug>=3.1.3",
 ]
