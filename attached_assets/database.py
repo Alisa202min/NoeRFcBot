@@ -6,7 +6,7 @@ from datetime import datetime
 import csv
 from typing import Dict, List, Optional, Any, Union, Tuple
 
-import configuration
+from configuration import CONTACT_DEFAULT, ABOUT_DEFAULT
 
 class Database:
     """Database abstraction layer that uses SQLite"""
@@ -99,11 +99,11 @@ class Database:
             # Insert default static content if they don't exist
             self.conn.execute('''
                 INSERT OR IGNORE INTO static_content (type, content) VALUES (?, ?)
-            ''', ('contact', configuration.CONTACT_DEFAULT))
+            ''', ('contact', CONTACT_DEFAULT))
 
             self.conn.execute('''
                 INSERT OR IGNORE INTO static_content (type, content) VALUES (?, ?)
-            ''', ('about', configuration.ABOUT_DEFAULT))
+            ''', ('about', ABOUT_DEFAULT))
 
     def add_category(self, name: str, parent_id: Optional[int] = None, cat_type: str = 'product') -> int:
         """Add a new category"""
