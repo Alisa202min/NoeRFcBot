@@ -1,0 +1,94 @@
+
+{% extends "admin_layout.html" %}
+{% set active_page = 'services' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h4>{% if service %}ویرایش خدمت{% else %}افزودن خدمت جدید{% endif %}</h4>
+    </div>
+    <div class="card-body">
+        <form method="post" action="{% if service %}/admin/services/edit/{{ service.id }}{% else %}/admin/services/add{% endif %}">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">نام خدمت</label>
+                        <input type="text" class="form-control" id="name" name="name" value="{{ service.name if service else '' }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="price" class="form-label">قیمت (تومان)</label>
+                        <input type="number" class="form-control" id="price" name="price" value="{{ service.price if service else '' }}" required min="0">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="category_id" class="form-label">دسته‌بندی</label>
+                        <select class="form-select" id="category_id" name="category_id" required>
+                            <option value="">انتخاب دسته‌بندی...</option>
+                            {% for category in categories %}
+                                <option value="{{ category.id }}" {{ 'selected' if service and service.category_id == category.id else '' }}>
+                                    {{ category.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="photo_url" class="form-label">آدرس تصویر (URL)</label>
+                        <input type="url" class="form-control" id="photo_url" name="photo_url" value="{{ service.photo_url if service else '' }}">
+                        <div class="form-text">ورود آدرس تصویر اختیاری است.</div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="description" class="form-label">توضیحات</label>
+                        <textarea class="form-control" id="description" name="description" rows="10">{{ service.description if service else '' }}</textarea>
+                    </div>
+                    
+                    {% if service and service.photo_url %}
+                        <div class="mb-3">
+                            <label class="form-label">پیش‌نمایش تصویر</label>
+                            <div class="text-center">
+                                <img src="{{ service.photo_url }}" alt="{{ service.name }}" class="img-fluid" style="max-height: 200px;">
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-between">
+                <a href="/admin/services" class="btn btn-secondary">انصراف</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save"></i> ذخیره
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if service %}
+<div class="card mt-3">
+    <div class="card-header">
+        <h5>پیش‌نمایش خدمت</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% if service.photo_url %}
+                <div class="col-md-4 text-center">
+                    <img src="{{ service.photo_url }}" alt="{{ service.name }}" class="img-fluid mb-3" style="max-height: 200px;">
+                </div>
+                <div class="col-md-8">
+            {% else %}
+                <div class="col-12">
+            {% endif %}
+                <h3>{{ service.name }}</h3>
+                <p class="text-primary">قیمت: {{ '{:,}'.format(service.price) }} تومان</p>
+                <p>{{ service.description or 'بدون توضیحات' }}</p>
+                <p><strong>دسته‌بندی:</strong> {{ service.category_name }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

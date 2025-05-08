@@ -58,9 +58,9 @@
                     <h5>وضعیت دیتابیس:</h5>
                     <div class="alert {{ 'alert-success' if db_exists else 'alert-warning' }}">
                         {% if db_exists %}
-                            فایل دیتابیس SQLite موجود است.
+                            دیتابیس PostgreSQL فعال است.
                         {% else %}
-                            فایل دیتابیس SQLite هنوز ایجاد نشده است. با اولین اجرای ربات ایجاد خواهد شد.
+                            خطا در اتصال به دیتابیس.
                         {% endif %}
                     </div>
                 </div>
@@ -102,37 +102,41 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        const refreshBtn = document.getElementById('refresh-logs');
         const logContainer = document.getElementById('log-container');
-        const refreshButton = document.getElementById('refresh-logs');
         
-        function scrollToBottom() {
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', function() {
+                fetch('/logs')
+                    .then(response => response.json())
+                    .then(data => {
+                        logContainer.innerHTML = '';
+                        if (data.logs && data.logs.length > 0) {
+                            data.logs.forEach(log => {
+                                const div = document.createElement('div');
+                                div.textContent = log;
+                                logContainer.appendChild(div);
+                            });
+                        } else {
+                            const div = document.createElement('div');
+                            div.textContent = 'هنوز گزارشی موجود نیست...';
+                            div.className = 'text-muted';
+                            logContainer.appendChild(div);
+                        }
+                        
+                        // Scroll to bottom
+                        logContainer.scrollTop = logContainer.scrollHeight;
+                    })
+                    .catch(error => {
+                        console.error('Error fetching logs:', error);
+                    });
+            });
+        }
+        
+        // Auto scroll log to bottom
+        if (logContainer) {
             logContainer.scrollTop = logContainer.scrollHeight;
         }
-        
-        function refreshLogs() {
-            fetch('/logs')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.length === 0) {
-                        logContainer.innerHTML = '<div class="text-muted">هنوز گزارشی موجود نیست...</div>';
-                    } else {
-                        logContainer.innerHTML = data.map(log => `<div>${log}</div>`).join('');
-                        scrollToBottom();
-                    }
-                })
-                .catch(error => console.error('Error fetching logs:', error));
-        }
-        
-        // Auto refresh logs every 5 seconds if bot is running
-        {% if bot_status == 'running' %}
-        const intervalId = setInterval(refreshLogs, 5000);
-        {% endif %}
-        
-        // Refresh logs when button is clicked
-        refreshButton.addEventListener('click', refreshLogs);
-        
-        // Scroll to bottom initially
-        scrollToBottom();
     });
 </script>
 {% endblock %}
