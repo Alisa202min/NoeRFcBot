@@ -3,14 +3,13 @@ import logging
 from typing import Dict, Union, Optional, List, Any
 import asyncio
 from aiogram import Bot, Dispatcher, types
-from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.fsm.context import FSMContext
-from aiogram.filters import Command, Text
-from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, InputFile, CallbackQuery
-from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram import F
-import aiogram.exceptions as TelegramAPIError
+from aiogram.dispatcher import FSMContext
+from aiogram.dispatcher.filters import Text
+from aiogram.dispatcher.filters.state import State, StatesGroup
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ParseMode, InputFile, CallbackQuery
+from aiogram.utils import executor
+from aiogram.utils.exceptions import TelegramAPIError
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
 import configuration
 from database import Database
