@@ -107,7 +107,8 @@ class Database:
             
             # Check if contact content exists
             cursor.execute("SELECT COUNT(*) FROM static_content WHERE type = %s", ('contact',))
-            if cursor.fetchone()[0] == 0:
+            result = cursor.fetchone()
+            if result and result[0] == 0:
                 cursor.execute(
                     "INSERT INTO static_content (type, content) VALUES (%s, %s)",
                     ('contact', CONTACT_DEFAULT)
@@ -115,7 +116,8 @@ class Database:
                 
             # Check if about content exists
             cursor.execute("SELECT COUNT(*) FROM static_content WHERE type = %s", ('about',))
-            if cursor.fetchone()[0] == 0:
+            result = cursor.fetchone()
+            if result and result[0] == 0:
                 cursor.execute(
                     "INSERT INTO static_content (type, content) VALUES (%s, %s)",
                     ('about', ABOUT_DEFAULT)
@@ -126,14 +128,20 @@ class Database:
 
     def add_category(self, name: str, parent_id: Optional[int] = None, cat_type: str = 'product') -> int:
         """Add a new category"""
-        with self.conn.cursor() as cursor:
-            cursor.execute(
-                'INSERT INTO categories (name, parent_id, cat_type) VALUES (%s, %s, %s) RETURNING id',
-                (name, parent_id, cat_type)
-            )
-            category_id = cursor.fetchone()[0]
-            self.conn.commit()
-            return category_id
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute(
+                    'INSERT INTO categories (name, parent_id, cat_type) VALUES (%s, %s, %s) RETURNING id',
+                    (name, parent_id, cat_type)
+                )
+                result = cursor.fetchone()
+                category_id = result[0] if result else 0
+                self.conn.commit()
+                return category_id
+        except Exception as e:
+            logging.error(f"Error adding category: {e}")
+            self.conn.rollback()
+            return 0
 
     def get_category(self, category_id: int) -> Optional[Dict]:
         """Get a category by ID"""
@@ -207,26 +215,38 @@ class Database:
     def add_product(self, name: str, price: int, description: str, 
                    category_id: int, photo_url: Optional[str] = None) -> int:
         """Add a new product"""
-        with self.conn.cursor() as cursor:
-            cursor.execute(
-                'INSERT INTO products (name, price, description, photo_url, category_id) VALUES (%s, %s, %s, %s, %s) RETURNING id',
-                (name, price, description, photo_url, category_id)
-            )
-            product_id = cursor.fetchone()[0]
-            self.conn.commit()
-            return product_id
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute(
+                    'INSERT INTO products (name, price, description, photo_url, category_id) VALUES (%s, %s, %s, %s, %s) RETURNING id',
+                    (name, price, description, photo_url, category_id)
+                )
+                result = cursor.fetchone()
+                product_id = result[0] if result else 0
+                self.conn.commit()
+                return product_id
+        except Exception as e:
+            logging.error(f"Error adding product: {e}")
+            self.conn.rollback()
+            return 0
 
     def add_service(self, name: str, price: int, description: str, 
                    category_id: int, photo_url: Optional[str] = None) -> int:
         """Add a new service"""
-        with self.conn.cursor() as cursor:
-            cursor.execute(
-                'INSERT INTO services (name, price, description, photo_url, category_id) VALUES (%s, %s, %s, %s, %s) RETURNING id',
-                (name, price, description, photo_url, category_id)
-            )
-            service_id = cursor.fetchone()[0]
-            self.conn.commit()
-            return service_id
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute(
+                    'INSERT INTO services (name, price, description, photo_url, category_id) VALUES (%s, %s, %s, %s, %s) RETURNING id',
+                    (name, price, description, photo_url, category_id)
+                )
+                result = cursor.fetchone()
+                service_id = result[0] if result else 0
+                self.conn.commit()
+                return service_id
+        except Exception as e:
+            logging.error(f"Error adding service: {e}")
+            self.conn.rollback()
+            return 0
 
     def get_product(self, product_id: int) -> Optional[Dict]:
         """Get a product by ID"""
@@ -318,15 +338,21 @@ class Database:
     def add_inquiry(self, user_id: int, name: str, phone: str, 
                    description: str, product_id: Optional[int] = None) -> int:
         """Add a new price inquiry"""
-        date = datetime.now().isoformat()
-        with self.conn.cursor() as cursor:
-            cursor.execute(
-                'INSERT INTO inquiries (user_id, name, phone, description, product_id, date) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id',
-                (user_id, name, phone, description, product_id, date)
-            )
-            inquiry_id = cursor.fetchone()[0]
-            self.conn.commit()
-            return inquiry_id
+        try:
+            date = datetime.now().isoformat()
+            with self.conn.cursor() as cursor:
+                cursor.execute(
+                    'INSERT INTO inquiries (user_id, name, phone, description, product_id, date) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id',
+                    (user_id, name, phone, description, product_id, date)
+                )
+                result = cursor.fetchone()
+                inquiry_id = result[0] if result else 0
+                self.conn.commit()
+                return inquiry_id
+        except Exception as e:
+            logging.error(f"Error adding inquiry: {e}")
+            self.conn.rollback()
+            return 0
 
     def get_inquiries(self, start_date: Optional[str] = None, end_date: Optional[str] = None,
                      product_id: Optional[int] = None) -> List[Dict]:
@@ -449,7 +475,8 @@ class Database:
                     'INSERT INTO educational_content (title, content, category, type) VALUES (%s, %s, %s, %s) RETURNING id',
                     (title, content, category, content_type)
                 )
-                content_id = cursor.fetchone()[0]
+                result = cursor.fetchone()
+                content_id = result[0] if result else 0
                 self.conn.commit()
                 return content_id
         except Exception as e:
@@ -475,13 +502,20 @@ class Database:
         CONTACT_DEFAULT = "برای تماس با ما از اطلاعات زیر استفاده کنید."
         ABOUT_DEFAULT = "درباره ما - اطلاعات کامل‌تر به زودی اضافه خواهد شد."
         
-        with self.conn.cursor() as cursor:
-            cursor.execute(
-                'SELECT content FROM static_content WHERE type = %s',
-                (content_type,)
-            )
-            row = cursor.fetchone()
-            return row[0] if row else (CONTACT_DEFAULT if content_type == 'contact' else ABOUT_DEFAULT)
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute(
+                    'SELECT content FROM static_content WHERE type = %s',
+                    (content_type,)
+                )
+                row = cursor.fetchone()
+                if row and row[0]:
+                    return row[0]
+                else:
+                    return CONTACT_DEFAULT if content_type == 'contact' else ABOUT_DEFAULT
+        except Exception as e:
+            logging.error(f"Error getting static content: {e}")
+            return CONTACT_DEFAULT if content_type == 'contact' else ABOUT_DEFAULT
 
     def update_static_content(self, content_type: str, content: str) -> bool:
         """Update static content (contact/about)"""
