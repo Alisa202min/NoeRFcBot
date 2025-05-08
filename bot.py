@@ -4,9 +4,8 @@
 
 import logging
 import os
-# Fix imports for python-telegram-bot 20.x
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ConversationHandler
-from telegram.ext import filters
+# Fix imports for python-telegram-bot 13.x
+from telegram.ext import Updater, CommandHandler, MessageHandler, CallbackQueryHandler, ConversationHandler, Filters
 from telegram import Update
 from dotenv import load_dotenv
 
@@ -33,24 +32,27 @@ def main():
     # Initialize database
     db = Database()
     
-    # Create the Application
-    application = ApplicationBuilder().token(BOT_TOKEN).build()
+    # Create the Updater and pass the token
+    updater = Updater(BOT_TOKEN)
+    
+    # Get the dispatcher to register handlers
+    dispatcher = updater.dispatcher
     
     # Register handlers
     
     # Start command
-    application.add_handler(CommandHandler("start", start_handler))
+    dispatcher.add_handler(CommandHandler("start", start_handler))
     
     # Admin command
-    application.add_handler(CommandHandler("admin", admin_handlers.start_admin))
+    dispatcher.add_handler(CommandHandler("admin", admin_handlers.start_admin))
     
     # Inquiry conversation handler
     inquiry_conv_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(handle_inquiry.start_inquiry, pattern=r'^inquiry_')],
         states={
-            INQUIRY_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_inquiry.process_name)],
-            INQUIRY_PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_inquiry.process_phone)],
-            INQUIRY_DESC: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_inquiry.process_description)],
+            INQUIRY_NAME: [MessageHandler(Filters.text & ~Filters.command, handle_inquiry.process_name)],
+            INQUIRY_PHONE: [MessageHandler(Filters.text & ~Filters.command, handle_inquiry.process_phone)],
+            INQUIRY_DESC: [MessageHandler(Filters.text & ~Filters.command, handle_inquiry.process_description)],
         },
         fallbacks=[
             CommandHandler("cancel", handle_inquiry.cancel_inquiry),
@@ -58,24 +60,24 @@ def main():
         ],
         per_message=True
     )
-    application.add_handler(inquiry_conv_handler)
+    dispatcher.add_handler(inquiry_conv_handler)
     
     # Search conversation handler
     search_conv_handler = ConversationHandler(
-        entry_points=[MessageHandler(filters.Regex(r'جستجو 🔍'), handle_search.start_search)],
+        entry_points=[MessageHandler(Filters.regex(r'جستجو 🔍'), handle_search.start_search)],
         states={
-            1: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_search.process_search)],
+            1: [MessageHandler(Filters.text & ~Filters.command, handle_search.process_search)],
         },
         fallbacks=[CommandHandler("cancel", handle_search.cancel_search)],
         per_message=True
     )
-    application.add_handler(search_conv_handler)
+    dispatcher.add_handler(search_conv_handler)
     
     # Admin category edit conversation handler
     admin_cat_conv_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(admin_handlers.start_edit_category, pattern=r'^admin_edit_cat_')],
         states={
-            ADMIN_EDIT_CAT: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_handlers.process_edit_category)],
+            ADMIN_EDIT_CAT: [MessageHandler(Filters.text & ~Filters.command, admin_handlers.process_edit_category)],
         },
         fallbacks=[
             CommandHandler("cancel", admin_handlers.cancel_admin_action),
@@ -83,13 +85,13 @@ def main():
         ],
         per_message=True
     )
-    application.add_handler(admin_cat_conv_handler)
+    dispatcher.add_handler(admin_cat_conv_handler)
     
     # Admin add category conversation handler
     admin_add_cat_conv_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(admin_handlers.start_add_category, pattern=r'^admin_add_cat_')],
         states={
-            ADMIN_EDIT_CAT: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_handlers.process_add_category)],
+            ADMIN_EDIT_CAT: [MessageHandler(Filters.text & ~Filters.command, admin_handlers.process_add_category)],
         },
         fallbacks=[
             CommandHandler("cancel", admin_handlers.cancel_admin_action),
@@ -97,13 +99,13 @@ def main():
         ],
         per_message=True
     )
-    application.add_handler(admin_add_cat_conv_handler)
+    dispatcher.add_handler(admin_add_cat_conv_handler)
     
     # Admin product edit conversation handler
     admin_product_conv_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(admin_handlers.start_edit_product, pattern=r'^admin_edit_product_')],
         states={
-            ADMIN_EDIT_PRODUCT: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_handlers.process_edit_product)],
+            ADMIN_EDIT_PRODUCT: [MessageHandler(Filters.text & ~Filters.command, admin_handlers.process_edit_product)],
         },
         fallbacks=[
             CommandHandler("cancel", admin_handlers.cancel_admin_action),
@@ -111,13 +113,13 @@ def main():
         ],
         per_message=True
     )
-    application.add_handler(admin_product_conv_handler)
+    dispatcher.add_handler(admin_product_conv_handler)
     
     # Admin add product conversation handler
     admin_add_product_conv_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(admin_handlers.start_add_product, pattern=r'^admin_add_product_')],
         states={
-            ADMIN_EDIT_PRODUCT: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_handlers.process_add_product)],
+            ADMIN_EDIT_PRODUCT: [MessageHandler(Filters.text & ~Filters.command, admin_handlers.process_add_product)],
         },
         fallbacks=[
             CommandHandler("cancel", admin_handlers.cancel_admin_action),
@@ -125,13 +127,13 @@ def main():
         ],
         per_message=True
     )
-    application.add_handler(admin_add_product_conv_handler)
+    dispatcher.add_handler(admin_add_product_conv_handler)
     
     # Admin educational content edit conversation handler
     admin_edu_conv_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(admin_handlers.start_edit_edu, pattern=r'^admin_edit_edu_')],
         states={
-            ADMIN_EDIT_EDU: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_handlers.process_edit_edu)],
+            ADMIN_EDIT_EDU: [MessageHandler(Filters.text & ~Filters.command, admin_handlers.process_edit_edu)],
         },
         fallbacks=[
             CommandHandler("cancel", admin_handlers.cancel_admin_action),
@@ -139,13 +141,13 @@ def main():
         ],
         per_message=True
     )
-    application.add_handler(admin_edu_conv_handler)
+    dispatcher.add_handler(admin_edu_conv_handler)
     
     # Admin add educational content conversation handler
     admin_add_edu_conv_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(admin_handlers.start_add_edu, pattern=r'^admin_add_edu$')],
         states={
-            ADMIN_EDIT_EDU: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_handlers.process_add_edu)],
+            ADMIN_EDIT_EDU: [MessageHandler(Filters.text & ~Filters.command, admin_handlers.process_add_edu)],
         },
         fallbacks=[
             CommandHandler("cancel", admin_handlers.cancel_admin_action),
@@ -153,13 +155,13 @@ def main():
         ],
         per_message=True
     )
-    application.add_handler(admin_add_edu_conv_handler)
+    dispatcher.add_handler(admin_add_edu_conv_handler)
     
     # Admin static content edit conversation handler
     admin_static_conv_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(admin_handlers.start_edit_static, pattern=r'^admin_edit_static_')],
         states={
-            ADMIN_EDIT_STATIC: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_handlers.process_edit_static)],
+            ADMIN_EDIT_STATIC: [MessageHandler(Filters.text & ~Filters.command, admin_handlers.process_edit_static)],
         },
         fallbacks=[
             CommandHandler("cancel", admin_handlers.cancel_admin_action),
@@ -167,13 +169,13 @@ def main():
         ],
         per_message=True
     )
-    application.add_handler(admin_static_conv_handler)
+    dispatcher.add_handler(admin_static_conv_handler)
     
     # Admin upload CSV conversation handler
     admin_upload_csv_conv_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(admin_handlers.start_import_data, pattern=r'^admin_import_')],
         states={
-            ADMIN_UPLOAD_CSV: [MessageHandler(filters.Document.ALL, admin_handlers.process_import_data)],
+            ADMIN_UPLOAD_CSV: [MessageHandler(Filters.document, admin_handlers.process_import_data)],
         },
         fallbacks=[
             CommandHandler("cancel", admin_handlers.cancel_admin_action),
@@ -181,16 +183,17 @@ def main():
         ],
         per_message=True
     )
-    application.add_handler(admin_upload_csv_conv_handler)
+    dispatcher.add_handler(admin_upload_csv_conv_handler)
     
     # General callback query handler for button presses
-    application.add_handler(CallbackQueryHandler(handle_button_press))
+    dispatcher.add_handler(CallbackQueryHandler(handle_button_press))
     
     # Message handler for text messages (must be registered last)
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
     
     # Start the Bot
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    updater.start_polling()
+    updater.idle()
 
 if __name__ == '__main__':
     main()
