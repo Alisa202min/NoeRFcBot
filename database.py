@@ -341,21 +341,22 @@ class Database:
         params = []
 
         if start_date:
-            query += 'AND i.date >= ? '
+            query += 'AND i.date >= %s '
             params.append(start_date)
 
         if end_date:
-            query += 'AND i.date <= ? '
+            query += 'AND i.date <= %s '
             params.append(end_date)
 
         if product_id:
-            query += 'AND i.product_id = ? '
+            query += 'AND i.product_id = %s '
             params.append(product_id)
 
         query += 'ORDER BY i.date DESC'
 
-        cursor = self.conn.execute(query, params)
-        return [dict(row) for row in cursor.fetchall()]
+        with self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+            cursor.execute(query, params)
+            return [dict(row) for row in cursor.fetchall()]
 
     def get_inquiry(self, inquiry_id: int) -> Optional[Dict]:
         """Get an inquiry by ID"""
@@ -365,20 +366,34 @@ class Database:
                    FROM inquiries i 
                    LEFT JOIN products p ON i.product_id = p.id 
                    LEFT JOIN services s ON i.product_id = s.id
-                   WHERE i.id = ?'''
+                   WHERE i.id = %s'''
 
-        cursor = self.conn.execute(query, (inquiry_id,))
-        row = cursor.fetchone()
-        return dict(row) if row else None
+        with self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+            cursor.execute(query, (inquiry_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+            
+    def delete_inquiry(self, inquiry_id: int) -> bool:
+        """Delete an inquiry"""
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute('DELETE FROM inquiries WHERE id = %s', (inquiry_id,))
+                self.conn.commit()
+            return True
+        except Exception as e:
+            logging.error(f"Error deleting inquiry: {e}")
+            self.conn.rollback()
+            return False
 
     def get_educational_content(self, content_id: int) -> Optional[Dict]:
         """Get educational content by ID"""
-        cursor = self.conn.execute(
-            'SELECT id, title, content, category, type FROM educational_content WHERE id = ?',
-            (content_id,)
-        )
-        row = cursor.fetchone()
-        return dict(row) if row else None
+        with self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+            cursor.execute(
+                'SELECT id, title, content, category, type FROM educational_content WHERE id = %s',
+                (content_id,)
+            )
+            row = cursor.fetchone()
+            return dict(row) if row else None
 
     def get_all_educational_content(self, category: Optional[str] = None) -> List[Dict]:
         """Get all educational content with optional category filter"""
@@ -386,20 +401,22 @@ class Database:
         params = []
 
         if category:
-            query += ' WHERE category = ?'
+            query += ' WHERE category = %s'
             params.append(category)
 
         query += ' ORDER BY category, title'
 
-        cursor = self.conn.execute(query, params)
-        return [dict(row) for row in cursor.fetchall()]
+        with self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+            cursor.execute(query, params)
+            return [dict(row) for row in cursor.fetchall()]
 
     def get_educational_categories(self) -> List[str]:
         """Get all unique educational content categories"""
-        cursor = self.conn.execute(
-            'SELECT DISTINCT category FROM educational_content ORDER BY category'
-        )
-        return [row[0] for row in cursor.fetchall()]
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                'SELECT DISTINCT category FROM educational_content ORDER BY category'
+            )
+            return [row[0] for row in cursor.fetchall()]
 
     def update_educational_content(self, content_id: int, title: Optional[str] = None, 
                                  content: Optional[str] = None, category: Optional[str] = None, 
@@ -414,63 +431,89 @@ class Database:
         new_category = category if category is not None else edu_content['category']
         new_type = content_type if content_type is not None else edu_content['type']
 
-        with self.conn:
-            self.conn.execute(
+        with self.conn.cursor() as cursor:
+            cursor.execute(
                 '''UPDATE educational_content 
-                   SET title = ?, content = ?, category = ?, type = ? 
-                   WHERE id = ?''',
+                   SET title = %s, content = %s, category = %s, type = %s 
+                   WHERE id = %s''',
                 (new_title, new_content, new_category, new_type, content_id)
             )
+            self.conn.commit()
         return True
 
+    def add_educational_content(self, title: str, content: str, category: str, content_type: str = 'text') -> int:
+        """Add new educational content"""
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute(
+                    'INSERT INTO educational_content (title, content, category, type) VALUES (%s, %s, %s, %s) RETURNING id',
+                    (title, content, category, content_type)
+                )
+                content_id = cursor.fetchone()[0]
+                self.conn.commit()
+                return content_id
+        except Exception as e:
+            logging.error(f"Error adding educational content: {e}")
+            self.conn.rollback()
+            return 0
+            
     def delete_educational_content(self, content_id: int) -> bool:
         """Delete educational content"""
         try:
-            with self.conn:
-                self.conn.execute('DELETE FROM educational_content WHERE id = ?', (content_id,))
+            with self.conn.cursor() as cursor:
+                cursor.execute('DELETE FROM educational_content WHERE id = %s', (content_id,))
+                self.conn.commit()
             return True
         except Exception as e:
             logging.error(f"Error deleting educational content: {e}")
+            self.conn.rollback()
             return False
 
     def get_static_content(self, content_type: str) -> str:
         """Get static content (contact/about)"""
-        cursor = self.conn.execute(
-            'SELECT content FROM static_content WHERE type = ?',
-            (content_type,)
-        )
-        row = cursor.fetchone()
-        return row[0] if row else (CONTACT_DEFAULT if content_type == 'contact' else ABOUT_DEFAULT)
+        # Define default content
+        CONTACT_DEFAULT = "برای تماس با ما از اطلاعات زیر استفاده کنید."
+        ABOUT_DEFAULT = "درباره ما - اطلاعات کامل‌تر به زودی اضافه خواهد شد."
+        
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                'SELECT content FROM static_content WHERE type = %s',
+                (content_type,)
+            )
+            row = cursor.fetchone()
+            return row[0] if row else (CONTACT_DEFAULT if content_type == 'contact' else ABOUT_DEFAULT)
 
     def update_static_content(self, content_type: str, content: str) -> bool:
         """Update static content (contact/about)"""
         if content_type not in ['contact', 'about']:
             return False
 
-        with self.conn:
-            self.conn.execute(
-                'UPDATE static_content SET content = ? WHERE type = ?',
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                'UPDATE static_content SET content = %s WHERE type = %s',
                 (content, content_type)
             )
+            self.conn.commit()
         return True
 
     def export_to_csv(self, entity_type: str, filepath: str) -> bool:
         """Export data to CSV"""
         try:
             if entity_type == 'products':
-                cursor = self.conn.execute(
-                    '''SELECT p.id, p.name, p.price, p.description, p.photo_url, 
-                             p.category_id, c.name as category_name, 'product' as type
-                        FROM products p
-                        LEFT JOIN categories c ON p.category_id = c.id
-                        UNION ALL
-                        SELECT s.id, s.name, s.price, s.description, s.photo_url,
-                             s.category_id, c.name as category_name, 'service' as type
-                        FROM services s
-                        LEFT JOIN categories c ON s.category_id = c.id
-                        ORDER BY type, id'''
-                )
-                rows = [dict(row) for row in cursor.fetchall()]
+                with self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+                    cursor.execute(
+                        '''SELECT p.id, p.name, p.price, p.description, p.photo_url, 
+                                 p.category_id, c.name as category_name, 'product' as type
+                            FROM products p
+                            LEFT JOIN categories c ON p.category_id = c.id
+                            UNION ALL
+                            SELECT s.id, s.name, s.price, s.description, s.photo_url,
+                                 s.category_id, c.name as category_name, 'service' as type
+                            FROM services s
+                            LEFT JOIN categories c ON s.category_id = c.id
+                            ORDER BY type, id'''
+                    )
+                    rows = [dict(row) for row in cursor.fetchall()]
 
                 with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
                     fieldnames = ['id', 'name', 'price', 'description', 'photo_url', 'category_id', 'category_name', 'type']
@@ -480,13 +523,14 @@ class Database:
                         writer.writerow(row)
 
             elif entity_type == 'categories':
-                cursor = self.conn.execute(
-                    '''SELECT c.id, c.name, c.parent_id, c.cat_type, p.name as parent_name
-                       FROM categories c
-                       LEFT JOIN categories p ON c.parent_id = p.id
-                       ORDER BY c.id'''
-                )
-                rows = [dict(row) for row in cursor.fetchall()]
+                with self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+                    cursor.execute(
+                        '''SELECT c.id, c.name, c.parent_id, c.cat_type, p.name as parent_name
+                           FROM categories c
+                           LEFT JOIN categories p ON c.parent_id = p.id
+                           ORDER BY c.id'''
+                    )
+                    rows = [dict(row) for row in cursor.fetchall()]
 
                 with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
                     fieldnames = ['id', 'name', 'parent_id', 'parent_name', 'cat_type']
@@ -548,13 +592,23 @@ class Database:
                                     category_id = self.add_category(category_name, None, 'product')
 
                             if category_id:
-                                self.add_product(
-                                    name=row['name'],
-                                    price=int(row['price']),
-                                    description=row.get('description', ''),
-                                    category_id=category_id,
-                                    photo_url=row.get('photo_url', '')
-                                )
+                                product_type = row.get('type', 'product')
+                                if product_type == 'service':
+                                    self.add_service(
+                                        name=row['name'],
+                                        price=int(row['price']),
+                                        description=row.get('description', ''),
+                                        category_id=category_id,
+                                        photo_url=row.get('photo_url', '')
+                                    )
+                                else:
+                                    self.add_product(
+                                        name=row['name'],
+                                        price=int(row['price']),
+                                        description=row.get('description', ''),
+                                        category_id=category_id,
+                                        photo_url=row.get('photo_url', '')
+                                    )
                                 success_count += 1
                             else:
                                 error_count += 1
@@ -565,6 +619,7 @@ class Database:
                 elif entity_type == 'categories':
                     category_id_map = {}
 
+                    # First pass: create all categories without parent relationships
                     for row in reader:
                         try:
                             old_id = int(row['id'])
@@ -579,8 +634,9 @@ class Database:
                             logging.error(f"Error importing category: {e}")
                             error_count += 1
 
+                    # Second pass: update parent relationships
                     csvfile.seek(0)
-                    next(reader)
+                    next(reader)  # Skip header
                     for row in reader:
                         try:
                             old_id = int(row['id'])
