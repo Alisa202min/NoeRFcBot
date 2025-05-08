@@ -1,0 +1,145 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4>پیکربندی ربات</h4>
+        <div>
+            <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#defaultConfigModal">
+                <i class="bi bi-arrow-counterclockwise"></i> بازگشت به تنظیمات پیش‌فرض
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <ul class="nav nav-tabs" id="configTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="form-tab" data-bs-toggle="tab" data-bs-target="#form" type="button">نمای فرم</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="raw-tab" data-bs-toggle="tab" data-bs-target="#raw" type="button">نمای JSON</button>
+            </li>
+        </ul>
+
+        <div class="tab-content mt-3" id="configTabContent">
+            <!-- Form View -->
+            <div class="tab-pane fade show active" id="form" role="tabpanel">
+                <form method="post" action="{{ url_for('update_config') }}" class="config-form">
+                    <input type="hidden" name="view_type" value="form">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">BOT_TOKEN</label>
+                                <input type="text" class="form-control" name="BOT_TOKEN" value="{{ config.BOT_TOKEN }}">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">ADMIN_ID</label>
+                                <input type="number" class="form-control" name="ADMIN_ID" value="{{ config.ADMIN_ID }}">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">DB_TYPE</label>
+                                <select class="form-select" name="DB_TYPE">
+                                    <option value="sqlite" {% if config.DB_TYPE == 'sqlite' %}selected{% endif %}>SQLite</option>
+                                    <option value="replit" {% if config.DB_TYPE == 'replit' %}selected{% endif %}>Replit DB</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h5 class="mb-3 mt-4">پیشوندها</h5>
+                    <div class="row">
+                        {% for key, value in config.items() if '_PREFIX' in key %}
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">{{ key }}</label>
+                                <input type="text" class="form-control" name="{{ key }}" value="{{ value }}">
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <h5 class="mb-3 mt-4">متن دکمه‌ها</h5>
+                    <div class="row">
+                        {% for key, value in config.items() if '_BTN' in key %}
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">{{ key }}</label>
+                                <input type="text" class="form-control" name="{{ key }}" value="{{ value }}">
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <h5 class="mb-3 mt-4">متن‌های پیام‌ها</h5>
+                    <div class="row">
+                        {% for key, value in config.items() if '_TEXT' in key or 'DEFAULT' in key or 'START' in key or 'PHONE' in key or 'DESC' in key or 'COMPLETE' in key or 'WELCOME' in key or 'DENIED' in key or 'PROMPT' in key %}
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">{{ key }}</label>
+                                <textarea class="form-control" name="{{ key }}" rows="3">{{ value }}</textarea>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> ذخیره تنظیمات
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Raw JSON View -->
+            <div class="tab-pane fade" id="raw" role="tabpanel">
+                <form method="post" action="{{ url_for('update_config') }}">
+                    <input type="hidden" name="view_type" value="raw">
+                    <div class="mb-3">
+                        <textarea class="form-control" name="raw_config" rows="20">{{ config_json }}</textarea>
+                    </div>
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> ذخیره تنظیمات
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Default Config -->
+<div class="modal fade" id="defaultConfigModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">بازگشت به تنظیمات پیش‌فرض</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>آیا مطمئن هستید که می‌خواهید تنظیمات را به حالت پیش‌فرض برگردانید؟</p>
+                <p class="text-danger">این عمل غیرقابل بازگشت است!</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
+                <button type="button" class="btn btn-warning" onclick="resetToDefault()">بازگشت به پیش‌فرض</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function resetToDefault() {
+    if(confirm('آیا از بازگشت به تنظیمات پیش‌فرض اطمینان دارید؟')) {
+        fetch('/config/reset', {
+            method: 'POST',
+        }).then(response => {
+            if(response.ok) {
+                location.reload();
+            } else {
+                alert('خطا در بازگشت به تنظیمات پیش‌فرض.');
+            }
+        });
+    }
+}
+</script>
+{% endblock %}

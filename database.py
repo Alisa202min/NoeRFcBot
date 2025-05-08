@@ -46,6 +46,9 @@ class Database:
                     price INTEGER NOT NULL,
                     description TEXT,
                     photo_url TEXT,
+                    video_url TEXT,
+                    file_id TEXT,
+                    video_file_id TEXT,
                     category_id INTEGER NOT NULL,
                     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
                 )
@@ -59,6 +62,9 @@ class Database:
                     price INTEGER NOT NULL,
                     description TEXT,
                     photo_url TEXT,
+                    video_url TEXT,
+                    file_id TEXT,
+                    video_file_id TEXT,
                     category_id INTEGER NOT NULL,
                     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
                 )
@@ -213,13 +219,16 @@ class Database:
             return False
 
     def add_product(self, name: str, price: int, description: str, 
-                   category_id: int, photo_url: Optional[str] = None) -> int:
+                   category_id: int, photo_url: Optional[str] = None, video_url: Optional[str] = None,
+                   file_id: Optional[str] = None, video_file_id: Optional[str] = None) -> int:
         """Add a new product"""
         try:
             with self.conn.cursor() as cursor:
                 cursor.execute(
-                    'INSERT INTO products (name, price, description, photo_url, category_id) VALUES (%s, %s, %s, %s, %s) RETURNING id',
-                    (name, price, description, photo_url, category_id)
+                    '''INSERT INTO products 
+                       (name, price, description, photo_url, video_url, file_id, video_file_id, category_id) 
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id''',
+                    (name, price, description, photo_url, video_url, file_id, video_file_id, category_id)
                 )
                 result = cursor.fetchone()
                 product_id = result[0] if result else 0
@@ -231,13 +240,16 @@ class Database:
             return 0
 
     def add_service(self, name: str, price: int, description: str, 
-                   category_id: int, photo_url: Optional[str] = None) -> int:
+                   category_id: int, photo_url: Optional[str] = None, video_url: Optional[str] = None,
+                   file_id: Optional[str] = None, video_file_id: Optional[str] = None) -> int:
         """Add a new service"""
         try:
             with self.conn.cursor() as cursor:
                 cursor.execute(
-                    'INSERT INTO services (name, price, description, photo_url, category_id) VALUES (%s, %s, %s, %s, %s) RETURNING id',
-                    (name, price, description, photo_url, category_id)
+                    '''INSERT INTO services 
+                       (name, price, description, photo_url, video_url, file_id, video_file_id, category_id) 
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id''',
+                    (name, price, description, photo_url, video_url, file_id, video_file_id, category_id)
                 )
                 result = cursor.fetchone()
                 service_id = result[0] if result else 0
@@ -252,7 +264,8 @@ class Database:
         """Get a product by ID"""
         with self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
             cursor.execute(
-                'SELECT id, name, price, description, photo_url, category_id FROM products WHERE id = %s',
+                '''SELECT id, name, price, description, photo_url, video_url, file_id, video_file_id, category_id 
+                   FROM products WHERE id = %s''',
                 (product_id,)
             )
             row = cursor.fetchone()
@@ -262,7 +275,8 @@ class Database:
         """Get a service by ID"""
         with self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
             cursor.execute(
-                'SELECT id, name, price, description, photo_url, category_id FROM services WHERE id = %s',
+                '''SELECT id, name, price, description, photo_url, video_url, file_id, video_file_id, category_id 
+                   FROM services WHERE id = %s''',
                 (service_id,)
             )
             row = cursor.fetchone()
