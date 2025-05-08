@@ -4,7 +4,9 @@
 
 import logging
 import os
-from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ConversationHandler, filters
+# Fix imports for python-telegram-bot 20.x
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ConversationHandler
+from telegram.ext import filters
 from telegram import Update
 from dotenv import load_dotenv
 
@@ -32,7 +34,7 @@ def main():
     db = Database()
     
     # Create the Application
-    application = Application.builder().token(BOT_TOKEN).build()
+    application = ApplicationBuilder().token(BOT_TOKEN).build()
     
     # Register handlers
     
