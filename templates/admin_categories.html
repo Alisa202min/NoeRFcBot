@@ -132,19 +132,19 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">تایید حذف</h5>
+                <h5 class="modal-title">تأیید حذف</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                آیا از حذف دسته‌بندی "<span id="categoryName"></span>" اطمینان دارید؟
-                <div class="alert alert-warning mt-2">
-                    <i class="bi bi-exclamation-triangle"></i> هشدار: با حذف این دسته‌بندی، تمام زیردسته‌ها و محصولات/خدمات مرتبط نیز حذف خواهند شد.
+                <p>آیا از حذف دسته‌بندی "<span id="categoryNameSpan"></span>" اطمینان دارید؟</p>
+                <div class="alert alert-warning">
+                    <strong>هشدار:</strong> با حذف این دسته‌بندی، تمام زیرگروه‌ها و محصولات/خدمات مرتبط با آن نیز حذف خواهند شد.
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
-                <form id="deleteCategoryForm" method="post" action="/admin/categories/delete">
-                    <input type="hidden" id="categoryId" name="category_id" value="">
+                <form id="deleteCategoryForm" action="/admin/categories/delete" method="post">
+                    <input type="hidden" name="category_id" id="categoryIdInput">
                     <button type="submit" class="btn btn-danger">حذف</button>
                 </form>
             </div>
@@ -156,7 +156,6 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Setup delete modal
         const deleteModal = document.getElementById('deleteModal');
         if (deleteModal) {
             deleteModal.addEventListener('show.bs.modal', function(event) {
@@ -164,8 +163,8 @@
                 const categoryId = button.getAttribute('data-category-id');
                 const categoryName = button.getAttribute('data-category-name');
                 
-                document.getElementById('categoryId').value = categoryId;
-                document.getElementById('categoryName').textContent = categoryName;
+                document.getElementById('categoryIdInput').value = categoryId;
+                document.getElementById('categoryNameSpan').textContent = categoryName;
             });
         }
     });

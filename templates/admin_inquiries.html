@@ -1,3 +1,4 @@
+
 {% extends "admin_layout.html" %}
 {% set active_page = 'inquiries' %}
 
@@ -61,7 +62,7 @@
                 <tbody>
                     {% for inquiry in inquiries %}
                     <tr>
-                        <td>{{ inquiry.date.split('T')[0] if inquiry.date else '' }}</td>
+                        <td>{{ inquiry.date.split('T')[0] }}</td>
                         <td>{{ inquiry.name }}</td>
                         <td dir="ltr">{{ inquiry.phone }}</td>
                         <td>{{ inquiry.product_name or 'عمومی' }}</td>
@@ -97,18 +98,18 @@
                                 <div class="modal-dialog">
                                     <div class="modal-content">
                                         <div class="modal-header">
-                                            <h5 class="modal-title">تایید حذف</h5>
+                                            <h5 class="modal-title">تأیید حذف</h5>
                                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                         </div>
                                         <div class="modal-body">
                                             آیا از حذف این استعلام اطمینان دارید؟
                                         </div>
                                         <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
-                                            <form action="/admin/inquiries/delete" method="post">
+                                            <form action="{{ url_for('admin_delete_inquiry') }}" method="post" class="d-inline">
                                                 <input type="hidden" name="inquiry_id" value="{{ inquiry.id }}">
-                                                <button type="submit" class="btn btn-danger">حذف</button>
+                                                <button type="submit" class="btn btn-danger">بله، حذف شود</button>
                                             </form>
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
                                         </div>
                                     </div>
                                 </div>
@@ -118,13 +119,38 @@
                     {% else %}
                     <tr>
                         <td colspan="6" class="text-center py-4">
-                            <div class="alert alert-info mb-0">هیچ استعلام قیمتی یافت نشد.</div>
+                            <div class="text-muted">هیچ استعلامی یافت نشد</div>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+
+        <!-- Pagination -->
+        {% if pagination %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if pagination.prev_url %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ pagination.prev_url }}">قبلی</a>
+                </li>
+                {% endif %}
+
+                {% for page in pagination.pages %}
+                <li class="page-item {% if page == pagination.page %}active{% endif %}">
+                    <a class="page-link" href="{{ pagination.url_for_page(page) }}">{{ page }}</a>
+                </li>
+                {% endfor %}
+
+                {% if pagination.next_url %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ pagination.next_url }}">بعدی</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

@@ -10,15 +10,35 @@
             <div class="col-md-6">
                 <div class="card mb-3">
                     <div class="card-header bg-info text-white">
-                        <h5>وضعیت دیتابیس PostgreSQL</h5>
+                        <h5>وضعیت دیتابیس SQLite</h5>
                     </div>
                     <div class="card-body">
-                        <p><strong>اتصال:</strong> {{ db_path }}</p>
+                        <p><strong>مسیر فایل:</strong> {{ db_path }}</p>
                         <p><strong>وضعیت:</strong> 
                             {% if db_exists %}
-                                <span class="badge bg-success">فعال</span>
+                                <span class="badge bg-success">موجود</span>
+                                <br>
+                                <span class="text-muted">اندازه: {{ (db_size / 1024)|round(2) }} کیلوبایت</span>
                             {% else %}
-                                <span class="badge bg-warning">خطا در اتصال</span>
+                                <span class="badge bg-warning">هنوز ایجاد نشده</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header {{ 'bg-info' if using_replit_db else 'bg-secondary' }} text-white">
+                        <h5>وضعیت Replit.db</h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>وضعیت:</strong> 
+                            {% if using_replit_db %}
+                                <span class="badge bg-success">در حال استفاده</span>
+                            {% else %}
+                                <span class="badge bg-info">غیرفعال</span>
+                                <p class="text-muted">برای استفاده از Replit.db، متغیر محیطی DB_TYPE را به replit تغییر دهید.</p>
                             {% endif %}
                         </p>
                     </div>
@@ -33,8 +53,7 @@
                     <h6 class="mb-1">جداول اصلی</h6>
                     <ul>
                         <li><strong>categories</strong>: دسته‌بندی‌های محصولات و خدمات</li>
-                        <li><strong>products</strong>: محصولات</li>
-                        <li><strong>services</strong>: خدمات</li>
+                        <li><strong>products_services</strong>: محصولات و خدمات</li>
                         <li><strong>inquiries</strong>: استعلام‌های قیمت</li>
                         <li><strong>educational_content</strong>: محتوای آموزشی</li>
                         <li><strong>static_content</strong>: محتوای ثابت (تماس با ما، درباره ما)</li>
@@ -48,16 +67,15 @@
                 
                 <div class="list-group-item">
                     <h6 class="mb-1">ساختار محصولات/خدمات</h6>
-                    <p>هر محصول/خدمت دارای شناسه منحصر به فرد، نام، قیمت، توضیحات، URL عکس و ویدیو (اختیاری)، file_id برای دسترسی سریع و شناسه دسته‌بندی است.</p>
+                    <p>هر محصول/خدمت دارای شناسه منحصر به فرد، نام، قیمت، توضیحات، URL عکس (اختیاری) و شناسه دسته‌بندی است.</p>
                 </div>
                 
                 <div class="list-group-item">
-                    <h6 class="mb-1">ویژگی‌های جدید</h6>
-                    <ul>
-                        <li><strong>پشتیبانی از تصاویر و ویدیوها</strong>: امکان آپلود و ذخیره تصاویر و ویدیوها برای محصولات و خدمات</li>
-                        <li><strong>کش کردن فایل‌ها</strong>: جلوگیری از آپلود مجدد فایل‌ها با استفاده از file_id تلگرام</li>
-                        <li><strong>دسته‌بندی چند سطحی</strong>: پشتیبانی از دسته‌بندی‌های تو در تو تا چندین سطح</li>
-                    </ul>
+                    <h6 class="mb-1">دو نوع دیتابیس</h6>
+                    <p>
+                        <strong>SQLite:</strong> دیتابیس رابطه‌ای در فایل {{ db_path }}<br>
+                        <strong>Replit.db:</strong> دیتابیس key-value داخلی Replit (کلیدها مانند categories:1 ذخیره می‌شوند)
+                    </p>
                 </div>
             </div>
         </div>

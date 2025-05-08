@@ -70,7 +70,7 @@
                                             <tr>
                                                 <td>{{ inquiry.name }}</td>
                                                 <td>{{ inquiry.product_name or 'بدون محصول' }}</td>
-                                                <td>{{ inquiry.date.split('T')[0] if inquiry.date else '' }}</td>
+                                                <td>{{ inquiry.date.split('T')[0] }}</td>
                                             </tr>
                                         {% endfor %}
                                     </tbody>
@@ -99,11 +99,11 @@
                             <a href="/admin/categories/add" class="list-group-item list-group-item-action">
                                 <i class="bi bi-plus-circle"></i> افزودن دسته‌بندی جدید
                             </a>
-                            <a href="/admin/inquiries" class="list-group-item list-group-item-action">
-                                <i class="bi bi-chat-text"></i> بررسی استعلام‌های قیمت
+                            <a href="/admin/education/add" class="list-group-item list-group-item-action">
+                                <i class="bi bi-plus-circle"></i> افزودن مطلب آموزشی جدید
                             </a>
                             <a href="/admin/import_export" class="list-group-item list-group-item-action">
-                                <i class="bi bi-download"></i> پشتیبان‌گیری از دیتابیس
+                                <i class="bi bi-arrow-down-up"></i> ورود/خروج داده‌ها
                             </a>
                         </div>
                     </div>
