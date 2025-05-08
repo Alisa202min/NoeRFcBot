@@ -1,6 +1,7 @@
 import os
 import json
-import sqlite3
+import psycopg2
+import psycopg2.extras
 import logging
 from datetime import datetime
 import csv
@@ -9,24 +10,27 @@ from typing import Dict, List, Optional, Any, Union, Tuple
 import configuration
 
 class Database:
-    """Database abstraction layer that uses SQLite"""
+    """Database abstraction layer using PostgreSQL"""
 
     def __init__(self):
-        """Initialize the SQLite database using path from configuration"""
+        """Initialize the PostgreSQL database using connection info from environment"""
         from configuration import config
-        db_path = config.get('DB_PATH', 'data/database.db')
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
-        self.conn = sqlite3.connect(db_path, check_same_thread=False)
-        self.conn.row_factory = sqlite3.Row
+        
+        # Default to environment variable, but allow config override
+        database_url = os.environ.get('DATABASE_URL', config.get('DATABASE_URL', ''))
+        
+        # Connect to PostgreSQL
+        self.conn = psycopg2.connect(database_url)
+        self.conn.autocommit = False  # Use transactions for safety
         self._init_db()
 
     def _init_db(self):
-        """Initialize SQLite database and create necessary tables"""
-        with self.conn:
+        """Initialize PostgreSQL database and create necessary tables"""
+        with self.conn.cursor() as cursor:
             # Create categories table
-            self.conn.execute('''
+            cursor.execute('''
                 CREATE TABLE IF NOT EXISTS categories (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id SERIAL PRIMARY KEY,
                     name TEXT NOT NULL,
                     parent_id INTEGER NULL,
                     cat_type TEXT NOT NULL,
@@ -35,9 +39,9 @@ class Database:
             ''')
 
             # Create products table
-            self.conn.execute('''
+            cursor.execute('''
                 CREATE TABLE IF NOT EXISTS products (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id SERIAL PRIMARY KEY,
                     name TEXT NOT NULL,
                     price INTEGER NOT NULL,
                     description TEXT,
@@ -48,9 +52,9 @@ class Database:
             ''')
 
             # Create services table
-            self.conn.execute('''
+            cursor.execute('''
                 CREATE TABLE IF NOT EXISTS services (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id SERIAL PRIMARY KEY,
                     name TEXT NOT NULL,
                     price INTEGER NOT NULL,
                     description TEXT,
@@ -61,25 +65,24 @@ class Database:
             ''')
 
             # Create inquiries table
-            self.conn.execute('''
+            cursor.execute('''
                 CREATE TABLE IF NOT EXISTS inquiries (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id SERIAL PRIMARY KEY,
                     user_id INTEGER NOT NULL,
                     name TEXT NOT NULL,
                     phone TEXT NOT NULL,
                     description TEXT,
                     product_id INTEGER,
                     product_type TEXT CHECK(product_type IN ('product', 'service')),
-                    date TEXT NOT NULL,
-                    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
-                    FOREIGN KEY (product_id) REFERENCES services(id) ON DELETE SET NULL
+                    date TIMESTAMP NOT NULL,
+                    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
                 )
             ''')
 
             # Create educational_content table
-            self.conn.execute('''
+            cursor.execute('''
                 CREATE TABLE IF NOT EXISTS educational_content (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id SERIAL PRIMARY KEY,
                     title TEXT NOT NULL,
                     content TEXT NOT NULL,
                     category TEXT NOT NULL,
@@ -88,40 +91,59 @@ class Database:
             ''')
 
             # Create static_content table
-            self.conn.execute('''
+            cursor.execute('''
                 CREATE TABLE IF NOT EXISTS static_content (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id SERIAL PRIMARY KEY,
                     type TEXT NOT NULL UNIQUE,
                     content TEXT NOT NULL
                 )
             ''')
+            
+            # Commit the schema changes
+            self.conn.commit()
 
             # Insert default static content if they don't exist
-            self.conn.execute('''
-                INSERT OR IGNORE INTO static_content (type, content) VALUES (?, ?)
-            ''', ('contact', configuration.CONTACT_DEFAULT))
-
-            self.conn.execute('''
-                INSERT OR IGNORE INTO static_content (type, content) VALUES (?, ?)
-            ''', ('about', configuration.ABOUT_DEFAULT))
+            from configuration import CONTACT_DEFAULT, ABOUT_DEFAULT
+            
+            # Check if contact content exists
+            cursor.execute("SELECT COUNT(*) FROM static_content WHERE type = %s", ('contact',))
+            if cursor.fetchone()[0] == 0:
+                cursor.execute(
+                    "INSERT INTO static_content (type, content) VALUES (%s, %s)",
+                    ('contact', CONTACT_DEFAULT)
+                )
+                
+            # Check if about content exists
+            cursor.execute("SELECT COUNT(*) FROM static_content WHERE type = %s", ('about',))
+            if cursor.fetchone()[0] == 0:
+                cursor.execute(
+                    "INSERT INTO static_content (type, content) VALUES (%s, %s)",
+                    ('about', ABOUT_DEFAULT)
+                )
+                
+            # Commit the data inserts
+            self.conn.commit()
 
     def add_category(self, name: str, parent_id: Optional[int] = None, cat_type: str = 'product') -> int:
         """Add a new category"""
-        with self.conn:
-            cursor = self.conn.execute(
-                'INSERT INTO categories (name, parent_id, cat_type) VALUES (?, ?, ?)',
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                'INSERT INTO categories (name, parent_id, cat_type) VALUES (%s, %s, %s) RETURNING id',
                 (name, parent_id, cat_type)
             )
-            return cursor.lastrowid
+            category_id = cursor.fetchone()[0]
+            self.conn.commit()
+            return category_id
 
     def get_category(self, category_id: int) -> Optional[Dict]:
         """Get a category by ID"""
-        cursor = self.conn.execute(
-            'SELECT id, name, parent_id, cat_type FROM categories WHERE id = ?',
-            (category_id,)
-        )
-        row = cursor.fetchone()
-        return dict(row) if row else None
+        with self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+            cursor.execute(
+                'SELECT id, name, parent_id, cat_type FROM categories WHERE id = %s',
+                (category_id,)
+            )
+            row = cursor.fetchone()
+            return dict(row) if row else None
 
     def get_categories(self, parent_id: Optional[int] = None, cat_type: Optional[str] = None) -> List[Dict]:
         """Get categories based on parent ID and/or type"""
@@ -132,11 +154,11 @@ class Database:
         if parent_id is None:
             conditions.append('parent_id IS NULL')
         else:
-            conditions.append('parent_id = ?')
+            conditions.append('parent_id = %s')
             params.append(parent_id)
 
         if cat_type:
-            conditions.append('cat_type = ?')
+            conditions.append('cat_type = %s')
             params.append(cat_type)
 
         if not conditions:
@@ -146,8 +168,9 @@ class Database:
 
         query += ' ORDER BY name'
 
-        cursor = self.conn.execute(query, params)
-        return [dict(row) for row in cursor.fetchall()]
+        with self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+            cursor.execute(query, params)
+            return [dict(row) for row in cursor.fetchall()]
 
     def update_category(self, category_id: int, name: str, parent_id: Optional[int] = None, 
                        cat_type: Optional[str] = None) -> bool:
@@ -161,60 +184,69 @@ class Database:
         if cat_type is None:
             cat_type = category['cat_type']
 
-        with self.conn:
-            self.conn.execute(
-                'UPDATE categories SET name = ?, parent_id = ?, cat_type = ? WHERE id = ?',
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                'UPDATE categories SET name = %s, parent_id = %s, cat_type = %s WHERE id = %s',
                 (name, parent_id, cat_type, category_id)
             )
+            self.conn.commit()
         return True
 
     def delete_category(self, category_id: int) -> bool:
         """Delete a category and all its subcategories"""
         try:
-            with self.conn:
-                self.conn.execute('DELETE FROM categories WHERE id = ?', (category_id,))
+            with self.conn.cursor() as cursor:
+                cursor.execute('DELETE FROM categories WHERE id = %s', (category_id,))
+                self.conn.commit()
             return True
         except Exception as e:
             logging.error(f"Error deleting category: {e}")
+            self.conn.rollback()
             return False
 
     def add_product(self, name: str, price: int, description: str, 
                    category_id: int, photo_url: Optional[str] = None) -> int:
         """Add a new product"""
-        with self.conn:
-            cursor = self.conn.execute(
-                'INSERT INTO products (name, price, description, photo_url, category_id) VALUES (?, ?, ?, ?, ?)',
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                'INSERT INTO products (name, price, description, photo_url, category_id) VALUES (%s, %s, %s, %s, %s) RETURNING id',
                 (name, price, description, photo_url, category_id)
             )
-            return cursor.lastrowid
+            product_id = cursor.fetchone()[0]
+            self.conn.commit()
+            return product_id
 
     def add_service(self, name: str, price: int, description: str, 
                    category_id: int, photo_url: Optional[str] = None) -> int:
         """Add a new service"""
-        with self.conn:
-            cursor = self.conn.execute(
-                'INSERT INTO services (name, price, description, photo_url, category_id) VALUES (?, ?, ?, ?, ?)',
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                'INSERT INTO services (name, price, description, photo_url, category_id) VALUES (%s, %s, %s, %s, %s) RETURNING id',
                 (name, price, description, photo_url, category_id)
             )
-            return cursor.lastrowid
+            service_id = cursor.fetchone()[0]
+            self.conn.commit()
+            return service_id
 
     def get_product(self, product_id: int) -> Optional[Dict]:
         """Get a product by ID"""
-        cursor = self.conn.execute(
-            'SELECT id, name, price, description, photo_url, category_id FROM products WHERE id = ?',
-            (product_id,)
-        )
-        row = cursor.fetchone()
-        return dict(row) if row else None
+        with self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+            cursor.execute(
+                'SELECT id, name, price, description, photo_url, category_id FROM products WHERE id = %s',
+                (product_id,)
+            )
+            row = cursor.fetchone()
+            return dict(row) if row else None
 
     def get_service(self, service_id: int) -> Optional[Dict]:
         """Get a service by ID"""
-        cursor = self.conn.execute(
-            'SELECT id, name, price, description, photo_url, category_id FROM services WHERE id = ?',
-            (service_id,)
-        )
-        row = cursor.fetchone()
-        return dict(row) if row else None
+        with self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+            cursor.execute(
+                'SELECT id, name, price, description, photo_url, category_id FROM services WHERE id = %s',
+                (service_id,)
+            )
+            row = cursor.fetchone()
+            return dict(row) if row else None
 
     def get_products_by_category(self, category_id: int) -> List[Dict]:
         """Get all products/services in a category"""
@@ -222,28 +254,30 @@ class Database:
         if not category:
             return []
 
-        if category['cat_type'] == 'product':
-            cursor = self.conn.execute(
-                'SELECT id, name, price, description, photo_url, category_id FROM products WHERE category_id = ? ORDER BY name',
-                (category_id,)
-            )
-        else:
-            cursor = self.conn.execute(
-                'SELECT id, name, price, description, photo_url, category_id FROM services WHERE category_id = ? ORDER BY name',
-                (category_id,)
-            )
-        return [dict(row) for row in cursor.fetchall()]
+        with self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+            if category['cat_type'] == 'product':
+                cursor.execute(
+                    'SELECT id, name, price, description, photo_url, category_id FROM products WHERE category_id = %s ORDER BY name',
+                    (category_id,)
+                )
+            else:
+                cursor.execute(
+                    'SELECT id, name, price, description, photo_url, category_id FROM services WHERE category_id = %s ORDER BY name',
+                    (category_id,)
+                )
+            return [dict(row) for row in cursor.fetchall()]
 
     def search_products(self, query: str, cat_type: str = 'product') -> List[Dict]:
         """Search for products/services by name"""
         query = query.lower()
         table = 'products' if cat_type == 'product' else 'services'
 
-        cursor = self.conn.execute(
-            f'SELECT id, name, price, description, photo_url, category_id FROM {table} WHERE LOWER(name) LIKE ? ORDER BY name',
-            (f'%{query}%',)
-        )
-        return [dict(row) for row in cursor.fetchall()]
+        with self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+            cursor.execute(
+                f'SELECT id, name, price, description, photo_url, category_id FROM {table} WHERE LOWER(name) LIKE %s ORDER BY name',
+                (f'%{query}%',)
+            )
+            return [dict(row) for row in cursor.fetchall()]
 
     def update_product(self, product_id: int, name: Optional[str] = None, price: Optional[int] = None,
                       description: Optional[str] = None, photo_url: Optional[str] = None,
@@ -259,35 +293,40 @@ class Database:
         new_photo_url = photo_url if photo_url is not None else product['photo_url']
         new_category_id = category_id if category_id is not None else product['category_id']
 
-        with self.conn:
-            self.conn.execute(
+        with self.conn.cursor() as cursor:
+            cursor.execute(
                 '''UPDATE products 
-                   SET name = ?, price = ?, description = ?, photo_url = ?, category_id = ? 
-                   WHERE id = ?''',
+                   SET name = %s, price = %s, description = %s, photo_url = %s, category_id = %s 
+                   WHERE id = %s''',
                 (new_name, new_price, new_description, new_photo_url, new_category_id, product_id)
             )
+            self.conn.commit()
         return True
 
     def delete_product(self, product_id: int) -> bool:
         """Delete a product"""
         try:
-            with self.conn:
-                self.conn.execute('DELETE FROM products WHERE id = ?', (product_id,))
+            with self.conn.cursor() as cursor:
+                cursor.execute('DELETE FROM products WHERE id = %s', (product_id,))
+                self.conn.commit()
             return True
         except Exception as e:
             logging.error(f"Error deleting product: {e}")
+            self.conn.rollback()
             return False
 
     def add_inquiry(self, user_id: int, name: str, phone: str, 
                    description: str, product_id: Optional[int] = None) -> int:
         """Add a new price inquiry"""
         date = datetime.now().isoformat()
-        with self.conn:
-            cursor = self.conn.execute(
-                'INSERT INTO inquiries (user_id, name, phone, description, product_id, date) VALUES (?, ?, ?, ?, ?, ?)',
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                'INSERT INTO inquiries (user_id, name, phone, description, product_id, date) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id',
                 (user_id, name, phone, description, product_id, date)
             )
-            return cursor.lastrowid
+            inquiry_id = cursor.fetchone()[0]
+            self.conn.commit()
+            return inquiry_id
 
     def get_inquiries(self, start_date: Optional[str] = None, end_date: Optional[str] = None,
                      product_id: Optional[int] = None) -> List[Dict]:
