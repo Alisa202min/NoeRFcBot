@@ -1,0 +1,115 @@
+{% extends "admin_layout.html" %}
+{% set active_page = 'dashboard' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h4>داشبورد مدیریت</h4>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card bg-primary text-white mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">محصولات</h5>
+                        <h2 class="display-4">{{ stats.products_count }}</h2>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <a class="text-white stretched-link" href="/admin/products">مشاهده جزئیات</a>
+                        <div class="small text-white"><i class="bi bi-arrow-left"></i></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card bg-success text-white mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">خدمات</h5>
+                        <h2 class="display-4">{{ stats.services_count }}</h2>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <a class="text-white stretched-link" href="/admin/services">مشاهده جزئیات</a>
+                        <div class="small text-white"><i class="bi bi-arrow-left"></i></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card bg-warning text-white mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">استعلام‌های قیمت</h5>
+                        <h2 class="display-4">{{ stats.inquiries_count }}</h2>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <a class="text-white stretched-link" href="/admin/inquiries">مشاهده جزئیات</a>
+                        <div class="small text-white"><i class="bi bi-arrow-left"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>استعلام‌های اخیر</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if recent_inquiries %}
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>نام</th>
+                                            <th>محصول/خدمت</th>
+                                            <th>تاریخ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for inquiry in recent_inquiries %}
+                                            <tr>
+                                                <td>{{ inquiry.name }}</td>
+                                                <td>{{ inquiry.product_name or 'بدون محصول' }}</td>
+                                                <td>{{ inquiry.date.split('T')[0] if inquiry.date else '' }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-info">هنوز هیچ استعلام قیمتی ثبت نشده است.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>عملیات سریع</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group">
+                            <a href="/admin/products/add" class="list-group-item list-group-item-action">
+                                <i class="bi bi-plus-circle"></i> افزودن محصول جدید
+                            </a>
+                            <a href="/admin/services/add" class="list-group-item list-group-item-action">
+                                <i class="bi bi-plus-circle"></i> افزودن خدمت جدید
+                            </a>
+                            <a href="/admin/categories/add" class="list-group-item list-group-item-action">
+                                <i class="bi bi-plus-circle"></i> افزودن دسته‌بندی جدید
+                            </a>
+                            <a href="/admin/inquiries" class="list-group-item list-group-item-action">
+                                <i class="bi bi-chat-text"></i> بررسی استعلام‌های قیمت
+                            </a>
+                            <a href="/admin/import_export" class="list-group-item list-group-item-action">
+                                <i class="bi bi-download"></i> پشتیبان‌گیری از دیتابیس
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
