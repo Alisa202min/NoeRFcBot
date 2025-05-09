@@ -5,6 +5,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommand
 from aiogram.fsm.storage.memory import MemoryStorage
 from dotenv import load_dotenv
+from aiohttp import web
 
 # Import handlers
 import handlers
@@ -48,21 +49,25 @@ async def register_handlers():
     # Include the router from handlers module
     dp.include_router(handlers.router)
 
-async def setup_webhook(app, webhook_path):
+async def setup_webhook(app, webhook_path, webhook_host):
     """Set up webhook handling for the bot with aiohttp app"""
-    webhook_url = f"{WEBHOOK_HOST}{webhook_path}"
+    webhook_url = f"{webhook_host}{webhook_path}"
+    logger.info(f"Setting webhook to {webhook_url}")
+    
+    # Set webhook
     await bot.set_webhook(webhook_url)
     
     # Process webhook
     async def handle_webhook(request):
         url = str(request.url)
-        if url.startswith(webhook_url):
+        if url.startswith(webhook_url) or webhook_path in url:
             update = await request.json()
             await dp.feed_update(bot, update)
             return web.Response(status=200)
         return web.Response(status=403)
     
     app.router.add_post(webhook_path, handle_webhook)
+    logger.info(f"Webhook handler added for path: {webhook_path}")
 
 async def start_polling():
     """Start the bot in polling mode (for testing)"""
@@ -75,11 +80,24 @@ async def start_polling():
     await register_handlers()
     
     # Delete any existing webhook before starting polling
-    await bot.delete_webhook()
-    logger.info("Deleted existing webhook")
+    webhook_info = await bot.get_webhook_info()
+    if webhook_info.url:
+        logger.info(f"Deleting existing webhook: {webhook_info.url}")
+        await bot.delete_webhook(drop_pending_updates=True)
+        logger.info("Deleted existing webhook")
+    else:
+        logger.info("No webhook is currently set")
     
     # Start polling
-    await dp.start_polling(bot)
+    try:
+        await dp.start_polling(bot)
+    except Exception as e:
+        logger.error(f"Error in polling: {e}")
+        # Try to force delete webhook if we're still having issues
+        await bot.delete_webhook(drop_pending_updates=True)
+        logger.info("Forcefully deleted webhook after error")
+        # Try polling again
+        await dp.start_polling(bot)
 
 if __name__ == "__main__":
     try:
