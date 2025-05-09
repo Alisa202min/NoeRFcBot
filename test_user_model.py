@@ -4,6 +4,8 @@ Test the User model specifically
 
 import os
 import sys
+import uuid
+import time
 from app import app, db
 from models import User
 import logging
@@ -25,11 +27,15 @@ def test_user_model():
             existing_users = User.query.all()
             print(f"Found {len(existing_users)} existing users in database")
             
-            # Create a test user
-            print("Creating test user...")
+            # Create a test user with unique username
+            unique_id = str(uuid.uuid4())[:8]
+            test_username = f"testuser_{unique_id}_{int(time.time())}"
+            test_email = f"test_{unique_id}@example.com"
+            
+            print(f"Creating test user with unique username: {test_username}")
             test_user = User(
-                username='testuser', 
-                email='test@example.com',
+                username=test_username, 
+                email=test_email,
                 is_admin=False
             )
             test_user.set_password('password123')
@@ -48,15 +54,15 @@ def test_user_model():
                 db.session.commit()
                 
                 # Test user retrieval
-                print("Retrieving test user...")
-                retrieved_user = User.query.filter_by(username='testuser').first()
+                print(f"Retrieving test user {test_username}...")
+                retrieved_user = User.query.filter_by(username=test_username).first()
                 
                 if retrieved_user:
                     print("✅ User retrieval successful")
-                    if retrieved_user.email == 'test@example.com':
+                    if retrieved_user.email == test_email:
                         print("✅ User data matches")
                     else:
-                        print("❌ User data does not match")
+                        print(f"❌ User data does not match. Expected: {test_email}, Got: {retrieved_user.email}")
                         return False
                 else:
                     print("❌ User retrieval failed")
