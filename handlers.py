@@ -8,9 +8,10 @@ import tempfile
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Union, Tuple
 
-from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, ConversationHandler
-from telegram.constants import ParseMode
+from aiogram import types
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.enums import ParseMode
 
 from configuration import (
     ADMIN_ID, START_TEXT, PRODUCTS_BTN, SERVICES_BTN, INQUIRY_BTN, EDUCATION_BTN, 
@@ -35,10 +36,21 @@ from utils import (
 # Initialize database
 db = Database()
 
-# Conversation states for inquiry form
-INQUIRY_NAME, INQUIRY_PHONE, INQUIRY_DESC = range(3)
+# Define state classes for FSM
+class InquiryForm(StatesGroup):
+    name = State()
+    phone = State()
+    description = State()
 
-# Conversation states for admin actions
+class AdminActions(StatesGroup):
+    edit_category = State()
+    edit_product = State()
+    edit_edu = State()
+    edit_static = State()
+    upload_csv = State()
+
+# For compatibility with old code
+INQUIRY_NAME, INQUIRY_PHONE, INQUIRY_DESC = range(3)
 ADMIN_EDIT_CAT, ADMIN_EDIT_PRODUCT, ADMIN_EDIT_EDU, ADMIN_EDIT_STATIC, ADMIN_UPLOAD_CSV = range(5)
 
 # User state dictionary to store temporary data
