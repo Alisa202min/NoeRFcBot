@@ -678,14 +678,14 @@ class admin_handlers:
             if category:
                 subcategories = db.get_categories(parent_id=category_id)
                 
-                await query.edit_message_text(
+                await callback_query.message.edit_text(
                     f"زیرگروه‌های {category['name']}:",
                     reply_markup=admin_keyboards.admin_categories_keyboard(
                         subcategories, category_id, category['type']
                     )
                 )
             else:
-                await query.edit_message_text(
+                await callback_query.message.edit_text(
                     "دسته‌بندی مورد نظر یافت نشد.",
                     reply_markup=None
                 )
@@ -698,12 +698,12 @@ class admin_handlers:
             if category:
                 products = db.get_products_by_category(category_id)
                 
-                await query.edit_message_text(
+                await callback_query.message.edit_text(
                     f"محصولات/خدمات {category['name']}:",
                     reply_markup=admin_keyboards.admin_products_keyboard(products, category_id)
                 )
             else:
-                await query.edit_message_text(
+                await callback_query.message.edit_text(
                     "دسته‌بندی مورد نظر یافت نشد.",
                     reply_markup=None
                 )
@@ -724,31 +724,88 @@ class admin_handlers:
                     f"دسته‌بندی: {get_category_path(db, category_id)}"
                 )
                 
-                await query.edit_message_text(
+                await callback_query.message.edit_text(
                     product_text,
                     reply_markup=admin_keyboards.admin_product_detail_keyboard(product_id, category_id)
                 )
             else:
-                await query.edit_message_text(
+                await callback_query.message.edit_text(
                     "محصول/خدمت مورد نظر یافت نشد.",
                     reply_markup=None
                 )
         
         # Edit category - start conversation
         elif admin_data.startswith("edit_cat_"):
-            return await admin_handlers.start_edit_category(update, context)
+            category_id = int(admin_data[9:])
+            await state.set_state(AdminActions.edit_category)
+            await state.update_data(category_id=category_id)
+            await callback_query.message.edit_text(
+                "لطفاً نام جدید دسته‌بندی را وارد کنید:",
+                reply_markup=cancel_keyboard()
+            )
+            return
         
         # Add category - start conversation
         elif admin_data.startswith("add_cat_"):
-            return await admin_handlers.start_add_category(update, context)
+            parent_id = int(admin_data[8:]) if admin_data[8:] != "0" else None
+            cat_type = "product"  # Default to product type
+            await state.set_state(AdminActions.add_category)
+            await state.update_data(parent_id=parent_id, cat_type=cat_type)
+            await callback_query.message.edit_text(
+                "لطفاً نام دسته‌بندی جدید را وارد کنید:",
+                reply_markup=cancel_keyboard()
+            )
+            return
         
         # Edit product - start conversation
         elif admin_data.startswith("edit_product_"):
-            return await admin_handlers.start_edit_product(update, context)
+            product_id = int(admin_data[13:])
+            product = db.get_product(product_id)
+            
+            if product:
+                await state.set_state(AdminActions.edit_product)
+                await state.update_data(product_id=product_id, step="name", 
+                                       original_name=product['name'],
+                                       original_price=product['price'],
+                                       original_description=product['description'],
+                                       original_photo_url=product['photo_url'],
+                                       category_id=product['category_id'])
+                
+                await callback_query.message.edit_text(
+                    f"ویرایش محصول/خدمت «{product['name']}»\n\n"
+                    "لطفاً نام جدید را وارد کنید یا برای حفظ نام فعلی /skip را بفرستید:",
+                    reply_markup=cancel_keyboard()
+                )
+                return
+            else:
+                await callback_query.message.edit_text(
+                    "محصول/خدمت مورد نظر یافت نشد.",
+                    reply_markup=None
+                )
+                return
         
         # Add product - start conversation
         elif admin_data.startswith("add_product_"):
-            return await admin_handlers.start_add_product(update, context)
+            category_id = int(admin_data[12:])
+            category = db.get_category(category_id)
+            
+            if category:
+                product_type = category['type']  # 'product' or 'service'
+                await state.set_state(AdminActions.add_product)
+                await state.update_data(category_id=category_id, step="name", product_type=product_type)
+                
+                await callback_query.message.edit_text(
+                    f"افزودن {product_type} جدید به دسته‌بندی «{category['name']}»\n\n"
+                    "لطفاً نام را وارد کنید:",
+                    reply_markup=cancel_keyboard()
+                )
+                return
+            else:
+                await callback_query.message.edit_text(
+                    "دسته‌بندی مورد نظر یافت نشد.",
+                    reply_markup=None
+                )
+                return
         
         # Delete category - confirm
         elif admin_data.startswith("delete_cat_"):
@@ -756,12 +813,12 @@ class admin_handlers:
             category = db.get_category(category_id)
             
             if category:
-                await query.edit_message_text(
+                await callback_query.message.edit_text(
                     f"آیا از حذف دسته‌بندی «{category['name']}» و تمام زیرگروه‌ها و محصولات آن اطمینان دارید؟",
                     reply_markup=confirm_keyboard("delete_cat", category_id)
                 )
             else:
-                await query.edit_message_text(
+                await callback_query.message.edit_text(
                     "دسته‌بندی مورد نظر یافت نشد.",
                     reply_markup=None
                 )
@@ -772,12 +829,12 @@ class admin_handlers:
             product = db.get_product(product_id)
             
             if product:
-                await query.edit_message_text(
+                await callback_query.message.edit_text(
                     f"آیا از حذف محصول/خدمت «{product['name']}» اطمینان دارید؟",
                     reply_markup=confirm_keyboard("delete_product", product_id)
                 )
             else:
-                await query.edit_message_text(
+                await callback_query.message.edit_text(
                     "محصول/خدمت مورد نظر یافت نشد.",
                     reply_markup=None
                 )
@@ -921,11 +978,41 @@ class admin_handlers:
         
         # Edit educational content - start conversation
         elif admin_data.startswith("edit_edu_"):
-            return await admin_handlers.start_edit_edu(update, context)
+            content_id = int(admin_data[9:])
+            content = db.get_educational_content(content_id)
+            
+            if content:
+                await state.set_state(AdminActions.edit_edu)
+                await state.update_data(content_id=content_id, step="title", 
+                                       original_title=content['title'],
+                                       original_content=content['content'],
+                                       original_category=content['category'],
+                                       original_type=content['type'])
+                
+                await callback_query.message.edit_text(
+                    f"ویرایش مطلب «{content['title']}»\n\n"
+                    "لطفاً عنوان جدید را وارد کنید یا برای حفظ عنوان فعلی /skip را بفرستید:",
+                    reply_markup=cancel_keyboard()
+                )
+                return
+            else:
+                await callback_query.message.edit_text(
+                    "مطلب مورد نظر یافت نشد.",
+                    reply_markup=None
+                )
+                return
         
         # Add educational content - start conversation
         elif admin_data == "add_edu":
-            return await admin_handlers.start_add_edu(update, context)
+            await state.set_state(AdminActions.add_edu)
+            await state.update_data(step="title")
+            
+            await callback_query.message.edit_text(
+                "افزودن مطلب آموزشی جدید\n\n"
+                "لطفاً عنوان مطلب را وارد کنید:",
+                reply_markup=cancel_keyboard()
+            )
+            return
         
         # Delete educational content - confirm
         elif admin_data.startswith("delete_edu_"):
