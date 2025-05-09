@@ -2,7 +2,7 @@ modules = ["python-3.11", "web", "postgresql-16"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["openssl", "postgresql", "sqlite", "killall"]
+packages = ["killall", "openssl", "postgresql", "sqlite"]
 
 [deployment]
 deploymentTarget = "autoscale"

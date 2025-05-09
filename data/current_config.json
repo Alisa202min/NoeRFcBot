@@ -1,7 +1,7 @@
 {
-    "BOT_TOKEN": "7630601243:AAHCSLe-tZ7UGHBIiWx4u2sSV-FUJ8xnj50",
-    "ADMIN_ID": "7625738591",
-    "DB_TYPE": "sqlite",
+    "BOT_TOKEN": null,
+    "ADMIN_ID": "0",
+    "DB_TYPE": "postgresql",
     "DATA_DIR": "data",
     "DB_PATH": "data/database.db",
     "CSV_PATH": "data/initial_data.csv",

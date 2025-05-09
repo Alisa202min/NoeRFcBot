@@ -107,21 +107,22 @@ class Database:
 
     def add_category(self, name: str, parent_id: Optional[int] = None, cat_type: str = 'product') -> int:
         """Add a new category"""
-        with self.conn:
-            cursor = self.conn.execute(
-                'INSERT INTO categories (name, parent_id, cat_type) VALUES (?, ?, ?)',
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                'INSERT INTO categories (name, parent_id, cat_type) VALUES (%s, %s, %s) RETURNING id',
                 (name, parent_id, cat_type)
             )
-            return cursor.lastrowid
+            category_id = cursor.fetchone()[0]
+            return category_id
 
     def get_category(self, category_id: int) -> Optional[Dict]:
         """Get a category by ID"""
-        cursor = self.conn.execute(
-            'SELECT id, name, parent_id, cat_type FROM categories WHERE id = ?',
-            (category_id,)
-        )
-        row = cursor.fetchone()
-        return dict(row) if row else None
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                'SELECT id, name, parent_id, cat_type FROM categories WHERE id = %s',
+                (category_id,)
+            )
+            return cursor.fetchone()
 
     def get_categories(self, parent_id: Optional[int] = None, cat_type: Optional[str] = None) -> List[Dict]:
         """Get categories based on parent ID and/or type"""
@@ -132,11 +133,11 @@ class Database:
         if parent_id is None:
             conditions.append('parent_id IS NULL')
         else:
-            conditions.append('parent_id = ?')
+            conditions.append('parent_id = %s')
             params.append(parent_id)
 
         if cat_type:
-            conditions.append('cat_type = ?')
+            conditions.append('cat_type = %s')
             params.append(cat_type)
 
         if not conditions:
@@ -146,8 +147,9 @@ class Database:
 
         query += ' ORDER BY name'
 
-        cursor = self.conn.execute(query, params)
-        return [dict(row) for row in cursor.fetchall()]
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(query, params)
+            return cursor.fetchall()
 
     def update_category(self, category_id: int, name: str, parent_id: Optional[int] = None, 
                        cat_type: Optional[str] = None) -> bool:
@@ -161,19 +163,19 @@ class Database:
         if cat_type is None:
             cat_type = category['cat_type']
 
-        with self.conn:
-            self.conn.execute(
-                'UPDATE categories SET name = ?, parent_id = ?, cat_type = ? WHERE id = ?',
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                'UPDATE categories SET name = %s, parent_id = %s, cat_type = %s WHERE id = %s',
                 (name, parent_id, cat_type, category_id)
             )
-        return True
-
+            return cursor.rowcount > 0
+        
     def delete_category(self, category_id: int) -> bool:
         """Delete a category and all its subcategories"""
         try:
-            with self.conn:
-                self.conn.execute('DELETE FROM categories WHERE id = ?', (category_id,))
-            return True
+            with self.conn.cursor() as cursor:
+                cursor.execute('DELETE FROM categories WHERE id = %s', (category_id,))
+                return cursor.rowcount > 0
         except Exception as e:
             logging.error(f"Error deleting category: {e}")
             return False
@@ -181,40 +183,31 @@ class Database:
     def add_product(self, name: str, price: int, description: str, 
                    category_id: int, photo_url: Optional[str] = None) -> int:
         """Add a new product"""
-        with self.conn:
-            cursor = self.conn.execute(
-                'INSERT INTO products (name, price, description, photo_url, category_id) VALUES (?, ?, ?, ?, ?)',
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                'INSERT INTO products (name, price, description, photo_url, category_id) VALUES (%s, %s, %s, %s, %s) RETURNING id',
                 (name, price, description, photo_url, category_id)
             )
-            return cursor.lastrowid
+            product_id = cursor.fetchone()[0]
+            return product_id
 
     def add_service(self, name: str, price: int, description: str, 
                    category_id: int, photo_url: Optional[str] = None) -> int:
-        """Add a new service"""
-        with self.conn:
-            cursor = self.conn.execute(
-                'INSERT INTO services (name, price, description, photo_url, category_id) VALUES (?, ?, ?, ?, ?)',
-                (name, price, description, photo_url, category_id)
-            )
-            return cursor.lastrowid
+        """Add a new service - now all stored in products table with cat_type determining the type"""
+        return self.add_product(name, price, description, category_id, photo_url)
 
     def get_product(self, product_id: int) -> Optional[Dict]:
         """Get a product by ID"""
-        cursor = self.conn.execute(
-            'SELECT id, name, price, description, photo_url, category_id FROM products WHERE id = ?',
-            (product_id,)
-        )
-        row = cursor.fetchone()
-        return dict(row) if row else None
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                'SELECT id, name, price, description, photo_url, category_id FROM products WHERE id = %s',
+                (product_id,)
+            )
+            return cursor.fetchone()
 
     def get_service(self, service_id: int) -> Optional[Dict]:
-        """Get a service by ID"""
-        cursor = self.conn.execute(
-            'SELECT id, name, price, description, photo_url, category_id FROM services WHERE id = ?',
-            (service_id,)
-        )
-        row = cursor.fetchone()
-        return dict(row) if row else None
+        """Get a service by ID - same as get_product since we use the same table"""
+        return self.get_product(service_id)
 
     def get_products_by_category(self, category_id: int) -> List[Dict]:
         """Get all products/services in a category"""
@@ -222,28 +215,27 @@ class Database:
         if not category:
             return []
 
-        if category['cat_type'] == 'product':
-            cursor = self.conn.execute(
-                'SELECT id, name, price, description, photo_url, category_id FROM products WHERE category_id = ? ORDER BY name',
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                'SELECT id, name, price, description, photo_url, category_id FROM products WHERE category_id = %s ORDER BY name',
                 (category_id,)
             )
-        else:
-            cursor = self.conn.execute(
-                'SELECT id, name, price, description, photo_url, category_id FROM services WHERE category_id = ? ORDER BY name',
-                (category_id,)
-            )
-        return [dict(row) for row in cursor.fetchall()]
+            return cursor.fetchall()
 
     def search_products(self, query: str, cat_type: str = 'product') -> List[Dict]:
         """Search for products/services by name"""
         query = query.lower()
-        table = 'products' if cat_type == 'product' else 'services'
-
-        cursor = self.conn.execute(
-            f'SELECT id, name, price, description, photo_url, category_id FROM {table} WHERE LOWER(name) LIKE ? ORDER BY name',
-            (f'%{query}%',)
-        )
-        return [dict(row) for row in cursor.fetchall()]
+        
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                '''SELECT p.id, p.name, p.price, p.description, p.photo_url, p.category_id 
+                FROM products p
+                JOIN categories c ON p.category_id = c.id
+                WHERE LOWER(p.name) LIKE %s AND c.cat_type = %s
+                ORDER BY p.name''',
+                (f'%{query}%', cat_type)
+            )
+            return cursor.fetchall()
 
     def update_product(self, product_id: int, name: Optional[str] = None, price: Optional[int] = None,
                       description: Optional[str] = None, photo_url: Optional[str] = None,
@@ -259,21 +251,21 @@ class Database:
         new_photo_url = photo_url if photo_url is not None else product['photo_url']
         new_category_id = category_id if category_id is not None else product['category_id']
 
-        with self.conn:
-            self.conn.execute(
+        with self.conn.cursor() as cursor:
+            cursor.execute(
                 '''UPDATE products 
-                   SET name = ?, price = ?, description = ?, photo_url = ?, category_id = ? 
-                   WHERE id = ?''',
+                   SET name = %s, price = %s, description = %s, photo_url = %s, category_id = %s 
+                   WHERE id = %s''',
                 (new_name, new_price, new_description, new_photo_url, new_category_id, product_id)
             )
-        return True
+            return cursor.rowcount > 0
 
     def delete_product(self, product_id: int) -> bool:
         """Delete a product"""
         try:
-            with self.conn:
-                self.conn.execute('DELETE FROM products WHERE id = ?', (product_id,))
-            return True
+            with self.conn.cursor() as cursor:
+                cursor.execute('DELETE FROM products WHERE id = %s', (product_id,))
+                return cursor.rowcount > 0
         except Exception as e:
             logging.error(f"Error deleting product: {e}")
             return False
@@ -281,65 +273,64 @@ class Database:
     def add_inquiry(self, user_id: int, name: str, phone: str, 
                    description: str, product_id: Optional[int] = None) -> int:
         """Add a new price inquiry"""
-        date = datetime.now().isoformat()
-        with self.conn:
-            cursor = self.conn.execute(
-                'INSERT INTO inquiries (user_id, name, phone, description, product_id, date) VALUES (?, ?, ?, ?, ?, ?)',
-                (user_id, name, phone, description, product_id, date)
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                'INSERT INTO inquiries (user_id, name, phone, description, product_id, date) VALUES (%s, %s, %s, %s, %s, NOW()) RETURNING id',
+                (user_id, name, phone, description, product_id)
             )
-            return cursor.lastrowid
+            inquiry_id = cursor.fetchone()[0]
+            return inquiry_id
 
     def get_inquiries(self, start_date: Optional[str] = None, end_date: Optional[str] = None,
                      product_id: Optional[int] = None) -> List[Dict]:
         """Get inquiries with optional filtering"""
         query = '''SELECT i.id, i.user_id, i.name, i.phone, i.description, 
                           i.product_id, i.date,
-                          COALESCE(p.name, s.name) as product_name
+                          p.name as product_name
                    FROM inquiries i 
                    LEFT JOIN products p ON i.product_id = p.id
-                   LEFT JOIN services s ON i.product_id = s.id
                    WHERE 1=1 '''
         params = []
 
         if start_date:
-            query += 'AND i.date >= ? '
+            query += 'AND i.date >= %s '
             params.append(start_date)
 
         if end_date:
-            query += 'AND i.date <= ? '
+            query += 'AND i.date <= %s '
             params.append(end_date)
 
         if product_id:
-            query += 'AND i.product_id = ? '
+            query += 'AND i.product_id = %s '
             params.append(product_id)
 
         query += 'ORDER BY i.date DESC'
 
-        cursor = self.conn.execute(query, params)
-        return [dict(row) for row in cursor.fetchall()]
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(query, params)
+            return cursor.fetchall()
 
     def get_inquiry(self, inquiry_id: int) -> Optional[Dict]:
         """Get an inquiry by ID"""
         query = '''SELECT i.id, i.user_id, i.name, i.phone, i.description, 
                           i.product_id, i.date, 
-                          COALESCE(p.name, s.name) as product_name
+                          p.name as product_name
                    FROM inquiries i 
                    LEFT JOIN products p ON i.product_id = p.id 
-                   LEFT JOIN services s ON i.product_id = s.id
-                   WHERE i.id = ?'''
+                   WHERE i.id = %s'''
 
-        cursor = self.conn.execute(query, (inquiry_id,))
-        row = cursor.fetchone()
-        return dict(row) if row else None
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(query, (inquiry_id,))
+            return cursor.fetchone()
 
     def get_educational_content(self, content_id: int) -> Optional[Dict]:
         """Get educational content by ID"""
-        cursor = self.conn.execute(
-            'SELECT id, title, content, category, type FROM educational_content WHERE id = ?',
-            (content_id,)
-        )
-        row = cursor.fetchone()
-        return dict(row) if row else None
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                'SELECT id, title, content, category, type FROM educational_content WHERE id = %s',
+                (content_id,)
+            )
+            return cursor.fetchone()
 
     def get_all_educational_content(self, category: Optional[str] = None) -> List[Dict]:
         """Get all educational content with optional category filter"""
@@ -347,20 +338,33 @@ class Database:
         params = []
 
         if category:
-            query += ' WHERE category = ?'
+            query += ' WHERE category = %s'
             params.append(category)
 
         query += ' ORDER BY category, title'
 
-        cursor = self.conn.execute(query, params)
-        return [dict(row) for row in cursor.fetchall()]
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(query, params)
+            return cursor.fetchall()
 
     def get_educational_categories(self) -> List[str]:
         """Get all unique educational content categories"""
-        cursor = self.conn.execute(
-            'SELECT DISTINCT category FROM educational_content ORDER BY category'
-        )
-        return [row[0] for row in cursor.fetchall()]
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                'SELECT DISTINCT category FROM educational_content ORDER BY category'
+            )
+            rows = cursor.fetchall()
+            return [row[0] for row in rows]
+
+    def add_educational_content(self, title: str, content: str, category: str, content_type: str) -> int:
+        """Add new educational content"""
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                'INSERT INTO educational_content (title, content, category, type) VALUES (%s, %s, %s, %s) RETURNING id',
+                (title, content, category, content_type)
+            )
+            content_id = cursor.fetchone()[0]
+            return content_id
 
     def update_educational_content(self, content_id: int, title: Optional[str] = None, 
                                  content: Optional[str] = None, category: Optional[str] = None, 
@@ -375,45 +379,56 @@ class Database:
         new_category = category if category is not None else edu_content['category']
         new_type = content_type if content_type is not None else edu_content['type']
 
-        with self.conn:
-            self.conn.execute(
+        with self.conn.cursor() as cursor:
+            cursor.execute(
                 '''UPDATE educational_content 
-                   SET title = ?, content = ?, category = ?, type = ? 
-                   WHERE id = ?''',
+                   SET title = %s, content = %s, category = %s, type = %s 
+                   WHERE id = %s''',
                 (new_title, new_content, new_category, new_type, content_id)
             )
-        return True
+            return cursor.rowcount > 0
 
     def delete_educational_content(self, content_id: int) -> bool:
         """Delete educational content"""
         try:
-            with self.conn:
-                self.conn.execute('DELETE FROM educational_content WHERE id = ?', (content_id,))
-            return True
+            with self.conn.cursor() as cursor:
+                cursor.execute('DELETE FROM educational_content WHERE id = %s', (content_id,))
+                return cursor.rowcount > 0
         except Exception as e:
             logging.error(f"Error deleting educational content: {e}")
             return False
 
+    def delete_inquiry(self, inquiry_id: int) -> bool:
+        """Delete an inquiry"""
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute('DELETE FROM inquiries WHERE id = %s', (inquiry_id,))
+                return cursor.rowcount > 0
+        except Exception as e:
+            logging.error(f"Error deleting inquiry: {e}")
+            return False
+
     def get_static_content(self, content_type: str) -> str:
         """Get static content (contact/about)"""
-        cursor = self.conn.execute(
-            'SELECT content FROM static_content WHERE type = ?',
-            (content_type,)
-        )
-        row = cursor.fetchone()
-        return row[0] if row else (CONTACT_DEFAULT if content_type == 'contact' else ABOUT_DEFAULT)
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                'SELECT content FROM static_content WHERE type = %s',
+                (content_type,)
+            )
+            row = cursor.fetchone()
+            return row[0] if row else (CONTACT_DEFAULT if content_type == 'contact' else ABOUT_DEFAULT)
 
     def update_static_content(self, content_type: str, content: str) -> bool:
         """Update static content (contact/about)"""
         if content_type not in ['contact', 'about']:
             return False
 
-        with self.conn:
-            self.conn.execute(
-                'UPDATE static_content SET content = ? WHERE type = ?',
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                'UPDATE static_content SET content = %s WHERE type = %s',
                 (content, content_type)
             )
-        return True
+            return cursor.rowcount > 0
 
     def export_to_csv(self, entity_type: str, filepath: str) -> bool:
         """Export data to CSV"""
