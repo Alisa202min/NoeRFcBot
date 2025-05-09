@@ -64,12 +64,12 @@ def categories_keyboard(categories: List[Dict], parent_id: Optional[int] = None,
     if add_back:
         if parent_id is None:
             # Back to main menu
-            keyboard.append([InlineKeyboardButton(BACK_BTN, callback_data=f"{BACK_PREFIX}main")])
+            keyboard.append([InlineKeyboardButton(text=BACK_BTN, callback_data=f"{BACK_PREFIX}main")])
         else:
             # Back to parent category
-            keyboard.append([InlineKeyboardButton(BACK_BTN, callback_data=f"{BACK_PREFIX}{parent_id}")])
+            keyboard.append([InlineKeyboardButton(text=BACK_BTN, callback_data=f"{BACK_PREFIX}{parent_id}")])
     
-    return InlineKeyboardMarkup(keyboard)
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def products_keyboard(products: List[Dict], category_id: Optional[int] = None) -> InlineKeyboardMarkup:
     """
@@ -87,15 +87,15 @@ def products_keyboard(products: List[Dict], category_id: Optional[int] = None) -
     # Add product buttons
     for product in products:
         callback_data = f"{PRODUCT_PREFIX}{product['id']}"
-        keyboard.append([InlineKeyboardButton(product['name'], callback_data=callback_data)])
+        keyboard.append([InlineKeyboardButton(text=product['name'], callback_data=callback_data)])
     
     # Add back button
     if category_id is not None:
-        keyboard.append([InlineKeyboardButton(BACK_BTN, callback_data=f"{BACK_PREFIX}{category_id}")])
+        keyboard.append([InlineKeyboardButton(text=BACK_BTN, callback_data=f"{BACK_PREFIX}{category_id}")])
     else:
-        keyboard.append([InlineKeyboardButton(BACK_BTN, callback_data=f"{BACK_PREFIX}main")])
+        keyboard.append([InlineKeyboardButton(text=BACK_BTN, callback_data=f"{BACK_PREFIX}main")])
     
-    return InlineKeyboardMarkup(keyboard)
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def product_detail_keyboard(product_id: int, category_id: int) -> InlineKeyboardMarkup:
     """
@@ -109,10 +109,10 @@ def product_detail_keyboard(product_id: int, category_id: int) -> InlineKeyboard
         InlineKeyboardMarkup for product detail
     """
     keyboard = [
-        [InlineKeyboardButton("استعلام قیمت 📝", callback_data=f"{INQUIRY_PREFIX}{product_id}")],
-        [InlineKeyboardButton(BACK_BTN, callback_data=f"{BACK_PREFIX}{category_id}")]
+        [InlineKeyboardButton(text="استعلام قیمت 📝", callback_data=f"{INQUIRY_PREFIX}{product_id}")],
+        [InlineKeyboardButton(text=BACK_BTN, callback_data=f"{BACK_PREFIX}{category_id}")]
     ]
-    return InlineKeyboardMarkup(keyboard)
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def education_categories_keyboard(categories: List[str]) -> InlineKeyboardMarkup:
     """
@@ -129,12 +129,12 @@ def education_categories_keyboard(categories: List[str]) -> InlineKeyboardMarkup
     # Add category buttons
     for category in categories:
         callback_data = f"{EDUCATION_PREFIX}cat_{category}"
-        keyboard.append([InlineKeyboardButton(category, callback_data=callback_data)])
+        keyboard.append([InlineKeyboardButton(text=category, callback_data=callback_data)])
     
     # Add back button
-    keyboard.append([InlineKeyboardButton(BACK_BTN, callback_data=f"{BACK_PREFIX}main")])
+    keyboard.append([InlineKeyboardButton(text=BACK_BTN, callback_data=f"{BACK_PREFIX}main")])
     
-    return InlineKeyboardMarkup(keyboard)
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def education_content_keyboard(contents: List[Dict], category: str) -> InlineKeyboardMarkup:
     """
@@ -152,12 +152,12 @@ def education_content_keyboard(contents: List[Dict], category: str) -> InlineKey
     # Add content buttons
     for content in contents:
         callback_data = f"{EDUCATION_PREFIX}{content['id']}"
-        keyboard.append([InlineKeyboardButton(content['title'], callback_data=callback_data)])
+        keyboard.append([InlineKeyboardButton(text=content['title'], callback_data=callback_data)])
     
     # Add back button
-    keyboard.append([InlineKeyboardButton(BACK_BTN, callback_data=f"{EDUCATION_PREFIX}categories")])
+    keyboard.append([InlineKeyboardButton(text=BACK_BTN, callback_data=f"{EDUCATION_PREFIX}categories")])
     
-    return InlineKeyboardMarkup(keyboard)
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def education_detail_keyboard(category: str) -> InlineKeyboardMarkup:
     """
@@ -170,9 +170,9 @@ def education_detail_keyboard(category: str) -> InlineKeyboardMarkup:
         InlineKeyboardMarkup for content detail
     """
     keyboard = [
-        [InlineKeyboardButton(BACK_BTN, callback_data=f"{EDUCATION_PREFIX}cat_{category}")]
+        [InlineKeyboardButton(text=BACK_BTN, callback_data=f"{EDUCATION_PREFIX}cat_{category}")]
     ]
-    return InlineKeyboardMarkup(keyboard)
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def admin_categories_keyboard(categories: List[Dict], parent_id: Optional[int] = None, 
                             entity_type: str = 'product') -> InlineKeyboardMarkup:
@@ -192,22 +192,22 @@ def admin_categories_keyboard(categories: List[Dict], parent_id: Optional[int] =
     # Add category buttons
     for category in categories:
         callback_data = f"{ADMIN_PREFIX}cat_{category['id']}"
-        keyboard.append([InlineKeyboardButton(category['name'], callback_data=callback_data)])
+        keyboard.append([InlineKeyboardButton(text=category['name'], callback_data=callback_data)])
     
     # Add action buttons
     keyboard.append([
-        InlineKeyboardButton("➕ افزودن", callback_data=f"{ADMIN_PREFIX}add_cat_{parent_id or 0}_{entity_type}"),
+        InlineKeyboardButton(text="➕ افزودن", callback_data=f"{ADMIN_PREFIX}add_cat_{parent_id or 0}_{entity_type}"),
     ])
     
     # Add back button
     if parent_id is None:
         # Back to admin menu
-        keyboard.append([InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}back_main")])
+        keyboard.append([InlineKeyboardButton(text=BACK_BTN, callback_data=f"{ADMIN_PREFIX}back_main")])
     else:
         # Back to parent category
-        keyboard.append([InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}back_cat_{parent_id}")])
+        keyboard.append([InlineKeyboardButton(text=BACK_BTN, callback_data=f"{ADMIN_PREFIX}back_cat_{parent_id}")])
     
-    return InlineKeyboardMarkup(keyboard)
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def admin_category_detail_keyboard(category_id: int, parent_id: Optional[int] = None) -> InlineKeyboardMarkup:
     """
@@ -222,22 +222,22 @@ def admin_category_detail_keyboard(category_id: int, parent_id: Optional[int] = 
     """
     keyboard = [
         [
-            InlineKeyboardButton("✏️ ویرایش", callback_data=f"{ADMIN_PREFIX}edit_cat_{category_id}"),
-            InlineKeyboardButton("❌ حذف", callback_data=f"{ADMIN_PREFIX}delete_cat_{category_id}")
+            InlineKeyboardButton(text="✏️ ویرایش", callback_data=f"{ADMIN_PREFIX}edit_cat_{category_id}"),
+            InlineKeyboardButton(text="❌ حذف", callback_data=f"{ADMIN_PREFIX}delete_cat_{category_id}")
         ],
         [
-            InlineKeyboardButton("📝 محصولات", callback_data=f"{ADMIN_PREFIX}products_{category_id}"),
-            InlineKeyboardButton("📁 زیرگروه‌ها", callback_data=f"{ADMIN_PREFIX}subcats_{category_id}")
+            InlineKeyboardButton(text="📝 محصولات", callback_data=f"{ADMIN_PREFIX}products_{category_id}"),
+            InlineKeyboardButton(text="📁 زیرگروه‌ها", callback_data=f"{ADMIN_PREFIX}subcats_{category_id}")
         ]
     ]
     
     # Add back button
     if parent_id is None:
-        keyboard.append([InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}categories")])
+        keyboard.append([InlineKeyboardButton(text=BACK_BTN, callback_data=f"{ADMIN_PREFIX}categories")])
     else:
-        keyboard.append([InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}cat_{parent_id}")])
+        keyboard.append([InlineKeyboardButton(text=BACK_BTN, callback_data=f"{ADMIN_PREFIX}cat_{parent_id}")])
     
-    return InlineKeyboardMarkup(keyboard)
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def admin_products_keyboard(products: List[Dict], category_id: int) -> InlineKeyboardMarkup:
     """
