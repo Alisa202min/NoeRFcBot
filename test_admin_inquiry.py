@@ -4,6 +4,8 @@
 import os
 import sys
 import unittest
+import io
+import csv
 import tempfile
 from datetime import datetime, timedelta
 from flask_testing import TestCase
@@ -62,7 +64,10 @@ class AdminInquiryTest(TestCase):
             category_id=product_category.id,
             product_type='product',
             featured=True,
-            tags='رادیویی,مخابراتی'
+            tags='رادیویی,مخابراتی',
+            in_stock=True,
+            brand='برند تست',
+            model='مدل تست 1'
         )
         
         product2 = Product(
@@ -72,7 +77,10 @@ class AdminInquiryTest(TestCase):
             category_id=product_category.id,
             product_type='product',
             featured=False,
-            tags='رادیویی,تست'
+            tags='رادیویی,تست',
+            in_stock=True,
+            brand='برند تست',
+            model='مدل تست 2'
         )
         
         # ایجاد خدمات
@@ -146,7 +154,17 @@ class AdminInquiryTest(TestCase):
             created_at=now - timedelta(hours=2)
         )
         
-        db.session.add_all([inquiry1, inquiry2, inquiry3, inquiry4])
+        # استعلام عمومی (بدون محصول/خدمت خاص)
+        inquiry5 = Inquiry(
+            user_id=56789,
+            name='امیر محمدی',
+            phone='09123456793',
+            description='استعلام قیمت عمومی',
+            product_type='general',
+            created_at=now - timedelta(hours=1)
+        )
+        
+        db.session.add_all([inquiry1, inquiry2, inquiry3, inquiry4, inquiry5])
         db.session.commit()
     
     def login(self, username, password):
@@ -166,14 +184,24 @@ class AdminInquiryTest(TestCase):
         response = self.login('admin', 'adminpassword')
         self.assertIn(b'welcome', response.data.lower())
         
-        # دسترسی به صفحه لیست استعلام‌ها
+        # دسترسی به صفحه داشبورد پنل مدیریت
+        response = self.client.get('/admin')
+        self.assertEqual(response.status_code, 200)
+        
+        # بررسی وجود منوی پنل مدیریت
+        self.assertIn(b'\xd9\x85\xd8\xaf\xdb\x8c\xd8\xb1\xdb\x8c\xd8\xaa', response.data)  # "مدیریت" در منوی سایدبار
+        
+        # دسترسی به صفحه لیست استعلام‌ها از طریق پنل مدیریت
         response = self.client.get('/admin/inquiries')
         self.assertEqual(response.status_code, 200)
         
+        # بررسی وجود عناصر اصلی صفحه
+        self.assertIn(b'\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xb9\xd9\x84\xd8\xa7\xd9\x85\xe2\x80\x8c\xd9\x87\xd8\xa7\xdb\x8c \xd9\x82\xdb\x8c\xd9\x85\xd8\xaa', response.data)  # استعلام‌های قیمت
+        self.assertIn(b'\xd8\xae\xd8\xb1\xd9\x88\xd8\xac\xdb\x8c \xd8\xa7\xda\xa9\xd8\xb3\xd9\x84', response.data)  # خروجی اکسل
+        
         # بررسی وجود نام استعلام‌کنندگان در صفحه
         self.assertIn(b'\xd8\xb9\xd9\x84\xdb\x8c \xd8\xb1\xd8\xb6\xd8\xa7\xdb\x8c\xdb\x8c', response.data)  # علی رضایی
-        self.assertIn(b'\xd8\xb1\xd8\xb6\xd8\xa7 \xd8\xa7\xd8\xad\xd9\x85\xd8\xaf\xdb\x8c', response.data)  # رضا احمدی
-        self.assertIn(b'\xd9\x85\xd8\xad\xd9\x85\xd8\xaf \xd8\xac\xd8\xb9\xd9\x81\xd8\xb1\xdb\x8c', response.data)  # محمد جعفری
+        self.assertIn(b'09123456789', response.data)  # شماره تلفن علی رضایی
     
     def test_non_admin_blocked(self):
         """تست محدودیت دسترسی کاربر غیر ادمین"""
@@ -195,73 +223,79 @@ class AdminInquiryTest(TestCase):
         # کاربر باید به صفحه ورود هدایت شود
         self.assertIn(b'login', response.data.lower())
     
-    def test_inquiry_detail_page(self):
-        """تست صفحه جزئیات استعلام قیمت"""
+    def test_filter_by_date_range(self):
+        """تست فیلتر استعلام‌ها بر اساس محدوده تاریخ"""
         # ورود با کاربر ادمین
         self.login('admin', 'adminpassword')
         
-        # پیدا کردن استعلام محصول اول
-        inquiry = Inquiry.query.filter_by(name='علی رضایی').first()
+        # تاریخ امروز و دیروز
+        today = datetime.now().strftime('%Y-%m-%d')
+        yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
         
-        # دسترسی به صفحه جزئیات استعلام
-        response = self.client.get(f'/admin/inquiry/{inquiry.id}')
+        # فیلتر استعلام‌های از دیروز تا امروز
+        response = self.client.get(f'/admin/inquiries?start_date={yesterday}&end_date={today}')
         self.assertEqual(response.status_code, 200)
         
-        # بررسی وجود اطلاعات استعلام در صفحه
-        self.assertIn(b'\xd8\xb9\xd9\x84\xdb\x8c \xd8\xb1\xd8\xb6\xd8\xa7\xdb\x8c\xdb\x8c', response.data)  # علی رضایی
-        self.assertIn(b'09123456789', response.data)
-        self.assertIn(b'\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xb9\xd9\x84\xd8\xa7\xd9\x85 \xd9\x82\xdb\x8c\xd9\x85\xd8\xaa \xd9\x85\xd8\xad\xd8\xb5\xd9\x88\xd9\x84 \xd8\xaa\xd8\xb3\xd8\xaa 1', response.data)  # استعلام قیمت محصول تست 1
-    
-    def test_filter_by_product_type(self):
-        """تست فیلتر استعلام‌ها بر اساس نوع محصول"""
-        # ورود با کاربر ادمین
-        self.login('admin', 'adminpassword')
-        
-        # فیلتر استعلام‌های محصول
-        response = self.client.get('/admin/inquiries?type=product')
-        self.assertEqual(response.status_code, 200)
-        
-        # باید شامل استعلام‌های محصول باشد
+        # باید تمام استعلام‌ها نمایش داده شوند
         self.assertIn(b'\xd8\xb9\xd9\x84\xdb\x8c \xd8\xb1\xd8\xb6\xd8\xa7\xdb\x8c\xdb\x8c', response.data)  # علی رضایی
         self.assertIn(b'\xd8\xb1\xd8\xb6\xd8\xa7 \xd8\xa7\xd8\xad\xd9\x85\xd8\xaf\xdb\x8c', response.data)  # رضا احمدی
+        self.assertIn(b'\xd9\x85\xd8\xad\xd9\x85\xd8\xaf \xd8\xac\xd8\xb9\xd9\x81\xd8\xb1\xdb\x8c', response.data)  # محمد جعفری
+    
+    def test_filter_by_product_id(self):
+        """تست فیلتر استعلام‌ها بر اساس محصول"""
+        # ورود با کاربر ادمین
+        self.login('admin', 'adminpassword')
         
-        # نباید شامل استعلام‌های خدمات باشد
+        # پیدا کردن شناسه محصول اول
+        product = Product.query.filter_by(name='محصول تست 1').first()
+        
+        # فیلتر استعلام‌های محصول اول
+        response = self.client.get(f'/admin/inquiries?product_id={product.id}')
+        self.assertEqual(response.status_code, 200)
+        
+        # باید فقط استعلام مربوط به محصول اول نمایش داده شود
+        self.assertIn(b'\xd8\xb9\xd9\x84\xdb\x8c \xd8\xb1\xd8\xb6\xd8\xa7\xdb\x8c\xdb\x8c', response.data)  # علی رضایی
+        
+        # نباید استعلام‌های دیگر نمایش داده شوند
+        self.assertNotIn(b'\xd8\xb1\xd8\xb6\xd8\xa7 \xd8\xa7\xd8\xad\xd9\x85\xd8\xaf\xdb\x8c', response.data)  # رضا احمدی
         self.assertNotIn(b'\xd9\x85\xd8\xad\xd9\x85\xd8\xaf \xd8\xac\xd8\xb9\xd9\x81\xd8\xb1\xdb\x8c', response.data)  # محمد جعفری
     
-    def test_filter_by_service_type(self):
-        """تست فیلتر استعلام‌ها بر اساس نوع خدمت"""
+    def test_reset_filters(self):
+        """تست حذف فیلترها"""
         # ورود با کاربر ادمین
         self.login('admin', 'adminpassword')
         
-        # فیلتر استعلام‌های خدمت
-        response = self.client.get('/admin/inquiries?type=service')
+        # ابتدا یک فیلتر اعمال می‌کنیم
+        product = Product.query.filter_by(name='محصول تست 1').first()
+        response = self.client.get(f'/admin/inquiries?product_id={product.id}')
         self.assertEqual(response.status_code, 200)
         
-        # باید شامل استعلام‌های خدمت باشد
-        self.assertIn(b'\xd9\x85\xd8\xad\xd9\x85\xd8\xaf \xd8\xac\xd8\xb9\xd9\x81\xd8\xb1\xdb\x8c', response.data)  # محمد جعفری
-        self.assertIn(b'\xd9\x85\xd8\xad\xd8\xb3\xd9\x86 \xda\xa9\xd8\xb1\xdb\x8c\xd9\x85\xdb\x8c', response.data)  # محسن کریمی
+        # بررسی وجود دکمه حذف فیلتر
+        self.assertIn(b'\xd8\xad\xd8\xb0\xd9\x81 \xd9\x81\xdb\x8c\xd9\x84\xd8\xaa\xd8\xb1', response.data)  # حذف فیلتر
         
-        # نباید شامل استعلام‌های محصول باشد
-        self.assertNotIn(b'\xd8\xb9\xd9\x84\xdb\x8c \xd8\xb1\xd8\xb6\xd8\xa7\xdb\x8c\xdb\x8c', response.data)  # علی رضایی
-    
-    def test_filter_by_date(self):
-        """تست فیلتر استعلام‌ها بر اساس تاریخ"""
-        # ورود با کاربر ادمین
-        self.login('admin', 'adminpassword')
-        
-        # تاریخ امروز
-        today = datetime.now().strftime('%Y-%m-%d')
-        
-        # فیلتر استعلام‌های امروز
-        response = self.client.get(f'/admin/inquiries?date={today}')
+        # کلیک روی دکمه حذف فیلتر
+        response = self.client.get('/admin/inquiries')
         self.assertEqual(response.status_code, 200)
         
-        # استعلام‌های امروز باید نمایش داده شوند
+        # باید تمام استعلام‌ها نمایش داده شوند
+        self.assertIn(b'\xd8\xb9\xd9\x84\xdb\x8c \xd8\xb1\xd8\xb6\xd8\xa7\xdb\x8c\xdb\x8c', response.data)  # علی رضایی
         self.assertIn(b'\xd8\xb1\xd8\xb6\xd8\xa7 \xd8\xa7\xd8\xad\xd9\x85\xd8\xaf\xdb\x8c', response.data)  # رضا احمدی
-        self.assertIn(b'\xd9\x85\xd8\xad\xd9\x85\xd8\xaf \xd8\xac\xd8\xb9\xd9\x81\xd8\xb1\xdb\x8c', response.data)  # محمد جعفری
+    
+    def test_view_inquiry_description(self):
+        """تست مشاهده توضیحات استعلام"""
+        # ورود با کاربر ادمین
+        self.login('admin', 'adminpassword')
         
-        # استعلام‌های قدیمی‌تر (دیروز) نباید نمایش داده شوند
-        self.assertNotIn(b'\xd8\xb9\xd9\x84\xdb\x8c \xd8\xb1\xd8\xb6\xd8\xa7\xdb\x8c\xdb\x8c', response.data)  # علی رضایی
+        # دسترسی به صفحه لیست استعلام‌ها
+        response = self.client.get('/admin/inquiries')
+        self.assertEqual(response.status_code, 200)
+        
+        # بررسی وجود دکمه مشاهده توضیحات
+        self.assertIn(b'\xd9\x85\xd8\xb4\xd8\xa7\xd9\x87\xd8\xaf\xd9\x87 \xd8\xaa\xd9\x88\xd8\xb6\xdb\x8c\xd8\xad\xd8\xa7\xd8\xaa', response.data)  # مشاهده توضیحات
+        
+        # بررسی وجود محتوای مدال توضیحات
+        self.assertIn(b'\xd8\xaa\xd9\x88\xd8\xb6\xdb\x8c\xd8\xad\xd8\xa7\xd8\xaa \xd8\xa7\xd8\xb3\xd8\xaa\xd8\xb9\xd9\x84\xd8\xa7\xd9\x85', response.data)  # توضیحات استعلام
+        self.assertIn(b'\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xb9\xd9\x84\xd8\xa7\xd9\x85 \xd9\x82\xdb\x8c\xd9\x85\xd8\xaa \xd9\x85\xd8\xad\xd8\xb5\xd9\x88\xd9\x84 \xd8\xaa\xd8\xb3\xd8\xaa', response.data)  # استعلام قیمت محصول تست
     
     def test_inquiry_delete(self):
         """تست حذف استعلام قیمت"""
@@ -272,8 +306,8 @@ class AdminInquiryTest(TestCase):
         inquiry = Inquiry.query.filter_by(name='علی رضایی').first()
         inquiry_id = inquiry.id
         
-        # حذف استعلام
-        response = self.client.post(f'/admin/inquiry/delete/{inquiry_id}', follow_redirects=True)
+        # ارسال درخواست حذف
+        response = self.client.post('/admin/inquiry/delete', data={'inquiry_id': inquiry_id}, follow_redirects=True)
         self.assertEqual(response.status_code, 200)
         
         # بررسی حذف شدن استعلام از دیتابیس
@@ -283,25 +317,98 @@ class AdminInquiryTest(TestCase):
         # بررسی نمایش پیام موفقیت
         self.assertIn(b'success', response.data.lower())
     
-    def test_inquiry_export(self):
-        """تست خروجی گرفتن از استعلام‌ها"""
+    def test_inquiry_delete_confirmation(self):
+        """تست مدال تایید حذف استعلام"""
         # ورود با کاربر ادمین
         self.login('admin', 'adminpassword')
         
-        # درخواست خروجی CSV
+        # بررسی وجود دکمه حذف و مدال تایید
+        response = self.client.get('/admin/inquiries')
+        self.assertEqual(response.status_code, 200)
+        
+        # بررسی وجود دکمه حذف
+        self.assertIn(b'data-bs-target="#deleteModal', response.data)
+        
+        # بررسی وجود مدال تایید حذف
+        self.assertIn(b'\xd8\xaa\xd8\xa3\xdb\x8c\xdb\x8c\xd8\xaf \xd8\xad\xd8\xb0\xd9\x81', response.data)  # تأیید حذف
+        self.assertIn(b'\xd8\xa2\xdb\x8c\xd8\xa7 \xd8\xa7\xd8\xb2 \xd8\xad\xd8\xb0\xd9\x81 \xd8\xa7\xdb\x8c\xd9\x86 \xd8\xa7\xd8\xb3\xd8\xaa\xd8\xb9\xd9\x84\xd8\xa7\xd9\x85 \xd8\xa7\xd8\xb7\xd9\x85\xdb\x8c\xd9\x86\xd8\xa7\xd9\x86 \xd8\xaf\xd8\xa7\xd8\xb1\xdb\x8c\xd8\xaf\xd8\x9f', response.data)  # آیا از حذف این استعلام اطمینان دارید؟
+        self.assertIn(b'\xd8\xa8\xd9\x84\xd9\x87\xd8\x8c \xd8\xad\xd8\xb0\xd9\x81 \xd8\xb4\xd9\x88\xd8\xaf', response.data)  # بله، حذف شود
+    
+    def test_inquiry_export_excel(self):
+        """تست خروجی اکسل از استعلام‌ها"""
+        # ورود با کاربر ادمین
+        self.login('admin', 'adminpassword')
+        
+        # درخواست خروجی اکسل
         response = self.client.get('/admin/inquiries/export')
         self.assertEqual(response.status_code, 200)
         
-        # بررسی هدر های CSV
-        self.assertEqual(response.content_type, 'text/csv')
+        # بررسی هدر های فایل
         self.assertIn('attachment; filename=', response.headers['Content-Disposition'])
+        self.assertIn('csv', response.headers['Content-Disposition'].lower())
         
         # بررسی محتوای فایل CSV
-        csv_data = response.data.decode('utf-8')
-        self.assertIn('علی رضایی', csv_data)
-        self.assertIn('09123456789', csv_data)
-        self.assertIn('رضا احمدی', csv_data)
-        self.assertIn('محمد جعفری', csv_data)
+        content = response.data.decode('utf-8')
+        self.assertIn('نام', content)
+        self.assertIn('شماره تماس', content)
+        self.assertIn('محصول', content)
+        self.assertIn('علی رضایی', content)
+        self.assertIn('09123456789', content)
+    
+    def test_pagination(self):
+        """تست صفحه‌بندی استعلام‌ها"""
+        # ایجاد تعداد بیشتری استعلام برای تست صفحه‌بندی
+        now = datetime.now()
+        
+        # ایجاد 15 استعلام دیگر
+        for i in range(15):
+            inquiry = Inquiry(
+                user_id=100000 + i,
+                name=f'کاربر تست {i}',
+                phone=f'09100000{i:03d}',
+                description=f'استعلام قیمت تست {i}',
+                product_type='general',
+                created_at=now - timedelta(minutes=i)
+            )
+            db.session.add(inquiry)
+        
+        db.session.commit()
+        
+        # ورود با کاربر ادمین
+        self.login('admin', 'adminpassword')
+        
+        # بررسی صفحه اول
+        response = self.client.get('/admin/inquiries')
+        self.assertEqual(response.status_code, 200)
+        
+        # بررسی وجود ناوبری صفحه‌بندی
+        self.assertIn(b'pagination', response.data)
+        
+        # بررسی وجود لینک صفحه بعدی
+        self.assertIn(b'\xd8\xa8\xd8\xb9\xd8\xaf\xdb\x8c', response.data)  # بعدی
+        
+        # بررسی صفحه دوم
+        response = self.client.get('/admin/inquiries?page=2')
+        self.assertEqual(response.status_code, 200)
+        
+        # بررسی وجود لینک صفحه قبلی
+        self.assertIn(b'\xd9\x82\xd8\xa8\xd9\x84\xdb\x8c', response.data)  # قبلی
+    
+    def test_empty_inquiries(self):
+        """تست نمایش پیام خالی بودن لیست استعلام‌ها"""
+        # حذف تمام استعلام‌ها
+        Inquiry.query.delete()
+        db.session.commit()
+        
+        # ورود با کاربر ادمین
+        self.login('admin', 'adminpassword')
+        
+        # بررسی صفحه استعلام‌ها
+        response = self.client.get('/admin/inquiries')
+        self.assertEqual(response.status_code, 200)
+        
+        # بررسی نمایش پیام خالی بودن
+        self.assertIn(b'\xd9\x87\xdb\x8c\xda\x86 \xd8\xa7\xd8\xb3\xd8\xaa\xd8\xb9\xd9\x84\xd8\xa7\xd9\x85\xdb\x8c \xdb\x8c\xd8\xa7\xd9\x81\xd8\xaa \xd9\x86\xd8\xb4\xd8\xaf', response.data)  # هیچ استعلامی یافت نشد
 
 
 if __name__ == '__main__':

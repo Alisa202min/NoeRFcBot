@@ -85,11 +85,22 @@ class InquiryTestAutomation:
                     # ایجاد نمونه تست
                     test_instance = telegram_tests.TestTelegramInquiry()
                     
-                    # اجرای تست
-                    await test_case(test_instance)
+                    # ایجاد یک لوپ جدید برای هر تست
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
                     
-                    # ثبت نتیجه موفق
-                    test_logger.log_test_case(test_name, "pass")
+                    try:
+                        # اجرای تست با تایم‌اوت
+                        loop.run_until_complete(asyncio.wait_for(test_case(test_instance), timeout=30))
+                        
+                        # ثبت نتیجه موفق
+                        test_logger.log_test_case(test_name, "pass")
+                    except asyncio.TimeoutError:
+                        # ثبت خطای تایم‌اوت
+                        test_logger.log_test_case(test_name, "error", "تست به دلیل تایم‌اوت متوقف شد (احتمالاً به دلیل انتظار برای پاسخ API تلگرام)")
+                    finally:
+                        # بستن لوپ
+                        loop.close()
                     
                 except AssertionError as e:
                     # ثبت شکست تست
