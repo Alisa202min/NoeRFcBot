@@ -592,6 +592,86 @@ class AdminForm(StatesGroup):
 # Admin handlers
 class admin_handlers:
     @staticmethod
+    async def get_template(message: types.Message, command: Command) -> None:
+        """Generate CSV template for various entity types."""
+        user_id = message.from_user.id
+        
+        # Only admin can generate templates
+        if user_id != ADMIN_ID:
+            await message.reply(ADMIN_ACCESS_DENIED)
+            return
+        
+        # Get entity type from command
+        entity_type = command.args
+        if not entity_type:
+            # Extract from command text if available
+            cmd_parts = message.text.split('_')
+            if len(cmd_parts) > 1:
+                entity_type = cmd_parts[1]
+        
+        if not entity_type:
+            await message.reply("لطفاً نوع داده را مشخص کنید (products, categories, educational)")
+            return
+        
+        # Create a temporary CSV file with headers based on entity type
+        with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as temp_file:
+            temp_path = temp_file.name
+            
+            with open(temp_path, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.writer(csvfile)
+                
+                if entity_type == 'products':
+                    writer.writerow(['name', 'price', 'description', 'category_id', 'photo_url'])
+                    # Add a sample row
+                    writer.writerow(['نام محصول', '1000000', 'توضیحات محصول', '1', ''])
+                
+                elif entity_type == 'categories':
+                    writer.writerow(['id', 'name', 'parent_id', 'cat_type'])
+                    # Add a sample row
+                    writer.writerow(['1', 'نام دسته‌بندی', 'None', 'product'])
+                
+                elif entity_type == 'educational':
+                    writer.writerow(['title', 'content', 'category', 'type'])
+                    # Add a sample row
+                    writer.writerow(['عنوان مطلب', 'محتوای مطلب', 'آموزش', 'text'])
+                
+                else:
+                    os.unlink(temp_path)
+                    await message.reply("نوع داده نامعتبر. لطفاً از products، categories یا educational استفاده کنید.")
+                    return
+        
+        # Send the CSV template
+        with open(temp_path, 'rb') as file:
+            await message.reply_document(
+                document=file,
+                filename=f'template_{entity_type}.csv',
+                caption=f"قالب CSV برای {entity_type}"
+            )
+        
+        # Delete temp file
+        os.unlink(temp_path)
+    
+    @staticmethod
+    async def start_import_data(callback_query: types.CallbackQuery, state: FSMContext) -> None:
+        """Start importing data from CSV."""
+        await callback_query.answer()
+        
+        user_id = callback_query.from_user.id
+        data = callback_query.data
+        entity_type = data[len(ADMIN_PREFIX + "import_"):]
+        
+        # Store entity type in state
+        await state.set_state(AdminActions.upload_csv)
+        await state.update_data(entity_type=entity_type)
+        
+        # Start conversation
+        await callback_query.message.edit_text(
+            f"لطفاً فایل CSV {entity_type} را ارسال کنید:\n\n"
+            f"توجه: می‌توانید با استفاده از دستور /template_{entity_type} یک قالب CSV خالی دریافت کنید.",
+            reply_markup=cancel_keyboard()
+        )
+    
+    @staticmethod
     async def process_import_data(message: types.Message, state: FSMContext, bot: Bot) -> None:
         """Process CSV import."""
         user_id = message.from_user.id
