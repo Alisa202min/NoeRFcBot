@@ -8,10 +8,12 @@ import tempfile
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Union, Tuple
 
-from aiogram import types
+from aiogram import Bot, Dispatcher, types
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.filters import Command, CommandStart, Text
 from aiogram.enums import ParseMode
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from configuration import (
     ADMIN_ID, START_TEXT, PRODUCTS_BTN, SERVICES_BTN, INQUIRY_BTN, EDUCATION_BTN, 
@@ -73,87 +75,88 @@ async def start_handler(message: types.Message, state: FSMContext = None) -> Non
         reply_markup=main_menu_keyboard()
     )
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_message(message: types.Message, state: FSMContext = None) -> None:
     """Handle text messages."""
-    message = update.message.text
-    user_id = update.effective_user.id
+    text = message.text
+    user_id = message.from_user.id
     
     # Handle main menu options
-    if message == PRODUCTS_BTN:
+    if text == PRODUCTS_BTN:
         # Show product categories
         categories = db.get_categories(parent_id=None, cat_type='product')
         if categories:
-            await update.message.reply_text(
+            await message.reply(
                 "لطفاً یک گروه محصول را انتخاب کنید:",
                 reply_markup=categories_keyboard(categories)
             )
         else:
-            await update.message.reply_text(NOT_FOUND_TEXT)
+            await message.reply(NOT_FOUND_TEXT)
             
-    elif message == SERVICES_BTN:
+    elif text == SERVICES_BTN:
         # Show service categories
         categories = db.get_categories(parent_id=None, cat_type='service')
         if categories:
-            await update.message.reply_text(
+            await message.reply(
                 "لطفاً یک گروه خدمات را انتخاب کنید:",
                 reply_markup=categories_keyboard(categories)
             )
         else:
-            await update.message.reply_text(NOT_FOUND_TEXT)
+            await message.reply(NOT_FOUND_TEXT)
             
-    elif message == INQUIRY_BTN:
+    elif text == INQUIRY_BTN:
         # Show direct inquiry form
-        await update.message.reply_text(
+        await message.reply(
             INQUIRY_START,
             reply_markup=cancel_keyboard()
         )
-        return INQUIRY_NAME
+        if state:
+            await state.set_state(InquiryForm.name)
             
-    elif message == EDUCATION_BTN:
+    elif text == EDUCATION_BTN:
         # Show educational content categories
         categories = db.get_educational_categories()
         if categories:
-            await update.message.reply_text(
+            await message.reply(
                 "لطفاً یک دسته‌بندی آموزشی را انتخاب کنید:",
                 reply_markup=education_categories_keyboard(categories)
             )
         else:
-            await update.message.reply_text(
+            await message.reply(
                 "هنوز مطلب آموزشی ثبت نشده است."
             )
             
-    elif message == CONTACT_BTN:
+    elif text == CONTACT_BTN:
         # Show contact info
         contact_text = db.get_static_content('contact')
-        await update.message.reply_text(contact_text)
+        await message.reply(contact_text)
             
-    elif message == ABOUT_BTN:
+    elif text == ABOUT_BTN:
         # Show about info
         about_text = db.get_static_content('about')
-        await update.message.reply_text(about_text)
+        await message.reply(about_text)
             
-    elif message == BACK_BTN:
+    elif text == BACK_BTN:
         # Return to main menu
-        await start_handler(update, context)
+        await start_handler(message, state)
             
-    elif message == ADMIN_BTN:
+    elif text == ADMIN_BTN:
         # Access admin panel
-        await admin_handlers.start_admin(update, context)
+        await admin_handlers.start_admin(message, state)
         
     else:
         # Unknown message
-        await update.message.reply_text(
+        await message.reply(
             "لطفاً یکی از گزینه‌های منو را انتخاب کنید.",
             reply_markup=main_menu_keyboard()
         )
 
-async def handle_button_press(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_callback_query(callback_query: types.CallbackQuery, bot: "Bot", state: FSMContext = None) -> None:
     """Handle inline button presses."""
-    query = update.callback_query
-    await query.answer()
+    # Answer the callback query to remove the "loading" state on button
+    await callback_query.answer()
     
-    data = query.data
-    user_id = update.effective_user.id
+    data = callback_query.data
+    user_id = callback_query.from_user.id
     
     try:
         # Handle category navigation
@@ -167,7 +170,7 @@ async def handle_button_press(update: Update, context: ContextTypes.DEFAULT_TYPE
                 
                 if subcategories:
                     # Show subcategories
-                    await query.edit_message_text(
+                    await callback_query.message.edit_text(
                         f"زیرگروه‌های {category['name']}:",
                         reply_markup=categories_keyboard(subcategories, category_id)
                     )
@@ -176,12 +179,12 @@ async def handle_button_press(update: Update, context: ContextTypes.DEFAULT_TYPE
                     products = db.get_products_by_category(category_id)
                     
                     if products:
-                        await query.edit_message_text(
+                        await callback_query.message.edit_text(
                             f"محصولات/خدمات {category['name']}:",
                             reply_markup=products_keyboard(products, category_id)
                         )
                     else:
-                        await query.edit_message_text(
+                        await callback_query.message.edit_text(
                             "هیچ محصول/خدماتی در این گروه یافت نشد.",
                             reply_markup=categories_keyboard([], category_id)
                         )
@@ -201,7 +204,7 @@ async def handle_button_press(update: Update, context: ContextTypes.DEFAULT_TYPE
                 # Check if product has photo
                 if product['photo_url']:
                     # Send photo with caption
-                    await context.bot.send_photo(
+                    await bot.send_photo(
                         chat_id=user_id,
                         photo=product['photo_url'],
                         caption=product_text,
@@ -209,10 +212,10 @@ async def handle_button_press(update: Update, context: ContextTypes.DEFAULT_TYPE
                         reply_markup=product_detail_keyboard(product_id, category_id)
                     )
                     # Delete the original message
-                    await query.delete_message()
+                    await callback_query.message.delete()
                 else:
                     # No photo, just update message
-                    await query.edit_message_text(
+                    await callback_query.message.edit_text(
                         product_text,
                         parse_mode=ParseMode.MARKDOWN,
                         reply_markup=product_detail_keyboard(product_id, category_id)
@@ -224,7 +227,7 @@ async def handle_button_press(update: Update, context: ContextTypes.DEFAULT_TYPE
             
             if back_data == "main":
                 # Back to main menu
-                await query.edit_message_text(
+                await callback_query.message.edit_text(
                     "لطفاً یکی از گزینه‌های منو را انتخاب کنید:",
                     reply_markup=None
                 )
@@ -242,7 +245,7 @@ async def handle_button_press(update: Update, context: ContextTypes.DEFAULT_TYPE
                                 cat_type=category['type']
                             )
                             
-                            await query.edit_message_text(
+                            await callback_query.message.edit_text(
                                 f"گروه‌های {category['type'] == 'product' and 'محصولات' or 'خدمات'}:",
                                 reply_markup=categories_keyboard(categories)
                             )
@@ -252,19 +255,19 @@ async def handle_button_press(update: Update, context: ContextTypes.DEFAULT_TYPE
                             parent = db.get_category(parent_id)
                             subcategories = db.get_categories(parent_id=parent_id)
                             
-                            await query.edit_message_text(
+                            await callback_query.message.edit_text(
                                 f"زیرگروه‌های {parent['name']}:",
                                 reply_markup=categories_keyboard(subcategories, parent_id)
                             )
                     else:
                         # Category not found
-                        await query.edit_message_text(
+                        await callback_query.message.edit_text(
                             "خطایی رخ داد. لطفاً دوباره تلاش کنید.",
                             reply_markup=None
                         )
                 except ValueError:
                     # Invalid category ID
-                    await query.edit_message_text(
+                    await callback_query.message.edit_text(
                         "خطایی رخ داد. لطفاً دوباره تلاش کنید.",
                         reply_markup=None
                     )
@@ -278,16 +281,17 @@ async def handle_button_press(update: Update, context: ContextTypes.DEFAULT_TYPE
                 categories = db.get_educational_categories()
                 
                 if categories:
-                    await query.edit_message_text(
+                    await callback_query.message.edit_text(
                         "دسته‌بندی‌های مطالب آموزشی:",
                         reply_markup=education_categories_keyboard(categories)
                     )
                 else:
-                    await query.edit_message_text(
+                    keyboard = types.InlineKeyboardMarkup(inline_keyboard=[
+                        [types.InlineKeyboardButton(text=BACK_BTN, callback_data=f"{BACK_PREFIX}main")]
+                    ])
+                    await callback_query.message.edit_text(
                         "هنوز مطلب آموزشی ثبت نشده است.",
-                        reply_markup=InlineKeyboardMarkup([[
-                            InlineKeyboardButton(BACK_BTN, callback_data=f"{BACK_PREFIX}main")
-                        ]])
+                        reply_markup=keyboard
                     )
             elif edu_data.startswith("cat_"):
                 # Show content in a specific category
@@ -295,12 +299,12 @@ async def handle_button_press(update: Update, context: ContextTypes.DEFAULT_TYPE
                 contents = db.get_all_educational_content(category)
                 
                 if contents:
-                    await query.edit_message_text(
+                    await callback_query.message.edit_text(
                         f"مطالب آموزشی دسته {category}:",
                         reply_markup=education_content_keyboard(contents, category)
                     )
                 else:
-                    await query.edit_message_text(
+                    await callback_query.message.edit_text(
                         f"هیچ مطلبی در دسته {category} یافت نشد.",
                         reply_markup=education_categories_keyboard(db.get_educational_categories())
                     )
@@ -313,20 +317,20 @@ async def handle_button_press(update: Update, context: ContextTypes.DEFAULT_TYPE
                     if content:
                         content_text = format_educational_content(content)
                         
-                        await query.edit_message_text(
+                        await callback_query.message.edit_text(
                             content_text,
                             parse_mode=ParseMode.MARKDOWN,
                             reply_markup=education_detail_keyboard(content['category']),
                             disable_web_page_preview=False
                         )
                     else:
-                        await query.edit_message_text(
+                        await callback_query.message.edit_text(
                             "مطلب مورد نظر یافت نشد.",
                             reply_markup=education_categories_keyboard(db.get_educational_categories())
                         )
                 except ValueError:
                     # Invalid content ID
-                    await query.edit_message_text(
+                    await callback_query.message.edit_text(
                         "خطایی رخ داد. لطفاً دوباره تلاش کنید.",
                         reply_markup=education_categories_keyboard(db.get_educational_categories())
                     )
@@ -335,14 +339,16 @@ async def handle_button_press(update: Update, context: ContextTypes.DEFAULT_TYPE
         elif data.startswith(ADMIN_PREFIX):
             # Check if user is admin
             if user_id != ADMIN_ID:
-                await query.edit_message_text(ADMIN_ACCESS_DENIED)
+                await callback_query.message.edit_text(ADMIN_ACCESS_DENIED)
                 return
             
-            await admin_handlers.handle_admin_action(update, context)
+            # TODO: Update admin handlers to use aiogram
+            # await admin_handlers.handle_admin_action(callback_query, bot, state)
+            await callback_query.message.edit_text("Admin panel is currently being updated to use aiogram.")
     
     except Exception as e:
-        logging.error(f"Error in handle_button_press: {e}")
-        await query.edit_message_text(
+        logging.error(f"Error in handle_callback_query: {e}")
+        await callback_query.message.edit_text(
             ERROR_MESSAGE,
             reply_markup=None
         )

@@ -8,6 +8,7 @@ import asyncio
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command, CommandStart
 from aiogram.enums import ParseMode
+from aiogram.fsm.storage.memory import MemoryStorage
 from dotenv import load_dotenv
 
 # Set up logging
@@ -25,7 +26,7 @@ from database import Database
 from handlers import (
     start_handler, 
     handle_message, 
-    handle_button_press,
+    handle_callback_query,
     handle_inquiry,
     handle_search,
     admin_handlers,
@@ -39,7 +40,9 @@ os.makedirs(DATA_DIR, exist_ok=True)
 
 # Initialize bot and dispatcher globally
 bot = Bot(BOT_TOKEN, parse_mode=ParseMode.HTML)
-dp = Dispatcher()
+# Create a storage for state machine (FSM)
+storage = MemoryStorage()
+dp = Dispatcher(storage=storage)
 
 async def main():
     """Start the bot."""
@@ -104,7 +107,7 @@ async def main():
     dp.callback_query.register(admin_handlers.cancel_admin_action, lambda c: c.data.startswith("cancel"))
     
     # General callback query handler for button presses
-    dp.callback_query.register(handle_button_press)
+    dp.callback_query.register(handle_callback_query, lambda c: True)
     
     # Message handler for text messages (must be registered last)
     dp.message.register(handle_message, lambda m: not m.text.startswith('/'))
