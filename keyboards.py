@@ -58,7 +58,7 @@ def categories_keyboard(categories: List[Dict], parent_id: Optional[int] = None,
     for category in categories:
         prefix = PRODUCT_PREFIX if category['type'] == 'product' else SERVICE_PREFIX
         callback_data = f"{CATEGORY_PREFIX}{category['id']}"
-        keyboard.append([InlineKeyboardButton(category['name'], callback_data=callback_data)])
+        keyboard.append([InlineKeyboardButton(text=category['name'], callback_data=callback_data)])
     
     # Add back button if needed
     if add_back:

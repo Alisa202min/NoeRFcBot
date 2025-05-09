@@ -71,16 +71,10 @@ ADMIN_EDIT_CAT, ADMIN_EDIT_PRODUCT, ADMIN_EDIT_EDU, ADMIN_EDIT_STATIC, ADMIN_UPL
 # User state dictionary to store temporary data
 user_states = {}
 
-async def start_handler(message: types.Message, state: FSMContext = None) -> None:
+async def start_handler(message: types.Message, state: FSMContext) -> None:
     """Handle the /start command."""
     # Clear any user state if exists
-    if state:
-        await state.clear()
-    
-    # Get user ID
-    user_id = message.from_user.id
-    if user_id in user_states:
-        del user_states[user_id]
+    await state.clear()
     
     # Send welcome message with main menu
     await message.reply(
@@ -88,7 +82,7 @@ async def start_handler(message: types.Message, state: FSMContext = None) -> Non
         reply_markup=main_menu_keyboard()
     )
 
-async def handle_message(message: types.Message, state: FSMContext = None) -> None:
+async def handle_message(message: types.Message, state: FSMContext) -> None:
     """Handle text messages."""
     text = message.text
     user_id = message.from_user.id
@@ -122,8 +116,7 @@ async def handle_message(message: types.Message, state: FSMContext = None) -> No
             INQUIRY_START,
             reply_markup=cancel_keyboard()
         )
-        if state:
-            await state.set_state(InquiryForm.name)
+        await state.set_state(InquiryForm.name)
             
     elif text == EDUCATION_BTN:
         # Show educational content categories
@@ -163,7 +156,7 @@ async def handle_message(message: types.Message, state: FSMContext = None) -> No
             reply_markup=main_menu_keyboard()
         )
 
-async def handle_callback_query(callback_query: types.CallbackQuery, bot: "Bot", state: FSMContext = None) -> None:
+async def handle_callback_query(callback_query: types.CallbackQuery, bot: "Bot", state: FSMContext) -> None:
     """Handle inline button presses."""
     # Answer the callback query to remove the "loading" state on button
     await callback_query.answer()
