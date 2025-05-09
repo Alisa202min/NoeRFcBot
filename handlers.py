@@ -474,19 +474,31 @@ async def callback_inquiry(callback: CallbackQuery, state: FSMContext):
     """Handle inquiry initiation"""
     await callback.answer()
     
-    # Extract item type and ID
-    _, item_type, item_id = callback.data.split(':', 2)
-    item_id = int(item_id)
-    
-    # Save inquiry details in state
-    if item_type == 'product':
-        await state.update_data(product_id=item_id, service_id=None)
-        product = db.get_product(item_id)
-        await callback.message.answer(f"شما در حال استعلام قیمت برای محصول «{product['name']}» هستید.")
-    else:  # service
-        await state.update_data(service_id=item_id, product_id=None)
-        service = db.get_service(item_id)
-        await callback.message.answer(f"شما در حال استعلام قیمت برای خدمت «{service['name']}» هستید.")
+    try:
+        # Extract item type and ID
+        _, item_type, item_id = callback.data.split(':', 2)
+        item_id = int(item_id)
+        
+        # Save inquiry details in state
+        if item_type == 'product':
+            await state.update_data(product_id=item_id, service_id=None)
+            product = db.get_product(item_id)
+            if product and 'name' in product:
+                await callback.message.answer(f"شما در حال استعلام قیمت برای محصول «{product['name']}» هستید.")
+            else:
+                await callback.message.answer("شما در حال استعلام قیمت برای یک محصول هستید.")
+                logger.error(f"Product not found or missing name: {item_id}")
+        else:  # service
+            await state.update_data(service_id=item_id, product_id=None)
+            service = db.get_service(item_id)
+            if service and 'name' in service:
+                await callback.message.answer(f"شما در حال استعلام قیمت برای خدمت «{service['name']}» هستید.")
+            else:
+                await callback.message.answer("شما در حال استعلام قیمت برای یک خدمت هستید.")
+                logger.error(f"Service not found or missing name: {item_id}")
+    except Exception as e:
+        logger.error(f"Error in inquiry callback: {e}")
+        await callback.message.answer("خطایی در شروع فرآیند استعلام قیمت رخ داد. لطفا دوباره تلاش کنید.")
     
     # Ask for name
     await callback.message.answer("لطفاً نام خود را وارد کنید:")
@@ -524,27 +536,39 @@ async def process_inquiry_description(message: Message, state: FSMContext):
     # Save description
     await state.update_data(description=message.text)
     
-    # Get all inquiry data
-    inquiry_data = await state.get_data()
-    
-    # Format confirmation message
-    confirmation = (
-        "📋 لطفاً اطلاعات درخواست خود را تأیید کنید:\n\n"
-        f"👤 نام: {inquiry_data.get('name')}\n"
-        f"📞 شماره تماس: {inquiry_data.get('phone')}\n"
-        f"📝 توضیحات: {inquiry_data.get('description')}\n\n"
-    )
-    
-    # Add product/service info
-    product_id = inquiry_data.get('product_id')
-    service_id = inquiry_data.get('service_id')
-    
-    if product_id:
-        product = db.get_product(product_id)
-        confirmation += f"🛒 محصول: {product['name']}\n"
-    elif service_id:
-        service = db.get_service(service_id)
-        confirmation += f"🛠️ خدمت: {service['name']}\n"
+    try:
+        # Get all inquiry data
+        inquiry_data = await state.get_data()
+        
+        # Format confirmation message
+        confirmation = (
+            "📋 لطفاً اطلاعات درخواست خود را تأیید کنید:\n\n"
+            f"👤 نام: {inquiry_data.get('name', 'نامشخص')}\n"
+            f"📞 شماره تماس: {inquiry_data.get('phone', 'نامشخص')}\n"
+            f"📝 توضیحات: {inquiry_data.get('description', 'بدون توضیحات')}\n\n"
+        )
+        
+        # Add product/service info
+        product_id = inquiry_data.get('product_id')
+        service_id = inquiry_data.get('service_id')
+        
+        if product_id:
+            product = db.get_product(product_id)
+            if product and 'name' in product:
+                confirmation += f"🛒 محصول: {product['name']}\n"
+            else:
+                confirmation += "🛒 محصول: نامشخص\n"
+                logger.error(f"Product not found or missing name in confirmation: {product_id}")
+        elif service_id:
+            service = db.get_service(service_id)
+            if service and 'name' in service:
+                confirmation += f"🛠️ خدمت: {service['name']}\n"
+            else:
+                confirmation += "🛠️ خدمت: نامشخص\n"
+                logger.error(f"Service not found or missing name in confirmation: {service_id}")
+    except Exception as e:
+        logger.error(f"Error formatting inquiry confirmation: {e}")
+        confirmation = "📋 لطفاً اطلاعات درخواست خود را تأیید کنید (بدون جزئیات به دلیل خطای فنی)"
     
     # Add confirmation keyboard
     kb = InlineKeyboardBuilder()
@@ -566,13 +590,18 @@ async def callback_confirm_inquiry(callback: CallbackQuery, state: FSMContext):
     try:
         # Add inquiry to database
         user_id = callback.from_user.id
-        name = inquiry_data.get('name')
-        phone = inquiry_data.get('phone')
-        description = inquiry_data.get('description')
+        name = inquiry_data.get('name', 'نامشخص')
+        phone = inquiry_data.get('phone', 'نامشخص')
+        description = inquiry_data.get('description', 'بدون توضیحات')
         product_id = inquiry_data.get('product_id')
         service_id = inquiry_data.get('service_id')
         
-        db.add_inquiry(user_id, name, phone, description, product_id, service_id)
+        # Safely add the inquiry
+        try:
+            db.add_inquiry(user_id, name, phone, description, product_id, service_id)
+        except Exception as e:
+            logger.error(f"Database error adding inquiry: {e}")
+            raise
         
         # Send success message to user
         await callback.message.answer(
@@ -591,12 +620,22 @@ async def callback_confirm_inquiry(callback: CallbackQuery, state: FSMContext):
             )
             
             # Add product/service info
-            if product_id:
-                product = db.get_product(product_id)
-                notification += f"🛒 محصول: {product['name']}\n"
-            elif service_id:
-                service = db.get_service(service_id)
-                notification += f"🛠️ خدمت: {service['name']}\n"
+            try:
+                if product_id:
+                    product = db.get_product(product_id)
+                    if product and 'name' in product:
+                        notification += f"🛒 محصول: {product['name']}\n"
+                    else:
+                        notification += f"🛒 محصول: (ID: {product_id})\n"
+                elif service_id:
+                    service = db.get_service(service_id)
+                    if service and 'name' in service:
+                        notification += f"🛠️ خدمت: {service['name']}\n"
+                    else:
+                        notification += f"🛠️ خدمت: (ID: {service_id})\n"
+            except Exception as e:
+                logger.error(f"Error getting product/service details for admin notification: {e}")
+                notification += "مشکل در نمایش اطلاعات محصول/خدمت\n"
             
             notification += f"\n📅 تاریخ: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
             
