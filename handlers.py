@@ -625,12 +625,12 @@ class admin_handlers:
             categories = db.get_categories(parent_id=None, cat_type='product')
             
             if categories:
-                await query.edit_message_text(
+                await callback_query.message.edit_text(
                     "مدیریت دسته‌بندی‌های محصولات:",
                     reply_markup=admin_keyboards.admin_categories_keyboard(categories, None, 'product')
                 )
             else:
-                await query.edit_message_text(
+                await callback_query.message.edit_text(
                     "هیچ دسته‌بندی محصولی یافت نشد. دسته‌بندی جدید ایجاد کنید.",
                     reply_markup=admin_keyboards.admin_categories_keyboard([], None, 'product')
                 )
@@ -640,12 +640,12 @@ class admin_handlers:
             categories = db.get_categories(parent_id=None, cat_type='service')
             
             if categories:
-                await query.edit_message_text(
+                await callback_query.message.edit_text(
                     "مدیریت دسته‌بندی‌های خدمات:",
                     reply_markup=admin_keyboards.admin_categories_keyboard(categories, None, 'service')
                 )
             else:
-                await query.edit_message_text(
+                await callback_query.message.edit_text(
                     "هیچ دسته‌بندی خدماتی یافت نشد. دسته‌بندی جدید ایجاد کنید.",
                     reply_markup=admin_keyboards.admin_categories_keyboard([], None, 'service')
                 )
@@ -658,14 +658,14 @@ class admin_handlers:
             if category:
                 parent_id = category['parent_id']
                 
-                await query.edit_message_text(
+                await callback_query.message.edit_text(
                     f"مدیریت دسته‌بندی: {category['name']}\n"
                     f"نوع: {category['type'] == 'product' and 'محصول' or 'خدمات'}\n"
                     f"مسیر: {get_category_path(db, category_id)}",
                     reply_markup=admin_keyboards.admin_category_detail_keyboard(category_id, parent_id)
                 )
             else:
-                await query.edit_message_text(
+                await callback_query.message.edit_text(
                     "دسته‌بندی مورد نظر یافت نشد.",
                     reply_markup=None
                 )
