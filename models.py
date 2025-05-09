@@ -236,6 +236,7 @@ class Inquiry(db.Model):
     description = db.Column(db.Text, nullable=True)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=True)
     product_type = db.Column(db.String(20), nullable=False, default='product')  # 'product' or 'service'
+    date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)  # Required in database
     status = db.Column(db.String(20), nullable=False, default='new')  # 'new', 'in_progress', 'completed'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
