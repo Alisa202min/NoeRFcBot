@@ -40,9 +40,9 @@ from keyboards import (
     education_detail_keyboard, cancel_keyboard, confirm_keyboard, product_media_keyboard, service_media_keyboard
 )
 from utils import (
-    format_price, format_product_details, format_inquiry_details, format_educational_content,
-    is_valid_phone_number, get_category_path, create_sample_data, import_initial_data,
-    generate_csv_template
+    format_price, format_product_details, format_service_details, format_inquiry_details, 
+    format_educational_content, is_valid_phone_number, get_category_path, 
+    create_sample_data, import_initial_data, generate_csv_template
 )
 
 # Initialize database
