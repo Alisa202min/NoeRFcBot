@@ -4,146 +4,126 @@
 {% block content %}
 <div class="card">
     <div class="card-header">
-        <h4>{% if content %}ویرایش مطلب آموزشی{% else %}افزودن مطلب آموزشی جدید{% endif %}</h4>
+        <h4>{{ 'ویرایش محتوای آموزشی' if content else 'افزودن محتوای آموزشی جدید' }}</h4>
     </div>
     <div class="card-body">
-        <form method="post" action="{% if content %}/admin/education/edit/{{ content.id }}{% else %}/admin/education/add{% endif %}">
+        <form method="post" class="needs-validation" novalidate>
             <div class="mb-3">
-                <label for="title" class="form-label">عنوان</label>
+                <label for="title" class="form-label">عنوان <span class="text-danger">*</span></label>
                 <input type="text" class="form-control" id="title" name="title" value="{{ content.title if content else '' }}" required>
+                <div class="invalid-feedback">
+                    لطفاً عنوان را وارد کنید.
+                </div>
             </div>
             
             <div class="mb-3">
-                <label for="category" class="form-label">دسته‌بندی</label>
-                <div class="input-group">
-                    <select class="form-select" id="category" name="category">
-                        <option value="">انتخاب دسته‌بندی...</option>
-                        {% for cat in categories %}
-                            <option value="{{ cat }}" {{ 'selected' if content and content.category == cat else '' }}>
-                                {{ cat }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                    <input type="text" class="form-control" id="new_category" name="new_category" placeholder="یا دسته‌بندی جدید وارد کنید">
+                <label for="category" class="form-label">دسته‌بندی <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="category" name="category" value="{{ content.category if content else '' }}" 
+                       list="categoryOptions" required>
+                <datalist id="categoryOptions">
+                    <option value="آموزش عمومی">
+                    <option value="آموزش فنی">
+                    <option value="نکات کاربردی">
+                    <option value="مقالات تخصصی">
+                    <option value="ویدئوهای آموزشی">
+                </datalist>
+                <div class="invalid-feedback">
+                    لطفاً دسته‌بندی را وارد کنید.
                 </div>
-                <div class="form-text">می‌توانید یک دسته‌بندی موجود را انتخاب کنید یا یک دسته‌بندی جدید وارد نمایید.</div>
             </div>
             
             <div class="mb-3">
-                <label class="form-label">نوع محتوا</label>
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" name="content_type" id="type_text" value="text" {{ 'checked' if not content or content.type == 'text' else '' }} onchange="toggleContentInput()">
-                    <label class="form-check-label" for="type_text">متن</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" name="content_type" id="type_link" value="link" {{ 'checked' if content and content.type == 'link' else '' }} onchange="toggleContentInput()">
-                    <label class="form-check-label" for="type_link">لینک</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" name="content_type" id="type_file" value="file" {{ 'checked' if content and content.type == 'file' else '' }} onchange="toggleContentInput()">
-                    <label class="form-check-label" for="type_file">فایل (آدرس URL)</label>
+                <label for="content_type" class="form-label">نوع محتوا <span class="text-danger">*</span></label>
+                <select class="form-select" id="content_type" name="content_type" required>
+                    <option value="text" {% if content and content.content_type == 'text' %}selected{% endif %}>متن</option>
+                    <option value="video" {% if content and content.content_type == 'video' %}selected{% endif %}>ویدیو</option>
+                    <option value="image" {% if content and content.content_type == 'image' %}selected{% endif %}>تصویر</option>
+                </select>
+                <div class="invalid-feedback">
+                    لطفاً نوع محتوا را انتخاب کنید.
                 </div>
             </div>
             
-            <div id="content_text_div" class="mb-3 {{ 'd-none' if content and content.type != 'text' else '' }}">
-                <label for="content_text" class="form-label">متن</label>
-                <textarea class="form-control" id="content_text" name="content_text" rows="6">{{ content.content if content and content.type == 'text' else '' }}</textarea>
+            <div class="mb-3">
+                <label for="content_text" class="form-label">محتوا <span class="text-danger">*</span></label>
+                <textarea class="form-control" id="content_text" name="content" rows="12" required>{{ content.content if content else '' }}</textarea>
+                <div class="form-text">
+                    می‌توانید از تگ‌های HTML برای قالب‌بندی محتوا استفاده کنید. مثال:
+                    <code>&lt;h2&gt;عنوان&lt;/h2&gt; &lt;p&gt;متن پاراگراف&lt;/p&gt;</code>
+                </div>
+                <div class="invalid-feedback">
+                    لطفاً محتوا را وارد کنید.
+                </div>
             </div>
             
-            <div id="content_link_div" class="mb-3 {{ 'd-none' if not content or content.type != 'link' else '' }}">
-                <label for="content_link" class="form-label">لینک</label>
-                <input type="url" class="form-control" id="content_link" name="content_link" value="{{ content.content if content and content.type == 'link' else '' }}">
-            </div>
-            
-            <div id="content_file_div" class="mb-3 {{ 'd-none' if not content or content.type != 'file' else '' }}">
-                <label for="content_file" class="form-label">آدرس فایل (URL)</label>
-                <input type="url" class="form-control" id="content_file" name="content_file" value="{{ content.content if content and content.type == 'file' else '' }}">
+            <div class="card mb-4">
+                <div class="card-header">پیش‌نمایش</div>
+                <div class="card-body">
+                    <div id="contentPreview">
+                        {{ content.content|safe if content else '<div class="alert alert-info">محتوایی برای نمایش وجود ندارد.</div>' }}
+                    </div>
+                </div>
             </div>
             
             <div class="d-flex justify-content-between">
-                <a href="/admin/education" class="btn btn-secondary">انصراف</a>
                 <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-save"></i> ذخیره
+                    <i class="bi bi-check-circle"></i> 
+                    {{ 'به‌روزرسانی محتوا' if content else 'افزودن محتوا' }}
                 </button>
+                <a href="{{ url_for('admin_education') }}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-right"></i> بازگشت
+                </a>
             </div>
         </form>
     </div>
 </div>
-
-{% if content %}
-<div class="card mt-3">
-    <div class="card-header">
-        <h5>پیش‌نمایش مطلب آموزشی</h5>
-    </div>
-    <div class="card-body">
-        <h3>{{ content.title }}</h3>
-        <p><strong>دسته‌بندی:</strong> {{ content.category }}</p>
-        <p><strong>نوع:</strong> 
-            {% if content.type == 'text' %}متن
-            {% elif content.type == 'link' %}لینک
-            {% elif content.type == 'file' %}فایل
-            {% endif %}
-        </p>
-        
-        <hr>
-        
-        <div class="mt-3">
-            {% if content.type == 'text' %}
-                <div class="p-3 bg-dark rounded">
-                    <pre class="mb-0 text-light">{{ content.content }}</pre>
-                </div>
-            {% elif content.type == 'link' %}
-                <div class="d-grid gap-2">
-                    <a href="{{ content.content }}" target="_blank" class="btn btn-outline-info">
-                        <i class="bi bi-link-45deg"></i> مشاهده لینک
-                    </a>
-                    <div class="code-box">{{ content.content }}</div>
-                </div>
-            {% elif content.type == 'file' %}
-                <div class="d-grid gap-2">
-                    <a href="{{ content.content }}" target="_blank" class="btn btn-outline-warning">
-                        <i class="bi bi-file-earmark-arrow-down"></i> دانلود فایل
-                    </a>
-                    <div class="code-box">{{ content.content }}</div>
-                </div>
-            {% endif %}
-        </div>
-    </div>
-</div>
-{% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script>
-    function toggleContentInput() {
-        const textType = document.getElementById('type_text').checked;
-        const linkType = document.getElementById('type_link').checked;
-        const fileType = document.getElementById('type_file').checked;
-        
-        document.getElementById('content_text_div').classList.toggle('d-none', !textType);
-        document.getElementById('content_link_div').classList.toggle('d-none', !linkType);
-        document.getElementById('content_file_div').classList.toggle('d-none', !fileType);
-    }
-    
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize on page load
-        toggleContentInput();
-        
-        // Set up change handlers for select
-        const categorySelect = document.getElementById('category');
-        const newCategoryInput = document.getElementById('new_category');
-        
-        categorySelect.addEventListener('change', function() {
-            if (this.value) {
-                newCategoryInput.value = '';
-            }
-        });
-        
-        newCategoryInput.addEventListener('input', function() {
-            if (this.value) {
-                categorySelect.value = '';
-            }
-        });
+document.addEventListener('DOMContentLoaded', function() {
+    // Form validation
+    const form = document.querySelector('.needs-validation');
+    form.addEventListener('submit', function(event) {
+        if (!form.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        form.classList.add('was-validated');
     });
+    
+    // Live preview
+    const contentTextarea = document.getElementById('content_text');
+    const contentPreview = document.getElementById('contentPreview');
+    
+    contentTextarea.addEventListener('input', function() {
+        if (this.value) {
+            contentPreview.innerHTML = this.value;
+        } else {
+            contentPreview.innerHTML = '<div class="alert alert-info">محتوایی برای نمایش وجود ندارد.</div>';
+        }
+    });
+    
+    // Change content editor based on content type
+    const contentTypeSelect = document.getElementById('content_type');
+    
+    contentTypeSelect.addEventListener('change', function() {
+        const contentType = this.value;
+        let placeholder = '';
+        
+        if (contentType === 'text') {
+            placeholder = 'متن محتوا را وارد کنید. می‌توانید از تگ‌های HTML استفاده کنید.';
+        } else if (contentType === 'video') {
+            placeholder = 'لینک ویدیو یا کد امبد ویدیو را وارد کنید. مثال:\n<iframe src="https://www.example.com/embed/VIDEO_ID" frameborder="0" allowfullscreen></iframe>';
+        } else if (contentType === 'image') {
+            placeholder = 'لینک تصویر یا کد HTML تصویر را وارد کنید. مثال:\n<img src="https://www.example.com/image.jpg" alt="توضیحات تصویر" class="img-fluid">';
+        }
+        
+        contentTextarea.placeholder = placeholder;
+    });
+    
+    // Trigger the change event to set the initial placeholder
+    contentTypeSelect.dispatchEvent(new Event('change'));
+});
 </script>
 {% endblock %}

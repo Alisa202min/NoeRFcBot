@@ -1632,8 +1632,42 @@ def admin_export_inquiries():
 @admin_required
 def admin_categories():
     """List and manage all categories"""
+    product_categories = []
+    service_categories = []
+    
+    # Get all categories
     categories = Category.query.all()
-    return render_template('admin_categories.html', categories=categories)
+    
+    # Build a mapping of category IDs to names for easier parent lookups
+    category_names = {category.id: category.name for category in categories}
+    
+    # Process categories
+    for category in categories:
+        # Count products in this category
+        product_count = Product.query.filter_by(category_id=category.id).count()
+        
+        # Get parent name if applicable
+        parent_name = category_names.get(category.parent_id) if category.parent_id else None
+        
+        # Create category data with additional info
+        category_data = {
+            'id': category.id,
+            'name': category.name,
+            'parent_id': category.parent_id,
+            'parent_name': parent_name,
+            'cat_type': category.cat_type,
+            'product_count': product_count
+        }
+        
+        # Add to the appropriate list based on type
+        if category.cat_type == 'product':
+            product_categories.append(category_data)
+        elif category.cat_type == 'service':
+            service_categories.append(category_data)
+    
+    return render_template('admin_categories.html', 
+                          product_categories=product_categories,
+                          service_categories=service_categories)
 
 # Admin Add Category
 @app.route('/admin/categories/add', methods=['GET', 'POST'])

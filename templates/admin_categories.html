@@ -5,7 +5,7 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h4>مدیریت دسته‌بندی‌ها</h4>
-        <a href="/admin/categories/add" class="btn btn-primary">
+        <a href="{{ url_for('admin_add_category') }}" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> افزودن دسته‌بندی جدید
         </a>
     </div>
@@ -19,6 +19,11 @@
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="services-tab" data-bs-toggle="tab" data-bs-target="#services" type="button" role="tab">
                     دسته‌بندی خدمات
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tree-tab" data-bs-toggle="tab" data-bs-target="#tree" type="button" role="tab">
+                    نمایش درختی
                 </button>
             </li>
         </ul>
@@ -46,11 +51,8 @@
                                         <td>{{ category.product_count }}</td>
                                         <td>
                                             <div class="btn-group btn-group-sm">
-                                                <a href="/admin/categories/edit/{{ category.id }}" class="btn btn-primary">
+                                                <a href="{{ url_for('admin_edit_category', category_id=category.id) }}" class="btn btn-primary">
                                                     <i class="bi bi-pencil"></i>
-                                                </a>
-                                                <a href="/admin/categories/subcategories/{{ category.id }}" class="btn btn-info">
-                                                    <i class="bi bi-folder"></i>
                                                 </a>
                                                 <button type="button" class="btn btn-danger" 
                                                         data-bs-toggle="modal" 
@@ -69,7 +71,7 @@
                 {% else %}
                     <div class="alert alert-info">
                         هیچ دسته‌بندی محصولی تعریف نشده است.
-                        <a href="/admin/categories/add" class="alert-link">افزودن دسته‌بندی جدید</a>
+                        <a href="{{ url_for('admin_add_category') }}" class="alert-link">افزودن دسته‌بندی جدید</a>
                     </div>
                 {% endif %}
             </div>
@@ -96,11 +98,8 @@
                                         <td>{{ category.product_count }}</td>
                                         <td>
                                             <div class="btn-group btn-group-sm">
-                                                <a href="/admin/categories/edit/{{ category.id }}" class="btn btn-primary">
+                                                <a href="{{ url_for('admin_edit_category', category_id=category.id) }}" class="btn btn-primary">
                                                     <i class="bi bi-pencil"></i>
-                                                </a>
-                                                <a href="/admin/categories/subcategories/{{ category.id }}" class="btn btn-info">
-                                                    <i class="bi bi-folder"></i>
                                                 </a>
                                                 <button type="button" class="btn btn-danger" 
                                                         data-bs-toggle="modal" 
@@ -119,9 +118,176 @@
                 {% else %}
                     <div class="alert alert-info">
                         هیچ دسته‌بندی خدماتی تعریف نشده است.
-                        <a href="/admin/categories/add" class="alert-link">افزودن دسته‌بندی جدید</a>
+                        <a href="{{ url_for('admin_add_category') }}" class="alert-link">افزودن دسته‌بندی جدید</a>
                     </div>
                 {% endif %}
+            </div>
+            
+            <!-- Tree View Tab -->
+            <div class="tab-pane fade" id="tree" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header bg-primary text-white">
+                                <h5>دسته‌بندی محصولات</h5>
+                            </div>
+                            <div class="card-body">
+                                <ul class="list-group category-tree">
+                                    {% set root_product_categories = [] %}
+                                    {% for category in product_categories if not category.parent_id %}
+                                        {% do root_product_categories.append(category) %}
+                                    {% endfor %}
+                                    
+                                    {% if root_product_categories %}
+                                        {% for category in root_product_categories %}
+                                            <li class="list-group-item">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <span>
+                                                        <i class="bi bi-folder"></i> {{ category.name }}
+                                                    </span>
+                                                    <a href="{{ url_for('admin_edit_category', category_id=category.id) }}" class="btn btn-sm btn-primary">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </a>
+                                                </div>
+                                                
+                                                <!-- Level 2 -->
+                                                {% set level2_categories = [] %}
+                                                {% for child in product_categories if child.parent_id == category.id %}
+                                                    {% do level2_categories.append(child) %}
+                                                {% endfor %}
+                                                
+                                                {% if level2_categories %}
+                                                    <ul class="list-group mt-2">
+                                                        {% for child in level2_categories %}
+                                                            <li class="list-group-item">
+                                                                <div class="d-flex justify-content-between align-items-center">
+                                                                    <span>
+                                                                        <i class="bi bi-arrow-return-right"></i> {{ child.name }}
+                                                                    </span>
+                                                                    <a href="{{ url_for('admin_edit_category', category_id=child.id) }}" class="btn btn-sm btn-primary">
+                                                                        <i class="bi bi-pencil"></i>
+                                                                    </a>
+                                                                </div>
+                                                                
+                                                                <!-- Level 3 -->
+                                                                {% set level3_categories = [] %}
+                                                                {% for grandchild in product_categories if grandchild.parent_id == child.id %}
+                                                                    {% do level3_categories.append(grandchild) %}
+                                                                {% endfor %}
+                                                                
+                                                                {% if level3_categories %}
+                                                                    <ul class="list-group mt-2">
+                                                                        {% for grandchild in level3_categories %}
+                                                                            <li class="list-group-item">
+                                                                                <div class="d-flex justify-content-between align-items-center">
+                                                                                    <span>
+                                                                                        <i class="bi bi-arrow-bar-right"></i> {{ grandchild.name }}
+                                                                                    </span>
+                                                                                    <a href="{{ url_for('admin_edit_category', category_id=grandchild.id) }}" class="btn btn-sm btn-primary">
+                                                                                        <i class="bi bi-pencil"></i>
+                                                                                    </a>
+                                                                                </div>
+                                                                            </li>
+                                                                        {% endfor %}
+                                                                    </ul>
+                                                                {% endif %}
+                                                            </li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                {% endif %}
+                                            </li>
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="alert alert-info">
+                                            هیچ دسته‌بندی محصولی تعریف نشده است.
+                                        </div>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header bg-success text-white">
+                                <h5>دسته‌بندی خدمات</h5>
+                            </div>
+                            <div class="card-body">
+                                <ul class="list-group category-tree">
+                                    {% set root_service_categories = [] %}
+                                    {% for category in service_categories if not category.parent_id %}
+                                        {% do root_service_categories.append(category) %}
+                                    {% endfor %}
+                                    
+                                    {% if root_service_categories %}
+                                        {% for category in root_service_categories %}
+                                            <li class="list-group-item">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <span>
+                                                        <i class="bi bi-folder"></i> {{ category.name }}
+                                                    </span>
+                                                    <a href="{{ url_for('admin_edit_category', category_id=category.id) }}" class="btn btn-sm btn-primary">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </a>
+                                                </div>
+                                                
+                                                <!-- Level 2 -->
+                                                {% set level2_categories = [] %}
+                                                {% for child in service_categories if child.parent_id == category.id %}
+                                                    {% do level2_categories.append(child) %}
+                                                {% endfor %}
+                                                
+                                                {% if level2_categories %}
+                                                    <ul class="list-group mt-2">
+                                                        {% for child in level2_categories %}
+                                                            <li class="list-group-item">
+                                                                <div class="d-flex justify-content-between align-items-center">
+                                                                    <span>
+                                                                        <i class="bi bi-arrow-return-right"></i> {{ child.name }}
+                                                                    </span>
+                                                                    <a href="{{ url_for('admin_edit_category', category_id=child.id) }}" class="btn btn-sm btn-primary">
+                                                                        <i class="bi bi-pencil"></i>
+                                                                    </a>
+                                                                </div>
+                                                                
+                                                                <!-- Level 3 -->
+                                                                {% set level3_categories = [] %}
+                                                                {% for grandchild in service_categories if grandchild.parent_id == child.id %}
+                                                                    {% do level3_categories.append(grandchild) %}
+                                                                {% endfor %}
+                                                                
+                                                                {% if level3_categories %}
+                                                                    <ul class="list-group mt-2">
+                                                                        {% for grandchild in level3_categories %}
+                                                                            <li class="list-group-item">
+                                                                                <div class="d-flex justify-content-between align-items-center">
+                                                                                    <span>
+                                                                                        <i class="bi bi-arrow-bar-right"></i> {{ grandchild.name }}
+                                                                                    </span>
+                                                                                    <a href="{{ url_for('admin_edit_category', category_id=grandchild.id) }}" class="btn btn-sm btn-primary">
+                                                                                        <i class="bi bi-pencil"></i>
+                                                                                    </a>
+                                                                                </div>
+                                                                            </li>
+                                                                        {% endfor %}
+                                                                    </ul>
+                                                                {% endif %}
+                                                            </li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                {% endif %}
+                                            </li>
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="alert alert-info">
+                                            هیچ دسته‌بندی خدماتی تعریف نشده است.
+                                        </div>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -143,8 +309,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
-                <form id="deleteCategoryForm" action="/admin/categories/delete" method="post">
-                    <input type="hidden" name="category_id" id="categoryIdInput">
+                <form id="deleteCategoryForm" method="post">
                     <button type="submit" class="btn btn-danger">حذف</button>
                 </form>
             </div>
