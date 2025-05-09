@@ -48,6 +48,39 @@ def format_product_details(product: Dict, media_files: List[Dict] = None) -> str
             result += "\n\n" + " | ".join(media_info)
     
     return result
+    
+def format_service_details(service: Dict, media_files: List[Dict] = None) -> str:
+    """
+    Format service details for display
+    
+    Args:
+        service: Service dictionary
+        media_files: List of media files (optional)
+        
+    Returns:
+        Formatted service details
+    """
+    name = service['name']
+    price = format_price(service['price']) if service['price'] is not None else "تماس بگیرید"
+    description = service['description'] or "توضیحات موجود نیست"
+    
+    result = f"🔧 *{name}*\n\n💰 قیمت: {price}\n\n📝 توضیحات:\n{description}"
+    
+    # Add media info if available
+    if media_files and len(media_files) > 0:
+        photo_count = sum(1 for m in media_files if m['file_type'] == 'photo')
+        video_count = sum(1 for m in media_files if m['file_type'] == 'video')
+        
+        media_info = []
+        if photo_count > 0:
+            media_info.append(f"🖼 {photo_count} تصویر")
+        if video_count > 0:
+            media_info.append(f"🎬 {video_count} ویدیو")
+            
+        if media_info:
+            result += "\n\n" + " | ".join(media_info)
+    
+    return result
 
 def format_inquiry_details(inquiry: Dict) -> str:
     """

@@ -307,6 +307,40 @@ class Database:
                 (service_id,)
             )
             return cursor.fetchall()
+            
+    def get_service_media_by_id(self, media_id: int) -> Optional[Dict]:
+        """Get a specific service media file by its ID
+        
+        Args:
+            media_id: The ID of the media file
+            
+        Returns:
+            Media record with file_id and file_type or None if not found
+        """
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                'SELECT id, service_id, file_id, file_type, created_at FROM service_media WHERE id = %s',
+                (media_id,)
+            )
+            return cursor.fetchone()
+            
+    def get_service_by_media_id(self, media_id: int) -> Optional[Dict]:
+        """Get the service associated with a media file
+        
+        Args:
+            media_id: The ID of the media file
+            
+        Returns:
+            Service record or None if not found
+        """
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                '''SELECT p.* FROM products p
+                   JOIN service_media sm ON p.id = sm.service_id
+                   WHERE sm.id = %s''',
+                (media_id,)
+            )
+            return cursor.fetchone()
 
     def get_products_by_category(self, category_id: int) -> List[Dict]:
         """Get all products/services in a category"""
@@ -442,6 +476,19 @@ class Database:
                 return cursor.rowcount > 0
         except Exception as e:
             logging.error(f"Error deleting product: {e}")
+            return False
+            
+    def delete_service(self, service_id: int) -> bool:
+        """Delete a service and all associated media"""
+        try:
+            with self.conn.cursor() as cursor:
+                # First delete all media files associated with this service
+                cursor.execute('DELETE FROM service_media WHERE service_id = %s', (service_id,))
+                # Then delete the service itself
+                cursor.execute('DELETE FROM products WHERE id = %s', (service_id,))
+                return cursor.rowcount > 0
+        except Exception as e:
+            logging.error(f"Error deleting service: {e}")
             return False
 
     def add_inquiry(self, user_id: int, name: str, phone: str, 

@@ -129,6 +129,14 @@ async def register_handlers():
         dp.callback_query.register(admin_handlers.delete_media, lambda c: c.data.startswith("admin_delete_media_"))
         dp.callback_query.register(admin_handlers.confirm_delete_media, lambda c: c.data.startswith("confirm_delete_media_"))
         dp.callback_query.register(admin_handlers.view_media, lambda c: c.data.startswith("admin_view_media_"))
+        
+        # Admin service media management handlers
+        dp.callback_query.register(admin_handlers.start_manage_service_media, lambda c: c.data.startswith("admin_manage_service_media_"))
+        dp.callback_query.register(admin_handlers.start_add_service_media, lambda c: c.data.startswith("admin_add_service_media_"))
+        dp.message.register(admin_handlers.process_add_service_media, AdminActions.add_service_media)
+        dp.callback_query.register(admin_handlers.delete_service_media, lambda c: c.data.startswith("admin_delete_service_media_"))
+        dp.callback_query.register(admin_handlers.confirm_delete_service_media, lambda c: c.data.startswith("confirm_delete_service_media_"))
+        dp.callback_query.register(admin_handlers.view_service_media, lambda c: c.data.startswith("admin_view_service_media_"))
 
         # Admin educational content edit handlers
         dp.callback_query.register(admin_handlers.start_edit_edu, lambda c: c.data.startswith("admin_edit_edu_"))
