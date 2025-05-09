@@ -56,15 +56,19 @@ ADMIN_EDIT_CAT, ADMIN_EDIT_PRODUCT, ADMIN_EDIT_EDU, ADMIN_EDIT_STATIC, ADMIN_UPL
 # User state dictionary to store temporary data
 user_states = {}
 
-async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def start_handler(message: types.Message, state: FSMContext = None) -> None:
     """Handle the /start command."""
-    # Clear any user state
-    user_id = update.effective_user.id
+    # Clear any user state if exists
+    if state:
+        await state.clear()
+    
+    # Get user ID
+    user_id = message.from_user.id
     if user_id in user_states:
         del user_states[user_id]
     
     # Send welcome message with main menu
-    await update.message.reply_text(
+    await message.reply(
         START_TEXT,
         reply_markup=main_menu_keyboard()
     )
