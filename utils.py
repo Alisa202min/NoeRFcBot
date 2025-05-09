@@ -100,14 +100,16 @@ def format_inquiry_details(inquiry: Dict) -> str:
     except:
         formatted_date = date_str
     
-    # Get product name if available
-    product_info = f"\n🛍 محصول: {inquiry['product_name']}" if inquiry.get('product_name') else ""
+    # Get product/service name if available
+    is_service = inquiry.get('product_type') == 'service'
+    item_prefix = "🔧 خدمت" if is_service else "🛍 محصول"
+    item_info = f"\n{item_prefix}: {inquiry['product_name']}" if inquiry.get('product_name') else ""
     
     return (
         f"📝 *استعلام قیمت*\n\n"
         f"👤 نام: {inquiry['name']}\n"
         f"📞 شماره تماس: {inquiry['phone']}\n"
-        f"📅 تاریخ: {formatted_date}{product_info}\n\n"
+        f"📅 تاریخ: {formatted_date}{item_info}\n\n"
         f"توضیحات: {inquiry['description'] or 'بدون توضیحات'}"
     )
 
