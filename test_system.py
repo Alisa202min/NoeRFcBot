@@ -80,7 +80,8 @@ class DatabaseTestCase(unittest.TestCase):
         
     def test_database_connection(self):
         """Test database connection"""
-        result = db.session.execute("SELECT 1").fetchone()
+        from sqlalchemy import text
+        result = db.session.execute(text("SELECT 1")).fetchone()
         self.assertEqual(result[0], 1)
 
     def test_user_model(self):
@@ -157,35 +158,44 @@ class DatabaseTestCase(unittest.TestCase):
 
     def test_product_model(self):
         """Test Product model and search functionality"""
-        # Create a test category
-        test_category = Category(name='Test Category', cat_type='product')
+        # Create a test category with a unique name
+        unique_id = str(uuid.uuid4())[:8]
+        test_category_name = f"Test Category {unique_id}"
+        test_product_name = f"Test Oscilloscope {unique_id}"
+        test_service_name = f"Test Service {unique_id}"
+        
+        logging.info(f"Creating test category with unique name: {test_category_name}")
+        test_category = Category(name=test_category_name, cat_type='product')
         db.session.add(test_category)
         db.session.commit()
         
         try:
-            # Create test products
+            # Create test products with unique names
+            logging.info(f"Creating test product: {test_product_name}")
             test_product1 = Product(
-                name='Test Oscilloscope', 
+                name=test_product_name, 
                 price=1000,
                 description='A test oscilloscope',
                 category_id=test_category.id,
                 product_type='product',
                 tags='test,oscilloscope,equipment',
                 brand='Test Brand',
-                model_number='OSC-123',
+                model_number=f'OSC-{unique_id}',
                 manufacturer='Test Manufacturer',
                 in_stock=True,
                 featured=True
             )
+            
+            logging.info(f"Creating test service: {test_service_name}")
             test_product2 = Product(
-                name='Test Service', 
+                name=test_service_name, 
                 price=500,
                 description='A test service',
                 category_id=test_category.id,
                 product_type='service',
                 tags='test,service,repair',
                 provider='Test Provider',
-                service_code='SVC-456',
+                service_code=f'SVC-{unique_id}',
                 duration='2 hours',
                 in_stock=True,
                 featured=False
@@ -200,17 +210,17 @@ class DatabaseTestCase(unittest.TestCase):
             
             # Test product search by keyword
             with captured_output() as (out, err):
-                search_results = search_products('oscilloscope')
-                self.assertTrue(any('Test Oscilloscope' in str(p) for p in search_results))
+                search_results = search_products(test_product_name.split()[0])  # Search by first word
+                self.assertTrue(any(test_product_name in str(p) for p in search_results))
                 
             # Test product search by various filters
             advanced_search = Product.search(
-                query='test',
+                query=test_product_name.split()[0],  # Search by first word
                 product_type='product',
                 tags='equipment',
                 brand='Test Brand',
                 manufacturer='Test Manufacturer',
-                model_number='OSC-123',
+                model_number=f'OSC-{unique_id}',
                 in_stock=True,
                 featured=True
             )
@@ -218,10 +228,10 @@ class DatabaseTestCase(unittest.TestCase):
             
             # Test service search
             service_search = Product.search(
-                query='test',
+                query=test_service_name.split()[0],  # Search by first word
                 product_type='service',
                 provider='Test Provider',
-                service_code='SVC-456',
+                service_code=f'SVC-{unique_id}',
                 duration='2 hours'
             )
             self.assertGreaterEqual(service_search.count(), 1)
@@ -233,9 +243,10 @@ class DatabaseTestCase(unittest.TestCase):
             
         finally:
             # Clean up test data
-            Product.query.filter_by(name='Test Oscilloscope').delete()
-            Product.query.filter_by(name='Test Service').delete()
-            Category.query.filter_by(name='Test Category').delete()
+            logging.info(f"Cleaning up test data for {test_product_name}, {test_service_name}, and {test_category_name}")
+            Product.query.filter_by(name=test_product_name).delete()
+            Product.query.filter_by(name=test_service_name).delete()
+            Category.query.filter_by(name=test_category_name).delete()
             db.session.commit()
 
 class WebAppTestCase(unittest.TestCase):
