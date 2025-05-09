@@ -1,213 +1,91 @@
-
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-import logging
 import os
 import asyncio
-from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command, CommandStart
-from aiogram.enums import ParseMode
+import logging
+from aiogram import Bot, Dispatcher
+from aiogram.types import BotCommand
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
-from aiogram.client.default import DefaultBotProperties
 from dotenv import load_dotenv
-from aiohttp import web
 
-# Set up logging
+# Import handlers
+import handlers
+
+# Load environment variables
+load_dotenv()
+
+# Configure logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO,
-    filename='bot.log',
-    filemode='a'
+    filename='bot.log'
 )
 logger = logging.getLogger(__name__)
 
-# Import local modules
-import sys
-from configuration import BOT_TOKEN, ADMIN_ID, DATA_DIR
-from database import Database
-from handlers import (
-    start_handler, 
-    handle_message, 
-    handle_callback_query,
-    handle_inquiry,
-    handle_search,
-    admin_handlers,
-    InquiryForm,
-    SearchForm,
-    AdminActions
-)
+# Initialize bot and dispatcher
+bot_token = os.environ.get('BOT_TOKEN')
+if not bot_token:
+    logger.error("BOT_TOKEN not set in environment variables")
+    exit(1)
 
-# Create data directory if it doesn't exist
-os.makedirs(DATA_DIR, exist_ok=True)
+# Create bot instance
+bot = Bot(token=bot_token)
+storage = MemoryStorage()
+dp = Dispatcher(storage=storage)
 
-# Check if BOT_TOKEN is valid (not None or empty)
-if not BOT_TOKEN:
-    if __name__ == '__main__':
-        logger.error("BOT_TOKEN is not set. Please set it in the .env file or environment variables.")
-        sys.exit(1)
-    # When imported by Flask, we'll create placeholder objects that are properly initialized later
-    bot = None
-    dp = None
-    storage = None
-else:
-    # Initialize bot and dispatcher globally
-    bot = Bot(BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    # Create a storage for state machine (FSM)
-    storage = MemoryStorage()
-    dp = Dispatcher(storage=storage)
+# Register available commands
+async def set_commands():
+    commands = [
+        BotCommand(command="/start", description="شروع مجدد"),
+        BotCommand(command="/products", description="مشاهده محصولات"),
+        BotCommand(command="/services", description="مشاهده خدمات"),
+        BotCommand(command="/contact", description="تماس با ما"),
+        BotCommand(command="/about", description="درباره ما"),
+        BotCommand(command="/help", description="راهنما")
+    ]
+    await bot.set_my_commands(commands)
 
 async def register_handlers():
-    """Register all handlers for the bot."""
-    # Check if bot is available
-    if dp is None:
-        logger.error("Dispatcher is None. Cannot register handlers.")
-        return
-        
-    try:
-        # Initialize database
-        db = Database()
-
-        # Start command
-        dp.message.register(start_handler, CommandStart())
-
-        # Admin command
-        dp.message.register(admin_handlers.start_admin, Command(commands=["admin"]))
-
-        # Template commands for CSV imports
-        dp.message.register(admin_handlers.get_template, Command(commands=["template"]))
-        dp.message.register(admin_handlers.get_template, Command(commands=["template_products"]))
-        dp.message.register(admin_handlers.get_template, Command(commands=["template_categories"]))
-        dp.message.register(admin_handlers.get_template, Command(commands=["template_educational"]))
-
-        # Inquiry conversation handlers with state management
-        dp.callback_query.register(handle_inquiry.start_inquiry, lambda c: c.data.startswith("inquiry_"))
-
-        # Name state handler - add state filter
-        dp.message.register(handle_inquiry.process_name, InquiryForm.name)
-
-        # Phone state handler
-        dp.message.register(handle_inquiry.process_phone, InquiryForm.phone)
-
-        # Description state handler
-        dp.message.register(handle_inquiry.process_description, InquiryForm.description)
-
-        # Cancel handlers
-        dp.message.register(handle_inquiry.cancel_inquiry_message, Command(commands=["cancel"]))
-        dp.callback_query.register(handle_inquiry.cancel_inquiry, lambda c: c.data == "cancel")
-
-        # Search conversation handlers
-        dp.message.register(handle_search.start_search, lambda m: m.text == "جستجو 🔍")
-
-        # Process search query with state filter
-        dp.message.register(handle_search.process_search, SearchForm.query)
-
-        # Cancel search
-        dp.message.register(handle_search.cancel_search, Command(commands=["cancel"]), SearchForm.query)
-
-        # Admin category edit handlers
-        dp.callback_query.register(admin_handlers.start_edit_category, lambda c: c.data.startswith("admin_edit_cat_"))
-        dp.message.register(admin_handlers.process_edit_category, AdminActions.edit_category)
-
-        # Admin add category handlers
-        dp.callback_query.register(admin_handlers.start_add_category, lambda c: c.data.startswith("admin_add_cat_"))
-        dp.message.register(admin_handlers.process_add_category, AdminActions.add_category)
-
-        # Admin product edit handlers
-        dp.callback_query.register(admin_handlers.start_edit_product, lambda c: c.data.startswith("admin_edit_product_"))
-        dp.message.register(admin_handlers.process_edit_product, AdminActions.edit_product)
-
-        # Admin add product handlers
-        dp.callback_query.register(admin_handlers.start_add_product, lambda c: c.data.startswith("admin_add_product_"))
-        dp.message.register(admin_handlers.process_add_product, AdminActions.add_product)
-        
-        # Admin product media management handlers
-        dp.callback_query.register(admin_handlers.start_manage_media, lambda c: c.data.startswith("admin_manage_media_"))
-        dp.callback_query.register(admin_handlers.start_add_media, lambda c: c.data.startswith("admin_add_media_"))
-        dp.message.register(admin_handlers.process_add_media, AdminActions.add_product_media)
-        dp.callback_query.register(admin_handlers.delete_media, lambda c: c.data.startswith("admin_delete_media_"))
-        dp.callback_query.register(admin_handlers.confirm_delete_media, lambda c: c.data.startswith("confirm_delete_media_"))
-        dp.callback_query.register(admin_handlers.view_media, lambda c: c.data.startswith("admin_view_media_"))
-        
-        # Admin service media management handlers
-        dp.callback_query.register(admin_handlers.start_manage_service_media, lambda c: c.data.startswith("admin_manage_service_media_"))
-        dp.callback_query.register(admin_handlers.start_add_service_media, lambda c: c.data.startswith("admin_add_service_media_"))
-        dp.message.register(admin_handlers.process_add_service_media, AdminActions.add_service_media)
-        dp.callback_query.register(admin_handlers.delete_service_media, lambda c: c.data.startswith("admin_delete_service_media_"))
-        dp.callback_query.register(admin_handlers.confirm_delete_service_media, lambda c: c.data.startswith("confirm_delete_service_media_"))
-        dp.callback_query.register(admin_handlers.view_service_media, lambda c: c.data.startswith("admin_view_service_media_"))
-
-        # Admin educational content edit handlers
-        dp.callback_query.register(admin_handlers.start_edit_edu, lambda c: c.data.startswith("admin_edit_edu_"))
-        dp.message.register(admin_handlers.process_edit_edu, AdminActions.edit_edu)
-
-        # Admin add educational content handlers
-        dp.callback_query.register(admin_handlers.start_add_edu, lambda c: c.data == "admin_add_edu")
-        dp.message.register(admin_handlers.process_add_edu, AdminActions.add_edu)
-
-        # Admin static content edit handlers
-        dp.callback_query.register(admin_handlers.start_edit_static, lambda c: c.data.startswith("admin_edit_static_"))
-        dp.message.register(admin_handlers.process_edit_static, AdminActions.edit_static)
-
-        # Admin upload CSV handlers
-        dp.callback_query.register(admin_handlers.start_import_data, lambda c: c.data.startswith("admin_import_"))
-        dp.message.register(admin_handlers.process_import_data, AdminActions.upload_csv, lambda m: m.document is not None)
-
-        # Admin cancel action handler (common for all admin actions)
-        dp.message.register(admin_handlers.cancel_admin_action, Command(commands=["cancel"]))
-        dp.callback_query.register(admin_handlers.cancel_admin_action, lambda c: c.data.startswith("cancel"))
-
-        # General callback query handler for button presses (must be registered last)
-        dp.callback_query.register(handle_callback_query, lambda c: True)
-
-        # Message handler for text messages (must be registered last)
-        dp.message.register(handle_message, lambda m: not m.text.startswith('/'))
-    except Exception as e:
-        logger.error(f"Error registering handlers: {e}")
+    """Register all handlers for the bot"""
+    # Include the router from handlers module
+    dp.include_router(handlers.router)
 
 async def setup_webhook(app, webhook_path):
     """Set up webhook handling for the bot with aiohttp app"""
-    if bot is None or dp is None:
-        logger.error("Bot or dispatcher is None. Cannot set up webhook.")
-        return app
-        
-    try:
-        # Register handlers for the dispatcher
-        await register_handlers()
-
-        # Set up webhook handler in the web app
-        webhook_handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
-        webhook_handler.register(app, path=webhook_path)
-
-        # Configure the bot to use the webhook
-        setup_application(app, dp, bot=bot)
-    except Exception as e:
-        logger.error(f"Error setting up webhook: {e}")
-
-    return app
+    webhook_url = f"{WEBHOOK_HOST}{webhook_path}"
+    await bot.set_webhook(webhook_url)
+    
+    # Process webhook
+    async def handle_webhook(request):
+        url = str(request.url)
+        if url.startswith(webhook_url):
+            update = await request.json()
+            await dp.feed_update(bot, update)
+            return web.Response(status=200)
+        return web.Response(status=403)
+    
+    app.router.add_post(webhook_path, handle_webhook)
 
 async def start_polling():
-    """Start the bot in polling mode (for testing)."""
-    # Check if bot is available
-    if bot is None or dp is None:
-        logger.error("Bot or dispatcher is None. Cannot start polling.")
-        return
-        
-    try:
-        # Register handlers
-        await register_handlers()
-
-        # Start polling
-        await dp.start_polling(bot)
-    except Exception as e:
-        logger.error(f"Error starting polling: {e}")
-
-if __name__ == '__main__':
-    # Check if BOT_TOKEN is set
-    if not BOT_TOKEN:
-        logger.error("BOT_TOKEN is not set. Please set it in the .env file or environment variables.")
-        sys.exit(1)
+    """Start the bot in polling mode (for testing)"""
+    logger.info("Starting bot in polling mode")
     
-    # Run the bot in polling mode when run directly
-    asyncio.run(start_polling())
+    # Set commands
+    await set_commands()
+    
+    # Register all handlers
+    await register_handlers()
+    
+    # Delete any existing webhook before starting polling
+    await bot.delete_webhook()
+    logger.info("Deleted existing webhook")
+    
+    # Start polling
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    try:
+        # Run the bot with polling (for development/testing)
+        asyncio.run(start_polling())
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("Bot stopped")
+    except Exception as e:
+        logger.error(f"Error in bot: {e}")
