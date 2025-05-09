@@ -58,6 +58,36 @@ class Database:
                     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
                 )
             ''')
+            
+            # Check if product_media table exists
+            cursor.execute("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'product_media')")
+            if not cursor.fetchone()[0]:
+                # Create product_media table for multiple media files
+                cursor.execute('''
+                    CREATE TABLE product_media (
+                        id SERIAL PRIMARY KEY,
+                        product_id INTEGER NOT NULL,
+                        file_id TEXT NOT NULL,
+                        file_type TEXT NOT NULL CHECK(file_type IN ('photo', 'video')),
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+                    )
+                ''')
+            
+            # Check if service_media table exists
+            cursor.execute("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'service_media')")
+            if not cursor.fetchone()[0]:
+                # Create service_media table for multiple media files
+                cursor.execute('''
+                    CREATE TABLE service_media (
+                        id SERIAL PRIMARY KEY,
+                        service_id INTEGER NOT NULL,
+                        file_id TEXT NOT NULL,
+                        file_type TEXT NOT NULL CHECK(file_type IN ('photo', 'video')),
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (service_id) REFERENCES products(id) ON DELETE CASCADE
+                    )
+                ''')
 
             # Create inquiries table
             cursor.execute('''
@@ -204,10 +234,42 @@ class Database:
                 (product_id,)
             )
             return cursor.fetchone()
+            
+    def get_product_media(self, product_id: int) -> List[Dict]:
+        """Get all media files for a product
+        
+        Args:
+            product_id: The ID of the product
+            
+        Returns:
+            List of media records with file_id and file_type
+        """
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                'SELECT id, product_id, file_id, file_type, created_at FROM product_media WHERE product_id = %s ORDER BY created_at',
+                (product_id,)
+            )
+            return cursor.fetchall()
 
     def get_service(self, service_id: int) -> Optional[Dict]:
         """Get a service by ID - same as get_product since we use the same table"""
         return self.get_product(service_id)
+        
+    def get_service_media(self, service_id: int) -> List[Dict]:
+        """Get all media files for a service
+        
+        Args:
+            service_id: The ID of the service
+            
+        Returns:
+            List of media records with file_id and file_type
+        """
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                'SELECT id, service_id, file_id, file_type, created_at FROM service_media WHERE service_id = %s ORDER BY created_at',
+                (service_id,)
+            )
+            return cursor.fetchall()
 
     def get_products_by_category(self, category_id: int) -> List[Dict]:
         """Get all products/services in a category"""
@@ -259,11 +321,86 @@ class Database:
                 (new_name, new_price, new_description, new_photo_url, new_category_id, product_id)
             )
             return cursor.rowcount > 0
+            
+    def add_product_media(self, product_id: int, file_id: str, file_type: str) -> int:
+        """Add media (photo/video) to a product
+        
+        Args:
+            product_id: The ID of the product
+            file_id: The Telegram file_id of the media file
+            file_type: The type of media (photo/video)
+            
+        Returns:
+            The ID of the new media record
+        """
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                'INSERT INTO product_media (product_id, file_id, file_type) VALUES (%s, %s, %s) RETURNING id',
+                (product_id, file_id, file_type)
+            )
+            media_id = cursor.fetchone()[0]
+            return media_id
+            
+    def add_service_media(self, service_id: int, file_id: str, file_type: str) -> int:
+        """Add media (photo/video) to a service
+        
+        Args:
+            service_id: The ID of the service
+            file_id: The Telegram file_id of the media file
+            file_type: The type of media (photo/video)
+            
+        Returns:
+            The ID of the new media record
+        """
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                'INSERT INTO service_media (service_id, file_id, file_type) VALUES (%s, %s, %s) RETURNING id',
+                (service_id, file_id, file_type)
+            )
+            media_id = cursor.fetchone()[0]
+            return media_id
 
-    def delete_product(self, product_id: int) -> bool:
-        """Delete a product"""
+    def delete_product_media(self, media_id: int) -> bool:
+        """Delete a specific media file for a product
+        
+        Args:
+            media_id: The ID of the media record to delete
+            
+        Returns:
+            True if successfully deleted, False otherwise
+        """
         try:
             with self.conn.cursor() as cursor:
+                cursor.execute('DELETE FROM product_media WHERE id = %s', (media_id,))
+                return cursor.rowcount > 0
+        except Exception as e:
+            logging.error(f"Error deleting product media: {e}")
+            return False
+            
+    def delete_service_media(self, media_id: int) -> bool:
+        """Delete a specific media file for a service
+        
+        Args:
+            media_id: The ID of the media record to delete
+            
+        Returns:
+            True if successfully deleted, False otherwise
+        """
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute('DELETE FROM service_media WHERE id = %s', (media_id,))
+                return cursor.rowcount > 0
+        except Exception as e:
+            logging.error(f"Error deleting service media: {e}")
+            return False
+            
+    def delete_product(self, product_id: int) -> bool:
+        """Delete a product and all associated media"""
+        try:
+            with self.conn.cursor() as cursor:
+                # First delete all media files associated with this product
+                cursor.execute('DELETE FROM product_media WHERE product_id = %s', (product_id,))
+                # Then delete the product itself
                 cursor.execute('DELETE FROM products WHERE id = %s', (product_id,))
                 return cursor.rowcount > 0
         except Exception as e:

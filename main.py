@@ -1,5 +1,4 @@
-from app import app
-from flask import render_template, request, redirect, url_for, flash, jsonify, abort, send_file
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort, send_file
 import json
 import os
 import logging
@@ -16,6 +15,10 @@ import shutil
 from database import Database
 import ssl
 from aiohttp import web
+
+# Create Flask app
+app = Flask(__name__)
+app.secret_key = os.environ.get("SESSION_SECRET", "رمز موقت برای ربات RFCBot")
 
 # Import bot components, which may be None if BOT_TOKEN isn't set
 try:
