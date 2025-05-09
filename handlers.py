@@ -1177,50 +1177,51 @@ class admin_handlers:
         return None  # No conversation started
     
     @staticmethod
-    async def start_edit_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def start_edit_category(callback_query: types.CallbackQuery, state: FSMContext) -> None:
         """Start editing a category."""
-        query = update.callback_query
-        await query.answer()
+        await callback_query.answer()
         
-        user_id = update.effective_user.id
-        data = query.data
+        user_id = callback_query.from_user.id
+        data = callback_query.data
         category_id = int(data[len(ADMIN_PREFIX + "edit_cat_"):])
         
         category = db.get_category(category_id)
         if not category:
-            await query.edit_message_text("دسته‌بندی مورد نظر یافت نشد.")
-            return ConversationHandler.END
+            await callback_query.message.edit_text("دسته‌بندی مورد نظر یافت نشد.")
+            return
         
-        # Store category ID and current data in user state
-        if user_id not in user_states:
-            user_states[user_id] = {}
-        user_states[user_id]['edit_category_id'] = category_id
-        user_states[user_id]['edit_category_name'] = category['name']
-        user_states[user_id]['edit_category_type'] = category['type']
-        user_states[user_id]['edit_category_parent_id'] = category['parent_id']
+        # Store category ID and current data in state
+        await state.set_state(AdminActions.edit_category)
+        await state.update_data(
+            edit_category_id=category_id,
+            edit_category_name=category['name'],
+            edit_category_type=category['type'],
+            edit_category_parent_id=category['parent_id']
+        )
         
         # Send edit form
-        await query.edit_message_text(
+        await callback_query.message.edit_text(
             f"ویرایش دسته‌بندی «{category['name']}»\n\n"
             f"لطفاً نام جدید را وارد کنید:",
             reply_markup=cancel_keyboard()
         )
-        
-        return ADMIN_EDIT_CAT
     
     @staticmethod
-    async def process_edit_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def process_edit_category(message: types.Message, state: FSMContext) -> None:
         """Process category edit."""
-        user_id = update.effective_user.id
-        name = update.message.text
+        user_id = message.from_user.id
+        name = message.text
         
-        if user_id not in user_states:
-            await update.message.reply_text(ERROR_MESSAGE)
-            return ConversationHandler.END
+        # Get data from state
+        data = await state.get_data()
+        category_id = data.get('edit_category_id')
+        parent_id = data.get('edit_category_parent_id')
+        cat_type = data.get('edit_category_type')
         
-        category_id = user_states[user_id]['edit_category_id']
-        parent_id = user_states[user_id]['edit_category_parent_id']
-        cat_type = user_states[user_id]['edit_category_type']
+        if not category_id:
+            await message.reply(ERROR_MESSAGE)
+            await state.clear()
+            return
         
         # Update category
         success = db.update_category(
@@ -1233,51 +1234,49 @@ class admin_handlers:
         if success:
             category = db.get_category(category_id)
             
-            await update.message.reply_text(
+            await message.reply(
                 f"دسته‌بندی با موفقیت به «{name}» تغییر نام یافت.",
                 reply_markup=admin_keyboard()
             )
             
             # Send updated category detail
             if category:
-                await update.message.reply_text(
+                await message.reply(
                     f"اطلاعات دسته‌بندی:\n"
                     f"نام: {category['name']}\n"
                     f"نوع: {category['type'] == 'product' and 'محصول' or 'خدمات'}\n"
                     f"مسیر: {get_category_path(db, category_id)}",
-                    reply_markup=admin_keyboards.admin_category_detail_keyboard(category_id, parent_id)
+                    # Note: we need to implement the admin_keyboards class or update the imports
+                    reply_markup=None  # We'll update this later
                 )
         else:
-            await update.message.reply_text(
+            await message.reply(
                 "خطا در ویرایش دسته‌بندی. لطفاً دوباره تلاش کنید.",
                 reply_markup=admin_keyboard()
             )
         
-        # Clear user state
-        if user_id in user_states:
-            del user_states[user_id]
-        
-        return ConversationHandler.END
+        # Clear state
+        await state.clear()
     
     @staticmethod
-    async def start_add_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def start_add_category(callback_query: types.CallbackQuery, state: FSMContext) -> None:
         """Start adding a new category."""
-        query = update.callback_query
-        await query.answer()
+        await callback_query.answer()
         
-        user_id = update.effective_user.id
-        data = query.data
+        user_id = callback_query.from_user.id
+        data = callback_query.data
         
         # Extract parent ID and type
         parts = data[len(ADMIN_PREFIX + "add_cat_"):].split("_")
         parent_id = int(parts[0]) if parts[0] != "0" else None
         cat_type = parts[1]
         
-        # Store data in user state
-        if user_id not in user_states:
-            user_states[user_id] = {}
-        user_states[user_id]['add_category_parent_id'] = parent_id
-        user_states[user_id]['add_category_type'] = cat_type
+        # Store data in state
+        await state.set_state(AdminActions.edit_category)  # We can reuse the edit state for adding
+        await state.update_data(
+            add_category_parent_id=parent_id,
+            add_category_type=cat_type
+        )
         
         # Send add form
         parent_info = ""
@@ -1286,26 +1285,27 @@ class admin_handlers:
             if parent:
                 parent_info = f"\nدسته‌بندی والد: {parent['name']}"
         
-        await query.edit_message_text(
+        await callback_query.message.edit_text(
             f"افزودن دسته‌بندی جدید{parent_info}\n\n"
             f"لطفاً نام دسته‌بندی را وارد کنید:",
             reply_markup=cancel_keyboard()
         )
-        
-        return ADMIN_EDIT_CAT
     
     @staticmethod
-    async def process_add_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def process_add_category(message: types.Message, state: FSMContext) -> None:
         """Process new category addition."""
-        user_id = update.effective_user.id
-        name = update.message.text
+        user_id = message.from_user.id
+        name = message.text
         
-        if user_id not in user_states:
-            await update.message.reply_text(ERROR_MESSAGE)
-            return ConversationHandler.END
+        # Get data from state
+        data = await state.get_data()
+        parent_id = data.get('add_category_parent_id')
+        cat_type = data.get('add_category_type')
         
-        parent_id = user_states[user_id]['add_category_parent_id']
-        cat_type = user_states[user_id]['add_category_type']
+        if not cat_type:
+            await message.reply(ERROR_MESSAGE)
+            await state.clear()
+            return
         
         # Add category
         category_id = db.add_category(
@@ -1315,7 +1315,7 @@ class admin_handlers:
         )
         
         if category_id:
-            await update.message.reply_text(
+            await message.reply(
                 f"دسته‌بندی «{name}» با موفقیت ایجاد شد.",
                 reply_markup=admin_keyboard()
             )
@@ -1326,68 +1326,61 @@ class admin_handlers:
                 if parent:
                     subcategories = db.get_categories(parent_id=parent_id)
                     
-                    await update.message.reply_text(
+                    await message.reply(
                         f"زیرگروه‌های {parent['name']}:",
-                        reply_markup=admin_keyboards.admin_categories_keyboard(
-                            subcategories, parent_id, cat_type
-                        )
+                        # Note: we need to implement the admin_keyboards class or update the imports
+                        reply_markup=None  # We'll update this later
                     )
             else:
                 # Show all top-level categories
                 categories = db.get_categories(parent_id=None, cat_type=cat_type)
                 
-                await update.message.reply_text(
+                await message.reply(
                     f"دسته‌بندی‌های {cat_type == 'product' and 'محصولات' or 'خدمات'}:",
-                    reply_markup=admin_keyboards.admin_categories_keyboard(
-                        categories, None, cat_type
-                    )
+                    # Note: we need to implement the admin_keyboards class or update the imports
+                    reply_markup=None  # We'll update this later
                 )
         else:
-            await update.message.reply_text(
+            await message.reply(
                 "خطا در ایجاد دسته‌بندی. لطفاً دوباره تلاش کنید.",
                 reply_markup=admin_keyboard()
             )
         
-        # Clear user state
-        if user_id in user_states:
-            del user_states[user_id]
-        
-        return ConversationHandler.END
+        # Clear state
+        await state.clear()
     
     @staticmethod
-    async def start_edit_product(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def start_edit_product(callback_query: types.CallbackQuery, state: FSMContext) -> None:
         """Start editing a product."""
-        query = update.callback_query
-        await query.answer()
+        await callback_query.answer()
         
-        user_id = update.effective_user.id
-        data = query.data
+        user_id = callback_query.from_user.id
+        data = callback_query.data
         product_id = int(data[len(ADMIN_PREFIX + "edit_product_"):])
         
         product = db.get_product(product_id)
         if not product:
-            await query.edit_message_text("محصول/خدمت مورد نظر یافت نشد.")
-            return ConversationHandler.END
+            await callback_query.message.edit_text("محصول/خدمت مورد نظر یافت نشد.")
+            return
         
-        # Store product ID and current data in user state
-        if user_id not in user_states:
-            user_states[user_id] = {}
-        user_states[user_id]['edit_product_id'] = product_id
-        user_states[user_id]['edit_product_name'] = product['name']
-        user_states[user_id]['edit_product_price'] = product['price']
-        user_states[user_id]['edit_product_description'] = product['description']
-        user_states[user_id]['edit_product_photo_url'] = product['photo_url']
-        user_states[user_id]['edit_product_category_id'] = product['category_id']
-        user_states[user_id]['edit_product_step'] = 0  # 0: name, 1: price, 2: description, 3: photo_url
+        # Store product ID and current data in state
+        await state.set_state(AdminActions.edit_product)
+        await state.update_data(
+            edit_product_id=product_id,
+            edit_product_name=product['name'],
+            edit_product_price=product['price'],
+            edit_product_description=product['description'],
+            edit_product_photo_url=product['photo_url'],
+            edit_product_category_id=product['category_id'],
+            edit_product_step=0  # 0: name, 1: price, 2: description, 3: photo_url
+        )
         
         # Send edit form - start with name
-        await query.edit_message_text(
+        await callback_query.message.edit_text(
             f"ویرایش محصول/خدمت «{product['name']}»\n\n"
             f"مرحله 1/4: لطفاً نام جدید را وارد کنید (یا 'skip' برای رد کردن):",
             reply_markup=cancel_keyboard()
         )
-        
-        return ADMIN_EDIT_PRODUCT
     
     @staticmethod
     async def process_edit_product(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
