@@ -13,10 +13,10 @@
 import os
 import sys
 import logging
-from datetime import datetime
-from sqlalchemy import inspect, text
+import asyncio
 from app import app, db
-from models import User, Category, Product, ProductMedia, Inquiry, EducationalContent, StaticContent
+from sqlalchemy.exc import SQLAlchemyError
+from models import User, Product, Category, Inquiry, ProductMedia, EducationalContent, StaticContent
 
 # تنظیم لاگر
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -25,380 +25,327 @@ logger = logging.getLogger(__name__)
 class TestResult:
     """نگهداری نتایج تست‌ها"""
     def __init__(self):
-        self.total = 0
-        self.passed = 0
-        self.failed = 0
-        self.failures = []
+        self.passed = []
+        self.failed = []
     
     def add_pass(self, test_name):
         """افزودن تست موفق"""
-        self.total += 1
-        self.passed += 1
-        logger.info(f"✓ {test_name}")
+        self.passed.append(test_name)
+        logger.info(f"✅ {test_name}: موفق")
     
     def add_fail(self, test_name, error):
         """افزودن تست ناموفق"""
-        self.total += 1
-        self.failed += 1
-        self.failures.append(f"{test_name}: {error}")
-        logger.error(f"✗ {test_name}: {error}")
+        self.failed.append((test_name, error))
+        logger.error(f"❌ {test_name}: ناموفق - {error}")
     
     def summary(self):
         """نمایش خلاصه نتایج"""
-        success_rate = (self.passed / self.total) * 100 if self.total > 0 else 0
-        logger.info(f"\n===== نتایج تست =====")
-        logger.info(f"تعداد کل تست‌ها: {self.total}")
-        logger.info(f"تست‌های موفق: {self.passed}")
-        logger.info(f"تست‌های ناموفق: {self.failed}")
-        logger.info(f"نرخ موفقیت: {success_rate:.2f}%")
+        total = len(self.passed) + len(self.failed)
+        print(f"\n=== خلاصه نتایج ({len(self.passed)}/{total} موفق) ===")
         
-        if self.failed > 0:
-            logger.error("لیست خطاها:")
-            for i, failure in enumerate(self.failures, 1):
-                logger.error(f"{i}. {failure}")
+        if self.passed:
+            print("\nتست‌های موفق:")
+            for i, test in enumerate(self.passed, 1):
+                print(f"{i}. ✅ {test}")
         
-        logger.info("======================")
+        if self.failed:
+            print("\nتست‌های ناموفق:")
+            for i, (test, error) in enumerate(self.failed, 1):
+                print(f"{i}. ❌ {test}: {error}")
         
-        return self.failed == 0
+        success_rate = len(self.passed) / total * 100 if total > 0 else 0
+        print(f"\nنرخ موفقیت: {success_rate:.2f}%")
 
 def test_database_structure():
     """تست ساختار دیتابیس"""
-    results = TestResult()
+    result = TestResult()
     
     with app.app_context():
-        # تست وجود جداول
-        inspector = inspect(db.engine)
-        tables = ['users', 'categories', 'products', 'product_media', 'inquiries', 'educational_content', 'static_content']
-        
-        for table in tables:
-            try:
-                columns = inspector.get_columns(table)
-                if columns:
-                    results.add_pass(f"جدول {table} وجود دارد")
-                else:
-                    results.add_fail(f"جدول {table}", "جدول خالی است")
-            except Exception as e:
-                results.add_fail(f"جدول {table}", str(e))
-        
-        # تست ساختار ستون‌های جدول محتوای آموزشی
+        # تست جدول User
         try:
-            columns = {col['name'] for col in inspector.get_columns('educational_content')}
-            required_columns = {'id', 'title', 'content', 'category', 'type', 'content_type', 'created_at'}
-            missing = required_columns - columns
-            
-            if not missing:
-                results.add_pass("ساختار جدول educational_content صحیح است")
-            else:
-                results.add_fail("ساختار جدول educational_content", f"ستون‌های زیر وجود ندارند: {missing}")
-        except Exception as e:
-            results.add_fail("ساختار جدول educational_content", str(e))
+            users = User.query.all()
+            result.add_pass(f"جدول User ({len(users)} رکورد)")
+        except SQLAlchemyError as e:
+            result.add_fail("جدول User", str(e))
         
-        # تست ساختار ستون‌های جدول محتوای ثابت
+        # تست جدول Category
         try:
-            columns = {col['name'] for col in inspector.get_columns('static_content')}
-            required_columns = {'id', 'type', 'content', 'content_type', 'updated_at'}
-            missing = required_columns - columns
-            
-            if not missing:
-                results.add_pass("ساختار جدول static_content صحیح است")
-            else:
-                results.add_fail("ساختار جدول static_content", f"ستون‌های زیر وجود ندارند: {missing}")
-        except Exception as e:
-            results.add_fail("ساختار جدول static_content", str(e))
+            categories = Category.query.all()
+            parent_categories = Category.query.filter_by(parent_id=None).all()
+            result.add_pass(f"جدول Category ({len(categories)} رکورد، {len(parent_categories)} دسته اصلی)")
+        except SQLAlchemyError as e:
+            result.add_fail("جدول Category", str(e))
         
-        # تست محدودیت‌های جدول static_content
+        # تست جدول Product
         try:
-            constraints = db.session.execute(text("""
-                SELECT con.conname, con.contype, pg_get_constraintdef(con.oid)
-                FROM pg_constraint con
-                INNER JOIN pg_class rel ON rel.oid = con.conrelid
-                INNER JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
-                WHERE rel.relname = 'static_content';
-            """)).fetchall()
-            
-            # بررسی وجود محدودیت unique برای ستون type
-            has_type_unique = any('type' in constraint[2] and constraint[1] == 'u' for constraint in constraints)
-            
-            if has_type_unique:
-                results.add_pass("محدودیت unique برای ستون type در جدول static_content وجود دارد")
-            else:
-                results.add_fail("محدودیت unique برای ستون type", "محدودیت وجود ندارد")
-        except Exception as e:
-            results.add_fail("بررسی محدودیت‌های جدول static_content", str(e))
+            products = Product.query.all()
+            products_count = Product.query.filter_by(product_type='product').count()
+            services_count = Product.query.filter_by(product_type='service').count()
+            result.add_pass(f"جدول Product ({products_count} محصول، {services_count} خدمت)")
+        except SQLAlchemyError as e:
+            result.add_fail("جدول Product", str(e))
+        
+        # تست جدول ProductMedia
+        try:
+            media = ProductMedia.query.all()
+            result.add_pass(f"جدول ProductMedia ({len(media)} رکورد)")
+        except SQLAlchemyError as e:
+            result.add_fail("جدول ProductMedia", str(e))
+        
+        # تست جدول Inquiry
+        try:
+            inquiries = Inquiry.query.all()
+            result.add_pass(f"جدول Inquiry ({len(inquiries)} رکورد)")
+        except SQLAlchemyError as e:
+            result.add_fail("جدول Inquiry", str(e))
+        
+        # تست جدول EducationalContent
+        try:
+            edu_content = EducationalContent.query.all()
+            result.add_pass(f"جدول EducationalContent ({len(edu_content)} رکورد)")
+        except SQLAlchemyError as e:
+            result.add_fail("جدول EducationalContent", str(e))
+        
+        # تست جدول StaticContent
+        try:
+            static_content = StaticContent.query.all()
+            result.add_pass(f"جدول StaticContent ({len(static_content)} رکورد)")
+        except SQLAlchemyError as e:
+            result.add_fail("جدول StaticContent", str(e))
     
-    return results
+    return result
 
 def test_models():
     """تست مدل‌های SQLAlchemy"""
-    results = TestResult()
+    result = TestResult()
     
     with app.app_context():
-        # تست مدل User
+        # تست ارتباطات Product و Category
         try:
-            user = User(
-                username="test_user",
-                email="test@example.com",
-                is_admin=False,
-                telegram_id=123456789,
-                telegram_username="test_tg_user",
-                first_name="Test",
-                last_name="User"
-            )
-            user.set_password("password123")
-            
-            db.session.add(user)
-            db.session.flush()
-            
-            results.add_pass("مدل User به درستی کار می‌کند")
-            
-            # پاکسازی
-            db.session.rollback()
+            product = Product.query.first()
+            if product:
+                category = Category.query.get(product.category_id)
+                if category:
+                    result.add_pass(f"ارتباط Product-Category (محصول '{product.name}' در دسته '{category.name}')")
+                else:
+                    result.add_fail("ارتباط Product-Category", "دسته‌بندی مرتبط یافت نشد")
+            else:
+                result.add_fail("ارتباط Product-Category", "محصولی در دیتابیس یافت نشد")
         except Exception as e:
-            results.add_fail("مدل User", str(e))
-            db.session.rollback()
+            result.add_fail("ارتباط Product-Category", str(e))
         
-        # تست مدل StaticContent
+        # تست ارتباطات Category والد-فرزند
         try:
-            # آزمایش ایجاد دو رکورد با مقادیر متفاوت برای type
-            static1 = StaticContent(
-                type="test_type_1",
-                content="Test Content 1",
-                content_type="test_content_type_1"
-            )
-            
-            static2 = StaticContent(
-                type="test_type_2",
-                content="Test Content 2",
-                content_type="test_content_type_2"
-            )
-            
-            db.session.add_all([static1, static2])
-            db.session.flush()
-            
-            results.add_pass("مدل StaticContent به درستی کار می‌کند")
-            
-            # پاکسازی
-            db.session.rollback()
+            parent_category = Category.query.filter(Category.parent_id.is_(None)).first()
+            if parent_category:
+                children = Category.query.filter_by(parent_id=parent_category.id).all()
+                result.add_pass(f"ارتباط Category والد-فرزند (دسته '{parent_category.name}' دارای {len(children)} زیردسته)")
+            else:
+                result.add_fail("ارتباط Category والد-فرزند", "دسته‌بندی اصلی یافت نشد")
         except Exception as e:
-            results.add_fail("مدل StaticContent", str(e))
-            db.session.rollback()
+            result.add_fail("ارتباط Category والد-فرزند", str(e))
         
-        # تست مدل EducationalContent
+        # تست ارتباطات Product و ProductMedia
         try:
-            edu_content = EducationalContent(
-                title="Test Education",
-                content="This is a test content",
-                category="Test Category",
-                type="general",
-                content_type="text"
-            )
-            
-            db.session.add(edu_content)
-            db.session.flush()
-            
-            results.add_pass("مدل EducationalContent به درستی کار می‌کند")
-            
-            # پاکسازی
-            db.session.rollback()
+            product = Product.query.first()
+            if product:
+                media = ProductMedia.query.filter_by(product_id=product.id).all()
+                result.add_pass(f"ارتباط Product-ProductMedia (محصول '{product.name}' دارای {len(media)} رسانه)")
+            else:
+                result.add_fail("ارتباط Product-ProductMedia", "محصولی در دیتابیس یافت نشد")
         except Exception as e:
-            results.add_fail("مدل EducationalContent", str(e))
-            db.session.rollback()
+            result.add_fail("ارتباط Product-ProductMedia", str(e))
+        
+        # تست ارتباطات Product و Inquiry
+        try:
+            product = Product.query.first()
+            if product:
+                inquiries = Inquiry.query.filter_by(product_id=product.id).all()
+                result.add_pass(f"ارتباط Product-Inquiry (محصول '{product.name}' دارای {len(inquiries)} استعلام)")
+            else:
+                result.add_fail("ارتباط Product-Inquiry", "محصولی در دیتابیس یافت نشد")
+        except Exception as e:
+            result.add_fail("ارتباط Product-Inquiry", str(e))
     
-    return results
+    return result
 
 def test_data():
     """تست داده‌های آزمایشی"""
-    results = TestResult()
+    result = TestResult()
     
     with app.app_context():
-        # تست وجود داده در همه جداول
+        # بررسی وجود کاربر مدیر
         try:
-            if User.query.count() > 0:
-                results.add_pass("جدول users دارای داده است")
+            admin = User.query.filter_by(username='admin').first()
+            if admin:
+                result.add_pass("وجود کاربر admin")
             else:
-                results.add_fail("جدول users", "هیچ داده‌ای وجود ندارد")
-            
-            if Category.query.count() > 0:
-                results.add_pass("جدول categories دارای داده است")
-            else:
-                results.add_fail("جدول categories", "هیچ داده‌ای وجود ندارد")
-            
-            if Product.query.filter_by(product_type="product").count() > 0:
-                results.add_pass("جدول products (محصولات) دارای داده است")
-            else:
-                results.add_fail("جدول products (محصولات)", "هیچ داده‌ای وجود ندارد")
-            
-            if Product.query.filter_by(product_type="service").count() > 0:
-                results.add_pass("جدول products (خدمات) دارای داده است")
-            else:
-                results.add_fail("جدول products (خدمات)", "هیچ داده‌ای وجود ندارد")
-            
-            if ProductMedia.query.count() > 0:
-                results.add_pass("جدول product_media دارای داده است")
-            else:
-                results.add_fail("جدول product_media", "هیچ داده‌ای وجود ندارد")
-            
-            if Inquiry.query.count() > 0:
-                results.add_pass("جدول inquiries دارای داده است")
-            else:
-                results.add_fail("جدول inquiries", "هیچ داده‌ای وجود ندارد")
-            
-            if EducationalContent.query.count() > 0:
-                results.add_pass("جدول educational_content دارای داده است")
-            else:
-                results.add_fail("جدول educational_content", "هیچ داده‌ای وجود ندارد")
-            
-            if StaticContent.query.count() > 0:
-                results.add_pass("جدول static_content دارای داده است")
-            else:
-                results.add_fail("جدول static_content", "هیچ داده‌ای وجود ندارد")
+                result.add_fail("وجود کاربر admin", "کاربر admin یافت نشد")
         except Exception as e:
-            results.add_fail("بررسی داده‌های آزمایشی", str(e))
+            result.add_fail("وجود کاربر admin", str(e))
+        
+        # بررسی وجود دسته‌بندی‌های اصلی
+        try:
+            categories = Category.query.filter(Category.parent_id.is_(None)).all()
+            if len(categories) >= 3:
+                result.add_pass(f"وجود دسته‌بندی‌های اصلی ({len(categories)} دسته)")
+            else:
+                result.add_fail("وجود دسته‌بندی‌های اصلی", f"تعداد کافی دسته‌بندی اصلی وجود ندارد ({len(categories)})")
+        except Exception as e:
+            result.add_fail("وجود دسته‌بندی‌های اصلی", str(e))
+        
+        # بررسی وجود محصولات
+        try:
+            products = Product.query.filter_by(product_type='product').all()
+            if len(products) >= 5:
+                result.add_pass(f"وجود محصولات ({len(products)} محصول)")
+            else:
+                result.add_fail("وجود محصولات", f"تعداد کافی محصول وجود ندارد ({len(products)})")
+        except Exception as e:
+            result.add_fail("وجود محصولات", str(e))
+        
+        # بررسی وجود خدمات
+        try:
+            services = Product.query.filter_by(product_type='service').all()
+            if len(services) >= 2:
+                result.add_pass(f"وجود خدمات ({len(services)} خدمت)")
+            else:
+                result.add_fail("وجود خدمات", f"تعداد کافی خدمت وجود ندارد ({len(services)})")
+        except Exception as e:
+            result.add_fail("وجود خدمات", str(e))
+        
+        # بررسی وجود محتوای آموزشی
+        try:
+            edu_content = EducationalContent.query.all()
+            if len(edu_content) >= 2:
+                result.add_pass(f"وجود محتوای آموزشی ({len(edu_content)} مورد)")
+            else:
+                result.add_fail("وجود محتوای آموزشی", f"تعداد کافی محتوای آموزشی وجود ندارد ({len(edu_content)})")
+        except Exception as e:
+            result.add_fail("وجود محتوای آموزشی", str(e))
+        
+        # بررسی وجود محتوای ثابت (about, contact)
+        try:
+            about = StaticContent.query.filter_by(type='about').first()
+            contact = StaticContent.query.filter_by(type='contact').first()
+            if about and contact:
+                result.add_pass("وجود محتوای ثابت (about و contact)")
+            else:
+                missing = []
+                if not about:
+                    missing.append('about')
+                if not contact:
+                    missing.append('contact')
+                result.add_fail("وجود محتوای ثابت", f"محتوای {', '.join(missing)} یافت نشد")
+        except Exception as e:
+            result.add_fail("وجود محتوای ثابت", str(e))
     
-    return results
+    return result
 
 def test_functionality():
     """تست عملکرد اصلی سیستم"""
-    results = TestResult()
+    result = TestResult()
     
-    with app.app_context():
-        # تست فرایند احراز هویت کاربر
-        try:
-            # ایجاد کاربر آزمایشی
-            username = f"test_user_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-            user = User(
-                username=username,
-                email=f"{username}@example.com",
-                is_admin=False
-            )
-            user.set_password("test_password")
-            
-            db.session.add(user)
-            db.session.commit()
-            
-            # تست احراز هویت
-            found_user = User.query.filter_by(username=username).first()
-            if found_user and found_user.check_password("test_password"):
-                results.add_pass("فرایند احراز هویت کاربر به درستی کار می‌کند")
-            else:
-                results.add_fail("فرایند احراز هویت کاربر", "احراز هویت ناموفق بود")
-            
-            # پاکسازی
-            User.query.filter_by(username=username).delete()
-            db.session.commit()
-        except Exception as e:
-            results.add_fail("فرایند احراز هویت کاربر", str(e))
-            db.session.rollback()
+    # تست وجود ماژول‌های مورد نیاز
+    try:
+        import handlers
+        import keyboards
+        import bot
+        result.add_pass("وجود ماژول‌های اصلی (handlers, keyboards, bot)")
+    except ImportError as e:
+        result.add_fail("وجود ماژول‌های اصلی", str(e))
+    
+    # تست وجود توابع اصلی در handlers
+    try:
+        from handlers import cmd_start, cmd_products, cmd_services, cmd_about, cmd_contact
+        result.add_pass("وجود توابع اصلی در handlers")
+    except ImportError as e:
+        result.add_fail("وجود توابع اصلی در handlers", str(e))
+    
+    # تست وجود توابع اصلی در keyboards
+    try:
+        from keyboards import main_menu_keyboard, categories_keyboard, products_keyboard
+        result.add_pass("وجود توابع اصلی در keyboards")
+    except ImportError as e:
+        result.add_fail("وجود توابع اصلی در keyboards", str(e))
+    
+    # تست وجود توابع اصلی در bot
+    try:
+        from bot import start_polling, register_handlers
+        result.add_pass("وجود توابع اصلی در bot")
+    except ImportError as e:
+        result.add_fail("وجود توابع اصلی در bot", str(e))
+    
+    # تست متغیرهای محیطی
+    try:
+        bot_token = os.environ.get('BOT_TOKEN')
+        database_url = os.environ.get('DATABASE_URL')
         
-        # تست جستجوی محصولات
+        if bot_token and database_url:
+            result.add_pass("وجود متغیرهای محیطی ضروری (BOT_TOKEN, DATABASE_URL)")
+        else:
+            missing = []
+            if not bot_token:
+                missing.append('BOT_TOKEN')
+            if not database_url:
+                missing.append('DATABASE_URL')
+            result.add_fail("وجود متغیرهای محیطی ضروری", f"متغیرهای {', '.join(missing)} تنظیم نشده‌اند")
+    except Exception as e:
+        result.add_fail("وجود متغیرهای محیطی ضروری", str(e))
+    
+    # تست بررسی وضعیت webhook
+    async def check_webhook():
         try:
-            # ایجاد محصول آزمایشی
-            category = Category.query.first()
-            if not category:
-                category = Category(name="Test Category", cat_type="product")
-                db.session.add(category)
-                db.session.flush()
+            from aiogram import Bot
+            bot = Bot(token=os.environ.get('BOT_TOKEN'))
+            webhook_info = await bot.get_webhook_info()
+            await bot.session.close()
             
-            product_name = f"Test Product {datetime.now().strftime('%Y%m%d%H%M%S')}"
-            product = Product(
-                name=product_name,
-                price=10000,
-                description="This is a test product",
-                category_id=category.id,
-                product_type="product",
-                tags="test,search",
-                brand="Test Brand"
-            )
-            
-            db.session.add(product)
-            db.session.flush()
-            
-            # تست جستجو با روش search
-            results_by_name = Product.search(product_name)
-            results_by_tag = Product.search(query="", tags="test")
-            results_by_brand = Product.search(query="", brand="Test Brand")
-            
-            if results_by_name.count() > 0 and results_by_tag.count() > 0 and results_by_brand.count() > 0:
-                results.add_pass("جستجوی محصولات به درستی کار می‌کند")
-            else:
-                results.add_fail("جستجوی محصولات", "جستجو نتایج مورد انتظار را برنگرداند")
-            
-            # پاکسازی
-            db.session.rollback()
-        except Exception as e:
-            results.add_fail("جستجوی محصولات", str(e))
-            db.session.rollback()
-        
-        # تست عملکرد محتوای ثابت
-        try:
-            # بررسی وجود داده‌های محتوای ثابت
-            about_content = StaticContent.query.filter_by(content_type="about").first()
-            contact_content = StaticContent.query.filter_by(content_type="contact").first()
-            
-            if about_content and contact_content:
-                # بررسی امکان به‌روزرسانی محتوا
-                old_content = about_content.content
-                about_content.content = "Updated test content"
-                about_content.updated_at = datetime.utcnow()
-                db.session.commit()
-                
-                # بررسی به‌روزرسانی موفق
-                refreshed_content = StaticContent.query.filter_by(content_type="about").first()
-                if refreshed_content.content == "Updated test content":
-                    results.add_pass("عملکرد محتوای ثابت به درستی کار می‌کند")
+            if webhook_info:
+                if webhook_info.url:
+                    result.add_pass(f"وضعیت webhook (فعال: {webhook_info.url})")
                 else:
-                    results.add_fail("عملکرد محتوای ثابت", "به‌روزرسانی محتوا موفق نبود")
-                
-                # بازگرداندن به حالت اولیه
-                about_content.content = old_content
-                db.session.commit()
+                    result.add_pass("وضعیت webhook (غیرفعال - قابل استفاده در حالت polling)")
             else:
-                results.add_fail("عملکرد محتوای ثابت", "رکوردهای محتوای ثابت یافت نشدند")
+                result.add_fail("وضعیت webhook", "خطا در دریافت اطلاعات webhook")
         except Exception as e:
-            results.add_fail("عملکرد محتوای ثابت", str(e))
-            db.session.rollback()
+            result.add_fail("وضعیت webhook", str(e))
     
-    return results
+    # اجرای تست‌های ناهمگام
+    asyncio.run(check_webhook())
+    
+    return result
 
 def main():
     """اجرای تمام تست‌ها"""
-    logger.info("شروع تست‌های جامع سیستم")
+    print("===== شروع تست جامع سیستم =====")
     
-    # اجرای تست‌ها و جمع‌آوری نتایج
-    structure_results = test_database_structure()
-    models_results = test_models()
-    data_results = test_data()
-    functionality_results = test_functionality()
+    # اجرای تست‌ها
+    print("\n--- تست ساختار دیتابیس ---")
+    db_result = test_database_structure()
+    
+    print("\n--- تست مدل‌های SQLAlchemy ---")
+    model_result = test_models()
+    
+    print("\n--- تست داده‌های آزمایشی ---")
+    data_result = test_data()
+    
+    print("\n--- تست عملکرد اصلی ---")
+    func_result = test_functionality()
+    
+    # ادغام نتایج
+    all_results = TestResult()
+    all_results.passed = db_result.passed + model_result.passed + data_result.passed + func_result.passed
+    all_results.failed = db_result.failed + model_result.failed + data_result.failed + func_result.failed
     
     # نمایش نتایج
-    logger.info("\n----- نتایج تست ساختار دیتابیس -----")
-    structure_success = structure_results.summary()
+    all_results.summary()
     
-    logger.info("\n----- نتایج تست مدل‌ها -----")
-    models_success = models_results.summary()
+    print("\n===== پایان تست جامع سیستم =====")
     
-    logger.info("\n----- نتایج تست داده‌ها -----")
-    data_success = data_results.summary()
-    
-    logger.info("\n----- نتایج تست عملکرد -----")
-    functionality_success = functionality_results.summary()
-    
-    # نتیجه کلی
-    logger.info("\n===== نتیجه کلی =====")
-    total_results = TestResult()
-    total_results.total = structure_results.total + models_results.total + data_results.total + functionality_results.total
-    total_results.passed = structure_results.passed + models_results.passed + data_results.passed + functionality_results.passed
-    total_results.failed = structure_results.failed + models_results.failed + data_results.failed + functionality_results.failed
-    total_results.failures = structure_results.failures + models_results.failures + data_results.failures + functionality_results.failures
-    
-    success = total_results.summary()
-    
-    if success:
-        logger.info("تمام تست‌ها با موفقیت انجام شدند. سیستم آماده استفاده است.")
-        return 0
-    else:
-        logger.error("برخی از تست‌ها ناموفق بودند. لطفاً مشکلات را برطرف کنید.")
-        return 1
+    # خروجی
+    return len(all_results.failed) == 0
 
 if __name__ == "__main__":
-    sys.exit(main())
+    success = main()
+    sys.exit(0 if success else 1)

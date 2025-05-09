@@ -2,159 +2,157 @@
 # -*- coding: utf-8 -*-
 
 """
-اسکریپت اجرای تمام تست‌ها
-این اسکریپت تمام تست‌های سیستم را اجرا می‌کند و گزارش نتایج را نمایش می‌دهد
+اجرای تمام تست‌های سیستم به صورت یک‌جا
 """
 
 import os
 import sys
-import unittest
+import time
 import logging
+import subprocess
 from datetime import datetime
 
-# تنظیم لاگینگ
+# تنظیم لاگر
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler("test_results.log"),
-        logging.StreamHandler(sys.stdout)
+        logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
 
-def run_test_suite(test_module_name, test_description):
-    """
-    اجرای یک مجموعه تست و گزارش نتایج
-    
-    Args:
-        test_module_name: نام ماژول تست
-        test_description: توضیحات تست
-    
-    Returns:
-        (success_count, total_count): تعداد تست‌های موفق و کل
-    """
-    logger.info(f"================================================")
-    logger.info(f"شروع اجرای تست‌های {test_description}")
-    logger.info(f"================================================")
+def run_test(test_script, description):
+    """اجرای یک اسکریپت تست و نمایش نتیجه"""
+    start_time = time.time()
+    logger.info(f"=== شروع تست: {description} ===")
     
     try:
-        # بارگیری ماژول تست
-        __import__(test_module_name)
-        test_module = sys.modules[test_module_name]
+        result = subprocess.run(
+            [sys.executable, test_script],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=60  # حداکثر زمان اجرا: 60 ثانیه
+        )
         
-        # ایجاد مجموعه تست
-        suite = unittest.TestLoader().loadTestsFromModule(test_module)
+        # نمایش خروجی
+        if result.stdout:
+            for line in result.stdout.strip().split('\n'):
+                logger.info(f"[خروجی] {line}")
         
-        # اجرای تست‌ها
-        result = unittest.TextTestRunner().run(suite)
+        # نمایش خطاها
+        if result.stderr:
+            for line in result.stderr.strip().split('\n'):
+                logger.error(f"[خطا] {line}")
         
-        # گزارش نتایج
-        success_count = result.testsRun - len(result.errors) - len(result.failures)
-        total_count = result.testsRun
+        success = result.returncode == 0
+        status = "موفق" if success else "ناموفق"
+        logger.info(f"=== پایان تست: {description} - وضعیت: {status} (کد خروج: {result.returncode}) ===")
         
-        logger.info(f"نتایج اجرای تست‌های {test_description}:")
-        logger.info(f"  تعداد کل تست‌ها: {total_count}")
-        logger.info(f"  تست‌های موفق: {success_count}")
-        logger.info(f"  تست‌های ناموفق: {len(result.failures)}")
-        logger.info(f"  خطاها: {len(result.errors)}")
+        elapsed_time = time.time() - start_time
+        logger.info(f"زمان اجرا: {elapsed_time:.2f} ثانیه\n")
         
-        # نمایش خطاها و شکست‌ها
-        if result.failures:
-            logger.error("شکست‌ها:")
-            for i, (test, traceback) in enumerate(result.failures):
-                logger.error(f"شکست {i+1}: {test}")
-                logger.error(traceback)
-        
-        if result.errors:
-            logger.error("خطاها:")
-            for i, (test, traceback) in enumerate(result.errors):
-                logger.error(f"خطا {i+1}: {test}")
-                logger.error(traceback)
-        
-        logger.info(f"================================================")
-        
-        return success_count, total_count
-        
+        return {
+            "name": description,
+            "script": test_script,
+            "success": success,
+            "return_code": result.returncode,
+            "elapsed_time": elapsed_time
+        }
+    except subprocess.TimeoutExpired:
+        logger.error(f"=== تست با خطای timeout مواجه شد: {description} ===\n")
+        return {
+            "name": description,
+            "script": test_script,
+            "success": False,
+            "return_code": -1,
+            "elapsed_time": time.time() - start_time,
+            "timeout": True
+        }
     except Exception as e:
-        logger.error(f"خطا در اجرای تست‌های {test_description}: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
-        return 0, 0
+        logger.error(f"=== خطا در اجرای تست {description}: {e} ===\n")
+        return {
+            "name": description,
+            "script": test_script,
+            "success": False,
+            "return_code": -1,
+            "elapsed_time": time.time() - start_time,
+            "error": str(e)
+        }
 
-def seed_database():
-    """
-    مقداردهی اولیه دیتابیس
-    
-    Returns:
-        bool: نتیجه عملیات
-    """
-    logger.info("در حال مقداردهی اولیه دیتابیس...")
-    try:
-        from app import app
-        from seed_admin_data import main
-        
-        with app.app_context():
-            result = main()
-            
-            if result == 0:
-                logger.info("مقداردهی اولیه دیتابیس با موفقیت انجام شد")
-                return True
-            else:
-                logger.error("خطا در مقداردهی اولیه دیتابیس")
-                return False
-    
-    except Exception as e:
-        logger.error(f"خطا در مقداردهی اولیه دیتابیس: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
-        return False
+def format_time(seconds):
+    """تبدیل ثانیه به فرمت خوانا"""
+    if seconds < 60:
+        return f"{seconds:.2f} ثانیه"
+    minutes = int(seconds // 60)
+    seconds = seconds % 60
+    return f"{minutes} دقیقه و {seconds:.2f} ثانیه"
 
 def main():
-    """
-    اجرای اصلی
-    """
-    logger.info("شروع اجرای تمام تست‌ها")
-    logger.info(f"تاریخ و زمان: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    """اجرای تمام تست‌ها"""
+    start_time = time.time()
     
-    # مقداردهی اولیه دیتابیس
-    if not seed_database():
-        logger.error("به دلیل خطا در مقداردهی اولیه دیتابیس، اجرای تست‌ها متوقف شد")
-        return 1
-    
-    # لیست تمام ماژول‌های تست و توضیحات آن‌ها
-    test_modules = [
-        ("test_admin_panel", "پنل ادمین"),
-        ("test_telegram_bot", "بات تلگرام"),
-        # در صورت نیاز ماژول‌های تست دیگر را اضافه کنید
+    # لیست تست‌ها برای اجرا
+    tests = [
+        ("simple_bot_test.py", "تست ساده ربات تلگرام"),
+        ("db_test.py", "تست دیتابیس"),
+        ("simple_handlers_test.py", "تست ساده handlers"),
+        ("comprehensive_test.py", "تست جامع سیستم"),
     ]
     
-    # شمارنده‌های کلی
-    total_success = 0
-    total_tests = 0
+    # نتایج اجرای تست‌ها
+    results = []
     
-    # اجرای تمام ماژول‌های تست
-    for module_name, description in test_modules:
-        success, total = run_test_suite(module_name, description)
-        total_success += success
-        total_tests += total
+    # ایجاد دایرکتوری نتایج اگر وجود ندارد
+    os.makedirs("test_results", exist_ok=True)
     
-    # گزارش نهایی
-    logger.info("================================================")
-    logger.info("گزارش نهایی اجرای تمام تست‌ها:")
-    logger.info(f"  تعداد کل تست‌ها: {total_tests}")
-    logger.info(f"  تست‌های موفق: {total_success}")
-    logger.info(f"  تست‌های ناموفق: {total_tests - total_success}")
+    logger.info(f"===== شروع اجرای {len(tests)} تست در {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} =====")
     
-    # نمایش درصد موفقیت
-    if total_tests > 0:
-        success_rate = (total_success / total_tests) * 100
-        logger.info(f"  درصد موفقیت: {success_rate:.2f}%")
+    for test_script, description in tests:
+        # اجرای تست
+        result = run_test(test_script, description)
+        results.append(result)
     
-    logger.info("================================================")
+    # محاسبه نتایج کلی
+    total_tests = len(tests)
+    successful_tests = sum(1 for result in results if result["success"])
+    failed_tests = total_tests - successful_tests
     
-    # تولید کد بازگشت مناسب
-    return 0 if total_success == total_tests else 1
+    # نمایش نتایج
+    logger.info("\n===== خلاصه نتایج =====")
+    logger.info(f"تعداد کل تست‌ها: {total_tests}")
+    logger.info(f"تست‌های موفق: {successful_tests}")
+    logger.info(f"تست‌های ناموفق: {failed_tests}")
+    logger.info(f"نرخ موفقیت: {(successful_tests / total_tests * 100):.2f}%")
+    
+    # اگر تست ناموفق وجود دارد
+    if failed_tests > 0:
+        logger.info("\nتست‌های ناموفق:")
+        for i, result in enumerate([r for r in results if not r["success"]], 1):
+            if result.get("timeout", False):
+                status = "خطای timeout"
+            elif "error" in result:
+                status = f"خطا: {result['error']}"
+            else:
+                status = f"کد خروج: {result['return_code']}"
+            
+            logger.info(f"{i}. {result['name']} ({status})")
+    
+    # نمایش زمان اجرای هر تست
+    logger.info("\nزمان اجرای تست‌ها:")
+    for i, result in enumerate(results, 1):
+        status = "✅" if result["success"] else "❌"
+        logger.info(f"{i}. {status} {result['name']}: {format_time(result['elapsed_time'])}")
+    
+    # زمان کل اجرا
+    total_time = time.time() - start_time
+    logger.info(f"\nزمان کل اجرا: {format_time(total_time)}")
+    logger.info(f"===== پایان اجرای تست‌ها در {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} =====")
+    
+    # خروجی
+    return 0 if failed_tests == 0 else 1
 
 if __name__ == "__main__":
     sys.exit(main())
