@@ -4,68 +4,66 @@
 {% block content %}
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h4>مدیریت مطالب آموزشی</h4>
-        <a href="/admin/education/add" class="btn btn-primary">
-            <i class="bi bi-plus-circle"></i> افزودن مطلب جدید
+        <h4>مدیریت محتوای آموزشی</h4>
+        <a href="{{ url_for('admin_add_education') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> افزودن محتوای جدید
         </a>
     </div>
     <div class="card-body">
-        <div class="row mb-3">
-            <div class="col-md-6">
-                <form method="get" class="d-flex">
-                    <select name="category" class="form-select me-2">
-                        <option value="">همه دسته‌بندی‌ها</option>
-                        {% for cat in categories %}
-                            <option value="{{ cat }}" {{ 'selected' if selected_category == cat else '' }}>
-                                {{ cat }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                    <button type="submit" class="btn btn-outline-primary">فیلتر</button>
-                </form>
+        {% if contents %}
+            <div class="mb-4">
+                <input type="text" class="form-control" id="searchInput" placeholder="جستجو در عنوان و محتوا...">
             </div>
-            <div class="col-md-6">
-                <form method="get" class="d-flex">
-                    <input type="text" name="search" class="form-control me-2" placeholder="جستجو..." value="{{ search_query or '' }}">
-                    <button type="submit" class="btn btn-outline-primary">جستجو</button>
-                </form>
+            
+            <div class="mb-3">
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-secondary active filter-btn" data-filter="all">همه</button>
+                    {% set categories = [] %}
+                    {% for content in contents %}
+                        {% if content.category not in categories %}
+                            {% do categories.append(content.category) %}
+                        {% endif %}
+                    {% endfor %}
+                    {% for category in categories %}
+                        <button type="button" class="btn btn-outline-secondary filter-btn" data-filter="{{ category }}">{{ category }}</button>
+                    {% endfor %}
+                </div>
             </div>
-        </div>
         
-        {% if educational_content %}
             <div class="table-responsive">
-                <table class="table table-striped">
+                <table class="table table-striped" id="educationTable">
                     <thead>
                         <tr>
-                            <th>شناسه</th>
                             <th>عنوان</th>
                             <th>دسته‌بندی</th>
-                            <th>نوع</th>
+                            <th>نوع محتوا</th>
+                            <th>تاریخ ایجاد</th>
                             <th>عملیات</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for content in educational_content %}
-                            <tr>
-                                <td>{{ content.id }}</td>
+                        {% for content in contents %}
+                            <tr data-category="{{ content.category }}">
                                 <td>{{ content.title }}</td>
-                                <td>{{ content.category }}</td>
                                 <td>
-                                    {% if content.type == 'text' %}
-                                        <span class="badge bg-primary">متن</span>
-                                    {% elif content.type == 'link' %}
-                                        <span class="badge bg-info">لینک</span>
-                                    {% elif content.type == 'file' %}
-                                        <span class="badge bg-warning">فایل</span>
-                                    {% endif %}
+                                    <span class="badge bg-secondary">{{ content.category }}</span>
                                 </td>
                                 <td>
+                                    {% if content.content_type == 'text' %}
+                                        <span class="badge bg-primary">متن</span>
+                                    {% elif content.content_type == 'video' %}
+                                        <span class="badge bg-success">ویدیو</span>
+                                    {% elif content.content_type == 'image' %}
+                                        <span class="badge bg-info">تصویر</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ content.content_type }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ content.created_at.strftime('%Y-%m-%d') }}</td>
+                                <td>
                                     <div class="btn-group btn-group-sm">
-                                        <a href="/admin/education/edit/{{ content.id }}" class="btn btn-primary">
+                                        <a href="{{ url_for('admin_edit_education', content_id=content.id) }}" class="btn btn-primary">
                                             <i class="bi bi-pencil"></i>
-                                        </a>
-                                        <a href="/admin/education/view/{{ content.id }}" class="btn btn-info">
-                                            <i class="bi bi-eye"></i>
                                         </a>
                                         <button type="button" class="btn btn-danger" 
                                                 data-bs-toggle="modal" 
@@ -74,6 +72,13 @@
                                                 data-content-title="{{ content.title }}">
                                             <i class="bi bi-trash"></i>
                                         </button>
+                                        <button type="button" class="btn btn-info" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#previewModal" 
+                                                data-content-title="{{ content.title }}"
+                                                data-content-body="{{ content.content }}">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -81,36 +86,10 @@
                     </tbody>
                 </table>
             </div>
-            
-            <!-- Pagination -->
-            {% if pagination %}
-                <nav aria-label="Page navigation">
-                    <ul class="pagination justify-content-center">
-                        <li class="page-item {{ 'disabled' if pagination.page == 1 else '' }}">
-                            <a class="page-link" href="{{ pagination.prev_url }}">قبلی</a>
-                        </li>
-                        
-                        {% for p in pagination.pages %}
-                            <li class="page-item {{ 'active' if p == pagination.page else '' }}">
-                                <a class="page-link" href="{{ pagination.url_for_page(p) }}">{{ p }}</a>
-                            </li>
-                        {% endfor %}
-                        
-                        <li class="page-item {{ 'disabled' if pagination.page == pagination.total_pages else '' }}">
-                            <a class="page-link" href="{{ pagination.next_url }}">بعدی</a>
-                        </li>
-                    </ul>
-                </nav>
-            {% endif %}
-            
         {% else %}
             <div class="alert alert-info">
-                هیچ مطلب آموزشی یافت نشد.
-                {% if selected_category or search_query %}
-                    <a href="/admin/education" class="alert-link">نمایش همه مطالب</a>
-                {% else %}
-                    <a href="/admin/education/add" class="alert-link">افزودن مطلب جدید</a>
-                {% endif %}
+                هیچ محتوای آموزشی ثبت نشده است.
+                <a href="{{ url_for('admin_add_education') }}" class="alert-link">افزودن محتوای جدید</a>
             </div>
         {% endif %}
     </div>
@@ -125,14 +104,34 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>آیا از حذف مطلب "<span id="contentTitleSpan"></span>" اطمینان دارید؟</p>
+                <p>آیا از حذف محتوای آموزشی "<span id="contentTitleSpan"></span>" اطمینان دارید؟</p>
+                <div class="alert alert-warning">
+                    <strong>هشدار:</strong> این عملیات غیرقابل بازگشت است.
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
-                <form id="deleteContentForm" action="/admin/education/delete" method="post">
-                    <input type="hidden" name="content_id" id="contentIdInput">
+                <form id="deleteContentForm" method="post">
                     <button type="submit" class="btn btn-danger">حذف</button>
                 </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="previewTitle"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="previewContent" class="p-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">بستن</button>
             </div>
         </div>
     </div>
@@ -141,18 +140,71 @@
 
 {% block scripts %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const deleteModal = document.getElementById('deleteModal');
-        if (deleteModal) {
-            deleteModal.addEventListener('show.bs.modal', function(event) {
-                const button = event.relatedTarget;
-                const contentId = button.getAttribute('data-content-id');
-                const contentTitle = button.getAttribute('data-content-title');
-                
-                document.getElementById('contentIdInput').value = contentId;
-                document.getElementById('contentTitleSpan').textContent = contentTitle;
+document.addEventListener('DOMContentLoaded', function() {
+    // Delete modal functionality
+    const deleteModal = document.getElementById('deleteModal');
+    if (deleteModal) {
+        deleteModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const contentId = button.getAttribute('data-content-id');
+            const contentTitle = button.getAttribute('data-content-title');
+            
+            document.getElementById('contentTitleSpan').textContent = contentTitle;
+            document.getElementById('deleteContentForm').action = '/admin/education/delete/' + contentId;
+        });
+    }
+    
+    // Preview modal functionality
+    const previewModal = document.getElementById('previewModal');
+    if (previewModal) {
+        previewModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const contentTitle = button.getAttribute('data-content-title');
+            const contentBody = button.getAttribute('data-content-body');
+            
+            document.getElementById('previewTitle').textContent = contentTitle;
+            document.getElementById('previewContent').innerHTML = contentBody;
+        });
+    }
+    
+    // Search functionality
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('keyup', function() {
+            const searchTerm = this.value.toLowerCase();
+            const rows = document.querySelectorAll('#educationTable tbody tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                const display = text.includes(searchTerm) ? '' : 'none';
+                row.style.display = display;
             });
-        }
-    });
+        });
+    }
+    
+    // Category filter functionality
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    if (filterButtons.length) {
+        filterButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Update active button
+                document.querySelector('.filter-btn.active').classList.remove('active');
+                this.classList.add('active');
+                
+                const filter = this.getAttribute('data-filter');
+                const rows = document.querySelectorAll('#educationTable tbody tr');
+                
+                rows.forEach(row => {
+                    if (filter === 'all') {
+                        row.style.display = '';
+                    } else {
+                        const category = row.getAttribute('data-category');
+                        row.style.display = (category === filter) ? '' : 'none';
+                    }
+                });
+            });
+        });
+    }
+});
 </script>
 {% endblock %}
