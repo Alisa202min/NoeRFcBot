@@ -56,7 +56,9 @@ class InquiryForm(StatesGroup):
 class AdminActions(StatesGroup):
     edit_category = State()
     edit_product = State()
+    add_product = State()
     edit_edu = State()
+    add_edu = State()
     edit_static = State()
     upload_csv = State()
 
@@ -1383,96 +1385,106 @@ class admin_handlers:
         )
     
     @staticmethod
-    async def process_edit_product(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def process_edit_product(message: types.Message, state: FSMContext) -> None:
         """Process product edit, step by step."""
-        user_id = update.effective_user.id
-        text = update.message.text
+        user_id = message.from_user.id
+        text = message.text
         
-        if user_id not in user_states:
-            await update.message.reply_text(ERROR_MESSAGE)
-            return ConversationHandler.END
+        # Get data from state
+        data = await state.get_data()
+        product_id = data.get('edit_product_id')
+        step = data.get('edit_product_step', 0)
         
-        product_id = user_states[user_id]['edit_product_id']
-        step = user_states[user_id]['edit_product_step']
+        if not product_id:
+            await message.reply(ERROR_MESSAGE)
+            await state.clear()
+            return
         
         # Process current step
         if step == 0:  # Name
+            edit_product_name = data.get('edit_product_name')
             if text.lower() != 'skip':
-                user_states[user_id]['edit_product_name'] = text
+                edit_product_name = text
             
             # Move to price
-            user_states[user_id]['edit_product_step'] = 1
+            await state.update_data(
+                edit_product_name=edit_product_name,
+                edit_product_step=1
+            )
             
-            await update.message.reply_text(
+            await message.reply(
                 f"مرحله 2/4: لطفاً قیمت جدید را به عدد وارد کنید (یا 'skip' برای رد کردن):",
                 reply_markup=cancel_keyboard()
             )
             
-            return ADMIN_EDIT_PRODUCT
-            
         elif step == 1:  # Price
+            edit_product_price = data.get('edit_product_price')
             if text.lower() != 'skip':
                 try:
                     price = int(text.replace(',', ''))
-                    user_states[user_id]['edit_product_price'] = price
+                    edit_product_price = price
                 except ValueError:
-                    await update.message.reply_text(
+                    await message.reply(
                         "لطفاً یک عدد معتبر وارد کنید (یا 'skip' برای رد کردن):",
                         reply_markup=cancel_keyboard()
                     )
-                    return ADMIN_EDIT_PRODUCT
+                    return
             
             # Move to description
-            user_states[user_id]['edit_product_step'] = 2
+            await state.update_data(
+                edit_product_price=edit_product_price,
+                edit_product_step=2
+            )
             
-            await update.message.reply_text(
+            await message.reply(
                 f"مرحله 3/4: لطفاً توضیحات جدید را وارد کنید (یا 'skip' برای رد کردن):",
                 reply_markup=cancel_keyboard()
             )
             
-            return ADMIN_EDIT_PRODUCT
-            
         elif step == 2:  # Description
+            edit_product_description = data.get('edit_product_description')
             if text.lower() != 'skip':
-                user_states[user_id]['edit_product_description'] = text
+                edit_product_description = text
             
             # Move to photo URL
-            user_states[user_id]['edit_product_step'] = 3
+            await state.update_data(
+                edit_product_description=edit_product_description,
+                edit_product_step=3
+            )
             
-            await update.message.reply_text(
+            await message.reply(
                 f"مرحله 4/4: لطفاً آدرس عکس جدید را وارد کنید (یا 'skip' برای رد کردن یا 'none' برای حذف):",
                 reply_markup=cancel_keyboard()
             )
             
-            return ADMIN_EDIT_PRODUCT
-            
         elif step == 3:  # Photo URL
+            edit_product_photo_url = data.get('edit_product_photo_url')
             if text.lower() == 'none':
-                user_states[user_id]['edit_product_photo_url'] = None
+                edit_product_photo_url = None
             elif text.lower() != 'skip':
-                user_states[user_id]['edit_product_photo_url'] = text
+                edit_product_photo_url = text
+            
+            # Get all values from state
+            edit_product_name = data.get('edit_product_name')
+            edit_product_price = data.get('edit_product_price')
+            edit_product_description = data.get('edit_product_description')
+            edit_product_category_id = data.get('edit_product_category_id')
             
             # Update product
-            name = user_states[user_id]['edit_product_name']
-            price = user_states[user_id]['edit_product_price']
-            description = user_states[user_id]['edit_product_description']
-            photo_url = user_states[user_id]['edit_product_photo_url']
-            category_id = user_states[user_id]['edit_product_category_id']
-            
             success = db.update_product(
                 product_id=product_id,
-                name=name,
-                price=price,
-                description=description,
-                photo_url=photo_url,
-                category_id=category_id
+                name=edit_product_name,
+                price=edit_product_price,
+                description=edit_product_description,
+                photo_url=edit_product_photo_url,
+                category_id=edit_product_category_id
             )
             
             if success:
                 product = db.get_product(product_id)
                 
-                await update.message.reply_text(
-                    f"محصول/خدمت «{name}» با موفقیت به‌روزرسانی شد.",
+                await message.reply(
+                    f"محصول/خدمت «{edit_product_name}» با موفقیت به‌روزرسانی شد.",
                     reply_markup=admin_keyboard()
                 )
                 
@@ -1483,125 +1495,123 @@ class admin_handlers:
                         f"قیمت: {format_price(product['price'])}\n"
                         f"توضیحات: {product['description'] or 'بدون توضیحات'}\n"
                         f"تصویر: {product['photo_url'] or 'بدون تصویر'}\n"
-                        f"دسته‌بندی: {get_category_path(db, category_id)}"
+                        f"دسته‌بندی: {get_category_path(db, edit_product_category_id)}"
                     )
                     
-                    await update.message.reply_text(
+                    await message.reply(
                         product_text,
-                        reply_markup=admin_keyboards.admin_product_detail_keyboard(product_id, category_id)
+                        reply_markup=admin_keyboards.admin_product_detail_keyboard(product_id, edit_product_category_id)
                     )
             else:
-                await update.message.reply_text(
+                await message.reply(
                     "خطا در به‌روزرسانی محصول/خدمت. لطفاً دوباره تلاش کنید.",
                     reply_markup=admin_keyboard()
                 )
             
-            # Clear user state
-            if user_id in user_states:
-                del user_states[user_id]
-            
-            return ConversationHandler.END
+            # Clear state
+            await state.clear()
     
     @staticmethod
-    async def start_add_product(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def start_add_product(callback_query: types.CallbackQuery, state: FSMContext) -> None:
         """Start adding a new product."""
-        query = update.callback_query
-        await query.answer()
+        await callback_query.answer()
         
-        user_id = update.effective_user.id
-        data = query.data
+        user_id = callback_query.from_user.id
+        data = callback_query.data
         category_id = int(data[len(ADMIN_PREFIX + "add_product_"):])
         
         category = db.get_category(category_id)
         if not category:
-            await query.edit_message_text("دسته‌بندی مورد نظر یافت نشد.")
-            return ConversationHandler.END
+            await callback_query.message.edit_text("دسته‌بندی مورد نظر یافت نشد.")
+            return
         
-        # Store data in user state
-        if user_id not in user_states:
-            user_states[user_id] = {}
-        user_states[user_id]['add_product_category_id'] = category_id
-        user_states[user_id]['add_product_step'] = 0  # 0: name, 1: price, 2: description, 3: photo_url
+        # Store data in state
+        await state.set_state(AdminActions.add_product)
+        await state.update_data(
+            add_product_category_id=category_id,
+            add_product_step=0  # 0: name, 1: price, 2: description, 3: photo_url
+        )
         
         # Send add form - start with name
-        await query.edit_message_text(
+        await callback_query.message.edit_text(
             f"افزودن محصول/خدمت جدید به دسته‌بندی «{category['name']}»\n\n"
             f"مرحله 1/4: لطفاً نام را وارد کنید:",
             reply_markup=cancel_keyboard()
         )
-        
-        return ADMIN_EDIT_PRODUCT
     
     @staticmethod
-    async def process_add_product(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def process_add_product(message: types.Message, state: FSMContext) -> None:
         """Process new product addition, step by step."""
-        user_id = update.effective_user.id
-        text = update.message.text
+        user_id = message.from_user.id
+        text = message.text
         
-        if user_id not in user_states:
-            await update.message.reply_text(ERROR_MESSAGE)
-            return ConversationHandler.END
+        # Get data from state
+        data = await state.get_data()
+        add_product_step = data.get('add_product_step', 0)
+        category_id = data.get('add_product_category_id')
         
-        step = user_states[user_id]['add_product_step']
+        if not category_id:
+            await message.reply(ERROR_MESSAGE)
+            await state.clear()
+            return
         
         # Process current step
-        if step == 0:  # Name
-            user_states[user_id]['add_product_name'] = text
+        if add_product_step == 0:  # Name
+            # Store name and move to price
+            await state.update_data(
+                add_product_name=text,
+                add_product_step=1
+            )
             
-            # Move to price
-            user_states[user_id]['add_product_step'] = 1
-            
-            await update.message.reply_text(
+            await message.reply(
                 f"مرحله 2/4: لطفاً قیمت را به عدد وارد کنید:",
                 reply_markup=cancel_keyboard()
             )
             
-            return ADMIN_EDIT_PRODUCT
-            
-        elif step == 1:  # Price
+        elif add_product_step == 1:  # Price
             try:
                 price = int(text.replace(',', ''))
-                user_states[user_id]['add_product_price'] = price
+                
+                # Store price and move to description
+                await state.update_data(
+                    add_product_price=price,
+                    add_product_step=2
+                )
+                
+                await message.reply(
+                    f"مرحله 3/4: لطفاً توضیحات را وارد کنید (یا 'none' برای خالی گذاشتن):",
+                    reply_markup=cancel_keyboard()
+                )
             except ValueError:
-                await update.message.reply_text(
+                await message.reply(
                     "لطفاً یک عدد معتبر وارد کنید:",
                     reply_markup=cancel_keyboard()
                 )
-                return ADMIN_EDIT_PRODUCT
             
-            # Move to description
-            user_states[user_id]['add_product_step'] = 2
+        elif add_product_step == 2:  # Description
+            description = None if text.lower() == 'none' else text
             
-            await update.message.reply_text(
-                f"مرحله 3/4: لطفاً توضیحات را وارد کنید (یا 'none' برای خالی گذاشتن):",
-                reply_markup=cancel_keyboard()
+            # Store description and move to photo URL
+            await state.update_data(
+                add_product_description=description,
+                add_product_step=3
             )
             
-            return ADMIN_EDIT_PRODUCT
-            
-        elif step == 2:  # Description
-            description = None if text.lower() == 'none' else text
-            user_states[user_id]['add_product_description'] = description
-            
-            # Move to photo URL
-            user_states[user_id]['add_product_step'] = 3
-            
-            await update.message.reply_text(
+            await message.reply(
                 f"مرحله 4/4: لطفاً آدرس عکس را وارد کنید (یا 'none' برای بدون عکس):",
                 reply_markup=cancel_keyboard()
             )
             
-            return ADMIN_EDIT_PRODUCT
-            
-        elif step == 3:  # Photo URL
+        elif add_product_step == 3:  # Photo URL
             photo_url = None if text.lower() == 'none' else text
             
-            # Add product
-            name = user_states[user_id]['add_product_name']
-            price = user_states[user_id]['add_product_price']
-            description = user_states[user_id]['add_product_description']
-            category_id = user_states[user_id]['add_product_category_id']
+            # Get all data from state
+            data = await state.get_data()
+            name = data.get('add_product_name', '')
+            price = data.get('add_product_price', 0)
+            description = data.get('add_product_description')
             
+            # Add product
             product_id = db.add_product(
                 name=name,
                 price=price,
@@ -1611,7 +1621,7 @@ class admin_handlers:
             )
             
             if product_id:
-                await update.message.reply_text(
+                await message.reply(
                     f"محصول/خدمت «{name}» با موفقیت ایجاد شد.",
                     reply_markup=admin_keyboard()
                 )
@@ -1621,21 +1631,18 @@ class admin_handlers:
                 if category:
                     products = db.get_products_by_category(category_id)
                     
-                    await update.message.reply_text(
+                    await message.reply(
                         f"محصولات/خدمات {category['name']}:",
                         reply_markup=admin_keyboards.admin_products_keyboard(products, category_id)
                     )
             else:
-                await update.message.reply_text(
+                await message.reply(
                     "خطا در ایجاد محصول/خدمت. لطفاً دوباره تلاش کنید.",
                     reply_markup=admin_keyboard()
                 )
             
-            # Clear user state
-            if user_id in user_states:
-                del user_states[user_id]
-            
-            return ConversationHandler.END
+            # Clear state
+            await state.clear()
     
     @staticmethod
     async def start_edit_edu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

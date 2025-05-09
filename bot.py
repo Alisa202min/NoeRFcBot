@@ -31,7 +31,8 @@ from handlers import (
     handle_search,
     admin_handlers,
     InquiryForm,
-    SearchForm
+    SearchForm,
+    AdminActions
 )
 
 # Create data directory if it doesn't exist
@@ -91,11 +92,11 @@ async def main():
     
     # Admin product edit handlers
     dp.callback_query.register(admin_handlers.start_edit_product, lambda c: c.data.startswith("admin_edit_product_"))
-    dp.message.register(admin_handlers.process_edit_product, lambda m: not m.text.startswith('/'))
+    dp.message.register(admin_handlers.process_edit_product, AdminActions.edit_product)
     
     # Admin add product handlers
     dp.callback_query.register(admin_handlers.start_add_product, lambda c: c.data.startswith("admin_add_product_"))
-    dp.message.register(admin_handlers.process_add_product, lambda m: not m.text.startswith('/'))
+    dp.message.register(admin_handlers.process_add_product, AdminActions.add_product)
     
     # Admin educational content edit handlers
     dp.callback_query.register(admin_handlers.start_edit_edu, lambda c: c.data.startswith("admin_edit_edu_"))
