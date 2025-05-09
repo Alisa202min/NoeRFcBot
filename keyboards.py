@@ -489,3 +489,39 @@ def product_media_keyboard(product_id: int, media_files: List[Dict]) -> InlineKe
     ])
     
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def service_media_keyboard(service_id: int, media_files: List[Dict]) -> InlineKeyboardMarkup:
+    """
+    Create a keyboard for managing service media files
+    
+    Args:
+        service_id: ID of the service
+        media_files: List of media file dictionaries
+        
+    Returns:
+        InlineKeyboardMarkup for managing service media
+    """
+    keyboard = []
+    
+    # Add buttons for each media file (limited to 10)
+    for i, media in enumerate(media_files[:10]):
+        media_id = media['id']
+        media_type = "تصویر 🖼" if media['file_type'] == 'photo' else "ویدیو 🎬"
+        button_text = f"{i+1}. {media_type}"
+        
+        keyboard.append([
+            InlineKeyboardButton(text=button_text, callback_data=f"{ADMIN_PREFIX}view_service_media_{media_id}"),
+            InlineKeyboardButton(text="❌ حذف", callback_data=f"{ADMIN_PREFIX}delete_service_media_{media_id}")
+        ])
+    
+    # Add button to add more media
+    keyboard.append([
+        InlineKeyboardButton(text="➕ افزودن تصویر/ویدیو", callback_data=f"{ADMIN_PREFIX}add_service_media_{service_id}")
+    ])
+    
+    # Add back button
+    keyboard.append([
+        InlineKeyboardButton(text=BACK_BTN, callback_data=f"{ADMIN_PREFIX}service_{service_id}")
+    ])
+    
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
