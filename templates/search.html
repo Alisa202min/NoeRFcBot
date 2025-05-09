@@ -285,14 +285,55 @@
                                 {{ item.description|truncate(100) if item.description else 'بدون توضیحات' }}
                             </p>
                             
-                            {% if item.brand %}
-                            <div class="mb-2">
-                                <span class="badge bg-secondary">{{ item.brand }}</span>
-                            </div>
+                            {% if item.product_type == 'product' %}
+                                <!-- Product-specific details -->
+                                {% if item.brand %}
+                                <div class="mb-1">
+                                    <small class="text-muted">برند:</small>
+                                    <span class="badge bg-secondary">{{ item.brand }}</span>
+                                </div>
+                                {% endif %}
+                                
+                                {% if item.manufacturer %}
+                                <div class="mb-1">
+                                    <small class="text-muted">سازنده:</small>
+                                    <span class="badge bg-secondary">{{ item.manufacturer }}</span>
+                                </div>
+                                {% endif %}
+                                
+                                {% if item.model_number %}
+                                <div class="mb-1">
+                                    <small class="text-muted">شماره مدل:</small>
+                                    <span class="badge bg-dark">{{ item.model_number }}</span>
+                                </div>
+                                {% endif %}
+                            {% else %}
+                                <!-- Service-specific details -->
+                                {% if item.provider %}
+                                <div class="mb-1">
+                                    <small class="text-muted">ارائه دهنده:</small>
+                                    <span class="badge bg-secondary">{{ item.provider }}</span>
+                                </div>
+                                {% endif %}
+                                
+                                {% if item.service_code %}
+                                <div class="mb-1">
+                                    <small class="text-muted">کد خدمت:</small>
+                                    <span class="badge bg-dark">{{ item.service_code }}</span>
+                                </div>
+                                {% endif %}
+                                
+                                {% if item.duration %}
+                                <div class="mb-1">
+                                    <small class="text-muted">مدت زمان:</small>
+                                    <span class="badge bg-secondary">{{ item.duration }}</span>
+                                </div>
+                                {% endif %}
                             {% endif %}
                             
                             {% if item.tags %}
-                            <div class="mb-2">
+                            <div class="mb-2 mt-2">
+                                <small class="text-muted">برچسب‌ها:</small><br>
                                 {% for tag in item.tags.split(',') %}
                                 <span class="badge bg-info">{{ tag.strip() }}</span>
                                 {% endfor %}
@@ -343,7 +384,10 @@
                         <a class="page-link" href="{{ url_for('search', page=page_num, query=query, 
                                                              type=product_type, category_id=category_id, 
                                                              min_price=min_price, max_price=max_price, 
-                                                             tags=tags, brand=brand, in_stock=in_stock, 
+                                                             tags=tags, brand=brand, 
+                                                             manufacturer=manufacturer, model_number=model_number,
+                                                             provider=provider, service_code=service_code, duration=duration,
+                                                             in_stock=in_stock, 
                                                              featured=featured, sort_by=sort_by, 
                                                              sort_order=sort_order) }}">
                             {{ page_num }}
@@ -373,9 +417,42 @@
         document.getElementById('searchForm').submit();
     }
     
-    // Initialize price range slider
+    // Initialize features
     document.addEventListener('DOMContentLoaded', function() {
-        // Add any additional initialization here
+        // Set up product/service type filter toggle
+        const typeRadios = document.querySelectorAll('input[name="type"]');
+        const productFilters = document.querySelectorAll('.mb-3[class*="d-none"][id*="product"], .mb-3:not([id]) > [class*="d-none"][id*="product"]');
+        const serviceFilters = document.querySelectorAll('.mb-3[class*="d-none"][id*="service"], .mb-3:not([id]) > [class*="d-none"][id*="service"]');
+        
+        typeRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.value === 'product') {
+                    // Show product filters, hide service filters
+                    productFilters.forEach(filter => {
+                        filter.classList.remove('d-none');
+                    });
+                    serviceFilters.forEach(filter => {
+                        filter.classList.add('d-none');
+                    });
+                } else if (this.value === 'service') {
+                    // Show service filters, hide product filters
+                    serviceFilters.forEach(filter => {
+                        filter.classList.remove('d-none');
+                    });
+                    productFilters.forEach(filter => {
+                        filter.classList.add('d-none');
+                    });
+                } else {
+                    // Show all filters
+                    productFilters.forEach(filter => {
+                        filter.classList.remove('d-none');
+                    });
+                    serviceFilters.forEach(filter => {
+                        filter.classList.remove('d-none');
+                    });
+                }
+            });
+        });
     });
 </script>
 {% endblock %}
