@@ -540,7 +540,7 @@ def search():
     )
 
 
-@app.route('/control/start', methods=['POST'])
+@app.route('/control/start', methods=['GET', 'POST'])
 @admin_required
 def control_start():
     """Start the bot"""
@@ -556,7 +556,7 @@ def control_start():
     return redirect(url_for('index'))
 
 
-@app.route('/control/stop', methods=['POST'])
+@app.route('/control/stop', methods=['GET', 'POST'])
 @admin_required
 def control_stop():
     """Stop the bot"""
