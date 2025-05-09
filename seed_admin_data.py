@@ -162,22 +162,22 @@ def create_test_products(product_categories):
     
     for i, category in enumerate(product_categories):
         # تعداد محصولات متفاوت برای هر دسته
-        num_products = random.randint(2, 5)
+        num_products = random.randint(1, 2)
         
         for j in range(num_products):
             brand = random.choice(brands)
-            model = f"Model-{random.randint(100, 999)}"
+            model_num = f"Model-{random.randint(100, 999)}"
             
             price = random.randint(1000000, 100000000)  # قیمت بین ۱ تا ۱۰۰ میلیون تومان
             
             product = Product(
-                name=f"{category.name} {brand} {model}",
-                description=f"توضیحات مفصل برای {category.name} {brand} {model}. این محصول دارای کیفیت بالا و قابلیت‌های پیشرفته است.",
+                name=f"{category.name} {brand} {model_num}",
+                description=f"توضیحات مفصل برای {category.name} {brand} {model_num}. این محصول دارای کیفیت بالا و قابلیت‌های پیشرفته است.",
                 price=price,
                 category_id=category.id,
                 product_type="product",
                 brand=brand,
-                model=model,
+                model_number=model_num,
                 in_stock=random.choice([True, True, True, False]),  # ۷۵٪ موجود
                 tags=f"{category.name},RF,{brand}",
                 featured=random.choice([True, False, False, False])  # ۲۵٪ ویژه
@@ -214,7 +214,7 @@ def create_test_services(service_categories):
                 category_id=category.id,
                 product_type="service",
                 brand="",
-                model="",
+                model_number="",
                 in_stock=True,
                 tags=f"{category.name},خدمات,نصب",
                 featured=random.choice([True, False, False])  # ۳۳٪ ویژه
@@ -247,7 +247,7 @@ def create_test_media(products, services):
                 product_id=product.id,
                 file_id=f"product_image_{product.id}_{i}",
                 file_type="photo",
-                file_path=f"/static/images/product_{product.id}_{i}.jpg",
+                local_path=f"/static/images/product_{product.id}_{i}.jpg",
                 created_at=datetime.now()
             )
             
@@ -263,7 +263,7 @@ def create_test_media(products, services):
                 product_id=service.id,
                 file_id=f"service_image_{service.id}_{i}",
                 file_type="photo",
-                file_path=f"/static/images/service_{service.id}_{i}.jpg",
+                local_path=f"/static/images/service_{service.id}_{i}.jpg",
                 created_at=datetime.now()
             )
             
