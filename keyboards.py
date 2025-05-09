@@ -255,17 +255,17 @@ def admin_products_keyboard(products: List[Dict], category_id: int) -> InlineKey
     # Add product buttons
     for product in products:
         callback_data = f"{ADMIN_PREFIX}product_{product['id']}"
-        keyboard.append([InlineKeyboardButton(product['name'], callback_data=callback_data)])
+        keyboard.append([InlineKeyboardButton(text=product['name'], callback_data=callback_data)])
     
     # Add action buttons
     keyboard.append([
-        InlineKeyboardButton("➕ افزودن", callback_data=f"{ADMIN_PREFIX}add_product_{category_id}"),
+        InlineKeyboardButton(text="➕ افزودن", callback_data=f"{ADMIN_PREFIX}add_product_{category_id}"),
     ])
     
     # Add back button
-    keyboard.append([InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}cat_{category_id}")])
+    keyboard.append([InlineKeyboardButton(text=BACK_BTN, callback_data=f"{ADMIN_PREFIX}cat_{category_id}")])
     
-    return InlineKeyboardMarkup(keyboard)
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def admin_product_detail_keyboard(product_id: int, category_id: int) -> InlineKeyboardMarkup:
     """
@@ -280,12 +280,12 @@ def admin_product_detail_keyboard(product_id: int, category_id: int) -> InlineKe
     """
     keyboard = [
         [
-            InlineKeyboardButton("✏️ ویرایش", callback_data=f"{ADMIN_PREFIX}edit_product_{product_id}"),
-            InlineKeyboardButton("❌ حذف", callback_data=f"{ADMIN_PREFIX}delete_product_{product_id}")
+            InlineKeyboardButton(text="✏️ ویرایش", callback_data=f"{ADMIN_PREFIX}edit_product_{product_id}"),
+            InlineKeyboardButton(text="❌ حذف", callback_data=f"{ADMIN_PREFIX}delete_product_{product_id}")
         ],
-        [InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}products_{category_id}")]
+        [InlineKeyboardButton(text=BACK_BTN, callback_data=f"{ADMIN_PREFIX}products_{category_id}")]
     ]
-    return InlineKeyboardMarkup(keyboard)
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def admin_educational_keyboard(contents: List[Dict]) -> InlineKeyboardMarkup:
     """
@@ -302,17 +302,17 @@ def admin_educational_keyboard(contents: List[Dict]) -> InlineKeyboardMarkup:
     # Add content buttons
     for content in contents:
         callback_data = f"{ADMIN_PREFIX}edu_{content['id']}"
-        keyboard.append([InlineKeyboardButton(content['title'], callback_data=callback_data)])
+        keyboard.append([InlineKeyboardButton(text=content['title'], callback_data=callback_data)])
     
     # Add action buttons
     keyboard.append([
-        InlineKeyboardButton("➕ افزودن", callback_data=f"{ADMIN_PREFIX}add_edu"),
+        InlineKeyboardButton(text="➕ افزودن", callback_data=f"{ADMIN_PREFIX}add_edu"),
     ])
     
     # Add back button
-    keyboard.append([InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}back_main")])
+    keyboard.append([InlineKeyboardButton(text=BACK_BTN, callback_data=f"{ADMIN_PREFIX}back_main")])
     
-    return InlineKeyboardMarkup(keyboard)
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def admin_edu_detail_keyboard(content_id: int) -> InlineKeyboardMarkup:
     """
@@ -326,12 +326,12 @@ def admin_edu_detail_keyboard(content_id: int) -> InlineKeyboardMarkup:
     """
     keyboard = [
         [
-            InlineKeyboardButton("✏️ ویرایش", callback_data=f"{ADMIN_PREFIX}edit_edu_{content_id}"),
-            InlineKeyboardButton("❌ حذف", callback_data=f"{ADMIN_PREFIX}delete_edu_{content_id}")
+            InlineKeyboardButton(text="✏️ ویرایش", callback_data=f"{ADMIN_PREFIX}edit_edu_{content_id}"),
+            InlineKeyboardButton(text="❌ حذف", callback_data=f"{ADMIN_PREFIX}delete_edu_{content_id}")
         ],
-        [InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}educational")]
+        [InlineKeyboardButton(text=BACK_BTN, callback_data=f"{ADMIN_PREFIX}educational")]
     ]
-    return InlineKeyboardMarkup(keyboard)
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def admin_inquiries_keyboard(inquiries: List[Dict]) -> InlineKeyboardMarkup:
     """
@@ -353,18 +353,18 @@ def admin_inquiries_keyboard(inquiries: List[Dict]) -> InlineKeyboardMarkup:
         
         callback_data = f"{ADMIN_PREFIX}inquiry_{inquiry['id']}"
         button_text = f"{name} - {date} - {product_name}"
-        keyboard.append([InlineKeyboardButton(button_text, callback_data=callback_data)])
+        keyboard.append([InlineKeyboardButton(text=button_text, callback_data=callback_data)])
     
     # Add filter options
     keyboard.append([
-        InlineKeyboardButton("🔍 فیلتر", callback_data=f"{ADMIN_PREFIX}filter_inquiries"),
-        InlineKeyboardButton("📊 خروجی CSV", callback_data=f"{ADMIN_PREFIX}export_inquiries")
+        InlineKeyboardButton(text="🔍 فیلتر", callback_data=f"{ADMIN_PREFIX}filter_inquiries"),
+        InlineKeyboardButton(text="📊 خروجی CSV", callback_data=f"{ADMIN_PREFIX}export_inquiries")
     ])
     
     # Add back button
-    keyboard.append([InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}back_main")])
+    keyboard.append([InlineKeyboardButton(text=BACK_BTN, callback_data=f"{ADMIN_PREFIX}back_main")])
     
-    return InlineKeyboardMarkup(keyboard)
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def admin_static_keyboard() -> InlineKeyboardMarkup:
     """
@@ -375,12 +375,12 @@ def admin_static_keyboard() -> InlineKeyboardMarkup:
     """
     keyboard = [
         [
-            InlineKeyboardButton("ویرایش تماس با ما", callback_data=f"{ADMIN_PREFIX}edit_static_contact"),
-            InlineKeyboardButton("ویرایش درباره ما", callback_data=f"{ADMIN_PREFIX}edit_static_about")
+            InlineKeyboardButton(text="ویرایش تماس با ما", callback_data=f"{ADMIN_PREFIX}edit_static_contact"),
+            InlineKeyboardButton(text="ویرایش درباره ما", callback_data=f"{ADMIN_PREFIX}edit_static_about")
         ],
-        [InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}back_main")]
+        [InlineKeyboardButton(text=BACK_BTN, callback_data=f"{ADMIN_PREFIX}back_main")]
     ]
-    return InlineKeyboardMarkup(keyboard)
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def admin_export_keyboard() -> InlineKeyboardMarkup:
     """
@@ -391,16 +391,16 @@ def admin_export_keyboard() -> InlineKeyboardMarkup:
     """
     keyboard = [
         [
-            InlineKeyboardButton("محصولات", callback_data=f"{ADMIN_PREFIX}export_products"),
-            InlineKeyboardButton("دسته‌بندی‌ها", callback_data=f"{ADMIN_PREFIX}export_categories")
+            InlineKeyboardButton(text="محصولات", callback_data=f"{ADMIN_PREFIX}export_products"),
+            InlineKeyboardButton(text="دسته‌بندی‌ها", callback_data=f"{ADMIN_PREFIX}export_categories")
         ],
         [
-            InlineKeyboardButton("استعلام‌ها", callback_data=f"{ADMIN_PREFIX}export_inquiries"),
-            InlineKeyboardButton("مطالب آموزشی", callback_data=f"{ADMIN_PREFIX}export_educational")
+            InlineKeyboardButton(text="استعلام‌ها", callback_data=f"{ADMIN_PREFIX}export_inquiries"),
+            InlineKeyboardButton(text="مطالب آموزشی", callback_data=f"{ADMIN_PREFIX}export_educational")
         ],
-        [InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}back_main")]
+        [InlineKeyboardButton(text=BACK_BTN, callback_data=f"{ADMIN_PREFIX}back_main")]
     ]
-    return InlineKeyboardMarkup(keyboard)
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def admin_import_keyboard() -> InlineKeyboardMarkup:
     """
@@ -411,15 +411,15 @@ def admin_import_keyboard() -> InlineKeyboardMarkup:
     """
     keyboard = [
         [
-            InlineKeyboardButton("محصولات", callback_data=f"{ADMIN_PREFIX}import_products"),
-            InlineKeyboardButton("دسته‌بندی‌ها", callback_data=f"{ADMIN_PREFIX}import_categories")
+            InlineKeyboardButton(text="محصولات", callback_data=f"{ADMIN_PREFIX}import_products"),
+            InlineKeyboardButton(text="دسته‌بندی‌ها", callback_data=f"{ADMIN_PREFIX}import_categories")
         ],
         [
-            InlineKeyboardButton("مطالب آموزشی", callback_data=f"{ADMIN_PREFIX}import_educational")
+            InlineKeyboardButton(text="مطالب آموزشی", callback_data=f"{ADMIN_PREFIX}import_educational")
         ],
-        [InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}back_main")]
+        [InlineKeyboardButton(text=BACK_BTN, callback_data=f"{ADMIN_PREFIX}back_main")]
     ]
-    return InlineKeyboardMarkup(keyboard)
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def cancel_keyboard() -> InlineKeyboardMarkup:
     """
