@@ -1,0 +1,160 @@
+بر اساس درخواست شما، پرامپتی برای Repl.it Agent بازنویسی شده که وضعیت و مشخصات کد فعلی پروژه RFCBot را با تمرکز بر ویژگی‌های ربات تلگرامی توضیح می‌دهد، ساختار پایگاه داده فعلی را شامل می‌شود، و از افزودن ویژگی‌های جدید یا توضیحات غیرضروری اجتناب می‌کند. پرامپت دقیق، کامل، و مختصر است و در یک کادر برای کپی آسان قرار دارد. هدف این است که اطمینان حاصل شود کد با ویژگی‌های موجود به درستی کار می‌کند.
+
+```plaintext
+You are a Repl.it Agent tasked with analyzing and ensuring the functionality of an existing Telegram bot project called RFCBot. The project includes a Telegram bot (currently using python-telegram-bot v20.x, planned for migration to aiogram) and a Flask-based web interface for basic administration, designed for Persian users with a dark-themed, RTL Bootstrap 5 UI. Your primary focus is to verify that the bot's core features work correctly as described, without adding new features or making unnecessary changes. Below is the current state of the project, including code structure, database schema, and key functionalities. Please review, identify any issues, and provide fixes to ensure the bot operates reliably.
+
+### Project Overview
+- **Purpose**: A Telegram bot for managing products, services, price inquiries, and educational content in Persian, with a simple Flask web interface for content management.
+- **Priority**: Ensure the Telegram bot's core features (main menu, category navigation, price inquiries, educational content, and admin panel) function correctly.
+- **Language**: Persian, with RTL UI (lang="fa" dir="rtl").
+- **Deployment**: Bot uses polling, Flask server runs on port 5000.
+
+### Core Bot Features
+- **Main Menu**: Buttons for Products, Services, Price Inquiry, Educational Content, Contact, About, and Search.
+- **Category Navigation**: Hierarchical navigation up to 4 levels for products and services, stored in the `categories` table.
+- **Price Inquiry**: Form capturing user’s name, phone, and description, stored in the `inquiries` table, with admin notifications via Telegram.
+- **Educational Content**: Categorized content (text, links, or files) stored in the `educational_content` table, accessible via the bot.
+- **Admin Panel**: Manage content (categories, products, services, inquiries, educational content) via Telegram commands and inline keyboards.
+- **Static Content**: Contact and About sections stored in the `static_content` table, displayed in the bot.
+
+### Flask Web Interface (Secondary)
+- **Dashboard** (`index.html`): Shows bot status (running/stopped/error), environment variables (`BOT_TOKEN`, `ADMIN_ID`, `DB_TYPE`), database status, and bot logs (auto-refresh every 5s).
+- **Configuration** (`configuration.html`): Form to edit bot settings (`BOT_TOKEN`, `ADMIN_ID`, `DB_TYPE`, button/message texts).
+- **Database Status** (`database.html`): Displays SQLite file details (path, size, existence) and table list.
+- **Admin Panel** (`admin_layout.html` and related):
+  - **Categories** (`admin_categories.html`): Manage product/service categories (add/edit/delete).
+  - **Products/Services** (`admin_products.html`): Unified list with search/filter, forms for adding/editing items.
+  - **Educational Content** (`admin_education.html`): List and edit content with category filter.
+  - **Inquiries** (`admin_inquiries.html`): List inquiries with date/product filters and Excel export.
+  - **Static Content** (`admin_content.html`): Edit Contact/About sections.
+  - **Import/Export** (`admin_import_export.html`): CSV export/import for data, database backup/restore.
+
+### Database Schema (SQLite)
+- **categories**:
+  ```sql
+  CREATE TABLE categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      parent_id INTEGER,
+      cat_type TEXT NOT NULL,
+      FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE CASCADE
+  );
+  ```
+- **products**:
+  ```sql
+  CREATE TABLE products (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      price INTEGER NOT NULL,
+      description TEXT,
+      photo_url TEXT,
+      category_id INTEGER NOT NULL,
+      FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+  );
+  ```
+- **services**:
+  ```sql
+  CREATE TABLE services (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      price INTEGER NOT NULL,
+      description TEXT,
+      photo_url TEXT,
+      category_id INTEGER NOT NULL,
+      FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+  );
+  ```
+- **inquiries**:
+  ```sql
+  CREATE TABLE inquiries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      description TEXT,
+      product_id INTEGER,
+      date TEXT NOT NULL,
+      FOREIGN KEY (product_id) REFERENCES products_services(id) ON DELETE SET NULL
+  );
+  ```
+  Note: The `products_services` table referenced in `inquiries` does not exist; it should likely reference `products` or `services`.
+- **educational_content**:
+  ```sql
+  CREATE TABLE educational_content (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      category TEXT NOT NULL,
+      type TEXT NOT NULL
+  );
+  ```
+- **static_content**:
+  ```sql
+  CREATE TABLE static_content (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL UNIQUE,
+      content TEXT NOT NULL
+  );
+  ```
+- **sqlite_sequence**: Auto-generated by SQLite for sequence tracking.
+
+### Code Structure
+- **Python Files**:
+  - `configuration.py`: Manages bot settings via `data/current_config.json` and environment variables (`BOT_TOKEN`, `ADMIN_ID`, `DB_TYPE`).
+  - `bot.py`: Core bot logic (commands, callbacks) using `python-telegram-bot`.
+  - `keyboards.py`: Defines inline/reply keyboards for navigation.
+  - `main.py`: Initializes Flask app and bot polling.
+  - `database.py`: SQLite operations for all tables.
+  - `handlers.py`: Telegram command and callback handlers.
+- **Templates** (Jinja2, Bootstrap 5):
+  - `layout.html`: Base template with navbar for Dashboard, Configuration, Database, Admin Panel.
+  - `index.html`: Dashboard with bot status, env vars, database status, logs.
+  - `configuration.html`: Settings form.
+  - `database.html`: Database details and table list.
+  - `admin_layout.html`: Admin sidebar for Categories, Products, Services, Education, Inquiries, Content, Import/Export.
+  - `admin_*.html`: Templates for managing categories, products, services, educational content, inquiries, static content, and import/export.
+- **Static Files**: Custom CSS, Bootstrap 5, Bootstrap Icons, JavaScript for modals and log refresh.
+
+### Tech Stack
+- **Backend**: Python 3.8+, `python-telegram-bot` (v20.x), Flask, SQLite.
+- **Frontend**: Bootstrap 5 (dark theme, RTL), Bootstrap Icons, custom CSS.
+- **Dependencies**: `python-dotenv`, `flask`.
+- **Configuration**: Environment variables (`BOT_TOKEN`, `ADMIN_ID`, `DB_TYPE`), JSON config (`data/current_config.json`).
+
+### Identified Issues
+- **Database**: The `inquiries` table references a non-existent `products_services` table (should likely reference `products` or `services`).
+- **Code**: Hardcoded URLs in templates (e.g., `/admin/categories/add`) should use `url_for`. Repeated JavaScript for modals across templates.
+- **UI**: Inconsistent pagination (missing in `admin_categories.html`). Basic log display in `index.html` lacks filtering/export.
+- **Functionality**: No file uploads (relies on URLs for images/files). Limited log management (no export/clearing).
+
+### Task
+1. **Verify Bot Functionality**:
+   - Ensure the main menu, category navigation, price inquiry form, educational content, and admin panel work as described.
+   - Test database interactions (CRUD operations for `categories`, `products`, `services`, `inquiries`, `educational_content`, `static_content`).
+   - Confirm admin notifications for inquiries are sent correctly.
+2. **Fix Issues**:
+   - Correct the `inquiries` table foreign key to reference `products` or `services` (or merge them if needed).
+   - Replace hardcoded URLs with `url_for` in templates (e.g., `admin_categories.html`, `admin_products.html`).
+   - Consolidate repeated JavaScript into `static/js/admin.js`.
+   - Ensure bot handles Persian text correctly (RTL, no encoding issues).
+3. **Test Setup**:
+   - Create basic tests using `pytest` to verify bot commands (e.g., `/start`, inquiry submission) and database operations.
+   - Example:
+     ```python
+     def test_start_command():
+         response = handle_start_command()
+         assert response == "به ربات خوش آمدید!"
+     ```
+4. **Do Not**:
+   - Add new features (e.g., file uploads, authentication, localization).
+   - Modify the database schema unless fixing the `inquiries` table issue.
+   - Change the tech stack or UI framework.
+
+### Deliverables
+- A report listing verified functionalities, identified issues, and applied fixes.
+- Updated code (e.g., `database.py`, `inquiries` table, templates with `url_for`, consolidated JavaScript).
+- Basic test suite (`tests/test_bot.py`) for bot commands and database operations.
+- Instructions to run the project and tests on Repl.it.
+
+Please proceed with the analysis and provide the deliverables to ensure the RFCBot operates correctly with its current features.
+```

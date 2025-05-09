@@ -189,7 +189,7 @@ def import_initial_data(db, csv_path: str = None) -> Tuple[int, int]:
     Returns:
         Tuple of (success_count, error_count)
     """
-    from configuration import CSV_PATH
+    from config import CSV_PATH
     
     if csv_path is None:
         csv_path = CSV_PATH
