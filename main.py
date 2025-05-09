@@ -357,7 +357,18 @@ def search():
     min_price = request.args.get('min_price')
     max_price = request.args.get('max_price')
     tags = request.args.get('tags')
+    
+    # Product-specific parameters
     brand = request.args.get('brand')
+    manufacturer = request.args.get('manufacturer')
+    model_number = request.args.get('model_number')
+    
+    # Service-specific parameters
+    provider = request.args.get('provider')
+    service_code = request.args.get('service_code')
+    duration = request.args.get('duration')
+    
+    # Common parameters
     in_stock = request.args.get('in_stock')
     featured = request.args.get('featured')
     page = request.args.get('page', 1, type=int)
@@ -398,13 +409,23 @@ def search():
     
     # Get all available brands for filtering
     brands = db.session.query(Product.brand).filter(
-        Product.brand.isnot(None)).distinct().all()
+        Product.brand.isnot(None), Product.brand != '').distinct().all()
     brands = [brand[0] for brand in brands]
+    
+    # Get all available manufacturers for filtering
+    manufacturers = db.session.query(Product.manufacturer).filter(
+        Product.manufacturer.isnot(None), Product.manufacturer != '').distinct().all()
+    manufacturers = [manufacturer[0] for manufacturer in manufacturers]
+    
+    # Get all available providers for filtering
+    providers = db.session.query(Product.provider).filter(
+        Product.provider.isnot(None), Product.provider != '').distinct().all()
+    providers = [provider[0] for provider in providers]
     
     # Get all available tags for filtering
     all_tags = []
     products_with_tags = db.session.query(Product.tags).filter(
-        Product.tags.isnot(None)).all()
+        Product.tags.isnot(None), Product.tags != '').all()
     for product_tags in products_with_tags:
         if product_tags[0]:
             all_tags.extend([tag.strip() for tag in product_tags[0].split(',')])
@@ -419,6 +440,11 @@ def search():
         max_price=max_price,
         tags=tags,
         brand=brand,
+        manufacturer=manufacturer,
+        model_number=model_number,
+        provider=provider,
+        service_code=service_code,
+        duration=duration,
         in_stock=in_stock,
         featured=featured
     )
@@ -449,7 +475,9 @@ def search():
         'type': 'محصولات' if product_type == 'product' else 'خدمات' if product_type == 'service' else 'همه',
         'total_results': paginated_results.total,
         'filters_applied': bool(
-            category_id or min_price or max_price or tags or brand or in_stock is not None or featured is not None
+            category_id or min_price or max_price or tags or brand or 
+            manufacturer or model_number or provider or service_code or 
+            duration or in_stock is not None or featured is not None
         )
     }
     
@@ -467,12 +495,18 @@ def search():
         'has_next': paginated_results.has_next,
         'prev_url': url_for('search', page=paginated_results.prev_num, query=query, 
                            type=product_type, category_id=category_id, min_price=min_price, 
-                           max_price=max_price, tags=tags, brand=brand, in_stock=in_stock, 
-                           featured=featured, sort_by=sort_by, sort_order=sort_order) if paginated_results.has_prev else None,
+                           max_price=max_price, tags=tags, brand=brand, 
+                           manufacturer=manufacturer, model_number=model_number,
+                           provider=provider, service_code=service_code, duration=duration,
+                           in_stock=in_stock, featured=featured, 
+                           sort_by=sort_by, sort_order=sort_order) if paginated_results.has_prev else None,
         'next_url': url_for('search', page=paginated_results.next_num, query=query, 
                            type=product_type, category_id=category_id, min_price=min_price, 
-                           max_price=max_price, tags=tags, brand=brand, in_stock=in_stock, 
-                           featured=featured, sort_by=sort_by, sort_order=sort_order) if paginated_results.has_next else None,
+                           max_price=max_price, tags=tags, brand=brand,
+                           manufacturer=manufacturer, model_number=model_number,
+                           provider=provider, service_code=service_code, duration=duration,
+                           in_stock=in_stock, featured=featured,
+                           sort_by=sort_by, sort_order=sort_order) if paginated_results.has_next else None,
     }
     
     return render_template(
@@ -483,6 +517,8 @@ def search():
         product_categories=product_categories,
         service_categories=service_categories,
         brands=brands,
+        manufacturers=manufacturers,
+        providers=providers,
         all_tags=all_tags,
         query=query,
         product_type=product_type,
@@ -491,6 +527,11 @@ def search():
         max_price=max_price,
         tags=tags,
         brand=brand,
+        manufacturer=manufacturer,
+        model_number=model_number,
+        provider=provider,
+        service_code=service_code,
+        duration=duration,
         in_stock=in_stock,
         featured=featured,
         sort_by=sort_by,
