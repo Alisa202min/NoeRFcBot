@@ -16,7 +16,7 @@ def load_config():
         default_config = {
             "BOT_TOKEN": os.environ.get("BOT_TOKEN"),
             "ADMIN_ID": os.environ.get("ADMIN_ID", "0"),
-            "DB_TYPE": os.environ.get("DB_TYPE", "sqlite").lower(),
+            "DB_TYPE": os.environ.get("DB_TYPE", "postgresql").lower(),
             "DATA_DIR": "data",
             "DB_PATH": os.path.join("data", "database.db"),
             "CSV_PATH": os.path.join("data", "initial_data.csv"),
