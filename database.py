@@ -493,11 +493,27 @@ class Database:
 
     def add_inquiry(self, user_id: int, name: str, phone: str, 
                    description: str, product_id: Optional[int] = None, service_id: Optional[int] = None) -> int:
-        """Add a new price inquiry"""
+        """Add a new price inquiry
+        
+        Args:
+            user_id: The user ID making the inquiry
+            name: Customer name
+            phone: Customer phone number
+            description: Inquiry description
+            product_id: ID of the product (if this is a product inquiry)
+            service_id: ID of the service (if this is a service inquiry)
+            
+        Note:
+            For services, service_id is stored in the product_id column, with product_type='service'
+        """
+        # Determine the type and ID to store
+        is_service = service_id is not None
+        item_id = service_id if is_service else product_id
+        
         with self.conn.cursor() as cursor:
             cursor.execute(
                 'INSERT INTO inquiries (user_id, name, phone, description, product_id, product_type, date) VALUES (%s, %s, %s, %s, %s, %s, NOW()) RETURNING id',
-                (user_id, name, phone, description, product_id, 'service' if service_id else 'product')
+                (user_id, name, phone, description, item_id, 'service' if is_service else 'product')
             )
             inquiry_id = cursor.fetchone()[0]
             return inquiry_id
