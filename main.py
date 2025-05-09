@@ -313,6 +313,11 @@ def logout():
     return redirect(url_for('index'))
 
 
+# Provide datetime in templates
+@app.context_processor
+def inject_datetime():
+    return {'datetime': datetime}
+
 # Main routes
 @app.route('/')
 def index():
@@ -340,6 +345,157 @@ def index():
                           env_status=env_status,
                           db_exists=db_exists,
                           bot_logs=bot_logs)
+
+
+@app.route('/search', methods=['GET'])
+def search():
+    """Search page for products and services"""
+    # Get search parameters
+    query = request.args.get('query', '')
+    product_type = request.args.get('type')
+    category_id = request.args.get('category_id')
+    min_price = request.args.get('min_price')
+    max_price = request.args.get('max_price')
+    tags = request.args.get('tags')
+    brand = request.args.get('brand')
+    in_stock = request.args.get('in_stock')
+    featured = request.args.get('featured')
+    page = request.args.get('page', 1, type=int)
+    per_page = 12
+    
+    # Convert string parameters to appropriate types
+    if category_id:
+        try:
+            category_id = int(category_id)
+        except ValueError:
+            category_id = None
+            
+    if min_price:
+        try:
+            min_price = int(min_price)
+        except ValueError:
+            min_price = None
+            
+    if max_price:
+        try:
+            max_price = int(max_price)
+        except ValueError:
+            max_price = None
+            
+    if in_stock:
+        in_stock = (in_stock.lower() == 'true')
+    else:
+        in_stock = None
+        
+    if featured:
+        featured = (featured.lower() == 'true')
+    else:
+        featured = None
+        
+    # Get categories for the filter sidebar
+    product_categories = Category.query.filter_by(cat_type='product').all()
+    service_categories = Category.query.filter_by(cat_type='service').all()
+    
+    # Get all available brands for filtering
+    brands = db.session.query(Product.brand).filter(
+        Product.brand.isnot(None)).distinct().all()
+    brands = [brand[0] for brand in brands]
+    
+    # Get all available tags for filtering
+    all_tags = []
+    products_with_tags = db.session.query(Product.tags).filter(
+        Product.tags.isnot(None)).all()
+    for product_tags in products_with_tags:
+        if product_tags[0]:
+            all_tags.extend([tag.strip() for tag in product_tags[0].split(',')])
+    all_tags = sorted(list(set(all_tags)))  # Remove duplicates and sort
+    
+    # Perform the search
+    search_query = Product.search(
+        query=query,
+        product_type=product_type,
+        category_id=category_id,
+        min_price=min_price,
+        max_price=max_price,
+        tags=tags,
+        brand=brand,
+        in_stock=in_stock,
+        featured=featured
+    )
+    
+    # Add sorting
+    sort_by = request.args.get('sort_by', 'name')
+    sort_order = request.args.get('sort_order', 'asc')
+    
+    if sort_by == 'price':
+        if sort_order == 'asc':
+            search_query = search_query.order_by(Product.price.asc())
+        else:
+            search_query = search_query.order_by(Product.price.desc())
+    elif sort_by == 'newest':
+        search_query = search_query.order_by(Product.created_at.desc())
+    else:  # Default to name
+        if sort_order == 'asc':
+            search_query = search_query.order_by(Product.name.asc())
+        else:
+            search_query = search_query.order_by(Product.name.desc())
+    
+    # Paginate results
+    paginated_results = search_query.paginate(page=page, per_page=per_page)
+    
+    # Prepare search summary
+    search_summary = {
+        'query': query,
+        'type': 'محصولات' if product_type == 'product' else 'خدمات' if product_type == 'service' else 'همه',
+        'total_results': paginated_results.total,
+        'filters_applied': bool(
+            category_id or min_price or max_price or tags or brand or in_stock is not None or featured is not None
+        )
+    }
+    
+    # If a category filter is applied, get the category name
+    if category_id:
+        category = Category.query.get(category_id)
+        if category:
+            search_summary['category'] = category.name
+    
+    # Generate pagination info
+    pagination = {
+        'page': paginated_results.page,
+        'total_pages': paginated_results.pages,
+        'has_prev': paginated_results.has_prev,
+        'has_next': paginated_results.has_next,
+        'prev_url': url_for('search', page=paginated_results.prev_num, query=query, 
+                           type=product_type, category_id=category_id, min_price=min_price, 
+                           max_price=max_price, tags=tags, brand=brand, in_stock=in_stock, 
+                           featured=featured, sort_by=sort_by, sort_order=sort_order) if paginated_results.has_prev else None,
+        'next_url': url_for('search', page=paginated_results.next_num, query=query, 
+                           type=product_type, category_id=category_id, min_price=min_price, 
+                           max_price=max_price, tags=tags, brand=brand, in_stock=in_stock, 
+                           featured=featured, sort_by=sort_by, sort_order=sort_order) if paginated_results.has_next else None,
+    }
+    
+    return render_template(
+        'search.html',
+        search_summary=search_summary,
+        results=paginated_results.items,
+        pagination=pagination,
+        product_categories=product_categories,
+        service_categories=service_categories,
+        brands=brands,
+        all_tags=all_tags,
+        query=query,
+        product_type=product_type,
+        category_id=category_id,
+        min_price=min_price,
+        max_price=max_price,
+        tags=tags,
+        brand=brand,
+        in_stock=in_stock,
+        featured=featured,
+        sort_by=sort_by,
+        sort_order=sort_order
+    )
 
 
 @app.route('/control/start', methods=['POST'])
