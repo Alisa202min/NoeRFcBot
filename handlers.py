@@ -638,6 +638,279 @@ class AdminForm(StatesGroup):
 # Admin handlers
 class admin_handlers:
     @staticmethod
+    async def start_manage_media(callback_query: types.CallbackQuery, state: FSMContext) -> None:
+        """Start media management for a product."""
+        user_id = callback_query.from_user.id
+        
+        # Check if user is admin
+        if user_id != ADMIN_ID:
+            await callback_query.message.edit_text(ADMIN_ACCESS_DENIED)
+            return
+        
+        data = callback_query.data
+        product_id = int(data[len(ADMIN_PREFIX + "manage_media_"):])
+        
+        # Get product information
+        product = db.get_product(product_id)
+        if not product:
+            await callback_query.message.edit_text("محصول/خدمت مورد نظر یافت نشد.")
+            return
+        
+        # Get all media files for this product
+        media_files = db.get_product_media(product_id)
+        
+        if media_files and len(media_files) > 0:
+            # Show media management interface
+            await callback_query.message.edit_text(
+                f"مدیریت تصاویر/ویدیوهای محصول «{product['name']}»\n\n"
+                f"تعداد تصاویر: {sum(1 for m in media_files if m['file_type'] == 'photo')}\n"
+                f"تعداد ویدیوها: {sum(1 for m in media_files if m['file_type'] == 'video')}\n\n"
+                f"لطفاً یک گزینه را انتخاب کنید:",
+                reply_markup=product_media_keyboard(product_id, media_files)
+            )
+        else:
+            # No media files yet
+            await callback_query.message.edit_text(
+                f"هیچ تصویر یا ویدیویی برای محصول «{product['name']}» وجود ندارد.\n\n"
+                f"برای افزودن تصویر یا ویدیو، دکمه «افزودن تصویر/ویدیو» را کلیک کنید.",
+                reply_markup=product_media_keyboard(product_id, [])
+            )
+    
+    @staticmethod
+    async def start_add_media(callback_query: types.CallbackQuery, state: FSMContext) -> None:
+        """Start adding a new media file to a product."""
+        user_id = callback_query.from_user.id
+        
+        # Check if user is admin
+        if user_id != ADMIN_ID:
+            await callback_query.message.edit_text(ADMIN_ACCESS_DENIED)
+            return
+        
+        data = callback_query.data
+        product_id = int(data[len(ADMIN_PREFIX + "add_media_"):])
+        
+        # Get product information
+        product = db.get_product(product_id)
+        if not product:
+            await callback_query.message.edit_text("محصول/خدمت مورد نظر یافت نشد.")
+            return
+        
+        # Set state and store product ID
+        await state.set_state(AdminActions.add_product_media)
+        await state.update_data(add_media_product_id=product_id)
+        
+        # Send instruction message
+        await callback_query.message.edit_text(
+            f"افزودن تصویر/ویدیو به محصول «{product['name']}»\n\n"
+            f"لطفاً تصویر یا ویدیو را ارسال کنید:",
+            reply_markup=cancel_keyboard()
+        )
+    
+    @staticmethod
+    async def process_add_media(message: types.Message, state: FSMContext) -> None:
+        """Process uploaded media file for a product."""
+        user_id = message.from_user.id
+        
+        # Check if message contains photo or video
+        has_photo = len(message.photo) > 0 if message.photo else False
+        has_video = message.video is not None
+        
+        if not (has_photo or has_video):
+            await message.reply(
+                "لطفاً یک تصویر یا ویدیو ارسال کنید.",
+                reply_markup=cancel_keyboard()
+            )
+            return
+        
+        # Get product ID from state
+        data = await state.get_data()
+        product_id = data.get('add_media_product_id')
+        
+        if not product_id:
+            await message.reply(ERROR_MESSAGE)
+            await state.clear()
+            return
+        
+        # Get product information
+        product = db.get_product(product_id)
+        if not product:
+            await message.reply("محصول/خدمت مورد نظر یافت نشد.")
+            await state.clear()
+            return
+        
+        # Process based on media type
+        if has_photo:
+            # Get the largest photo (best quality)
+            photo = message.photo[-1]
+            file_id = photo.file_id
+            
+            # Add to database
+            media_id = db.add_product_media(product_id, file_id, 'photo')
+            
+            if media_id:
+                await message.reply(
+                    f"تصویر با موفقیت به محصول «{product['name']}» اضافه شد.",
+                    reply_markup=admin_keyboard()
+                )
+                
+                # Return to media management
+                await message.answer(
+                    "آیا می‌خواهید تصویر یا ویدیوی دیگری اضافه کنید؟",
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                        [InlineKeyboardButton(text="بله، تصویر دیگری اضافه کن", callback_data=f"{ADMIN_PREFIX}add_media_{product_id}")],
+                        [InlineKeyboardButton(text="خیر، به مدیریت تصاویر برگرد", callback_data=f"{ADMIN_PREFIX}manage_media_{product_id}")]
+                    ])
+                )
+            else:
+                await message.reply(
+                    "مشکلی در افزودن تصویر رخ داد. لطفاً دوباره تلاش کنید.",
+                    reply_markup=cancel_keyboard()
+                )
+        elif has_video:
+            # Get video file ID
+            file_id = message.video.file_id
+            
+            # Add to database
+            media_id = db.add_product_media(product_id, file_id, 'video')
+            
+            if media_id:
+                await message.reply(
+                    f"ویدیو با موفقیت به محصول «{product['name']}» اضافه شد.",
+                    reply_markup=admin_keyboard()
+                )
+                
+                # Return to media management
+                await message.answer(
+                    "آیا می‌خواهید تصویر یا ویدیوی دیگری اضافه کنید؟",
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                        [InlineKeyboardButton(text="بله، تصویر/ویدیوی دیگری اضافه کن", callback_data=f"{ADMIN_PREFIX}add_media_{product_id}")],
+                        [InlineKeyboardButton(text="خیر، به مدیریت تصاویر برگرد", callback_data=f"{ADMIN_PREFIX}manage_media_{product_id}")]
+                    ])
+                )
+            else:
+                await message.reply(
+                    "مشکلی در افزودن ویدیو رخ داد. لطفاً دوباره تلاش کنید.",
+                    reply_markup=cancel_keyboard()
+                )
+        
+        # Clear state
+        await state.clear()
+    
+    @staticmethod
+    async def delete_media(callback_query: types.CallbackQuery, state: FSMContext) -> None:
+        """Delete a media file from a product."""
+        user_id = callback_query.from_user.id
+        
+        # Check if user is admin
+        if user_id != ADMIN_ID:
+            await callback_query.message.edit_text(ADMIN_ACCESS_DENIED)
+            return
+        
+        data = callback_query.data
+        media_id = int(data[len(ADMIN_PREFIX + "delete_media_"):])
+        
+        # Ask for confirmation
+        await callback_query.message.edit_text(
+            "آیا از حذف این تصویر/ویدیو اطمینان دارید؟",
+            reply_markup=confirm_keyboard("delete_media", media_id)
+        )
+    
+    @staticmethod
+    async def confirm_delete_media(callback_query: types.CallbackQuery, state: FSMContext) -> None:
+        """Confirm deletion of a media file."""
+        user_id = callback_query.from_user.id
+        
+        # Check if user is admin
+        if user_id != ADMIN_ID:
+            await callback_query.message.edit_text(ADMIN_ACCESS_DENIED)
+            return
+        
+        data = callback_query.data
+        media_id = int(data[len("confirm_delete_media_"):])
+        
+        # Get product ID associated with this media
+        product = db.get_product_by_media_id(media_id)
+        if not product:
+            await callback_query.message.edit_text("خطایی رخ داد. تصویر/ویدیو مورد نظر یافت نشد.")
+            return
+        
+        product_id = product['id']
+        
+        # Delete the media
+        success = db.delete_product_media(media_id)
+        
+        if success:
+            await callback_query.message.edit_text(
+                "تصویر/ویدیو با موفقیت حذف شد.",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="بازگشت به مدیریت تصاویر", callback_data=f"{ADMIN_PREFIX}manage_media_{product_id}")]
+                ])
+            )
+        else:
+            await callback_query.message.edit_text(
+                "مشکلی در حذف تصویر/ویدیو رخ داد. لطفاً دوباره تلاش کنید.",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="بازگشت به مدیریت تصاویر", callback_data=f"{ADMIN_PREFIX}manage_media_{product_id}")]
+                ])
+            )
+    
+    @staticmethod
+    async def view_media(callback_query: types.CallbackQuery, bot: Bot, state: FSMContext) -> None:
+        """View a specific media file."""
+        user_id = callback_query.from_user.id
+        
+        # Check if user is admin
+        if user_id != ADMIN_ID:
+            await callback_query.message.edit_text(ADMIN_ACCESS_DENIED)
+            return
+        
+        data = callback_query.data
+        media_id = int(data[len(ADMIN_PREFIX + "view_media_"):])
+        
+        # Get media information
+        media = db.get_media_by_id(media_id)
+        if not media:
+            await callback_query.message.edit_text("تصویر/ویدیو مورد نظر یافت نشد.")
+            return
+        
+        product_id = media['product_id']
+        file_id = media['file_id']
+        file_type = media['file_type']
+        
+        # Get product information
+        product = db.get_product(product_id)
+        if not product:
+            await callback_query.message.edit_text("محصول/خدمت مورد نظر یافت نشد.")
+            return
+        
+        # Delete the current message
+        await callback_query.message.delete()
+        
+        # Show media based on type
+        caption = f"نمایش تصویر/ویدیو برای محصول «{product['name']}»"
+        
+        if file_type == 'photo':
+            await bot.send_photo(
+                chat_id=user_id,
+                photo=file_id,
+                caption=caption,
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="❌ حذف", callback_data=f"{ADMIN_PREFIX}delete_media_{media_id}")],
+                    [InlineKeyboardButton(text=BACK_BTN, callback_data=f"{ADMIN_PREFIX}manage_media_{product_id}")]
+                ])
+            )
+        else:  # video
+            await bot.send_video(
+                chat_id=user_id,
+                video=file_id,
+                caption=caption,
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="❌ حذف", callback_data=f"{ADMIN_PREFIX}delete_media_{media_id}")],
+                    [InlineKeyboardButton(text=BACK_BTN, callback_data=f"{ADMIN_PREFIX}manage_media_{product_id}")]
+                ])
+            )
+    
+    @staticmethod
     async def get_template(message: types.Message) -> None:
         """Generate CSV template for various entity types."""
         user_id = message.from_user.id
