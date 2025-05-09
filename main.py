@@ -15,10 +15,26 @@ import shutil
 from database import Database
 import ssl
 from aiohttp import web
+from werkzeug.utils import secure_filename
+import io
+import uuid
+from configuration import ADMIN_ID
 
 # Create Flask app
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "رمز موقت برای ربات RFCBot")
+
+# Configure uploads directory
+UPLOAD_FOLDER = 'static/uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Ensure upload directory exists
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def allowed_file(filename):
+    """Check if the file has an allowed extension"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # Import bot components, which may be None if BOT_TOKEN isn't set
 try:
@@ -352,6 +368,298 @@ def database():
                           db_exists=db_exists,
                           db_path=db_path,
                           db_size=db_size)
+                          
+# Admin product and service routes
+@app.route('/admin/products')
+@admin_required
+def admin_products():
+    """List all products for admin"""
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+    category_id = request.args.get('category_id', type=int)
+    search = request.args.get('search', '')
+    
+    if search:
+        products = db.search_products(search)
+        total_count = len(products)
+    else:
+        products = db.get_products_by_category(category_id)
+        total_count = len(products)
+    
+    # Apply pagination
+    start = (page - 1) * per_page
+    end = start + per_page
+    products_page = products[start:end]
+    
+    # Get categories for the filter dropdown
+    categories = db.get_categories(cat_type='product')
+    
+    # Get pagination data
+    pagination = get_pagination(
+        page, per_page, total_count, 'admin_products',
+        category_id=category_id, search=search
+    )
+    
+    return render_template('admin_products.html',
+                           products=products_page,
+                           categories=categories,
+                           category_id=category_id,
+                           search=search,
+                           pagination=pagination,
+                           page_type='products')
+
+@app.route('/admin/services')
+@admin_required
+def admin_services():
+    """List all services for admin"""
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+    category_id = request.args.get('category_id', type=int)
+    search = request.args.get('search', '')
+    
+    if search:
+        services = db.search_products(search, 'service')
+        total_count = len(services)
+    else:
+        services = db.get_products_by_category(category_id, 'service')
+        total_count = len(services)
+    
+    # Apply pagination
+    start = (page - 1) * per_page
+    end = start + per_page
+    services_page = services[start:end]
+    
+    # Get categories for the filter dropdown
+    categories = db.get_categories(cat_type='service')
+    
+    # Get pagination data
+    pagination = get_pagination(
+        page, per_page, total_count, 'admin_services',
+        category_id=category_id, search=search
+    )
+    
+    return render_template('admin_products.html',
+                           products=services_page,
+                           categories=categories,
+                           category_id=category_id,
+                           search=search,
+                           pagination=pagination,
+                           page_type='services')
+
+# Product and service media management routes
+@app.route('/admin/products/media/<int:product_id>', methods=['GET'])
+@admin_required
+def product_media(product_id):
+    """Product media management page"""
+    product = db.get_product(product_id)
+    
+    if not product:
+        flash('محصول مورد نظر یافت نشد', 'danger')
+        return redirect(url_for('admin_products'))
+    
+    media_files = db.get_product_media(product_id)
+    
+    return render_template('admin_product_media.html',
+                           product=product,
+                           media_files=media_files)
+
+@app.route('/admin/services/media/<int:service_id>', methods=['GET'])
+@admin_required
+def service_media(service_id):
+    """Service media management page"""
+    service = db.get_service(service_id)
+    
+    if not service:
+        flash('خدمت مورد نظر یافت نشد', 'danger')
+        return redirect(url_for('admin_services'))
+    
+    media_files = db.get_service_media(service_id)
+    
+    return render_template('admin_service_media.html',
+                           service=service,
+                           media_files=media_files)
+
+@app.route('/admin/products/media/<int:product_id>/add', methods=['GET', 'POST'])
+@admin_required
+def add_product_media(product_id):
+    """Add media to a product"""
+    product = db.get_product(product_id)
+    
+    if not product:
+        flash('محصول مورد نظر یافت نشد', 'danger')
+        return redirect(url_for('admin_products'))
+    
+    if request.method == 'POST':
+        # Check if files were uploaded
+        if 'media_files' not in request.files:
+            flash('No files uploaded', 'danger')
+            return redirect(request.url)
+            
+        files = request.files.getlist('media_files')
+        
+        # Track success/failure
+        upload_results = []
+        
+        for file in files:
+            if file and allowed_file(file.filename):
+                # Generate a secure filename with UUID to avoid duplicates
+                filename = secure_filename(file.filename)
+                filename = f"{uuid.uuid4()}_{filename}"
+                
+                # Save the file
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
+                
+                # Determine file type
+                file_type = 'photo'
+                if filename.lower().endswith('.mp4'):
+                    file_type = 'video'
+                
+                # Add to database - in a real app this would store Telegram file_id
+                # but for this admin panel we'll store the local path
+                try:
+                    # Get the relative path for storage in database
+                    relative_path = os.path.join('uploads', filename)
+                    db.add_product_media(product_id, relative_path, file_type)
+                    upload_results.append({'filename': filename, 'success': True})
+                except Exception as e:
+                    upload_results.append({
+                        'filename': filename, 
+                        'success': False,
+                        'error': str(e)
+                    })
+                    logger.error(f"Error adding product media: {e}")
+            else:
+                upload_results.append({
+                    'filename': file.filename if file else 'Unknown',
+                    'success': False,
+                    'error': 'Invalid file type'
+                })
+        
+        # Check and display results
+        success_count = sum(1 for r in upload_results if r['success'])
+        if success_count == len(upload_results) and success_count > 0:
+            flash(f'تمام {success_count} فایل با موفقیت آپلود شد', 'success')
+        elif success_count > 0:
+            flash(f'{success_count} از {len(upload_results)} فایل با موفقیت آپلود شد', 'warning')
+        else:
+            flash('خطا در آپلود فایل‌ها', 'danger')
+        
+        return redirect(url_for('product_media', product_id=product_id))
+    
+    return render_template('admin_product_media_add.html', product=product)
+
+@app.route('/admin/services/media/<int:service_id>/add', methods=['GET', 'POST'])
+@admin_required
+def add_service_media(service_id):
+    """Add media to a service"""
+    service = db.get_service(service_id)
+    
+    if not service:
+        flash('خدمت مورد نظر یافت نشد', 'danger')
+        return redirect(url_for('admin_services'))
+    
+    if request.method == 'POST':
+        # Check if files were uploaded
+        if 'media_files' not in request.files:
+            flash('No files uploaded', 'danger')
+            return redirect(request.url)
+            
+        files = request.files.getlist('media_files')
+        
+        # Track success/failure
+        upload_results = []
+        
+        for file in files:
+            if file and allowed_file(file.filename):
+                # Generate a secure filename with UUID to avoid duplicates
+                filename = secure_filename(file.filename)
+                filename = f"{uuid.uuid4()}_{filename}"
+                
+                # Save the file
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
+                
+                # Determine file type
+                file_type = 'photo'
+                if filename.lower().endswith('.mp4'):
+                    file_type = 'video'
+                
+                # Add to database - in a real app this would store Telegram file_id
+                # but for this admin panel we'll store the local path
+                try:
+                    # Get the relative path for storage in database
+                    relative_path = os.path.join('uploads', filename)
+                    db.add_service_media(service_id, relative_path, file_type)
+                    upload_results.append({'filename': filename, 'success': True})
+                except Exception as e:
+                    upload_results.append({
+                        'filename': filename, 
+                        'success': False,
+                        'error': str(e)
+                    })
+                    logger.error(f"Error adding service media: {e}")
+            else:
+                upload_results.append({
+                    'filename': file.filename if file else 'Unknown',
+                    'success': False,
+                    'error': 'Invalid file type'
+                })
+        
+        # Check and display results
+        success_count = sum(1 for r in upload_results if r['success'])
+        if success_count == len(upload_results) and success_count > 0:
+            flash(f'تمام {success_count} فایل با موفقیت آپلود شد', 'success')
+        elif success_count > 0:
+            flash(f'{success_count} از {len(upload_results)} فایل با موفقیت آپلود شد', 'warning')
+        else:
+            flash('خطا در آپلود فایل‌ها', 'danger')
+        
+        return redirect(url_for('service_media', service_id=service_id))
+    
+    return render_template('admin_service_media_add.html', service=service)
+
+@app.route('/admin/products/media/<int:product_id>/delete/<int:media_id>', methods=['POST'])
+@admin_required
+def delete_product_media(product_id, media_id):
+    """Delete media from a product"""
+    # Get the media record first to check if it exists
+    media = db.get_media_by_id(media_id)
+    
+    if not media:
+        flash('فایل مورد نظر یافت نشد', 'danger')
+        return redirect(url_for('product_media', product_id=product_id))
+    
+    # Delete from database
+    success = db.delete_product_media(media_id)
+    
+    if success:
+        flash('فایل با موفقیت حذف شد', 'success')
+    else:
+        flash('خطا در حذف فایل', 'danger')
+    
+    return redirect(url_for('product_media', product_id=product_id))
+
+@app.route('/admin/services/media/<int:service_id>/delete/<int:media_id>', methods=['POST'])
+@admin_required
+def delete_service_media(service_id, media_id):
+    """Delete media from a service"""
+    # Get the media record first to check if it exists
+    media = db.get_service_media_by_id(media_id)
+    
+    if not media:
+        flash('فایل مورد نظر یافت نشد', 'danger')
+        return redirect(url_for('service_media', service_id=service_id))
+    
+    # Delete from database
+    success = db.delete_service_media(media_id)
+    
+    if success:
+        flash('فایل با موفقیت حذف شد', 'success')
+    else:
+        flash('خطا در حذف فایل', 'danger')
+    
+    return redirect(url_for('service_media', service_id=service_id))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
