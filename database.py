@@ -1,32 +1,44 @@
 import os
 import json
-import sqlite3
 import logging
 from datetime import datetime
 import csv
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from typing import Dict, List, Optional, Any, Union, Tuple
 
 from configuration import CONTACT_DEFAULT, ABOUT_DEFAULT
 
 class Database:
-    """Database abstraction layer that uses SQLite"""
+    """Database abstraction layer for PostgreSQL"""
 
     def __init__(self):
-        """Initialize the SQLite database using path from configuration"""
+        """Initialize the PostgreSQL database using DATABASE_URL from environment"""
         from configuration import config
-        db_path = config.get('DB_PATH', 'data/database.db')
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
-        self.conn = sqlite3.connect(db_path, check_same_thread=False)
-        self.conn.row_factory = sqlite3.Row
+        db_type = config.get('DB_TYPE', 'postgresql').lower()
+
+        if db_type == 'postgresql':
+            # Use PostgreSQL
+            self.db_type = 'postgresql'
+            database_url = os.environ.get('DATABASE_URL')
+            if not database_url:
+                raise Exception("DATABASE_URL environment variable is not set")
+            
+            # Connect to PostgreSQL
+            self.conn = psycopg2.connect(database_url)
+            self.conn.autocommit = True
+        else:
+            raise Exception(f"Unsupported database type: {db_type}")
+            
         self._init_db()
 
     def _init_db(self):
-        """Initialize SQLite database and create necessary tables"""
-        with self.conn:
+        """Initialize PostgreSQL database and create necessary tables"""
+        with self.conn.cursor() as cursor:
             # Create categories table
-            self.conn.execute('''
+            cursor.execute('''
                 CREATE TABLE IF NOT EXISTS categories (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id SERIAL PRIMARY KEY,
                     name TEXT NOT NULL,
                     parent_id INTEGER NULL,
                     cat_type TEXT NOT NULL,
@@ -35,22 +47,9 @@ class Database:
             ''')
 
             # Create products table
-            self.conn.execute('''
+            cursor.execute('''
                 CREATE TABLE IF NOT EXISTS products (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    price INTEGER NOT NULL,
-                    description TEXT,
-                    photo_url TEXT,
-                    category_id INTEGER NOT NULL,
-                    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
-                )
-            ''')
-
-            # Create services table
-            self.conn.execute('''
-                CREATE TABLE IF NOT EXISTS services (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id SERIAL PRIMARY KEY,
                     name TEXT NOT NULL,
                     price INTEGER NOT NULL,
                     description TEXT,
@@ -61,25 +60,24 @@ class Database:
             ''')
 
             # Create inquiries table
-            self.conn.execute('''
+            cursor.execute('''
                 CREATE TABLE IF NOT EXISTS inquiries (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id SERIAL PRIMARY KEY,
                     user_id INTEGER NOT NULL,
                     name TEXT NOT NULL,
                     phone TEXT NOT NULL,
                     description TEXT,
                     product_id INTEGER,
                     product_type TEXT CHECK(product_type IN ('product', 'service')),
-                    date TEXT NOT NULL,
-                    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
-                    FOREIGN KEY (product_id) REFERENCES services(id) ON DELETE SET NULL
+                    date TIMESTAMP NOT NULL,
+                    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
                 )
             ''')
 
             # Create educational_content table
-            self.conn.execute('''
+            cursor.execute('''
                 CREATE TABLE IF NOT EXISTS educational_content (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id SERIAL PRIMARY KEY,
                     title TEXT NOT NULL,
                     content TEXT NOT NULL,
                     category TEXT NOT NULL,
@@ -88,22 +86,24 @@ class Database:
             ''')
 
             # Create static_content table
-            self.conn.execute('''
+            cursor.execute('''
                 CREATE TABLE IF NOT EXISTS static_content (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id SERIAL PRIMARY KEY,
                     type TEXT NOT NULL UNIQUE,
                     content TEXT NOT NULL
                 )
             ''')
 
-            # Insert default static content if they don't exist
-            self.conn.execute('''
-                INSERT OR IGNORE INTO static_content (type, content) VALUES (?, ?)
-            ''', ('contact', CONTACT_DEFAULT))
+            # Check if static content exists
+            cursor.execute("SELECT COUNT(*) FROM static_content WHERE type = %s", ('contact',))
+            if cursor.fetchone()[0] == 0:
+                cursor.execute("INSERT INTO static_content (type, content) VALUES (%s, %s)",
+                              ('contact', CONTACT_DEFAULT))
 
-            self.conn.execute('''
-                INSERT OR IGNORE INTO static_content (type, content) VALUES (?, ?)
-            ''', ('about', ABOUT_DEFAULT))
+            cursor.execute("SELECT COUNT(*) FROM static_content WHERE type = %s", ('about',))
+            if cursor.fetchone()[0] == 0:
+                cursor.execute("INSERT INTO static_content (type, content) VALUES (%s, %s)",
+                              ('about', ABOUT_DEFAULT))
 
     def add_category(self, name: str, parent_id: Optional[int] = None, cat_type: str = 'product') -> int:
         """Add a new category"""
