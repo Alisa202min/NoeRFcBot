@@ -52,6 +52,13 @@ class Product(db.Model):
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
     product_type = db.Column(db.String(20), nullable=False, default='product')  # 'product' or 'service'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # Additional fields for search/filtering
+    tags = db.Column(db.String(255), nullable=True)  # Comma-separated tags
+    brand = db.Column(db.String(100), nullable=True)
+    model_number = db.Column(db.String(100), nullable=True)
+    manufacturer = db.Column(db.String(100), nullable=True)
+    in_stock = db.Column(db.Boolean, default=True)
+    featured = db.Column(db.Boolean, default=False)
     
     # Relationships
     media_files = db.relationship('ProductMedia', backref='product', lazy=True, cascade="all, delete-orphan")
@@ -59,6 +66,73 @@ class Product(db.Model):
     
     def __repr__(self):
         return f'<Product {self.name}>'
+        
+    @classmethod
+    def search(cls, query, product_type=None, category_id=None, min_price=None, max_price=None, 
+               tags=None, brand=None, in_stock=None, featured=None):
+        """
+        Advanced search method for products and services
+        
+        Args:
+            query (str): Search text for name and description
+            product_type (str): 'product' or 'service'
+            category_id (int): Category ID to filter by
+            min_price (int): Minimum price
+            max_price (int): Maximum price
+            tags (str): Comma-separated tags to search for
+            brand (str): Brand name to filter by
+            in_stock (bool): Filter by in_stock status
+            featured (bool): Filter by featured status
+            
+        Returns:
+            Query object with filters applied
+        """
+        search_query = cls.query
+        
+        # Filter by product type
+        if product_type:
+            search_query = search_query.filter(cls.product_type == product_type)
+        
+        # Text search in name and description
+        if query:
+            search_terms = "%" + query.lower() + "%"
+            search_query = search_query.filter(
+                db.or_(
+                    db.func.lower(cls.name).like(search_terms),
+                    db.func.lower(cls.description).like(search_terms),
+                    db.func.lower(cls.tags).like(search_terms) if tags else False
+                )
+            )
+        
+        # Filter by category
+        if category_id:
+            search_query = search_query.filter(cls.category_id == category_id)
+        
+        # Price range filters
+        if min_price is not None:
+            search_query = search_query.filter(cls.price >= min_price)
+        if max_price is not None:
+            search_query = search_query.filter(cls.price <= max_price)
+        
+        # Tag filtering
+        if tags:
+            # For each tag, check if it exists in the comma-separated tags field
+            for tag in tags.split(','):
+                search_query = search_query.filter(cls.tags.like(f"%{tag.strip()}%"))
+        
+        # Brand filtering
+        if brand:
+            search_query = search_query.filter(cls.brand == brand)
+        
+        # Stock status
+        if in_stock is not None:
+            search_query = search_query.filter(cls.in_stock == in_stock)
+        
+        # Featured status
+        if featured is not None:
+            search_query = search_query.filter(cls.featured == featured)
+        
+        return search_query
 
 
 class ProductMedia(db.Model):

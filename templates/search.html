@@ -1,0 +1,325 @@
+{% extends 'base.html' %}
+
+{% block title %}جستجوی پیشرفته{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <!-- Filters Sidebar -->
+        <div class="col-md-3">
+            <div class="card mb-4 sticky-top" style="top: 20px; z-index: 10;">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">فیلترها</h5>
+                </div>
+                <div class="card-body">
+                    <form id="searchForm" method="GET" action="{{ url_for('search') }}">
+                        <!-- Search Query -->
+                        <div class="mb-3">
+                            <label for="query" class="form-label">متن جستجو</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="query" name="query" value="{{ query }}">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Type Filter -->
+                        <div class="mb-3">
+                            <label class="form-label">نوع</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="type" id="typeAll" value="" 
+                                       {{ 'checked' if not product_type else '' }} onchange="this.form.submit()">
+                                <label class="form-check-label" for="typeAll">همه</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="type" id="typeProduct" value="product" 
+                                       {{ 'checked' if product_type == 'product' else '' }} onchange="this.form.submit()">
+                                <label class="form-check-label" for="typeProduct">محصولات</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="type" id="typeService" value="service" 
+                                       {{ 'checked' if product_type == 'service' else '' }} onchange="this.form.submit()">
+                                <label class="form-check-label" for="typeService">خدمات</label>
+                            </div>
+                        </div>
+                        
+                        <!-- Categories -->
+                        <div class="mb-3">
+                            <label for="category_id" class="form-label">دسته‌بندی</label>
+                            <select class="form-select" id="category_id" name="category_id" onchange="this.form.submit()">
+                                <option value="">همه دسته‌بندی‌ها</option>
+                                {% if product_type == 'product' or not product_type %}
+                                <optgroup label="محصولات">
+                                    {% for category in product_categories %}
+                                    <option value="{{ category.id }}" {{ 'selected' if category_id == category.id|string else '' }}>
+                                        {{ category.name }}
+                                    </option>
+                                    {% endfor %}
+                                </optgroup>
+                                {% endif %}
+                                
+                                {% if product_type == 'service' or not product_type %}
+                                <optgroup label="خدمات">
+                                    {% for category in service_categories %}
+                                    <option value="{{ category.id }}" {{ 'selected' if category_id == category.id|string else '' }}>
+                                        {{ category.name }}
+                                    </option>
+                                    {% endfor %}
+                                </optgroup>
+                                {% endif %}
+                            </select>
+                        </div>
+                        
+                        <!-- Price Range -->
+                        <div class="mb-3">
+                            <label class="form-label">محدوده قیمت (تومان)</label>
+                            <div class="row">
+                                <div class="col-6">
+                                    <input type="number" class="form-control form-control-sm" 
+                                           name="min_price" placeholder="حداقل" value="{{ min_price }}">
+                                </div>
+                                <div class="col-6">
+                                    <input type="number" class="form-control form-control-sm" 
+                                           name="max_price" placeholder="حداکثر" value="{{ max_price }}">
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <button type="submit" class="btn btn-sm btn-outline-primary w-100">
+                                    اعمال محدوده قیمت
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Brands -->
+                        {% if brands %}
+                        <div class="mb-3">
+                            <label for="brand" class="form-label">برند</label>
+                            <select class="form-select" id="brand" name="brand" onchange="this.form.submit()">
+                                <option value="">همه برندها</option>
+                                {% for b in brands %}
+                                <option value="{{ b }}" {{ 'selected' if brand == b else '' }}>{{ b }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Tags -->
+                        {% if all_tags %}
+                        <div class="mb-3">
+                            <label for="tags" class="form-label">برچسب‌ها</label>
+                            <select class="form-select" id="tags" name="tags" onchange="this.form.submit()">
+                                <option value="">همه برچسب‌ها</option>
+                                {% for tag in all_tags %}
+                                <option value="{{ tag }}" {{ 'selected' if tags == tag else '' }}>{{ tag }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Stock Status -->
+                        <div class="mb-3">
+                            <label class="form-label">وضعیت موجودی</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="in_stock" id="stockAll" value="" 
+                                       {{ 'checked' if in_stock is none else '' }} onchange="this.form.submit()">
+                                <label class="form-check-label" for="stockAll">همه</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="in_stock" id="stockYes" value="true" 
+                                       {{ 'checked' if in_stock == True else '' }} onchange="this.form.submit()">
+                                <label class="form-check-label" for="stockYes">موجود</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="in_stock" id="stockNo" value="false" 
+                                       {{ 'checked' if in_stock == False else '' }} onchange="this.form.submit()">
+                                <label class="form-check-label" for="stockNo">ناموجود</label>
+                            </div>
+                        </div>
+                        
+                        <!-- Featured Filter -->
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="featured" name="featured" value="true" 
+                                       {{ 'checked' if featured == True else '' }} onchange="this.form.submit()">
+                                <label class="form-check-label" for="featured">فقط موارد ویژه</label>
+                            </div>
+                        </div>
+                        
+                        <!-- Hidden inputs for sorting -->
+                        <input type="hidden" name="sort_by" id="sort_by" value="{{ sort_by }}">
+                        <input type="hidden" name="sort_order" id="sort_order" value="{{ sort_order }}">
+                        
+                        <!-- Reset Button -->
+                        <div class="d-grid gap-2 mt-4">
+                            <a href="{{ url_for('search') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-repeat"></i> حذف همه فیلترها
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Search Results -->
+        <div class="col-md-9">
+            <!-- Search Summary -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0">
+                                {% if search_summary.query %}
+                                نتایج جستجو برای: <span class="text-primary">"{{ search_summary.query }}"</span>
+                                {% else %}
+                                همه {{ search_summary.type }}
+                                {% endif %}
+                                
+                                {% if search_summary.category is defined %}
+                                در دسته <span class="badge bg-info">{{ search_summary.category }}</span>
+                                {% endif %}
+                            </h5>
+                            <p class="text-muted mb-0">{{ search_summary.total_results }} مورد یافت شد</p>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" 
+                                    id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-sort-down"></i> مرتب‌سازی
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="sortDropdown">
+                                <li><a class="dropdown-item" href="#" onclick="setSorting('name', 'asc')">نام (صعودی)</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="setSorting('name', 'desc')">نام (نزولی)</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="setSorting('price', 'asc')">قیمت (ارزان‌ترین)</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="setSorting('price', 'desc')">قیمت (گران‌ترین)</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="setSorting('newest', 'desc')">جدیدترین</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {% if search_summary.total_results == 0 %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> هیچ موردی با معیارهای جستجوی شما یافت نشد. لطفاً فیلترهای جستجو را تغییر دهید.
+            </div>
+            {% else %}
+            <!-- Results Grid -->
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-4 mb-4">
+                {% for item in results %}
+                <div class="col">
+                    <div class="card h-100 shadow-sm">
+                        {% if item.featured %}
+                        <div class="position-absolute top-0 end-0 m-2">
+                            <span class="badge bg-warning">ویژه</span>
+                        </div>
+                        {% endif %}
+                        
+                        {% if item.photo_url %}
+                        <img src="{{ url_for('static', filename=item.photo_url) }}" class="card-img-top" 
+                             alt="{{ item.name }}" style="height: 200px; object-fit: contain;">
+                        {% else %}
+                        <div class="bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                            <i class="bi bi-image text-muted" style="font-size: 4rem;"></i>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="card-body">
+                            <h5 class="card-title">{{ item.name }}</h5>
+                            <p class="card-text small text-muted">
+                                {{ item.description|truncate(100) if item.description else 'بدون توضیحات' }}
+                            </p>
+                            
+                            {% if item.brand %}
+                            <div class="mb-2">
+                                <span class="badge bg-secondary">{{ item.brand }}</span>
+                            </div>
+                            {% endif %}
+                            
+                            {% if item.tags %}
+                            <div class="mb-2">
+                                {% for tag in item.tags.split(',') %}
+                                <span class="badge bg-info">{{ tag.strip() }}</span>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                            
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="badge bg-{{ 'primary' if item.product_type == 'product' else 'success' }}">
+                                        {{ 'محصول' if item.product_type == 'product' else 'خدمات' }}
+                                    </span>
+                                    <span class="badge bg-{{ 'success' if item.in_stock else 'danger' }}">
+                                        {{ 'موجود' if item.in_stock else 'ناموجود' }}
+                                    </span>
+                                </div>
+                                <div>
+                                    <strong class="text-primary">{{ "{:,}".format(item.price) }}</strong> تومان
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card-footer bg-white">
+                            <div class="d-grid gap-2">
+                                {% if item.product_type == 'product' %}
+                                <a href="#" class="btn btn-sm btn-outline-primary">مشاهده محصول</a>
+                                {% else %}
+                                <a href="#" class="btn btn-sm btn-outline-success">مشاهده خدمت</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Pagination -->
+            {% if pagination.total_pages > 1 %}
+            <nav aria-label="pagination">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item {{ 'disabled' if not pagination.has_prev else '' }}">
+                        <a class="page-link" href="{{ pagination.prev_url or '#' }}" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    
+                    {% for page_num in range(1, pagination.total_pages + 1) %}
+                    <li class="page-item {{ 'active' if page_num == pagination.page else '' }}">
+                        <a class="page-link" href="{{ url_for('search', page=page_num, query=query, 
+                                                             type=product_type, category_id=category_id, 
+                                                             min_price=min_price, max_price=max_price, 
+                                                             tags=tags, brand=brand, in_stock=in_stock, 
+                                                             featured=featured, sort_by=sort_by, 
+                                                             sort_order=sort_order) }}">
+                            {{ page_num }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                    
+                    <li class="page-item {{ 'disabled' if not pagination.has_next else '' }}">
+                        <a class="page-link" href="{{ pagination.next_url or '#' }}" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function setSorting(sortBy, sortOrder) {
+        document.getElementById('sort_by').value = sortBy;
+        document.getElementById('sort_order').value = sortOrder;
+        document.getElementById('searchForm').submit();
+    }
+    
+    // Initialize price range slider
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add any additional initialization here
+    });
+</script>
+{% endblock %}

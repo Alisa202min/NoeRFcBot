@@ -36,7 +36,7 @@
                                             {{ 'در حال اجرا' if bot_status == 'running' else 'متوقف شده' }}
                                         </span>
                                     </h5>
-                                    <small class="text-muted">آخرین بررسی: {{ '%Y-%m-%d %H:%M:%S'|strftime }}</small>
+                                    <small class="text-muted">آخرین بررسی: {{ datetime.now().strftime('%Y-%m-%d %H:%M:%S') if datetime and datetime.now else '' }}</small>
                                 </div>
                             </div>
                             

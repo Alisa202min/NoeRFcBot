@@ -77,6 +77,49 @@
                             <label for="description" class="form-label">توضیحات</label>
                             <textarea class="form-control" id="description" name="description" rows="5">{{ product.description if product else '' }}</textarea>
                         </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="brand" class="form-label">برند</label>
+                                <input type="text" class="form-control" id="brand" name="brand" value="{{ product.brand if product else '' }}">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="model_number" class="form-label">شماره مدل</label>
+                                <input type="text" class="form-control" id="model_number" name="model_number" value="{{ product.model_number if product else '' }}">
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="manufacturer" class="form-label">سازنده</label>
+                                <input type="text" class="form-control" id="manufacturer" name="manufacturer" value="{{ product.manufacturer if product else '' }}">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="tags" class="form-label">برچسب‌ها</label>
+                                <input type="text" class="form-control" id="tags" name="tags" value="{{ product.tags if product else '' }}">
+                                <small class="form-text text-muted">برچسب‌ها را با کاما (،) از هم جدا کنید</small>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="in_stock" name="in_stock" value="1" 
+                                          {% if not product or product.in_stock %}checked{% endif %}>
+                                    <label class="form-check-label" for="in_stock">موجود در انبار</label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="featured" name="featured" value="1" 
+                                          {% if product and product.featured %}checked{% endif %}>
+                                    <label class="form-check-label" for="featured">محصول ویژه</label>
+                                </div>
+                            </div>
+                        </div>
                         
                         <div class="mb-3">
                             <label for="photo" class="form-label">تصویر اصلی</label>

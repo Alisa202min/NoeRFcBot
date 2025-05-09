@@ -77,6 +77,49 @@
                             <label for="description" class="form-label">توضیحات</label>
                             <textarea class="form-control" id="description" name="description" rows="5">{{ service.description if service else '' }}</textarea>
                         </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="provider" class="form-label">ارائه دهنده خدمت</label>
+                                <input type="text" class="form-control" id="provider" name="provider" value="{{ service.provider if service else '' }}">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="service_code" class="form-label">کد خدمت</label>
+                                <input type="text" class="form-control" id="service_code" name="service_code" value="{{ service.service_code if service else '' }}">
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="duration" class="form-label">مدت زمان خدمت</label>
+                                <input type="text" class="form-control" id="duration" name="duration" value="{{ service.duration if service else '' }}">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="tags" class="form-label">برچسب‌ها</label>
+                                <input type="text" class="form-control" id="tags" name="tags" value="{{ service.tags if service else '' }}">
+                                <small class="form-text text-muted">برچسب‌ها را با کاما (،) از هم جدا کنید</small>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="available" name="in_stock" value="1" 
+                                          {% if not service or service.in_stock %}checked{% endif %}>
+                                    <label class="form-check-label" for="available">قابل ارائه</label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="featured" name="featured" value="1" 
+                                          {% if service and service.featured %}checked{% endif %}>
+                                    <label class="form-check-label" for="featured">خدمت ویژه</label>
+                                </div>
+                            </div>
+                        </div>
                         
                         <div class="mb-3">
                             <label for="photo" class="form-label">تصویر اصلی</label>
