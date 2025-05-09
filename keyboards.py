@@ -283,6 +283,10 @@ def admin_product_detail_keyboard(product_id: int, category_id: int) -> InlineKe
             InlineKeyboardButton(text="✏️ ویرایش", callback_data=f"{ADMIN_PREFIX}edit_product_{product_id}"),
             InlineKeyboardButton(text="❌ حذف", callback_data=f"{ADMIN_PREFIX}delete_product_{product_id}")
         ],
+        [
+            InlineKeyboardButton(text="🖼 مدیریت تصاویر", callback_data=f"{ADMIN_PREFIX}manage_media_{product_id}"),
+            InlineKeyboardButton(text="➕ افزودن تصویر/ویدیو", callback_data=f"{ADMIN_PREFIX}add_media_{product_id}")
+        ],
         [InlineKeyboardButton(text=BACK_BTN, callback_data=f"{ADMIN_PREFIX}products_{category_id}")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
@@ -448,4 +452,40 @@ def confirm_keyboard(action: str, entity_id: int) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="خیر ❌", callback_data=f"cancel_{action}_{entity_id}")
         ]
     ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def product_media_keyboard(product_id: int, media_files: List[Dict]) -> InlineKeyboardMarkup:
+    """
+    Create a keyboard for managing product media files
+    
+    Args:
+        product_id: ID of the product
+        media_files: List of media file dictionaries
+        
+    Returns:
+        InlineKeyboardMarkup for managing product media
+    """
+    keyboard = []
+    
+    # Add buttons for each media file (limited to 10)
+    for i, media in enumerate(media_files[:10]):
+        media_id = media['id']
+        media_type = "تصویر 🖼" if media['file_type'] == 'photo' else "ویدیو 🎬"
+        button_text = f"{i+1}. {media_type}"
+        
+        keyboard.append([
+            InlineKeyboardButton(text=button_text, callback_data=f"{ADMIN_PREFIX}view_media_{media_id}"),
+            InlineKeyboardButton(text="❌ حذف", callback_data=f"{ADMIN_PREFIX}delete_media_{media_id}")
+        ])
+    
+    # Add button to add more media
+    keyboard.append([
+        InlineKeyboardButton(text="➕ افزودن تصویر/ویدیو", callback_data=f"{ADMIN_PREFIX}add_media_{product_id}")
+    ])
+    
+    # Add back button
+    keyboard.append([
+        InlineKeyboardButton(text=BACK_BTN, callback_data=f"{ADMIN_PREFIX}product_{product_id}")
+    ])
+    
     return InlineKeyboardMarkup(inline_keyboard=keyboard)

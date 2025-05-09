@@ -250,6 +250,43 @@ class Database:
                 (product_id,)
             )
             return cursor.fetchall()
+            
+    def get_media_by_id(self, media_id: int) -> Optional[Dict]:
+        """Get a specific media file by ID
+        
+        Args:
+            media_id: The ID of the media record
+            
+        Returns:
+            Media record with file_id and file_type, or None if not found
+        """
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                'SELECT id, product_id, file_id, file_type, created_at FROM product_media WHERE id = %s',
+                (media_id,)
+            )
+            return cursor.fetchone()
+            
+    def get_product_by_media_id(self, media_id: int) -> Optional[Dict]:
+        """Get product information associated with a media ID
+        
+        Args:
+            media_id: The ID of the media record
+            
+        Returns:
+            Product record, or None if not found
+        """
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                '''
+                SELECT p.id, p.name, p.price, p.description, p.photo_url, p.category_id 
+                FROM products p
+                JOIN product_media pm ON p.id = pm.product_id
+                WHERE pm.id = %s
+                ''',
+                (media_id,)
+            )
+            return cursor.fetchone()
 
     def get_service(self, service_id: int) -> Optional[Dict]:
         """Get a service by ID - same as get_product since we use the same table"""
