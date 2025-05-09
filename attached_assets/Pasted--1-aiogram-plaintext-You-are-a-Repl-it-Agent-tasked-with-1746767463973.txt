@@ -1,0 +1,90 @@
+
+### پرامپت 1: مهاجرت به aiogram و تنظیمات اولیه
+```plaintext
+You are a Repl.it Agent tasked with migrating the RFCBot Telegram bot (previously using python-telegram-bot v20.x) to aiogram, ensuring core bot functionality as a catalog for radio frequency and telecommunications devices. The bot is designed for Persian users (RTL, no multi-language support) and uses a Flask web interface for basic administration. Focus on setting up aiogram with webhooks, integrating with PostgreSQL, and ensuring the main menu and category navigation work correctly. Do not add new features beyond those specified or reference SQLite3.
+
+### Project Overview
+- **Purpose**: Telegram bot for browsing 4-level hierarchical products (e.g., محصولات → دستگاه‌های رادیوفرکانسی → اسیلوسکوپ → اسیلوسکوپ اچ‌پی PPU400) and services, with price inquiries and educational content.
+- **Priority**: Migrate to aiogram, ensure bot functionality, and connect to PostgreSQL.
+- **Deployment**: Webhooks for aiogram, Flask on port 5000.
+
+### Core Bot Features
+- **Main Menu**: Buttons (محصولات, خدمات, استعلام قیمت, مطالب آموزشی, تماس با ما, درباره ما, جستجو, پنل ادمین) from `configuration.py`.
+- **Category Navigation**: 4-level hierarchy for products/services, stored in `categories` table.
+- **Text Constants** (from `configuration.py`):
+  ```python
+  START_TEXT = """به ربات جامع محصولات و خدمات خوش آمدید!..."""
+  PRODUCTS_BTN = "محصولات"
+  SERVICES_BTN = "خدمات"
+  INQUIRY_BTN = "استعلام قیمت"
+  EDUCATION_BTN = "مطالب آموزشی"
+  CONTACT_BTN = "تماس با ما"
+  ABOUT_BTN = "درباره ما"
+  BACK_BTN = "بازگشت"
+  SEARCH_BTN = "جستجو"
+  ADMIN_BTN = "پنل ادمین"
+  ```
+
+### Database (PostgreSQL)
+- **categories**:
+  ```sql
+  CREATE TABLE categories (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      parent_id INTEGER,
+      cat_type TEXT NOT NULL,
+      CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE CASCADE
+  );
+  ```
+
+### Code Structure
+- **Python Files**:
+  - `configuration.py`: Settings via `data/current_config.json`, env vars (`BOT_TOKEN`, `ADMIN_ID`, `DB_TYPE`, `DATABASE_URL`).
+  - `bot.py`: Aiogram bot logic with routers.
+  - `keyboards.py`: Inline/reply keyboards.
+  - `main.py`: Flask app and aiogram webhooks.
+  - `database.py`: PostgreSQL operations (`psycopg2`).
+  - `handlers.py`: Aiogram handlers.
+
+### Tasks
+1. **Migrate to aiogram**:
+   - Set up `bot.py`:
+     ```python
+     from aiogram import Router, Bot, Dispatcher
+     from aiogram.types import Message
+     router = Router()
+     dp = Dispatcher()
+     dp.include_router(router)
+     @router.message(commands=["start"])
+     async def start_command(message: Message):
+         await message.answer(START_TEXT, reply_markup=main_menu_keyboard())
+     ```
+   - Configure webhooks in `main.py`:
+     ```python
+     from flask import request, Response
+     from aiogram.types import Update
+     @app.post('/webhook')
+     async def webhook():
+         update = await request.json()
+         await dp.feed_update(bot, Update.de_json(update, bot))
+         return {"status": "ok"}
+     ```
+2. **Integrate PostgreSQL**:
+   - Update `database.py` for categories:
+     ```python
+     import psycopg2
+     def get_category(category_id):
+         with psycopg2.connect(os.getenv('DATABASE_URL')) as conn:
+             with conn.cursor() as cur:
+                 cur.execute("SELECT * FROM categories WHERE id = %s", (category_id,))
+                 return cur.fetchone() or None
+     ```
+3. **Verify Main Menu and Navigation**:
+   - Ensure menu buttons and 4-level category navigation work using `categories` table.
+
+### Deliverables
+- Updated `bot.py`, `main.py`, `database.py`, `handlers.py`.
+- Report confirming main menu and category navigation functionality.
+- Instructions to run on Repl.it.
+```
+
