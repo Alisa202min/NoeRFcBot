@@ -59,6 +59,8 @@ class AdminActions(StatesGroup):
     add_category = State()  # Added for add_category operations
     edit_product = State()
     add_product = State()
+    add_product_media = State()  # New state for adding product media
+    edit_product_media = State()  # New state for editing product media
     edit_edu = State()
     add_edu = State()
     edit_static = State()
