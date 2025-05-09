@@ -89,7 +89,7 @@ async def main():
     
     # Admin add category handlers
     dp.callback_query.register(admin_handlers.start_add_category, lambda c: c.data.startswith("admin_add_cat_"))
-    dp.message.register(admin_handlers.process_add_category, lambda m: not m.text.startswith('/'))
+    dp.message.register(admin_handlers.process_add_category, AdminActions.add_category)
     
     # Admin product edit handlers
     dp.callback_query.register(admin_handlers.start_edit_product, lambda c: c.data.startswith("admin_edit_product_"))

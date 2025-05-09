@@ -428,8 +428,8 @@ def cancel_keyboard() -> InlineKeyboardMarkup:
     Returns:
         InlineKeyboardMarkup with cancel button
     """
-    keyboard = [[InlineKeyboardButton("انصراف ❌", callback_data="cancel")]]
-    return InlineKeyboardMarkup(keyboard)
+    keyboard = [[InlineKeyboardButton(text="انصراف ❌", callback_data="cancel")]]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def confirm_keyboard(action: str, entity_id: int) -> InlineKeyboardMarkup:
     """
@@ -444,8 +444,8 @@ def confirm_keyboard(action: str, entity_id: int) -> InlineKeyboardMarkup:
     """
     keyboard = [
         [
-            InlineKeyboardButton("بله ✅", callback_data=f"confirm_{action}_{entity_id}"),
-            InlineKeyboardButton("خیر ❌", callback_data=f"cancel_{action}_{entity_id}")
+            InlineKeyboardButton(text="بله ✅", callback_data=f"confirm_{action}_{entity_id}"),
+            InlineKeyboardButton(text="خیر ❌", callback_data=f"cancel_{action}_{entity_id}")
         ]
     ]
-    return InlineKeyboardMarkup(keyboard)
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
