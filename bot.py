@@ -121,6 +121,14 @@ async def register_handlers():
         # Admin add product handlers
         dp.callback_query.register(admin_handlers.start_add_product, lambda c: c.data.startswith("admin_add_product_"))
         dp.message.register(admin_handlers.process_add_product, AdminActions.add_product)
+        
+        # Admin product media management handlers
+        dp.callback_query.register(admin_handlers.start_manage_media, lambda c: c.data.startswith("admin_manage_media_"))
+        dp.callback_query.register(admin_handlers.start_add_media, lambda c: c.data.startswith("admin_add_media_"))
+        dp.message.register(admin_handlers.process_add_media, AdminActions.add_product_media)
+        dp.callback_query.register(admin_handlers.delete_media, lambda c: c.data.startswith("admin_delete_media_"))
+        dp.callback_query.register(admin_handlers.confirm_delete_media, lambda c: c.data.startswith("confirm_delete_media_"))
+        dp.callback_query.register(admin_handlers.view_media, lambda c: c.data.startswith("admin_view_media_"))
 
         # Admin educational content edit handlers
         dp.callback_query.register(admin_handlers.start_edit_edu, lambda c: c.data.startswith("admin_edit_edu_"))

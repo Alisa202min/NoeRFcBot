@@ -15,7 +15,7 @@ from aiogram.filters import Command, CommandStart
 from aiogram.filters import Filter
 from aiogram.enums import ParseMode
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto, InputMediaVideo
 
 # Create a Text filter since it's not included in aiogram 3.x
 class Text(Filter):
@@ -37,7 +37,7 @@ from database import Database
 from keyboards import (
     main_menu_keyboard, admin_keyboard, categories_keyboard, products_keyboard,
     product_detail_keyboard, education_categories_keyboard, education_content_keyboard,
-    education_detail_keyboard, cancel_keyboard, confirm_keyboard
+    education_detail_keyboard, cancel_keyboard, confirm_keyboard, product_media_keyboard
 )
 from utils import (
     format_price, format_product_details, format_inquiry_details, format_educational_content,
