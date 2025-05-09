@@ -2,6 +2,31 @@
 {% set active_page = 'categories' %}
 
 {% block content %}
+<!-- CSS for tree view styling -->
+<style>
+    .category-tree .list-group-item {
+        border-right: 3px solid transparent;
+    }
+    
+    .category-tree > li.list-group-item {
+        border-right-color: #0d6efd; /* Primary color for level 1 */
+    }
+    
+    .category-tree > li > ul > li.list-group-item {
+        border-right-color: #198754; /* Success color for level 2 */
+        margin-right: 10px;
+    }
+    
+    .category-tree > li > ul > li > ul > li.list-group-item {
+        border-right-color: #0dcaf0; /* Info color for level 3 */
+        margin-right: 20px;
+    }
+    
+    .category-tree > li > ul > li > ul > li > ul > li.list-group-item {
+        border-right-color: #ffc107; /* Warning color for level 4 */
+        margin-right: 30px;
+    }
+</style>
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h4>مدیریت دسته‌بندی‌ها</h4>
@@ -328,10 +353,34 @@
                 const categoryId = button.getAttribute('data-category-id');
                 const categoryName = button.getAttribute('data-category-name');
                 
-                document.getElementById('categoryIdInput').value = categoryId;
                 document.getElementById('categoryNameSpan').textContent = categoryName;
+                // Update the form action URL
+                document.getElementById('deleteCategoryForm').action = "{{ url_for('admin_delete_category', category_id=0) }}".replace('/0', '/' + categoryId);
             });
         }
+        
+        // Make tree items collapsible
+        const parentItems = document.querySelectorAll('.category-tree .list-group-item');
+        parentItems.forEach(item => {
+            const childList = item.querySelector('ul');
+            if (childList) {
+                const header = item.querySelector('.d-flex');
+                
+                // Add expand/collapse icon
+                const icon = document.createElement('i');
+                icon.className = 'bi bi-chevron-down ms-2';
+                header.querySelector('span').prepend(icon);
+                
+                // Add click handler
+                header.addEventListener('click', function(e) {
+                    if (e.target.closest('.btn')) return; // Don't toggle if button was clicked
+                    
+                    childList.classList.toggle('d-none');
+                    icon.classList.toggle('bi-chevron-down');
+                    icon.classList.toggle('bi-chevron-right');
+                });
+            }
+        });
     });
 </script>
 {% endblock %}
