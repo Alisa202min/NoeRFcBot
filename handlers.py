@@ -56,6 +56,7 @@ class InquiryForm(StatesGroup):
 
 class AdminActions(StatesGroup):
     edit_category = State()
+    add_category = State()  # Added for add_category operations
     edit_product = State()
     add_product = State()
     edit_edu = State()
