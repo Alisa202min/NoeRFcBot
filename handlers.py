@@ -15,6 +15,8 @@ from aiogram.filters import Command, CommandStart
 from aiogram.filters import Filter
 from aiogram.enums import ParseMode
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import Update
+from aiogram.types import ContextTypes
 
 # Create a Text filter since it's not included in aiogram 3.x
 class Text(Filter):
