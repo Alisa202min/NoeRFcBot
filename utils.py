@@ -16,12 +16,13 @@ def format_price(price: int) -> str:
     """
     return f"{price:,} تومان"
 
-def format_product_details(product: Dict) -> str:
+def format_product_details(product: Dict, media_files: List[Dict] = None) -> str:
     """
     Format product details for display
     
     Args:
         product: Product dictionary
+        media_files: List of media files (optional)
         
     Returns:
         Formatted product details
@@ -30,7 +31,23 @@ def format_product_details(product: Dict) -> str:
     price = format_price(product['price'])
     description = product['description'] or "توضیحات موجود نیست"
     
-    return f"📦 *{name}*\n\n💰 قیمت: {price}\n\n📝 توضیحات:\n{description}"
+    result = f"📦 *{name}*\n\n💰 قیمت: {price}\n\n📝 توضیحات:\n{description}"
+    
+    # Add media info if available
+    if media_files and len(media_files) > 0:
+        photo_count = sum(1 for m in media_files if m['file_type'] == 'photo')
+        video_count = sum(1 for m in media_files if m['file_type'] == 'video')
+        
+        media_info = []
+        if photo_count > 0:
+            media_info.append(f"🖼 {photo_count} تصویر")
+        if video_count > 0:
+            media_info.append(f"🎬 {video_count} ویدیو")
+            
+        if media_info:
+            result += "\n\n" + " | ".join(media_info)
+    
+    return result
 
 def format_inquiry_details(inquiry: Dict) -> str:
     """
