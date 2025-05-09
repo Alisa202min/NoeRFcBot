@@ -54,10 +54,16 @@ class Product(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     # Additional fields for search/filtering
     tags = db.Column(db.String(255), nullable=True)  # Comma-separated tags
+    # Product-specific fields
     brand = db.Column(db.String(100), nullable=True)
     model_number = db.Column(db.String(100), nullable=True)
     manufacturer = db.Column(db.String(100), nullable=True)
-    in_stock = db.Column(db.Boolean, default=True)
+    # Service-specific fields
+    provider = db.Column(db.String(100), nullable=True)
+    service_code = db.Column(db.String(100), nullable=True)
+    duration = db.Column(db.String(100), nullable=True)
+    # Common fields
+    in_stock = db.Column(db.Boolean, default=True)  # For services, this means "available"
     featured = db.Column(db.Boolean, default=False)
     
     # Relationships
@@ -69,7 +75,9 @@ class Product(db.Model):
         
     @classmethod
     def search(cls, query, product_type=None, category_id=None, min_price=None, max_price=None, 
-               tags=None, brand=None, in_stock=None, featured=None):
+               tags=None, brand=None, manufacturer=None, model_number=None, 
+               provider=None, service_code=None, duration=None,
+               in_stock=None, featured=None):
         """
         Advanced search method for products and services
         
@@ -80,8 +88,13 @@ class Product(db.Model):
             min_price (int): Minimum price
             max_price (int): Maximum price
             tags (str): Comma-separated tags to search for
-            brand (str): Brand name to filter by
-            in_stock (bool): Filter by in_stock status
+            brand (str): Brand name to filter by (products)
+            manufacturer (str): Manufacturer to filter by (products)
+            model_number (str): Model number to filter by (products)
+            provider (str): Service provider to filter by (services)
+            service_code (str): Service code to filter by (services)
+            duration (str): Service duration to filter by (services)
+            in_stock (bool): Filter by in_stock status (for services, means "available")
             featured (bool): Filter by featured status
             
         Returns:
@@ -96,13 +109,26 @@ class Product(db.Model):
         # Text search in name and description
         if query:
             search_terms = "%" + query.lower() + "%"
-            search_query = search_query.filter(
-                db.or_(
-                    db.func.lower(cls.name).like(search_terms),
-                    db.func.lower(cls.description).like(search_terms),
-                    db.func.lower(cls.tags).like(search_terms) if tags else False
-                )
-            )
+            search_conditions = [
+                db.func.lower(cls.name).like(search_terms),
+                db.func.lower(cls.description).like(search_terms)
+            ]
+            
+            # Include tags, brand, manufacturer in search if they exist
+            if cls.tags is not None:
+                search_conditions.append(db.func.lower(cls.tags).like(search_terms))
+            if cls.brand is not None:
+                search_conditions.append(db.func.lower(cls.brand).like(search_terms))
+            if cls.manufacturer is not None:
+                search_conditions.append(db.func.lower(cls.manufacturer).like(search_terms))
+            if cls.model_number is not None:
+                search_conditions.append(db.func.lower(cls.model_number).like(search_terms))
+            if cls.provider is not None:
+                search_conditions.append(db.func.lower(cls.provider).like(search_terms))
+            if cls.service_code is not None:
+                search_conditions.append(db.func.lower(cls.service_code).like(search_terms))
+                
+            search_query = search_query.filter(db.or_(*search_conditions))
         
         # Filter by category
         if category_id:
@@ -120,11 +146,23 @@ class Product(db.Model):
             for tag in tags.split(','):
                 search_query = search_query.filter(cls.tags.like(f"%{tag.strip()}%"))
         
-        # Brand filtering
+        # Product-specific filters
         if brand:
             search_query = search_query.filter(cls.brand == brand)
+        if manufacturer:
+            search_query = search_query.filter(cls.manufacturer == manufacturer)
+        if model_number:
+            search_query = search_query.filter(cls.model_number == model_number)
+            
+        # Service-specific filters
+        if provider:
+            search_query = search_query.filter(cls.provider == provider)
+        if service_code:
+            search_query = search_query.filter(cls.service_code == service_code)
+        if duration:
+            search_query = search_query.filter(cls.duration == duration)
         
-        # Stock status
+        # Stock status (available for services)
         if in_stock is not None:
             search_query = search_query.filter(cls.in_stock == in_stock)
         

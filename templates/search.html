@@ -93,7 +93,7 @@
                         
                         <!-- Brands -->
                         {% if brands %}
-                        <div class="mb-3">
+                        <div class="mb-3 {{ 'd-none' if product_type == 'service' else '' }}">
                             <label for="brand" class="form-label">برند</label>
                             <select class="form-select" id="brand" name="brand" onchange="this.form.submit()">
                                 <option value="">همه برندها</option>
@@ -103,6 +103,62 @@
                             </select>
                         </div>
                         {% endif %}
+                        
+                        <!-- Manufacturer -->
+                        {% if manufacturers %}
+                        <div class="mb-3 {{ 'd-none' if product_type == 'service' else '' }}">
+                            <label for="manufacturer" class="form-label">سازنده</label>
+                            <select class="form-select" id="manufacturer" name="manufacturer" onchange="this.form.submit()">
+                                <option value="">همه سازندگان</option>
+                                {% for m in manufacturers %}
+                                <option value="{{ m }}" {{ 'selected' if manufacturer == m else '' }}>{{ m }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Model Number -->
+                        <div class="mb-3 {{ 'd-none' if product_type == 'service' else '' }}">
+                            <label for="model_number" class="form-label">شماره مدل</label>
+                            <input type="text" class="form-control" id="model_number" name="model_number" 
+                                   value="{{ model_number if model_number else '' }}" placeholder="مثال: RF-2023">
+                            <div class="d-grid mt-1">
+                                <button type="submit" class="btn btn-sm btn-outline-primary">اعمال فیلتر</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Providers -->
+                        {% if providers %}
+                        <div class="mb-3 {{ 'd-none' if product_type == 'product' else '' }}">
+                            <label for="provider" class="form-label">ارائه دهنده خدمت</label>
+                            <select class="form-select" id="provider" name="provider" onchange="this.form.submit()">
+                                <option value="">همه ارائه دهندگان</option>
+                                {% for p in providers %}
+                                <option value="{{ p }}" {{ 'selected' if provider == p else '' }}>{{ p }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Service Code -->
+                        <div class="mb-3 {{ 'd-none' if product_type == 'product' else '' }}">
+                            <label for="service_code" class="form-label">کد خدمت</label>
+                            <input type="text" class="form-control" id="service_code" name="service_code" 
+                                   value="{{ service_code if service_code else '' }}" placeholder="مثال: SVC-1001">
+                            <div class="d-grid mt-1">
+                                <button type="submit" class="btn btn-sm btn-outline-primary">اعمال فیلتر</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Duration -->
+                        <div class="mb-3 {{ 'd-none' if product_type == 'product' else '' }}">
+                            <label for="duration" class="form-label">مدت زمان خدمت</label>
+                            <input type="text" class="form-control" id="duration" name="duration" 
+                                   value="{{ duration if duration else '' }}" placeholder="مثال: یک ساعت">
+                            <div class="d-grid mt-1">
+                                <button type="submit" class="btn btn-sm btn-outline-primary">اعمال فیلتر</button>
+                            </div>
+                        </div>
                         
                         <!-- Tags -->
                         {% if all_tags %}
