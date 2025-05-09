@@ -335,8 +335,8 @@ class Database:
         """
         with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
             cursor.execute(
-                '''SELECT p.* FROM products p
-                   JOIN service_media sm ON p.id = sm.service_id
+                '''SELECT s.* FROM services s
+                   JOIN service_media sm ON s.id = sm.service_id
                    WHERE sm.id = %s''',
                 (media_id,)
             )
@@ -485,31 +485,32 @@ class Database:
                 # First delete all media files associated with this service
                 cursor.execute('DELETE FROM service_media WHERE service_id = %s', (service_id,))
                 # Then delete the service itself
-                cursor.execute('DELETE FROM products WHERE id = %s', (service_id,))
+                cursor.execute('DELETE FROM services WHERE id = %s', (service_id,))
                 return cursor.rowcount > 0
         except Exception as e:
             logging.error(f"Error deleting service: {e}")
             return False
 
     def add_inquiry(self, user_id: int, name: str, phone: str, 
-                   description: str, product_id: Optional[int] = None) -> int:
+                   description: str, product_id: Optional[int] = None, service_id: Optional[int] = None) -> int:
         """Add a new price inquiry"""
         with self.conn.cursor() as cursor:
             cursor.execute(
-                'INSERT INTO inquiries (user_id, name, phone, description, product_id, date) VALUES (%s, %s, %s, %s, %s, NOW()) RETURNING id',
-                (user_id, name, phone, description, product_id)
+                'INSERT INTO inquiries (user_id, name, phone, description, product_id, product_type, date) VALUES (%s, %s, %s, %s, %s, %s, NOW()) RETURNING id',
+                (user_id, name, phone, description, product_id, 'service' if service_id else 'product')
             )
             inquiry_id = cursor.fetchone()[0]
             return inquiry_id
 
     def get_inquiries(self, start_date: Optional[str] = None, end_date: Optional[str] = None,
-                     product_id: Optional[int] = None) -> List[Dict]:
+                     product_id: Optional[int] = None, product_type: Optional[str] = None) -> List[Dict]:
         """Get inquiries with optional filtering"""
         query = '''SELECT i.id, i.user_id, i.name, i.phone, i.description, 
-                          i.product_id, i.date,
-                          p.name as product_name
+                          i.product_id, i.product_type, i.date,
+                          CASE WHEN i.product_type = 'service' THEN s.name ELSE p.name END as product_name
                    FROM inquiries i 
-                   LEFT JOIN products p ON i.product_id = p.id
+                   LEFT JOIN products p ON i.product_id = p.id AND i.product_type = 'product'
+                   LEFT JOIN services s ON i.product_id = s.id AND i.product_type = 'service'
                    WHERE 1=1 '''
         params = []
 
@@ -524,6 +525,10 @@ class Database:
         if product_id:
             query += 'AND i.product_id = %s '
             params.append(product_id)
+            
+        if product_type:
+            query += 'AND i.product_type = %s '
+            params.append(product_type)
 
         query += 'ORDER BY i.date DESC'
 
@@ -534,10 +539,11 @@ class Database:
     def get_inquiry(self, inquiry_id: int) -> Optional[Dict]:
         """Get an inquiry by ID"""
         query = '''SELECT i.id, i.user_id, i.name, i.phone, i.description, 
-                          i.product_id, i.date, 
-                          p.name as product_name
+                          i.product_id, i.product_type, i.date,
+                          CASE WHEN i.product_type = 'service' THEN s.name ELSE p.name END as product_name
                    FROM inquiries i 
-                   LEFT JOIN products p ON i.product_id = p.id 
+                   LEFT JOIN products p ON i.product_id = p.id AND i.product_type = 'product'
+                   LEFT JOIN services s ON i.product_id = s.id AND i.product_type = 'service'
                    WHERE i.id = %s'''
 
         with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
@@ -696,7 +702,7 @@ class Database:
                 inquiries = self.get_inquiries()
 
                 with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
-                    fieldnames = ['id', 'user_id', 'name', 'phone', 'description', 'product_id', 'product_name', 'date']
+                    fieldnames = ['id', 'user_id', 'name', 'phone', 'description', 'product_id', 'product_type', 'product_name', 'date']
                     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                     writer.writeheader()
                     for inquiry in inquiries:
