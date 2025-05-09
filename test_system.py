@@ -10,12 +10,19 @@ import os
 import sys
 import unittest
 import json
+import uuid
 import requests
+import logging
+from datetime import datetime
 from contextlib import contextmanager
 from io import StringIO
 from app import app, db
 from models import User, Category, Product, ProductMedia, Inquiry, StaticContent, EducationalContent
 from configuration import load_config, save_config, reset_to_default
+
+# Configure logging
+logging.basicConfig(level=logging.INFO,
+                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 # Function prototypes for tests that may not exist directly
 def get_categories(cat_type=None):
@@ -78,8 +85,13 @@ class DatabaseTestCase(unittest.TestCase):
 
     def test_user_model(self):
         """Test User model CRUD operations"""
-        # Create a test user
-        test_user = User(username='testuser', email='test@example.com')
+        # Create a test user with a unique username
+        unique_id = str(uuid.uuid4())[:8]
+        test_username = f"testuser_{unique_id}_{int(datetime.now().timestamp())}"
+        test_email = f"test_{unique_id}@example.com"
+        
+        logging.info(f"Creating test user with unique username: {test_username}")
+        test_user = User(username=test_username, email=test_email, is_admin=False)
         test_user.set_password('password123')
         
         # Test password hashing
@@ -92,36 +104,43 @@ class DatabaseTestCase(unittest.TestCase):
             db.session.commit()
             
             # Test user retrieval
-            retrieved_user = User.query.filter_by(username='testuser').first()
+            retrieved_user = User.query.filter_by(username=test_username).first()
             self.assertIsNotNone(retrieved_user)
-            self.assertEqual(retrieved_user.email, 'test@example.com')
+            self.assertEqual(retrieved_user.email, test_email)
             
         finally:
             # Clean up test data
-            User.query.filter_by(username='testuser').delete()
+            logging.info(f"Cleaning up test data for {test_username}")
+            User.query.filter_by(username=test_username).delete()
             db.session.commit()
 
     def test_category_model(self):
         """Test Category model"""
-        # Create a test category
-        test_category = Category(name='Test Category', cat_type='product')
+        # Create a test category with a unique name
+        unique_id = str(uuid.uuid4())[:8]
+        test_category_name = f"Test Category {unique_id}"
+        test_subcategory_name = f"Test Subcategory {unique_id}"
+        
+        logging.info(f"Creating test category with unique name: {test_category_name}")
+        test_category = Category(name=test_category_name, cat_type='product')
         
         try:
             db.session.add(test_category)
             db.session.commit()
             
             # Test category retrieval
-            categories = Category.query.filter_by(name='Test Category').all()
+            categories = Category.query.filter_by(name=test_category_name).all()
             self.assertEqual(len(categories), 1)
             self.assertEqual(categories[0].cat_type, 'product')
             
             # Test sub-category relationship
-            sub_category = Category(name='Test Subcategory', cat_type='product', parent_id=test_category.id)
+            logging.info(f"Creating test subcategory: {test_subcategory_name}")
+            sub_category = Category(name=test_subcategory_name, cat_type='product', parent_id=test_category.id)
             db.session.add(sub_category)
             db.session.commit()
             
             # Verify parent-child relationship
-            sub = Category.query.filter_by(name='Test Subcategory').first()
+            sub = Category.query.filter_by(name=test_subcategory_name).first()
             self.assertEqual(sub.parent_id, test_category.id)
             
             # Test get_categories function
@@ -131,8 +150,9 @@ class DatabaseTestCase(unittest.TestCase):
                 
         finally:
             # Clean up test data
-            Category.query.filter_by(name='Test Subcategory').delete()
-            Category.query.filter_by(name='Test Category').delete()
+            logging.info(f"Cleaning up test data for {test_category_name} and {test_subcategory_name}")
+            Category.query.filter_by(name=test_subcategory_name).delete()
+            Category.query.filter_by(name=test_category_name).delete()
             db.session.commit()
 
     def test_product_model(self):
