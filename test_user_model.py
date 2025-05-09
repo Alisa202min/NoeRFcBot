@@ -77,8 +77,8 @@ def test_user_model():
             
             finally:
                 # Clean up test data
-                print("Cleaning up test data...")
-                User.query.filter_by(username='testuser').delete()
+                print(f"Cleaning up test data for {test_username}...")
+                User.query.filter_by(username=test_username).delete()
                 db.session.commit()
                 
     except Exception as e:
