@@ -152,7 +152,7 @@ class Database:
                 'SELECT id, name, parent_id, cat_type FROM categories WHERE id = %s',
                 (category_id,)
             )
-            return cursor.fetchone()
+            return cursor.fetchone() or None or None
 
     def get_categories(self, parent_id: Optional[int] = None, cat_type: Optional[str] = None) -> List[Dict]:
         """Get categories based on parent ID and/or type"""
@@ -233,7 +233,7 @@ class Database:
                 'SELECT id, name, price, description, photo_url, category_id FROM products WHERE id = %s',
                 (product_id,)
             )
-            return cursor.fetchone()
+            return cursor.fetchone() or None or None
             
     def get_product_media(self, product_id: int) -> List[Dict]:
         """Get all media files for a product
@@ -265,7 +265,7 @@ class Database:
                 'SELECT id, product_id, file_id, file_type, created_at FROM product_media WHERE id = %s',
                 (media_id,)
             )
-            return cursor.fetchone()
+            return cursor.fetchone() or None or None
             
     def get_product_by_media_id(self, media_id: int) -> Optional[Dict]:
         """Get product information associated with a media ID
@@ -286,7 +286,7 @@ class Database:
                 ''',
                 (media_id,)
             )
-            return cursor.fetchone()
+            return cursor.fetchone() or None or None
 
     def get_service(self, service_id: int) -> Optional[Dict]:
         """Get a service by ID - same as get_product since we use the same table"""
@@ -322,7 +322,7 @@ class Database:
                 'SELECT id, service_id, file_id, file_type, created_at FROM service_media WHERE id = %s',
                 (media_id,)
             )
-            return cursor.fetchone()
+            return cursor.fetchone() or None or None
             
     def get_service_by_media_id(self, media_id: int) -> Optional[Dict]:
         """Get the service associated with a media file
@@ -340,7 +340,7 @@ class Database:
                    WHERE sm.id = %s''',
                 (media_id,)
             )
-            return cursor.fetchone()
+            return cursor.fetchone() or None or None
 
     def get_products_by_category(self, category_id: int) -> List[Dict]:
         """Get all products/services in a category"""
@@ -564,7 +564,7 @@ class Database:
 
         with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
             cursor.execute(query, (inquiry_id,))
-            return cursor.fetchone()
+            return cursor.fetchone() or None or None
 
     def get_educational_content(self, content_id: int) -> Optional[Dict]:
         """Get educational content by ID"""
@@ -573,7 +573,7 @@ class Database:
                 'SELECT id, title, content, category, type FROM educational_content WHERE id = %s',
                 (content_id,)
             )
-            return cursor.fetchone()
+            return cursor.fetchone() or None or None
 
     def get_all_educational_content(self, category: Optional[str] = None) -> List[Dict]:
         """Get all educational content with optional category filter"""
