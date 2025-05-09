@@ -658,16 +658,67 @@ def database():
         'tables': []
     }
     
+    # Initialize required variables
+    table_counts = {}
+    table_structures = {}
+    pg_version = "Unknown"
+    pg_host = os.environ.get('PGHOST', 'Unknown')
+    pg_database = os.environ.get('PGDATABASE', 'Unknown')
+    pg_user = os.environ.get('PGUSER', 'Unknown')
+    
     # Get list of tables
     if db_info['type'] == 'postgresql':
         try:
+            # Get list of all tables
             tables = db.session.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema='public'")).fetchall()
             db_info['tables'] = [table[0] for table in tables]
+            
+            # Get count for each table
+            for table in db_info['tables']:
+                try:
+                    count_query = text(f"SELECT COUNT(*) FROM {table}")
+                    count = db.session.execute(count_query).scalar()
+                    table_counts[table] = count
+                except Exception as e:
+                    logger.error(f"Error counting records in {table}: {e}")
+                    table_counts[table] = 0
+            
+            # Get structure for each table
+            for table in db_info['tables']:
+                try:
+                    structure_query = text(f"""
+                        SELECT column_name, data_type, is_nullable, column_default
+                        FROM information_schema.columns 
+                        WHERE table_schema='public' AND table_name='{table}'
+                        ORDER BY ordinal_position
+                    """)
+                    columns = db.session.execute(structure_query).fetchall()
+                    table_structures[table] = columns
+                except Exception as e:
+                    logger.error(f"Error fetching structure for {table}: {e}")
+                    table_structures[table] = []
+            
+            # Get PostgreSQL version
+            try:
+                version_query = text("SELECT version()")
+                version_info = db.session.execute(version_query).scalar()
+                if version_info:
+                    pg_version = version_info.split()[1]
+            except Exception as e:
+                logger.error(f"Error fetching PostgreSQL version: {e}")
+                
         except Exception as e:
             flash(f'Error fetching database tables: {str(e)}', 'danger')
             db_info['tables'] = []
     
-    return render_template('database.html', db_info=db_info)
+    return render_template('database.html', 
+                          db_info=db_info,
+                          table_counts=table_counts,
+                          table_structures=table_structures,
+                          pg_version=pg_version,
+                          pg_host=pg_host,
+                          pg_database=pg_database,
+                          pg_user=pg_user)
 
 
 @app.route('/view_table/<table_name>')
