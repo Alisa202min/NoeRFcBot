@@ -58,6 +58,12 @@ async def main():
     # Admin command
     dp.message.register(admin_handlers.start_admin, Command(commands=["admin"]))
     
+    # Template commands for CSV imports
+    dp.message.register(admin_handlers.get_template, Command(commands=["template"]))
+    dp.message.register(admin_handlers.get_template, Command(commands=["template_products"]))
+    dp.message.register(admin_handlers.get_template, Command(commands=["template_categories"]))
+    dp.message.register(admin_handlers.get_template, Command(commands=["template_educational"]))
+    
     # Inquiry conversation handlers with state management
     dp.callback_query.register(handle_inquiry.start_inquiry, lambda c: c.data.startswith("inquiry_"))
     

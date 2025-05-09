@@ -592,7 +592,7 @@ class AdminForm(StatesGroup):
 # Admin handlers
 class admin_handlers:
     @staticmethod
-    async def get_template(message: types.Message, command: Command) -> None:
+    async def get_template(message: types.Message) -> None:
         """Generate CSV template for various entity types."""
         user_id = message.from_user.id
         
@@ -601,13 +601,11 @@ class admin_handlers:
             await message.reply(ADMIN_ACCESS_DENIED)
             return
         
-        # Get entity type from command
-        entity_type = command.args
-        if not entity_type:
-            # Extract from command text if available
-            cmd_parts = message.text.split('_')
-            if len(cmd_parts) > 1:
-                entity_type = cmd_parts[1]
+        # Extract from command text if available
+        entity_type = None
+        cmd_parts = message.text.split('_')
+        if len(cmd_parts) > 1:
+            entity_type = cmd_parts[1]
         
         if not entity_type:
             await message.reply("لطفاً نوع داده را مشخص کنید (products, categories, educational)")
@@ -641,12 +639,11 @@ class admin_handlers:
                     return
         
         # Send the CSV template
-        with open(temp_path, 'rb') as file:
-            await message.reply_document(
-                document=file,
-                filename=f'template_{entity_type}.csv',
-                caption=f"قالب CSV برای {entity_type}"
-            )
+        await message.reply_document(
+            document=types.FSInputFile(temp_path),
+            filename=f'template_{entity_type}.csv',
+            caption=f"قالب CSV برای {entity_type}"
+        )
         
         # Delete temp file
         os.unlink(temp_path)
