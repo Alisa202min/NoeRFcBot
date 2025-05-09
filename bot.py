@@ -51,83 +51,83 @@ async def register_handlers():
     """Register all handlers for the bot."""
     # Initialize database
     db = Database()
-    
+
     # Start command
     dp.message.register(start_handler, CommandStart())
-    
+
     # Admin command
     dp.message.register(admin_handlers.start_admin, Command(commands=["admin"]))
-    
+
     # Template commands for CSV imports
     dp.message.register(admin_handlers.get_template, Command(commands=["template"]))
     dp.message.register(admin_handlers.get_template, Command(commands=["template_products"]))
     dp.message.register(admin_handlers.get_template, Command(commands=["template_categories"]))
     dp.message.register(admin_handlers.get_template, Command(commands=["template_educational"]))
-    
+
     # Inquiry conversation handlers with state management
     dp.callback_query.register(handle_inquiry.start_inquiry, lambda c: c.data.startswith("inquiry_"))
-    
+
     # Name state handler - add state filter
     dp.message.register(handle_inquiry.process_name, InquiryForm.name)
-    
+
     # Phone state handler
     dp.message.register(handle_inquiry.process_phone, InquiryForm.phone)
-    
+
     # Description state handler
     dp.message.register(handle_inquiry.process_description, InquiryForm.description)
-    
+
     # Cancel handlers
     dp.message.register(handle_inquiry.cancel_inquiry_message, Command(commands=["cancel"]))
     dp.callback_query.register(handle_inquiry.cancel_inquiry, lambda c: c.data == "cancel")
-    
+
     # Search conversation handlers
     dp.message.register(handle_search.start_search, lambda m: m.text == "جستجو 🔍")
-    
+
     # Process search query with state filter
     dp.message.register(handle_search.process_search, SearchForm.query)
-    
+
     # Cancel search
     dp.message.register(handle_search.cancel_search, Command(commands=["cancel"]), SearchForm.query)
-    
+
     # Admin category edit handlers
     dp.callback_query.register(admin_handlers.start_edit_category, lambda c: c.data.startswith("admin_edit_cat_"))
     dp.message.register(admin_handlers.process_edit_category, AdminActions.edit_category)
-    
+
     # Admin add category handlers
     dp.callback_query.register(admin_handlers.start_add_category, lambda c: c.data.startswith("admin_add_cat_"))
     dp.message.register(admin_handlers.process_add_category, AdminActions.add_category)
-    
+
     # Admin product edit handlers
     dp.callback_query.register(admin_handlers.start_edit_product, lambda c: c.data.startswith("admin_edit_product_"))
     dp.message.register(admin_handlers.process_edit_product, AdminActions.edit_product)
-    
+
     # Admin add product handlers
     dp.callback_query.register(admin_handlers.start_add_product, lambda c: c.data.startswith("admin_add_product_"))
     dp.message.register(admin_handlers.process_add_product, AdminActions.add_product)
-    
+
     # Admin educational content edit handlers
     dp.callback_query.register(admin_handlers.start_edit_edu, lambda c: c.data.startswith("admin_edit_edu_"))
     dp.message.register(admin_handlers.process_edit_edu, AdminActions.edit_edu)
-    
+
     # Admin add educational content handlers
     dp.callback_query.register(admin_handlers.start_add_edu, lambda c: c.data == "admin_add_edu")
     dp.message.register(admin_handlers.process_add_edu, AdminActions.add_edu)
-    
+
     # Admin static content edit handlers
     dp.callback_query.register(admin_handlers.start_edit_static, lambda c: c.data.startswith("admin_edit_static_"))
     dp.message.register(admin_handlers.process_edit_static, AdminActions.edit_static)
-    
+
     # Admin upload CSV handlers
     dp.callback_query.register(admin_handlers.start_import_data, lambda c: c.data.startswith("admin_import_"))
     dp.message.register(admin_handlers.process_import_data, AdminActions.upload_csv, lambda m: m.document is not None)
-    
+
     # Admin cancel action handler (common for all admin actions)
     dp.message.register(admin_handlers.cancel_admin_action, Command(commands=["cancel"]))
     dp.callback_query.register(admin_handlers.cancel_admin_action, lambda c: c.data.startswith("cancel"))
-    
+
     # General callback query handler for button presses (must be registered last)
     dp.callback_query.register(handle_callback_query, lambda c: True)
-    
+
     # Message handler for text messages (must be registered last)
     dp.message.register(handle_message, lambda m: not m.text.startswith('/'))
 
@@ -135,21 +135,21 @@ async def setup_webhook(app, webhook_path):
     """Set up webhook handling for the bot with aiohttp app"""
     # Register handlers for the dispatcher
     await register_handlers()
-    
+
     # Set up webhook handler in the web app
     webhook_handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
     webhook_handler.register(app, path=webhook_path)
-    
+
     # Configure the bot to use the webhook
     setup_application(app, dp, bot=bot)
-    
+
     return app
 
 async def start_polling():
     """Start the bot in polling mode (for testing)."""
     # Register handlers
     await register_handlers()
-    
+
     # Start polling
     await dp.start_polling(bot)
 
