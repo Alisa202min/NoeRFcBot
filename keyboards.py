@@ -16,12 +16,12 @@ def main_menu_keyboard() -> ReplyKeyboardMarkup:
         ReplyKeyboardMarkup for the main menu
     """
     keyboard = [
-        [KeyboardButton(PRODUCTS_BTN), KeyboardButton(SERVICES_BTN)],
-        [KeyboardButton(INQUIRY_BTN), KeyboardButton(EDUCATION_BTN)],
-        [KeyboardButton(CONTACT_BTN), KeyboardButton(ABOUT_BTN)],
-        [KeyboardButton(SEARCH_BTN)]
+        [KeyboardButton(text=PRODUCTS_BTN), KeyboardButton(text=SERVICES_BTN)],
+        [KeyboardButton(text=INQUIRY_BTN), KeyboardButton(text=EDUCATION_BTN)],
+        [KeyboardButton(text=CONTACT_BTN), KeyboardButton(text=ABOUT_BTN)],
+        [KeyboardButton(text=SEARCH_BTN)]
     ]
-    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 def admin_keyboard() -> ReplyKeyboardMarkup:
     """
@@ -31,12 +31,12 @@ def admin_keyboard() -> ReplyKeyboardMarkup:
         ReplyKeyboardMarkup for the admin panel
     """
     keyboard = [
-        [KeyboardButton("مدیریت محصولات 🛍"), KeyboardButton("مدیریت خدمات 🛠")],
-        [KeyboardButton("مدیریت مطالب آموزشی 📚"), KeyboardButton("مشاهده استعلام‌ها 📝")],
-        [KeyboardButton("مدیریت صفحات ثابت 📄"), KeyboardButton("خروجی CSV 📊")],
-        [KeyboardButton("افزودن از CSV 📥"), KeyboardButton(BACK_BTN)]
+        [KeyboardButton(text="مدیریت محصولات 🛍"), KeyboardButton(text="مدیریت خدمات 🛠")],
+        [KeyboardButton(text="مدیریت مطالب آموزشی 📚"), KeyboardButton(text="مشاهده استعلام‌ها 📝")],
+        [KeyboardButton(text="مدیریت صفحات ثابت 📄"), KeyboardButton(text="خروجی CSV 📊")],
+        [KeyboardButton(text="افزودن از CSV 📥"), KeyboardButton(text=BACK_BTN)]
     ]
-    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 def categories_keyboard(categories: List[Dict], parent_id: Optional[int] = None, 
                        add_back: bool = True, include_products: bool = False) -> InlineKeyboardMarkup:
