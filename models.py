@@ -252,6 +252,7 @@ class EducationalContent(db.Model):
     title = db.Column(db.String(200), nullable=False)
     content = db.Column(db.Text, nullable=False)
     category = db.Column(db.String(50), nullable=False)
+    type = db.Column(db.String(20), nullable=False, default='general')  # Column required by the database
     content_type = db.Column(db.String(20), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     

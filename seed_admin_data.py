@@ -355,6 +355,7 @@ def create_test_educational_content():
         days_ago = random.randint(0, 60)
         created_at = datetime.now() - timedelta(days=days_ago)
         
+        selected_content_type = random.choice(["text", "text", "text", "video", "image"])
         content = EducationalContent(
             title=f"آموزش {i+1}: {category}",
             content=f"""<h2>محتوای آموزشی {i+1}</h2>
@@ -366,7 +367,8 @@ def create_test_educational_content():
             <h3>نتیجه‌گیری</h3>
             <p>با رعایت نکات فوق، می‌توانید بهره‌وری را افزایش دهید.</p>""",
             category=category,
-            content_type=random.choice(["text", "text", "text", "video", "image"]),
+            type="article",  # اضافه کردن فیلد type که در دیتابیس الزامی است
+            content_type=selected_content_type,
             created_at=created_at
         )
         
