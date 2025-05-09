@@ -25,13 +25,21 @@ from configuration import ADMIN_ID
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "رمز موقت برای ربات RFCBot")
 
-# Configure uploads directory
-UPLOAD_FOLDER = 'static/uploads'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4'}
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+# Configure Flask-Uploads
+from utils_upload import UploadSet, IMAGES, VIDEO, configure_uploads
+
+# Add mp4 to allowed video formats
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4'} 
+app.config['UPLOADED_MEDIA_DEST'] = 'static/uploads'
+app.config['UPLOADS_DEFAULT_DEST'] = 'static/uploads'
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload size
+
+# Create a custom media upload set that includes images and mp4 videos
+media_files = UploadSet('media', IMAGES + VIDEO)
+configure_uploads(app, media_files)
 
 # Ensure upload directory exists
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(app.config['UPLOADED_MEDIA_DEST'], exist_ok=True)
 
 def allowed_file(filename):
     """Check if the file has an allowed extension"""
@@ -722,6 +730,231 @@ def admin_services():
                            pagination=pagination,
                            page_type='services')
 
+# Product management routes
+@app.route('/admin/products/add', methods=['GET', 'POST'])
+@admin_required
+def add_product():
+    """Add a new product"""
+    # Get categories for the dropdown
+    categories = db.get_categories(cat_type='product')
+    
+    if request.method == 'POST':
+        try:
+            # Get form data
+            name = request.form.get('name')
+            price = int(request.form.get('price', 0))
+            description = request.form.get('description', '')
+            category_id = int(request.form.get('category_id'))
+            
+            # Add product to database
+            product_id = db.add_product(name, price, description, category_id)
+            
+            # Handle media uploads
+            files = request.files.getlist('media')
+            if files and files[0].filename:
+                # Track success/failure
+                upload_results = []
+                admin_id = os.environ.get('ADMIN_ID')
+                
+                for file in files:
+                    try:
+                        # Check if it's an allowed file type
+                        if file and file.filename and allowed_file(file.filename):
+                            # Save using Flask-Uploads
+                            filename = media_files.save(file)
+                            file_url = media_files.url(filename)
+                            
+                            # Send to Telegram and get file_id
+                            # Only if bot is available and ADMIN_ID is set
+                            if BOT_AVAILABLE and admin_id:
+                                # Determine if photo or video
+                                is_photo = not file.filename.lower().endswith('.mp4')
+                                file_type = 'photo' if is_photo else 'video'
+                                file_id = None
+                                
+                                try:
+                                    # Read the file
+                                    saved_path = os.path.join(app.config['UPLOADED_MEDIA_DEST'], filename)
+                                    with open(saved_path, 'rb') as f:
+                                        # Send to Telegram
+                                        if is_photo:
+                                            # Send as photo
+                                            msg = bot.send_photo(chat_id=admin_id, photo=f)
+                                            # Get file_id from the largest photo size
+                                            file_id = msg.photo[-1].file_id
+                                        else:
+                                            # Send as video
+                                            msg = bot.send_video(chat_id=admin_id, video=f)
+                                            file_id = msg.video.file_id
+                                    
+                                    if file_id:
+                                        # Store file_id in database
+                                        db.add_product_media(product_id, file_id, file_type)
+                                        upload_results.append({'filename': file.filename, 'success': True})
+                                    else:
+                                        # Store local file path if file_id not available
+                                        db.add_product_media(product_id, file_url, file_type)
+                                        upload_results.append({'filename': file.filename, 'success': True, 'local': True})
+                                except Exception as e:
+                                    logger.error(f"Error sending media to Telegram: {e}")
+                                    # Store local file path if Telegram upload fails
+                                    db.add_product_media(product_id, file_url, file_type)
+                                    upload_results.append({'filename': file.filename, 'success': True, 'local': True})
+                            else:
+                                # If bot not available, store local file path
+                                file_type = 'photo' if not file.filename.lower().endswith('.mp4') else 'video'
+                                db.add_product_media(product_id, file_url, file_type)
+                                upload_results.append({'filename': file.filename, 'success': True, 'local': True})
+                        else:
+                            upload_results.append({
+                                'filename': file.filename if file and file.filename else 'Unknown',
+                                'success': False,
+                                'error': 'Invalid file type'
+                            })
+                    except Exception as e:
+                        logger.error(f"Error processing media file: {e}")
+                        upload_results.append({
+                            'filename': file.filename if file and file.filename else 'Unknown',
+                            'success': False,
+                            'error': str(e)
+                        })
+                
+                # Check and display results
+                success_count = sum(1 for r in upload_results if r['success'])
+                if upload_results:
+                    if success_count == len(upload_results):
+                        flash(f'محصول با موفقیت ثبت شد. {success_count} فایل رسانه آپلود شد.', 'success')
+                    elif success_count > 0:
+                        flash(f'محصول با موفقیت ثبت شد. {success_count} از {len(upload_results)} فایل رسانه آپلود شد.', 'warning')
+                    else:
+                        flash('محصول با موفقیت ثبت شد اما خطا در آپلود فایل‌های رسانه.', 'warning')
+                else:
+                    flash('محصول با موفقیت ثبت شد.', 'success')
+            else:
+                flash('محصول با موفقیت ثبت شد.', 'success')
+            
+            return redirect(url_for('admin_products'))
+        except Exception as e:
+            logger.error(f"Error adding product: {e}")
+            flash(f'خطا در ثبت محصول: {str(e)}', 'danger')
+    
+    return render_template('admin_product_form.html', categories=categories)
+
+@app.route('/admin/products/edit/<int:product_id>', methods=['GET', 'POST'])
+@admin_required
+def edit_product(product_id):
+    """Edit an existing product"""
+    # Get product data
+    product = db.get_product(product_id)
+    if not product:
+        flash('محصول مورد نظر یافت نشد', 'danger')
+        return redirect(url_for('admin_products'))
+    
+    # Get categories for the dropdown
+    categories = db.get_categories(cat_type='product')
+    
+    if request.method == 'POST':
+        try:
+            # Get form data
+            name = request.form.get('name')
+            price = int(request.form.get('price', 0))
+            description = request.form.get('description', '')
+            category_id = int(request.form.get('category_id'))
+            
+            # Update product in database
+            db.update_product(product_id, name, price=price, description=description, category_id=category_id)
+            
+            # Handle media uploads (same as add_product)
+            files = request.files.getlist('media')
+            if files and files[0].filename:
+                # Track success/failure
+                upload_results = []
+                admin_id = os.environ.get('ADMIN_ID')
+                
+                for file in files:
+                    try:
+                        # Check if it's an allowed file type
+                        if file and file.filename and allowed_file(file.filename):
+                            # Save using Flask-Uploads
+                            filename = media_files.save(file)
+                            file_url = media_files.url(filename)
+                            
+                            # Send to Telegram and get file_id
+                            # Only if bot is available and ADMIN_ID is set
+                            if BOT_AVAILABLE and admin_id:
+                                # Determine if photo or video
+                                is_photo = not file.filename.lower().endswith('.mp4')
+                                file_type = 'photo' if is_photo else 'video'
+                                file_id = None
+                                
+                                try:
+                                    # Read the file
+                                    saved_path = os.path.join(app.config['UPLOADED_MEDIA_DEST'], filename)
+                                    with open(saved_path, 'rb') as f:
+                                        # Send to Telegram
+                                        if is_photo:
+                                            # Send as photo
+                                            msg = bot.send_photo(chat_id=admin_id, photo=f)
+                                            # Get file_id from the largest photo size
+                                            file_id = msg.photo[-1].file_id
+                                        else:
+                                            # Send as video
+                                            msg = bot.send_video(chat_id=admin_id, video=f)
+                                            file_id = msg.video.file_id
+                                    
+                                    if file_id:
+                                        # Store file_id in database
+                                        db.add_product_media(product_id, file_id, file_type)
+                                        upload_results.append({'filename': file.filename, 'success': True})
+                                    else:
+                                        # Store local file path if file_id not available
+                                        db.add_product_media(product_id, file_url, file_type)
+                                        upload_results.append({'filename': file.filename, 'success': True, 'local': True})
+                                except Exception as e:
+                                    logger.error(f"Error sending media to Telegram: {e}")
+                                    # Store local file path if Telegram upload fails
+                                    db.add_product_media(product_id, file_url, file_type)
+                                    upload_results.append({'filename': file.filename, 'success': True, 'local': True})
+                            else:
+                                # If bot not available, store local file path
+                                file_type = 'photo' if not file.filename.lower().endswith('.mp4') else 'video'
+                                db.add_product_media(product_id, file_url, file_type)
+                                upload_results.append({'filename': file.filename, 'success': True, 'local': True})
+                        else:
+                            upload_results.append({
+                                'filename': file.filename if file and file.filename else 'Unknown',
+                                'success': False,
+                                'error': 'Invalid file type'
+                            })
+                    except Exception as e:
+                        logger.error(f"Error processing media file: {e}")
+                        upload_results.append({
+                            'filename': file.filename if file and file.filename else 'Unknown',
+                            'success': False,
+                            'error': str(e)
+                        })
+                
+                # Check and display results
+                success_count = sum(1 for r in upload_results if r['success'])
+                if upload_results:
+                    if success_count == len(upload_results):
+                        flash(f'محصول با موفقیت ویرایش شد. {success_count} فایل رسانه آپلود شد.', 'success')
+                    elif success_count > 0:
+                        flash(f'محصول با موفقیت ویرایش شد. {success_count} از {len(upload_results)} فایل رسانه آپلود شد.', 'warning')
+                    else:
+                        flash('محصول با موفقیت ویرایش شد اما خطا در آپلود فایل‌های رسانه.', 'warning')
+                else:
+                    flash('محصول با موفقیت ویرایش شد.', 'success')
+            else:
+                flash('محصول با موفقیت ویرایش شد.', 'success')
+            
+            return redirect(url_for('admin_products'))
+        except Exception as e:
+            logger.error(f"Error updating product: {e}")
+            flash(f'خطا در ویرایش محصول: {str(e)}', 'danger')
+    
+    return render_template('admin_product_form.html', product=product, categories=categories)
+
 # Product and service media management routes
 @app.route('/admin/products/media/<int:product_id>', methods=['GET'])
 @admin_required
@@ -738,6 +971,231 @@ def product_media(product_id):
     return render_template('admin_product_media.html',
                            product=product,
                            media_files=media_files)
+
+# Service management routes
+@app.route('/admin/services/add', methods=['GET', 'POST'])
+@admin_required
+def add_service():
+    """Add a new service"""
+    # Get categories for the dropdown
+    categories = db.get_categories(cat_type='service')
+    
+    if request.method == 'POST':
+        try:
+            # Get form data
+            name = request.form.get('name')
+            price = int(request.form.get('price', 0))
+            description = request.form.get('description', '')
+            category_id = int(request.form.get('category_id'))
+            
+            # Add service to database
+            service_id = db.add_service(name, price, description, category_id)
+            
+            # Handle media uploads
+            files = request.files.getlist('media')
+            if files and files[0].filename:
+                # Track success/failure
+                upload_results = []
+                admin_id = os.environ.get('ADMIN_ID')
+                
+                for file in files:
+                    try:
+                        # Check if it's an allowed file type
+                        if file and file.filename and allowed_file(file.filename):
+                            # Save using Flask-Uploads
+                            filename = media_files.save(file)
+                            file_url = media_files.url(filename)
+                            
+                            # Send to Telegram and get file_id
+                            # Only if bot is available and ADMIN_ID is set
+                            if BOT_AVAILABLE and admin_id:
+                                # Determine if photo or video
+                                is_photo = not file.filename.lower().endswith('.mp4')
+                                file_type = 'photo' if is_photo else 'video'
+                                file_id = None
+                                
+                                try:
+                                    # Read the file
+                                    saved_path = os.path.join(app.config['UPLOADED_MEDIA_DEST'], filename)
+                                    with open(saved_path, 'rb') as f:
+                                        # Send to Telegram
+                                        if is_photo:
+                                            # Send as photo
+                                            msg = bot.send_photo(chat_id=admin_id, photo=f)
+                                            # Get file_id from the largest photo size
+                                            file_id = msg.photo[-1].file_id
+                                        else:
+                                            # Send as video
+                                            msg = bot.send_video(chat_id=admin_id, video=f)
+                                            file_id = msg.video.file_id
+                                    
+                                    if file_id:
+                                        # Store file_id in database
+                                        db.add_service_media(service_id, file_id, file_type)
+                                        upload_results.append({'filename': file.filename, 'success': True})
+                                    else:
+                                        # Store local file path if file_id not available
+                                        db.add_service_media(service_id, file_url, file_type)
+                                        upload_results.append({'filename': file.filename, 'success': True, 'local': True})
+                                except Exception as e:
+                                    logger.error(f"Error sending media to Telegram: {e}")
+                                    # Store local file path if Telegram upload fails
+                                    db.add_service_media(service_id, file_url, file_type)
+                                    upload_results.append({'filename': file.filename, 'success': True, 'local': True})
+                            else:
+                                # If bot not available, store local file path
+                                file_type = 'photo' if not file.filename.lower().endswith('.mp4') else 'video'
+                                db.add_service_media(service_id, file_url, file_type)
+                                upload_results.append({'filename': file.filename, 'success': True, 'local': True})
+                        else:
+                            upload_results.append({
+                                'filename': file.filename if file and file.filename else 'Unknown',
+                                'success': False,
+                                'error': 'Invalid file type'
+                            })
+                    except Exception as e:
+                        logger.error(f"Error processing media file: {e}")
+                        upload_results.append({
+                            'filename': file.filename if file and file.filename else 'Unknown',
+                            'success': False,
+                            'error': str(e)
+                        })
+                
+                # Check and display results
+                success_count = sum(1 for r in upload_results if r['success'])
+                if upload_results:
+                    if success_count == len(upload_results):
+                        flash(f'خدمت با موفقیت ثبت شد. {success_count} فایل رسانه آپلود شد.', 'success')
+                    elif success_count > 0:
+                        flash(f'خدمت با موفقیت ثبت شد. {success_count} از {len(upload_results)} فایل رسانه آپلود شد.', 'warning')
+                    else:
+                        flash('خدمت با موفقیت ثبت شد اما خطا در آپلود فایل‌های رسانه.', 'warning')
+                else:
+                    flash('خدمت با موفقیت ثبت شد.', 'success')
+            else:
+                flash('خدمت با موفقیت ثبت شد.', 'success')
+            
+            return redirect(url_for('admin_services'))
+        except Exception as e:
+            logger.error(f"Error adding service: {e}")
+            flash(f'خطا در ثبت خدمت: {str(e)}', 'danger')
+    
+    return render_template('admin_service_form.html', categories=categories)
+
+@app.route('/admin/services/edit/<int:service_id>', methods=['GET', 'POST'])
+@admin_required
+def edit_service(service_id):
+    """Edit an existing service"""
+    # Get service data
+    service = db.get_service(service_id)
+    if not service:
+        flash('خدمت مورد نظر یافت نشد', 'danger')
+        return redirect(url_for('admin_services'))
+    
+    # Get categories for the dropdown
+    categories = db.get_categories(cat_type='service')
+    
+    if request.method == 'POST':
+        try:
+            # Get form data
+            name = request.form.get('name')
+            price = int(request.form.get('price', 0))
+            description = request.form.get('description', '')
+            category_id = int(request.form.get('category_id'))
+            
+            # Update service in database
+            db.update_product(service_id, name, price=price, description=description, category_id=category_id)
+            
+            # Handle media uploads (same as add_service)
+            files = request.files.getlist('media')
+            if files and files[0].filename:
+                # Track success/failure
+                upload_results = []
+                admin_id = os.environ.get('ADMIN_ID')
+                
+                for file in files:
+                    try:
+                        # Check if it's an allowed file type
+                        if file and file.filename and allowed_file(file.filename):
+                            # Save using Flask-Uploads
+                            filename = media_files.save(file)
+                            file_url = media_files.url(filename)
+                            
+                            # Send to Telegram and get file_id
+                            # Only if bot is available and ADMIN_ID is set
+                            if BOT_AVAILABLE and admin_id:
+                                # Determine if photo or video
+                                is_photo = not file.filename.lower().endswith('.mp4')
+                                file_type = 'photo' if is_photo else 'video'
+                                file_id = None
+                                
+                                try:
+                                    # Read the file
+                                    saved_path = os.path.join(app.config['UPLOADED_MEDIA_DEST'], filename)
+                                    with open(saved_path, 'rb') as f:
+                                        # Send to Telegram
+                                        if is_photo:
+                                            # Send as photo
+                                            msg = bot.send_photo(chat_id=admin_id, photo=f)
+                                            # Get file_id from the largest photo size
+                                            file_id = msg.photo[-1].file_id
+                                        else:
+                                            # Send as video
+                                            msg = bot.send_video(chat_id=admin_id, video=f)
+                                            file_id = msg.video.file_id
+                                    
+                                    if file_id:
+                                        # Store file_id in database
+                                        db.add_service_media(service_id, file_id, file_type)
+                                        upload_results.append({'filename': file.filename, 'success': True})
+                                    else:
+                                        # Store local file path if file_id not available
+                                        db.add_service_media(service_id, file_url, file_type)
+                                        upload_results.append({'filename': file.filename, 'success': True, 'local': True})
+                                except Exception as e:
+                                    logger.error(f"Error sending media to Telegram: {e}")
+                                    # Store local file path if Telegram upload fails
+                                    db.add_service_media(service_id, file_url, file_type)
+                                    upload_results.append({'filename': file.filename, 'success': True, 'local': True})
+                            else:
+                                # If bot not available, store local file path
+                                file_type = 'photo' if not file.filename.lower().endswith('.mp4') else 'video'
+                                db.add_service_media(service_id, file_url, file_type)
+                                upload_results.append({'filename': file.filename, 'success': True, 'local': True})
+                        else:
+                            upload_results.append({
+                                'filename': file.filename if file and file.filename else 'Unknown',
+                                'success': False,
+                                'error': 'Invalid file type'
+                            })
+                    except Exception as e:
+                        logger.error(f"Error processing media file: {e}")
+                        upload_results.append({
+                            'filename': file.filename if file and file.filename else 'Unknown',
+                            'success': False,
+                            'error': str(e)
+                        })
+                
+                # Check and display results
+                success_count = sum(1 for r in upload_results if r['success'])
+                if upload_results:
+                    if success_count == len(upload_results):
+                        flash(f'خدمت با موفقیت ویرایش شد. {success_count} فایل رسانه آپلود شد.', 'success')
+                    elif success_count > 0:
+                        flash(f'خدمت با موفقیت ویرایش شد. {success_count} از {len(upload_results)} فایل رسانه آپلود شد.', 'warning')
+                    else:
+                        flash('خدمت با موفقیت ویرایش شد اما خطا در آپلود فایل‌های رسانه.', 'warning')
+                else:
+                    flash('خدمت با موفقیت ویرایش شد.', 'success')
+            else:
+                flash('خدمت با موفقیت ویرایش شد.', 'success')
+            
+            return redirect(url_for('admin_services'))
+        except Exception as e:
+            logger.error(f"Error updating service: {e}")
+            flash(f'خطا در ویرایش خدمت: {str(e)}', 'danger')
+    
+    return render_template('admin_service_form.html', service=service, categories=categories)
 
 @app.route('/admin/services/media/<int:service_id>', methods=['GET'])
 @admin_required
