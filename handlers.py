@@ -532,86 +532,104 @@ class handle_inquiry:
             reply_markup=main_menu_keyboard()
         )
 
+# States for search
+class SearchForm(StatesGroup):
+    query = State()
+
 # Search handlers
 class handle_search:
     @staticmethod
-    async def start_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def start_search(message: types.Message, state: FSMContext) -> None:
         """Start search process."""
-        await update.message.reply_text(
+        # Set state for search
+        if state:
+            await state.set_state(SearchForm.query)
+        
+        await message.reply(
             SEARCH_PROMPT,
             reply_markup=cancel_keyboard()
         )
-        return 1
     
     @staticmethod
-    async def process_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def process_search(message: types.Message, state: FSMContext) -> None:
         """Process search query."""
-        query = update.message.text
+        query = message.text
         
         if not query or len(query) < 2:
-            await update.message.reply_text(
+            await message.reply(
                 "لطفاً عبارت جستجو را با حداقل 2 کاراکتر وارد کنید:",
                 reply_markup=cancel_keyboard()
             )
-            return 1
+            return
         
         # Search products
         results = db.search_products(query)
         
         if results:
-            await update.message.reply_text(
+            await message.reply(
                 f"نتایج جستجو برای «{query}»:",
                 reply_markup=products_keyboard(results)
             )
         else:
-            await update.message.reply_text(
+            await message.reply(
                 f"هیچ نتیجه‌ای برای «{query}» یافت نشد.",
                 reply_markup=main_menu_keyboard()
             )
         
-        return ConversationHandler.END
+        # Clear state
+        if state:
+            await state.clear()
     
     @staticmethod
-    async def cancel_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def cancel_search(message: types.Message, state: FSMContext) -> None:
         """Cancel search process."""
-        await update.message.reply_text(
+        # Clear state
+        if state:
+            await state.clear()
+            
+        await message.reply(
             "جستجو لغو شد.",
             reply_markup=main_menu_keyboard()
         )
-        return ConversationHandler.END
+
+# Admin states
+class AdminForm(StatesGroup):
+    edit_category = State()
+    edit_product = State()
+    edit_edu = State()
+    edit_static = State()
+    upload_csv = State()
 
 # Admin handlers
 class admin_handlers:
     @staticmethod
-    async def start_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def start_admin(message: types.Message, state: FSMContext = None) -> None:
         """Start admin panel."""
-        user_id = update.effective_user.id
+        user_id = message.from_user.id
         
         # Check if user is admin
         if user_id != ADMIN_ID:
-            await update.message.reply_text(ADMIN_ACCESS_DENIED)
+            await message.reply(ADMIN_ACCESS_DENIED)
             return
         
         # Show admin menu
-        await update.message.reply_text(
+        await message.reply(
             ADMIN_WELCOME,
             reply_markup=admin_keyboard()
         )
     
     @staticmethod
-    async def handle_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[int]:
+    async def handle_admin_action(callback_query: types.CallbackQuery, state: FSMContext = None) -> None:
         """Handle admin actions from inline buttons."""
-        query = update.callback_query
-        data = query.data
+        data = callback_query.data
         admin_data = data[len(ADMIN_PREFIX):]
         
         # Back to main admin menu
         if admin_data == "back_main":
-            await query.edit_message_text(
+            await callback_query.message.edit_text(
                 ADMIN_WELCOME,
                 reply_markup=None
             )
-            return None
         
         # Manage products - show categories
         elif admin_data == "manage_products":
