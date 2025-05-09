@@ -1477,5 +1477,476 @@ def delete_service_media(service_id, media_id):
     return redirect(url_for('service_media', service_id=service_id))
 
 
+# Admin Dashboard
+@app.route('/admin')
+@login_required
+@admin_required
+def admin_dashboard():
+    """Dashboard for admin panel with key statistics and quick actions"""
+    # Get stats for dashboard
+    products_count = Product.query.filter_by(product_type='product').count()
+    services_count = Product.query.filter_by(product_type='service').count()
+    inquiries_count = Inquiry.query.count()
+    
+    # Get recent inquiries for dashboard
+    recent_inquiries = []
+    inquiries = Inquiry.query.order_by(Inquiry.created_at.desc()).limit(5).all()
+    
+    for inquiry in inquiries:
+        product_name = None
+        if inquiry.product_id:
+            product = Product.query.get(inquiry.product_id)
+            if product:
+                product_name = product.name
+        
+        recent_inquiries.append({
+            'id': inquiry.id,
+            'name': inquiry.name,
+            'phone': inquiry.phone,
+            'product_name': product_name,
+            'date': inquiry.created_at.strftime('%Y-%m-%dT%H:%M:%S')
+        })
+    
+    stats = {
+        'products_count': products_count,
+        'services_count': services_count,
+        'inquiries_count': inquiries_count
+    }
+    
+    return render_template('admin_index.html', stats=stats, recent_inquiries=recent_inquiries)
+
+# Admin Inquiries
+@app.route('/admin/inquiries')
+@login_required
+@admin_required
+def admin_inquiries():
+    """Display and manage price inquiries"""
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+    
+    # Get filter parameters
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    product_id = request.args.get('product_id')
+    
+    # Build query
+    query = Inquiry.query
+    
+    if start_date:
+        query = query.filter(Inquiry.created_at >= datetime.strptime(start_date, '%Y-%m-%d'))
+    
+    if end_date:
+        end_date_obj = datetime.strptime(end_date, '%Y-%m-%d')
+        end_date_obj = datetime.combine(end_date_obj.date(), datetime.max.time())
+        query = query.filter(Inquiry.created_at <= end_date_obj)
+    
+    if product_id and product_id.isdigit():
+        query = query.filter(Inquiry.product_id == int(product_id))
+    
+    # Paginate results
+    pagination = query.order_by(Inquiry.created_at.desc()).paginate(page=page, per_page=per_page)
+    inquiries = pagination.items
+    
+    # Format inquiry data
+    formatted_inquiries = []
+    for inquiry in inquiries:
+        product_name = None
+        if inquiry.product_id:
+            product = Product.query.get(inquiry.product_id)
+            if product:
+                product_name = product.name
+        
+        formatted_inquiries.append({
+            'id': inquiry.id,
+            'name': inquiry.name,
+            'phone': inquiry.phone,
+            'description': inquiry.description,
+            'product_name': product_name,
+            'date': inquiry.created_at.strftime('%Y-%m-%dT%H:%M:%S')
+        })
+    
+    # Get products for filter dropdown
+    products = Product.query.all()
+    
+    return render_template('admin_inquiries.html', inquiries=formatted_inquiries, products=products, pagination=pagination)
+
+# Admin Delete Inquiry
+@app.route('/admin/inquiry/delete', methods=['POST'])
+@login_required
+@admin_required
+def admin_delete_inquiry():
+    """Delete a price inquiry"""
+    inquiry_id = request.form.get('inquiry_id', type=int)
+    inquiry = Inquiry.query.get_or_404(inquiry_id)
+    
+    db.session.delete(inquiry)
+    db.session.commit()
+    
+    flash('استعلام با موفقیت حذف شد.', 'success')
+    return redirect(url_for('admin_inquiries'))
+
+# Admin Export Inquiries to Excel
+@app.route('/admin/inquiries/export')
+@login_required
+@admin_required
+def admin_export_inquiries():
+    """Export price inquiries to CSV/Excel file"""
+    # Get all inquiries
+    inquiries = Inquiry.query.order_by(Inquiry.created_at.desc()).all()
+    
+    # Create CSV file in memory
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow(['نام', 'شماره تماس', 'محصول', 'توضیحات', 'تاریخ'])
+    
+    # Write data rows
+    for inquiry in inquiries:
+        product_name = 'عمومی'
+        if inquiry.product_id:
+            product = Product.query.get(inquiry.product_id)
+            if product:
+                product_name = product.name
+        
+        writer.writerow([
+            inquiry.name,
+            inquiry.phone,
+            product_name,
+            inquiry.description,
+            inquiry.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        ])
+    
+    # Prepare response
+    output.seek(0)
+    return send_file(
+        io.BytesIO(output.getvalue().encode('utf-8-sig')),
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=f'inquiries_export_{datetime.now().strftime("%Y%m%d%H%M%S")}.csv'
+    )
+
+# Admin Categories
+@app.route('/admin/categories')
+@login_required
+@admin_required
+def admin_categories():
+    """List and manage all categories"""
+    categories = Category.query.all()
+    return render_template('admin_categories.html', categories=categories)
+
+# Admin Add Category
+@app.route('/admin/categories/add', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_add_category():
+    """Add a new category"""
+    if request.method == 'POST':
+        name = request.form.get('name')
+        parent_id = request.form.get('parent_id')
+        cat_type = request.form.get('cat_type', 'product')
+        
+        if not name:
+            flash('نام دسته‌بندی الزامی است.', 'danger')
+            return redirect(url_for('admin_add_category'))
+        
+        # Convert parent_id to int or None
+        if parent_id and parent_id.isdigit():
+            parent_id = int(parent_id)
+        else:
+            parent_id = None
+        
+        category = Category(name=name, parent_id=parent_id, cat_type=cat_type)
+        db.session.add(category)
+        db.session.commit()
+        
+        flash('دسته‌بندی جدید با موفقیت ایجاد شد.', 'success')
+        return redirect(url_for('admin_categories'))
+    
+    # Get all categories for parent dropdown
+    categories = Category.query.all()
+    return render_template('admin_category_form.html', categories=categories, category=None)
+
+# Admin Edit Category
+@app.route('/admin/categories/edit/<int:category_id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_edit_category(category_id):
+    """Edit an existing category"""
+    category = Category.query.get_or_404(category_id)
+    
+    if request.method == 'POST':
+        name = request.form.get('name')
+        parent_id = request.form.get('parent_id')
+        cat_type = request.form.get('cat_type', 'product')
+        
+        if not name:
+            flash('نام دسته‌بندی الزامی است.', 'danger')
+            return redirect(url_for('admin_edit_category', category_id=category_id))
+        
+        # Convert parent_id to int or None
+        if parent_id and parent_id.isdigit() and int(parent_id) != category_id:
+            parent_id = int(parent_id)
+        else:
+            parent_id = None
+        
+        category.name = name
+        category.parent_id = parent_id
+        category.cat_type = cat_type
+        
+        db.session.commit()
+        
+        flash('دسته‌بندی با موفقیت ویرایش شد.', 'success')
+        return redirect(url_for('admin_categories'))
+    
+    # Get all categories for parent dropdown
+    categories = Category.query.all()
+    return render_template('admin_category_form.html', categories=categories, category=category)
+
+# Admin Delete Category
+@app.route('/admin/categories/delete/<int:category_id>', methods=['POST'])
+@login_required
+@admin_required
+def admin_delete_category(category_id):
+    """Delete a category"""
+    category = Category.query.get_or_404(category_id)
+    
+    # Check if category has products
+    products_count = Product.query.filter_by(category_id=category_id).count()
+    if products_count > 0:
+        flash(f'این دسته‌بندی دارای {products_count} محصول/خدمت است و نمی‌تواند حذف شود.', 'danger')
+        return redirect(url_for('admin_categories'))
+    
+    # Check if category has subcategories
+    subcategories_count = Category.query.filter_by(parent_id=category_id).count()
+    if subcategories_count > 0:
+        flash(f'این دسته‌بندی دارای {subcategories_count} زیردسته است و نمی‌تواند حذف شود.', 'danger')
+        return redirect(url_for('admin_categories'))
+    
+    db.session.delete(category)
+    db.session.commit()
+    
+    flash('دسته‌بندی با موفقیت حذف شد.', 'success')
+    return redirect(url_for('admin_categories'))
+
+# Educational Content
+@app.route('/admin/education')
+@login_required
+@admin_required
+def admin_education():
+    """List and manage educational content"""
+    contents = EducationalContent.query.all()
+    return render_template('admin_education.html', contents=contents)
+
+# Add Educational Content
+@app.route('/admin/education/add', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_add_education():
+    """Add a new educational content item"""
+    if request.method == 'POST':
+        title = request.form.get('title')
+        content = request.form.get('content')
+        category = request.form.get('category')
+        content_type = request.form.get('content_type', 'text')
+        
+        if not title or not content or not category:
+            flash('همه فیلدهای الزامی باید تکمیل شوند.', 'danger')
+            return redirect(url_for('admin_add_education'))
+        
+        educational_content = EducationalContent(
+            title=title,
+            content=content,
+            category=category,
+            content_type=content_type
+        )
+        
+        db.session.add(educational_content)
+        db.session.commit()
+        
+        flash('محتوای آموزشی با موفقیت ایجاد شد.', 'success')
+        return redirect(url_for('admin_education'))
+    
+    return render_template('admin_education_form.html', content=None)
+
+# Edit Educational Content
+@app.route('/admin/education/edit/<int:content_id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_edit_education(content_id):
+    """Edit an existing educational content item"""
+    content = EducationalContent.query.get_or_404(content_id)
+    
+    if request.method == 'POST':
+        title = request.form.get('title')
+        content_text = request.form.get('content')
+        category = request.form.get('category')
+        content_type = request.form.get('content_type', 'text')
+        
+        if not title or not content_text or not category:
+            flash('همه فیلدهای الزامی باید تکمیل شوند.', 'danger')
+            return redirect(url_for('admin_edit_education', content_id=content_id))
+        
+        content.title = title
+        content.content = content_text
+        content.category = category
+        content.content_type = content_type
+        
+        db.session.commit()
+        
+        flash('محتوای آموزشی با موفقیت ویرایش شد.', 'success')
+        return redirect(url_for('admin_education'))
+    
+    return render_template('admin_education_form.html', content=content)
+
+# Delete Educational Content
+@app.route('/admin/education/delete/<int:content_id>', methods=['POST'])
+@login_required
+@admin_required
+def admin_delete_education(content_id):
+    """Delete an educational content item"""
+    content = EducationalContent.query.get_or_404(content_id)
+    
+    db.session.delete(content)
+    db.session.commit()
+    
+    flash('محتوای آموزشی با موفقیت حذف شد.', 'success')
+    return redirect(url_for('admin_education'))
+
+# Static Content
+@app.route('/admin/content')
+@login_required
+@admin_required
+def admin_static_content():
+    """Manage static content (contact/about)"""
+    contact_content = StaticContent.query.filter_by(content_type='contact').first()
+    about_content = StaticContent.query.filter_by(content_type='about').first()
+    
+    if not contact_content:
+        contact_content = StaticContent(content_type='contact', content='')
+        db.session.add(contact_content)
+    
+    if not about_content:
+        about_content = StaticContent(content_type='about', content='')
+        db.session.add(about_content)
+    
+    db.session.commit()
+    
+    return render_template('admin_content.html', contact_content=contact_content, about_content=about_content)
+
+# Update Static Content
+@app.route('/admin/content/update', methods=['POST'])
+@login_required
+@admin_required
+def admin_update_static_content():
+    """Update static content (contact/about)"""
+    content_type = request.form.get('content_type')
+    content = request.form.get('content', '')
+    
+    if content_type not in ['contact', 'about']:
+        flash('نوع محتوا نامعتبر است.', 'danger')
+        return redirect(url_for('admin_static_content'))
+    
+    static_content = StaticContent.query.filter_by(content_type=content_type).first()
+    
+    if not static_content:
+        static_content = StaticContent(content_type=content_type, content=content)
+        db.session.add(static_content)
+    else:
+        static_content.content = content
+    
+    db.session.commit()
+    
+    flash('محتوا با موفقیت به‌روزرسانی شد.', 'success')
+    return redirect(url_for('admin_static_content'))
+
+# Import/Export Data
+@app.route('/admin/import_export')
+@login_required
+@admin_required
+def admin_import_export():
+    """Import/Export data functionality"""
+    return render_template('admin_import_export.html')
+
+# Export Data
+@app.route('/admin/export/<entity_type>')
+@login_required
+@admin_required
+def admin_export_data(entity_type):
+    """Export data to CSV file"""
+    if entity_type not in ['products', 'services', 'categories']:
+        flash('نوع داده نامعتبر است.', 'danger')
+        return redirect(url_for('admin_import_export'))
+    
+    temp_dir = tempfile.mkdtemp()
+    filename = f"{entity_type}_export_{datetime.now().strftime('%Y%m%d%H%M%S')}.csv"
+    filepath = os.path.join(temp_dir, filename)
+    
+    success = db_instance.export_to_csv(entity_type, filepath)
+    
+    if not success:
+        flash('خطا در خروجی گرفتن داده‌ها.', 'danger')
+        shutil.rmtree(temp_dir)
+        return redirect(url_for('admin_import_export'))
+    
+    response = send_file(
+        filepath,
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=filename
+    )
+    
+    # Clean up temp directory after response is sent
+    @response.call_on_close
+    def cleanup():
+        shutil.rmtree(temp_dir)
+    
+    return response
+
+# Import Data
+@app.route('/admin/import/<entity_type>', methods=['POST'])
+@login_required
+@admin_required
+def admin_import_data(entity_type):
+    """Import data from CSV file"""
+    if entity_type not in ['products', 'services', 'categories']:
+        flash('نوع داده نامعتبر است.', 'danger')
+        return redirect(url_for('admin_import_export'))
+    
+    if 'file' not in request.files:
+        flash('فایلی انتخاب نشده است.', 'danger')
+        return redirect(url_for('admin_import_export'))
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        flash('فایلی انتخاب نشده است.', 'danger')
+        return redirect(url_for('admin_import_export'))
+    
+    if not file.filename.endswith('.csv'):
+        flash('فرمت فایل باید CSV باشد.', 'danger')
+        return redirect(url_for('admin_import_export'))
+    
+    temp_dir = tempfile.mkdtemp()
+    filepath = os.path.join(temp_dir, secure_filename(file.filename))
+    file.save(filepath)
+    
+    try:
+        success_count, error_count = db_instance.import_from_csv(entity_type, filepath)
+        
+        if success_count > 0:
+            flash(f'{success_count} مورد با موفقیت وارد شد. {error_count} خطا رخ داد.', 'success')
+        else:
+            flash(f'خطا در وارد کردن داده‌ها. {error_count} خطا رخ داد.', 'danger')
+    
+    except Exception as e:
+        flash(f'خطا در وارد کردن داده‌ها: {str(e)}', 'danger')
+    
+    finally:
+        shutil.rmtree(temp_dir)
+    
+    return redirect(url_for('admin_import_export'))
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
