@@ -9,8 +9,10 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command, CommandStart
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiogram.client.default import DefaultBotProperties
 from dotenv import load_dotenv
+from aiohttp import web
 
 # Set up logging
 logging.basicConfig(
@@ -45,12 +47,10 @@ bot = Bot(BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
-async def main():
-    """Start the bot."""
+async def register_handlers():
+    """Register all handlers for the bot."""
     # Initialize database
     db = Database()
-    
-    # Register handlers
     
     # Start command
     dp.message.register(start_handler, CommandStart())
@@ -130,10 +130,29 @@ async def main():
     
     # Message handler for text messages (must be registered last)
     dp.message.register(handle_message, lambda m: not m.text.startswith('/'))
+
+async def setup_webhook(app, webhook_path):
+    """Set up webhook handling for the bot with aiohttp app"""
+    # Register handlers for the dispatcher
+    await register_handlers()
+    
+    # Set up webhook handler in the web app
+    webhook_handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
+    webhook_handler.register(app, path=webhook_path)
+    
+    # Configure the bot to use the webhook
+    setup_application(app, dp, bot=bot)
+    
+    return app
+
+async def start_polling():
+    """Start the bot in polling mode (for testing)."""
+    # Register handlers
+    await register_handlers()
     
     # Start polling
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
-    # Run the async main function
-    asyncio.run(main())
+    # Run the bot in polling mode when run directly
+    asyncio.run(start_polling())

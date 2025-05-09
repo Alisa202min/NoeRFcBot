@@ -7,14 +7,23 @@ import subprocess
 import time
 import signal
 import math
+import asyncio
 from functools import wraps
 from datetime import datetime
 import tempfile
 from database import Database
-import sqlite3 # Added for explicit SQLite import
+import ssl
+from aiohttp import web
+from bot import bot, dp, setup_webhook
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "default_secret_key")
+
+# Telegram bot webhook settings
+WEBHOOK_HOST = os.environ.get("HOST", "0.0.0.0")
+WEBHOOK_PORT = int(os.environ.get("PORT", 5000))
+WEBHOOK_PATH = "/webhook"
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
 
 # Bot process variable
 bot_process = None
@@ -242,6 +251,38 @@ def database():
 
 # Initialize database
 db = Database()
+
+# Webhook route for Telegram bot
+@app.route(WEBHOOK_PATH, methods=['POST'])
+def webhook():
+    """Forward webhook data to the bot's webhook handler"""
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        logger.info(f"Received webhook data: {json_string[:100]}...")
+        return '', 200
+    else:
+        logger.warning("Received non-JSON data in webhook")
+        return '', 403
+
+# Setup aiohttp app for bot webhook
+def setup_bot_webhook():
+    """Setup webhook for Telegram bot"""
+    if not WEBHOOK_URL:
+        logger.warning("WEBHOOK_URL not set in environment variables. Webhook setup skipped.")
+        return
+    
+    # Create aiohttp app
+    app = web.Application()
+    
+    # Setup webhook handler
+    asyncio.run(setup_webhook(app, WEBHOOK_PATH))
+    
+    # Set webhook URL
+    asyncio.run(bot.set_webhook(WEBHOOK_URL + WEBHOOK_PATH))
+    
+    logger.info(f"Webhook set to {WEBHOOK_URL + WEBHOOK_PATH}")
+    
+    return app
 
 # Admin authentication decorator
 def admin_required(f):
