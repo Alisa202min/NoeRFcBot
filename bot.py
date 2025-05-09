@@ -9,6 +9,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command, CommandStart
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.client.default import DefaultBotProperties
 from dotenv import load_dotenv
 
 # Set up logging
@@ -39,7 +40,7 @@ from handlers import (
 os.makedirs(DATA_DIR, exist_ok=True)
 
 # Initialize bot and dispatcher globally
-bot = Bot(BOT_TOKEN, parse_mode=ParseMode.HTML)
+bot = Bot(BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 # Create a storage for state machine (FSM)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
@@ -84,7 +85,7 @@ async def main():
     
     # Admin category edit handlers
     dp.callback_query.register(admin_handlers.start_edit_category, lambda c: c.data.startswith("admin_edit_cat_"))
-    dp.message.register(admin_handlers.process_edit_category, lambda m: not m.text.startswith('/'))
+    dp.message.register(admin_handlers.process_edit_category, AdminActions.edit_category)
     
     # Admin add category handlers
     dp.callback_query.register(admin_handlers.start_add_category, lambda c: c.data.startswith("admin_add_cat_"))
