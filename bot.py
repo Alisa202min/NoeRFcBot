@@ -108,11 +108,11 @@ async def main():
     
     # Admin static content edit handlers
     dp.callback_query.register(admin_handlers.start_edit_static, lambda c: c.data.startswith("admin_edit_static_"))
-    dp.message.register(admin_handlers.process_edit_static, lambda m: not m.text.startswith('/'))
+    dp.message.register(admin_handlers.process_edit_static, AdminActions.edit_static)
     
     # Admin upload CSV handlers
     dp.callback_query.register(admin_handlers.start_import_data, lambda c: c.data.startswith("admin_import_"))
-    dp.message.register(admin_handlers.process_import_data, lambda m: m.document is not None)
+    dp.message.register(admin_handlers.process_import_data, AdminActions.upload_csv, lambda m: m.document is not None)
     
     # Admin cancel action handler (common for all admin actions)
     dp.message.register(admin_handlers.cancel_admin_action, Command(commands=["cancel"]))
