@@ -343,7 +343,7 @@ def logs():
     """Get the latest logs"""
     return jsonify(bot_logs)
 
-@app.route('/configuration')
+@app.route('/configuration', methods=['GET'])
 def loadConfig():
     """Display the configuration page"""
     from configuration import CONFIG_PATH
@@ -353,21 +353,286 @@ def loadConfig():
                          config=current_config,
                          config_json=json.dumps(current_config, ensure_ascii=False, indent=4))
 
+@app.route('/update_config', methods=['POST'])
+def update_config():
+    """Update configuration"""
+    from configuration import CONFIG_PATH, save_config
+    
+    try:
+        view_type = request.form.get('view_type')
+        
+        if view_type == 'raw':
+            # Handle raw JSON editing
+            raw_config = request.form.get('raw_config')
+            try:
+                new_config = json.loads(raw_config)
+                save_config(new_config)
+                flash('پیکربندی با موفقیت به‌روزرسانی شد.', 'success')
+            except json.JSONDecodeError:
+                flash('خطا در ساختار JSON. لطفاً ساختار را بررسی کنید.', 'danger')
+                return redirect(url_for('loadConfig'))
+        else:
+            # Handle form-based editing
+            with open(CONFIG_PATH, 'r', encoding='utf-8') as configfile:
+                current_config = json.load(configfile)
+            
+            # Update config from form data
+            for key in current_config:
+                if key in request.form:
+                    # Convert ADMIN_ID to int if it's a number
+                    if key == 'ADMIN_ID' and request.form[key].isdigit():
+                        current_config[key] = int(request.form[key])
+                    else:
+                        current_config[key] = request.form[key]
+            
+            # Save updated config
+            save_config(current_config)
+            flash('پیکربندی با موفقیت به‌روزرسانی شد.', 'success')
+    
+    except Exception as e:
+        flash(f'خطا در به‌روزرسانی پیکربندی: {str(e)}', 'danger')
+    
+    return redirect(url_for('loadConfig'))
+
+@app.route('/config/reset', methods=['POST'])
+def reset_config():
+    """Reset configuration to default"""
+    try:
+        from configuration import reset_to_default
+        reset_to_default()
+        flash('پیکربندی با موفقیت به مقادیر پیش‌فرض بازنشانی شد.', 'success')
+    except Exception as e:
+        flash(f'خطا در بازنشانی پیکربندی: {str(e)}', 'danger')
+        return '', 500
+    
+    return '', 200
+
 @app.route('/database')
 def database():
     """Display database information"""
-    # Check db existence
-    db_path = os.path.join('data', 'database.db')
-    db_exists = os.path.exists(db_path)
+    # Get PostgreSQL database information
+    pg_info = {}
+    table_counts = {}
+    table_structures = {}
+    
+    try:
+        # Get PostgreSQL version
+        with db.conn.cursor() as cursor:
+            cursor.execute("SELECT version();")
+            pg_version = cursor.fetchone()[0].split()[1]
+            
+            # Get connection info
+            pg_info = {
+                'pg_version': pg_version,
+                'pg_host': os.environ.get('PGHOST', 'localhost'),
+                'pg_port': os.environ.get('PGPORT', '5432'),
+                'pg_database': os.environ.get('PGDATABASE', 'postgres'),
+                'pg_user': os.environ.get('PGUSER', 'postgres')
+            }
+            
+            # Get table counts
+            cursor.execute("""
+                SELECT tablename FROM pg_catalog.pg_tables
+                WHERE schemaname = 'public'
+                ORDER BY tablename;
+            """)
+            tables = [row[0] for row in cursor.fetchall()]
+            
+            for table in tables:
+                cursor.execute(f"SELECT COUNT(*) FROM {table};")
+                count = cursor.fetchone()[0]
+                table_counts[table] = count
+                
+                # Get table structure
+                cursor.execute(f"""
+                    SELECT column_name, data_type, is_nullable, column_default
+                    FROM information_schema.columns
+                    WHERE table_name = %s
+                    ORDER BY ordinal_position;
+                """, (table,))
+                columns = [dict(row) for row in cursor.fetchall()]
+                table_structures[table] = columns
+    except Exception as e:
+        flash(f"Error getting database information: {str(e)}", "danger")
+        logger.error(f"Database error: {str(e)}")
+    
+    return render_template('database.html',
+                          pg_version=pg_info.get('pg_version', 'Unknown'),
+                          pg_host=pg_info.get('pg_host', 'Unknown'),
+                          pg_database=pg_info.get('pg_database', 'Unknown'),
+                          pg_user=pg_info.get('pg_user', 'Unknown'),
+                          table_counts=table_counts,
+                          table_structures=table_structures)
 
-    # Get size if exists
-    db_size = os.path.getsize(db_path) if db_exists else 0
+@app.route('/view_table_data/<table_name>')
+def view_table_data(table_name):
+    """View data in a specific table"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        # Get total records
+        with db.conn.cursor() as cursor:
+            cursor.execute(f"SELECT COUNT(*) FROM {table_name};")
+            total_count = cursor.fetchone()[0]
+            
+            # Get column names
+            cursor.execute(f"""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name = %s
+                ORDER BY ordinal_position;
+            """, (table_name,))
+            columns = [row[0] for row in cursor.fetchall()]
+            
+            # Get data with pagination
+            offset = (page - 1) * per_page
+            cursor.execute(f"""
+                SELECT * FROM {table_name}
+                ORDER BY (SELECT c.column_name
+                          FROM information_schema.key_column_usage k
+                          JOIN information_schema.table_constraints c ON k.constraint_name = c.constraint_name
+                          WHERE k.table_name = %s AND c.constraint_type = 'PRIMARY KEY'
+                          LIMIT 1) NULLS LAST,
+                         id NULLS LAST
+                LIMIT %s OFFSET %s;
+            """, (table_name, per_page, offset))
+            data = cursor.fetchall()
+            
+            # Convert to list of dicts
+            rows = []
+            for row in data:
+                row_dict = {}
+                for i, col in enumerate(columns):
+                    row_dict[col] = row[i]
+                rows.append(row_dict)
+        
+        # Get pagination
+        pagination = get_pagination(page, per_page, total_count, 'view_table_data', table_name=table_name)
+        
+        return render_template('table_data.html',
+                              table_name=table_name,
+                              columns=columns,
+                              rows=rows,
+                              pagination=pagination)
+    except Exception as e:
+        flash(f"Error viewing table data: {str(e)}", "danger")
+        logger.error(f"Database error: {str(e)}")
+        return redirect(url_for('database'))
 
-    # Now using PostgreSQL
-    return render_template('database.html', 
-                          db_exists=db_exists,
-                          db_path=db_path,
-                          db_size=db_size)
+@app.route('/execute_sql', methods=['POST'])
+def execute_sql():
+    """Execute a SQL query and return results as JSON"""
+    try:
+        # Get SQL query from POST data
+        if request.is_json:
+            data = request.get_json()
+            sql_query = data.get('sql_query', '')
+        else:
+            sql_query = request.form.get('sql_query', '')
+        
+        if not sql_query:
+            return jsonify({'error': 'No SQL query provided'})
+        
+        # Check if query is SELECT or other type
+        sql_query = sql_query.strip()
+        is_select = sql_query.lower().startswith('select')
+        
+        with db.conn.cursor() as cursor:
+            cursor.execute(sql_query)
+            
+            if is_select:
+                # For SELECT queries, return the results
+                columns = [desc[0] for desc in cursor.description]
+                results = []
+                
+                for row in cursor.fetchall():
+                    row_dict = {}
+                    for i, col in enumerate(columns):
+                        row_dict[col] = row[i]
+                    results.append(row_dict)
+                
+                return jsonify({
+                    'results': results,
+                    'count': len(results)
+                })
+            else:
+                # For non-SELECT queries, return affected rows
+                return jsonify({
+                    'message': 'Query executed successfully',
+                    'affected_rows': cursor.rowcount
+                })
+    except Exception as e:
+        logger.error(f"SQL execution error: {str(e)}")
+        return jsonify({'error': str(e)})
+        
+@app.route('/export_table_csv/<table_name>', methods=['POST'])
+def export_table_csv(table_name):
+    """Export table data as CSV"""
+    try:
+        # Get export options
+        export_type = request.form.get('export_type', 'all')
+        include_headers = request.form.get('include_headers') == 'on'
+        
+        # Prepare SQL query based on export type
+        if export_type == 'all':
+            sql_query = f"SELECT * FROM {table_name}"
+        elif export_type == 'current':
+            page = request.form.get('page', 1, type=int)
+            per_page = request.form.get('per_page', 20, type=int)
+            offset = (page - 1) * per_page
+            sql_query = f"SELECT * FROM {table_name} LIMIT {per_page} OFFSET {offset}"
+        elif export_type == 'custom':
+            start_row = max(1, request.form.get('start_row', 1, type=int))
+            end_row = request.form.get('end_row', 1, type=int)
+            count = end_row - start_row + 1
+            offset = start_row - 1
+            sql_query = f"SELECT * FROM {table_name} LIMIT {count} OFFSET {offset}"
+        else:
+            return "Invalid export type", 400
+        
+        # Get column names
+        with db.conn.cursor() as cursor:
+            cursor.execute(f"""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name = %s
+                ORDER BY ordinal_position;
+            """, (table_name,))
+            columns = [row[0] for row in cursor.fetchall()]
+            
+            # Execute query to get data
+            cursor.execute(sql_query)
+            rows = cursor.fetchall()
+        
+        # Create CSV in memory
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write headers if requested
+        if include_headers:
+            writer.writerow(columns)
+        
+        # Write data rows
+        for row in rows:
+            # Convert None values to empty strings
+            processed_row = ['' if val is None else val for val in row]
+            writer.writerow(processed_row)
+        
+        # Prepare response
+        output.seek(0)
+        
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        return send_file(
+            io.BytesIO(output.getvalue().encode('utf-8')),
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name=f"{table_name}_{timestamp}.csv"
+        )
+    except Exception as e:
+        logger.error(f"CSV export error: {str(e)}")
+        flash(f"خطا در خروجی CSV: {str(e)}", "danger")
+        return redirect(url_for('view_table_data', table_name=table_name))
                           
 # Admin product and service routes
 @app.route('/admin/products')

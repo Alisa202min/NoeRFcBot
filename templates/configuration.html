@@ -29,7 +29,13 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label">BOT_TOKEN</label>
-                                <input type="text" class="form-control" name="BOT_TOKEN" value="{{ config.BOT_TOKEN }}">
+                                <div class="input-group">
+                                    <input type="password" class="form-control" name="BOT_TOKEN" value="{{ config.BOT_TOKEN }}" id="botTokenInput">
+                                    <button class="btn btn-outline-secondary" type="button" id="toggleBotToken">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </div>
+                                <small class="form-text text-muted">توکن ربات تلگرام (از @BotFather دریافت می‌شود)</small>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">ADMIN_ID</label>
@@ -127,6 +133,7 @@
     </div>
 </div>
 
+{% block scripts %}
 <script>
 function resetToDefault() {
     if(confirm('آیا از بازگشت به تنظیمات پیش‌فرض اطمینان دارید؟')) {
@@ -141,5 +148,25 @@ function resetToDefault() {
         });
     }
 }
+
+// Toggle BOT_TOKEN visibility
+document.addEventListener('DOMContentLoaded', function() {
+    const tokenInput = document.getElementById('botTokenInput');
+    const toggleBtn = document.getElementById('toggleBotToken');
+    const toggleIcon = toggleBtn.querySelector('i');
+    
+    toggleBtn.addEventListener('click', function() {
+        if (tokenInput.type === 'password') {
+            tokenInput.type = 'text';
+            toggleIcon.classList.remove('bi-eye');
+            toggleIcon.classList.add('bi-eye-slash');
+        } else {
+            tokenInput.type = 'password';
+            toggleIcon.classList.remove('bi-eye-slash');
+            toggleIcon.classList.add('bi-eye');
+        }
+    });
+});
 </script>
+{% endblock %}
 {% endblock %}
