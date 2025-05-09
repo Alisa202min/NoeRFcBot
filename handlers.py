@@ -592,6 +592,54 @@ class AdminForm(StatesGroup):
 # Admin handlers
 class admin_handlers:
     @staticmethod
+    async def process_import_data(message: types.Message, state: FSMContext, bot: Bot) -> None:
+        """Process CSV import."""
+        user_id = message.from_user.id
+        document = message.document
+        
+        # Get entity type from state
+        data = await state.get_data()
+        entity_type = data.get('entity_type')
+        
+        if not entity_type:
+            await message.reply(ERROR_MESSAGE)
+            await state.clear()
+            return
+        
+        # Download the file
+        file_info = await bot.get_file(document.file_id)
+        file_path = file_info.file_path
+        
+        # Create temp file to save the CSV
+        with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as temp_file:
+            temp_path = temp_file.name
+        
+        # Download file content
+        await bot.download_file(file_path, destination=temp_path)
+        
+        # Import data from CSV
+        success, import_stats = db.import_from_csv(entity_type, temp_path)
+        
+        # Delete temp file
+        os.unlink(temp_path)
+        
+        if success:
+            added, updated = import_stats
+            await message.reply(
+                f"فایل CSV {entity_type} با موفقیت بارگذاری شد.\n\n"
+                f"آمار: {added} رکورد اضافه، {updated} رکورد بروزرسانی",
+                reply_markup=admin_keyboard()
+            )
+        else:
+            await message.reply(
+                "خطا در بارگذاری فایل CSV. لطفاً دوباره تلاش کنید.",
+                reply_markup=admin_keyboard()
+            )
+        
+        # Clear state
+        await state.clear()
+    
+    @staticmethod
     async def start_admin(message: types.Message, state: FSMContext) -> None:
         """Start admin panel."""
         user_id = message.from_user.id
@@ -1164,11 +1212,22 @@ class admin_handlers:
         
         # Edit static content - start conversation
         elif admin_data.startswith("edit_static_"):
-            return await admin_handlers.start_edit_static(update, context)
+            content_type = admin_data[12:]  # 'about' or 'contact'
+            content = db.get_static_content(content_type)
+            
+            await state.set_state(AdminActions.edit_static)
+            await state.update_data(content_type=content_type, original_content=content)
+            
+            await callback_query.message.edit_text(
+                f"ویرایش صفحه «{content_type}»\n\n"
+                "لطفاً محتوای جدید را وارد کنید:",
+                reply_markup=cancel_keyboard()
+            )
+            return
         
         # Export menu
         elif admin_data == "export":
-            await query.edit_message_text(
+            await callback_query.message.edit_text(
                 "انتخاب داده برای خروجی CSV:",
                 reply_markup=admin_keyboards.admin_export_keyboard()
             )
@@ -1186,8 +1245,8 @@ class admin_handlers:
             if success:
                 # Send CSV file
                 with open(temp_path, 'rb') as file:
-                    await context.bot.send_document(
-                        chat_id=update.effective_user.id,
+                    await bot.send_document(
+                        chat_id=callback_query.from_user.id,
                         document=file,
                         filename=f'{entity_type}.csv',
                         caption=f"خروجی CSV {entity_type}"
@@ -1196,26 +1255,36 @@ class admin_handlers:
                 # Delete temp file
                 os.unlink(temp_path)
                 
-                await query.edit_message_text(
+                await callback_query.message.edit_text(
                     f"خروجی CSV {entity_type} با موفقیت ارسال شد.",
                     reply_markup=admin_keyboards.admin_export_keyboard()
                 )
             else:
-                await query.edit_message_text(
+                await callback_query.message.edit_text(
                     "خطا در ایجاد خروجی CSV. لطفاً دوباره تلاش کنید.",
                     reply_markup=admin_keyboards.admin_export_keyboard()
                 )
         
         # Import menu
         elif admin_data == "import":
-            await query.edit_message_text(
+            await callback_query.message.edit_text(
                 "انتخاب داده برای ورود از CSV:",
                 reply_markup=admin_keyboards.admin_import_keyboard()
             )
         
         # Import from CSV - start conversation
         elif admin_data.startswith("import_"):
-            return await admin_handlers.start_import_data(update, context)
+            entity_type = admin_data[7:]  # 'products', 'categories', etc.
+            
+            await state.set_state(AdminActions.upload_csv)
+            await state.update_data(entity_type=entity_type)
+            
+            await callback_query.message.edit_text(
+                f"لطفاً فایل CSV {entity_type} را ارسال کنید:\n\n"
+                "توجه: می‌توانید با استفاده از دستور /template_{entity_type} یک قالب CSV خالی دریافت کنید.",
+                reply_markup=cancel_keyboard()
+            )
+            return
         
         # Generate CSV template
         elif admin_data.startswith("template_"):
@@ -1230,8 +1299,8 @@ class admin_handlers:
             if success:
                 # Send CSV file
                 with open(temp_path, 'rb') as file:
-                    await context.bot.send_document(
-                        chat_id=update.effective_user.id,
+                    await bot.send_document(
+                        chat_id=callback_query.from_user.id,
                         document=file,
                         filename=f'{entity_type}_template.csv',
                         caption=f"قالب CSV {entity_type}"
@@ -1240,12 +1309,12 @@ class admin_handlers:
                 # Delete temp file
                 os.unlink(temp_path)
                 
-                await query.edit_message_text(
+                await callback_query.message.edit_text(
                     f"قالب CSV {entity_type} با موفقیت ارسال شد.",
                     reply_markup=admin_keyboards.admin_import_keyboard()
                 )
             else:
-                await query.edit_message_text(
+                await callback_query.message.edit_text(
                     "خطا در ایجاد قالب CSV. لطفاً دوباره تلاش کنید.",
                     reply_markup=admin_keyboards.admin_import_keyboard()
                 )
