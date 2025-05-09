@@ -114,6 +114,23 @@ def product_detail_keyboard(product_id: int, category_id: int) -> InlineKeyboard
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
+def service_detail_keyboard(service_id: int, category_id: int) -> InlineKeyboardMarkup:
+    """
+    Create a keyboard for service detail view
+    
+    Args:
+        service_id: ID of the current service
+        category_id: ID of the parent category
+        
+    Returns:
+        InlineKeyboardMarkup for service detail
+    """
+    keyboard = [
+        [InlineKeyboardButton(text="استعلام قیمت 📝", callback_data=f"{INQUIRY_PREFIX}{service_id}")],
+        [InlineKeyboardButton(text=BACK_BTN, callback_data=f"{BACK_PREFIX}{category_id}")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
 def education_categories_keyboard(categories: List[str]) -> InlineKeyboardMarkup:
     """
     Create a keyboard for educational content categories

@@ -36,9 +36,8 @@ from configuration import (
 from database import Database
 from keyboards import (
     main_menu_keyboard, admin_keyboard, categories_keyboard, products_keyboard,
-    product_detail_keyboard, education_categories_keyboard, education_content_keyboard,
-    education_detail_keyboard, cancel_keyboard, confirm_keyboard, product_media_keyboard,
-    service_media_keyboard
+    product_detail_keyboard, service_detail_keyboard, education_categories_keyboard, education_content_keyboard,
+    education_detail_keyboard, cancel_keyboard, confirm_keyboard, product_media_keyboard, service_media_keyboard
 )
 from utils import (
     format_price, format_product_details, format_inquiry_details, format_educational_content,
@@ -274,6 +273,82 @@ async def handle_callback_query(callback_query: types.CallbackQuery, bot: "Bot",
                         product_text,
                         parse_mode=ParseMode.MARKDOWN,
                         reply_markup=product_detail_keyboard(product_id, category_id)
+                    )
+        
+        # Handle service selection
+        elif data.startswith(SERVICE_PREFIX):
+            service_id = int(data[len(SERVICE_PREFIX):])
+            service = db.get_service(service_id)
+            
+            if service:
+                # Get all media files for the service
+                media_files = db.get_service_media(service_id)
+                
+                # Show service details with media information
+                service_text = format_service_details(service, media_files)
+                
+                # Get category for back button
+                category_id = service['category_id']
+                
+                # Media handling logic
+                if media_files and len(media_files) > 0:
+                    # We have media files in the database, use them
+                    # Get the first media file for primary display
+                    primary_media = media_files[0]
+                    
+                    if primary_media['file_type'] == 'photo':
+                        # Send photo with caption
+                        await bot.send_photo(
+                            chat_id=user_id,
+                            photo=primary_media['file_id'],
+                            caption=service_text,
+                            parse_mode=ParseMode.MARKDOWN,
+                            reply_markup=service_detail_keyboard(service_id, category_id)
+                        )
+                    else:  # video
+                        # Send video with caption
+                        await bot.send_video(
+                            chat_id=user_id,
+                            video=primary_media['file_id'],
+                            caption=service_text,
+                            parse_mode=ParseMode.MARKDOWN,
+                            reply_markup=service_detail_keyboard(service_id, category_id)
+                        )
+                    
+                    # If we have more than one media file, send the rest as a group
+                    if len(media_files) > 1:
+                        media_group = []
+                        # We'll send up to 9 additional media files (10 total with primary)
+                        for media in media_files[1:10]:  # Limit to 9 more files
+                            if media['file_type'] == 'photo':
+                                media_group.append(types.InputMediaPhoto(media=media['file_id']))
+                            else:  # video
+                                media_group.append(types.InputMediaVideo(media=media['file_id']))
+                        
+                        if media_group:
+                            await bot.send_media_group(chat_id=user_id, media=media_group)
+                    
+                    # Delete the original message
+                    await callback_query.message.delete()
+                    
+                # Fall back to legacy single photo_url if we don't have media files but have photo_url
+                elif service['photo_url']:
+                    # Send photo with caption using the legacy field
+                    await bot.send_photo(
+                        chat_id=user_id,
+                        photo=service['photo_url'],
+                        caption=service_text,
+                        parse_mode=ParseMode.MARKDOWN,
+                        reply_markup=service_detail_keyboard(service_id, category_id)
+                    )
+                    # Delete the original message
+                    await callback_query.message.delete()
+                else:
+                    # No media, just update message
+                    await callback_query.message.edit_text(
+                        service_text,
+                        parse_mode=ParseMode.MARKDOWN,
+                        reply_markup=service_detail_keyboard(service_id, category_id)
                     )
         
         # Handle back navigation
