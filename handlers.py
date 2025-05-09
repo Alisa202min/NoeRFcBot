@@ -365,13 +365,12 @@ async def handle_callback_query(callback_query: types.CallbackQuery, bot: "Bot",
 # Inquiry handlers
 class handle_inquiry:
     @staticmethod
-    async def start_inquiry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def start_inquiry(callback_query: types.CallbackQuery, state: FSMContext) -> None:
         """Start inquiry process."""
-        query = update.callback_query
-        await query.answer()
+        await callback_query.answer()
         
-        user_id = update.effective_user.id
-        data = query.data
+        user_id = callback_query.from_user.id
+        data = callback_query.data
         
         try:
             # Extract product ID from callback data
@@ -379,97 +378,88 @@ class handle_inquiry:
             product = db.get_product(product_id)
             
             if not product:
-                await query.edit_message_text("محصول مورد نظر یافت نشد.")
-                return ConversationHandler.END
+                await callback_query.message.edit_text("محصول مورد نظر یافت نشد.")
+                return
             
-            # Store product ID in user state
-            if user_id not in user_states:
-                user_states[user_id] = {}
-            user_states[user_id]['inquiry_product_id'] = product_id
+            # Store product ID in state
+            if state:
+                await state.set_state(InquiryForm.name)
+                await state.update_data(inquiry_product_id=product_id)
             
             # Send inquiry form message
-            await query.edit_message_text(
+            await callback_query.message.edit_text(
                 f"استعلام قیمت برای محصول/خدمت: {product['name']}\n\n"
                 f"{INQUIRY_START}",
                 reply_markup=cancel_keyboard()
             )
             
-            return INQUIRY_NAME
-        
         except Exception as e:
             logging.error(f"Error in start_inquiry: {e}")
-            await query.edit_message_text(ERROR_MESSAGE)
-            return ConversationHandler.END
+            await callback_query.message.edit_text(ERROR_MESSAGE)
     
     @staticmethod
-    async def process_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def process_name(message: types.Message, state: FSMContext) -> None:
         """Process name input and ask for phone number."""
-        user_id = update.effective_user.id
-        name = update.message.text
+        user_id = message.from_user.id
+        name = message.text
         
         if not name or len(name) < 2:
-            await update.message.reply_text(
+            await message.reply(
                 "لطفاً یک نام معتبر وارد کنید (حداقل 2 کاراکتر):",
                 reply_markup=cancel_keyboard()
             )
-            return INQUIRY_NAME
+            return
         
-        # Store name in user state
-        if user_id not in user_states:
-            user_states[user_id] = {}
-        user_states[user_id]['inquiry_name'] = name
+        # Store name in state
+        if state:
+            await state.update_data(inquiry_name=name)
+            await state.set_state(InquiryForm.phone)
         
         # Ask for phone number
-        await update.message.reply_text(
+        await message.reply(
             INQUIRY_PHONE,
             reply_markup=cancel_keyboard()
         )
-        
-        return INQUIRY_PHONE
     
     @staticmethod
-    async def process_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def process_phone(message: types.Message, state: FSMContext) -> None:
         """Process phone input and ask for description."""
-        user_id = update.effective_user.id
-        phone = update.message.text
+        user_id = message.from_user.id
+        phone = message.text
         
         if not is_valid_phone_number(phone):
-            await update.message.reply_text(
+            await message.reply(
                 "لطفاً یک شماره تماس معتبر وارد کنید (حداقل 10 رقم):",
                 reply_markup=cancel_keyboard()
             )
-            return INQUIRY_PHONE
+            return
         
-        # Store phone in user state
-        if user_id not in user_states:
-            user_states[user_id] = {}
-        user_states[user_id]['inquiry_phone'] = phone
+        # Store phone in state
+        if state:
+            await state.update_data(inquiry_phone=phone)
+            await state.set_state(InquiryForm.description)
         
         # Ask for description
-        await update.message.reply_text(
+        await message.reply(
             INQUIRY_DESC,
             reply_markup=cancel_keyboard()
         )
-        
-        return INQUIRY_DESC
     
     @staticmethod
-    async def process_description(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def process_description(message: types.Message, state: FSMContext) -> None:
         """Process description and complete inquiry."""
-        user_id = update.effective_user.id
-        description = update.message.text
+        user_id = message.from_user.id
+        description = message.text
         
-        if user_id not in user_states:
-            await update.message.reply_text(ERROR_MESSAGE)
-            return ConversationHandler.END
+        if not state:
+            await message.reply(ERROR_MESSAGE)
+            return
         
-        # Store description in user state
-        user_states[user_id]['inquiry_description'] = description
-        
-        # Get data from user state
-        name = user_states[user_id].get('inquiry_name', '')
-        phone = user_states[user_id].get('inquiry_phone', '')
-        product_id = user_states[user_id].get('inquiry_product_id')
+        # Get data from state
+        data = await state.get_data()
+        name = data.get('inquiry_name', '')
+        phone = data.get('inquiry_phone', '')
+        product_id = data.get('inquiry_product_id')
         
         # Add inquiry to database
         inquiry_id = db.add_inquiry(
@@ -488,7 +478,7 @@ class handle_inquiry:
                 product_name = f"\nمحصول/خدمت: {product['name']}"
         
         # Send confirmation message
-        await update.message.reply_text(
+        await message.reply(
             f"{INQUIRY_COMPLETE}\n\n"
             f"نام: {name}\n"
             f"شماره تماس: {phone}{product_name}",
@@ -501,43 +491,46 @@ class handle_inquiry:
             if inquiry:
                 admin_message = format_inquiry_details(inquiry)
                 try:
-                    await context.bot.send_message(
+                    bot = message.bot
+                    await bot.send_message(
                         chat_id=ADMIN_ID,
                         text=f"📣 استعلام قیمت جدید دریافت شد:\n\n{admin_message}",
-                        parse_mode=ParseMode.MARKDOWN
+                        parse_mode=types.ParseMode.MARKDOWN
                     )
                 except Exception as e:
                     logging.error(f"Failed to notify admin: {e}")
         
-        # Clear user state
-        if user_id in user_states:
-            del user_states[user_id]
-        
-        return ConversationHandler.END
+        # Clear state
+        await state.clear()
     
     @staticmethod
-    async def cancel_inquiry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def cancel_inquiry(callback_query: types.CallbackQuery, state: FSMContext) -> None:
         """Cancel inquiry process."""
-        user_id = update.effective_user.id
+        if state:
+            await state.clear()
         
-        # Clear user state
-        if user_id in user_states:
-            del user_states[user_id]
+        # Answer the callback query
+        await callback_query.answer()
         
-        # Check if it's a callback query or a message
-        if update.callback_query:
-            await update.callback_query.answer()
-            await update.callback_query.edit_message_text(
+        # Edit message text
+        try:
+            await callback_query.message.edit_text(
                 "استعلام قیمت لغو شد.",
                 reply_markup=None
             )
-        else:
-            await update.message.reply_text(
-                "استعلام قیمت لغو شد.",
-                reply_markup=main_menu_keyboard()
-            )
+        except Exception as e:
+            logging.error(f"Error in cancel_inquiry: {e}")
+            
+    @staticmethod
+    async def cancel_inquiry_message(message: types.Message, state: FSMContext) -> None:
+        """Cancel inquiry process from a message."""
+        if state:
+            await state.clear()
         
-        return ConversationHandler.END
+        await message.reply(
+            "استعلام قیمت لغو شد.",
+            reply_markup=main_menu_keyboard()
+        )
 
 # Search handlers
 class handle_search:
