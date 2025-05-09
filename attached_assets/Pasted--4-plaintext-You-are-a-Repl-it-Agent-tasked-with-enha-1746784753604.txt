@@ -1,0 +1,211 @@
+
+### پرامپت 4: رابط وب، تست‌ها، و مستندسازی
+```plaintext
+You are a Repl.it Agent tasked with enhancing the Flask web interface, adding tests, fixing LSP errors, and documenting the RFCBot Telegram bot, built with aiogram and PostgreSQL. The bot serves as a catalog for radio frequency and telecommunications devices for Persian users. Focus on implementing requested UI features (masked BOT_TOKEN, Summernote, log filtering/export, navigation highlighting, database viewer, log rotation, error handling), resolving LSP errors in `handlers.py`, adding PostgreSQL/aiogram tests, and documenting. Do not add new features or reference SQLite3.
+
+### Project Overview
+- **Purpose**: Support bot administration via Flask with Bootstrap 5 (dark theme, RTL).
+- **Priority**: Implement UI features, tests, fix LSP errors, and document.
+
+### Flask Web Interface
+- **Dashboard** (`index.html`): Bot status, env vars, logs with filtering/export.
+- **Configuration** (`configuration.html`): Edit settings with masked `BOT_TOKEN`.
+- **Database** (`database.html`): Table data viewer.
+- **Admin Panel** (`admin_layout.html`): Manage categories, products, services, inquiries, educational content, pages.
+- **Templates**: Use `url_for`, pagination macro:
+  ```html
+  {% macro render_pagination(pagination) %}
+    <nav>
+      <ul class="pagination">
+        <li class="page-item {{ 'disabled' if not pagination.prev_url }}">
+          <a class="page-link" href="{{ pagination.prev_url }}">قبلی</a>
+        </li>
+        {% for page in pagination.pages %}
+          <li class="page-item {{ 'active' if page == pagination.page }}">
+            <a class="page-link" href="{{ pagination.url_for_page(page) }}">{{ page }}</a>
+          </li>
+        {% endfor %}
+        <li class="page-item {{ 'disabled' if not pagination.next_url }}">
+          <a class="page-link" href="{{ pagination.next_url }}">بعدی</a>
+        </li>
+      </ul>
+    </nav>
+  {% endmacro %}
+  ```
+- **JavaScript**: Consolidated in `static/js/admin.js`.
+
+### Tasks
+1. **Implement UI Features**:
+   - **Masked BOT_TOKEN**:
+     ```html
+     <input type="password" class="form-control" name="BOT_TOKEN" value="{{ config.BOT_TOKEN }}">
+     ```
+   - **Summernote**:
+     ```html
+     <textarea class="summernote" name="content">{{ content }}</textarea>
+     <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote.min.js"></script>
+     <script>
+       $(document).ready(function() { $('.summernote').summernote(); });
+     </script>
+     ```
+   - **Log Filtering/Export**:
+     ```html
+     <input type="text" id="logFilter" placeholder="جستجو در لاگ‌ها..." class="form-control mb-3">
+     <div id="log-container" class="log-box"></div>
+     <a href="{{ url_for('export_logs') }}" class="btn btn-primary">خروجی لاگ‌ها</a>
+     <script>
+       function filterLogs() {
+         const filter = document.getElementById('logFilter').value.toLowerCase();
+         const logs = document.querySelectorAll('#log-container div');
+         logs.forEach(log => {
+           log.style.display = log.textContent.toLowerCase().includes(filter) ? '' : 'none';
+         });
+       }
+       document.getElementById('logFilter').addEventListener('input', filterLogs);
+     </script>
+     ```
+     ```python
+     from flask import Response
+     @app.route('/logs/export')
+     def export_logs():
+         with open('bot.log') as f:
+             return Response(f.read(), mimetype='text/plain', headers={'Content-Disposition': 'attachment;filename=bot.log'})
+     ```
+   - **Navigation Highlighting**:
+     ```html
+     <li class="nav-item">
+       <a class="nav-link {{ 'active' if active_page == 'dashboard' }}" href="/">داشبورد</a>
+     </li>
+     ```
+   - **Database Viewer**:
+     ```html
+     <form method="get">
+       <select name="table" class="form-control">
+         <option value="categories">دسته‌بندی‌ها</option>
+         <option value="products">محصولات</option>
+         <option value="services">خدمات</option>
+       </select>
+       <button type="submit" class="btn btn-primary">نمایش</button>
+     </form>
+     {% if table_data %}
+       <table class="table">
+         {% for row in table_data %}
+           <tr>
+             {% for col in row %}
+               <td>{{ col }}</td>
+             {% endfor %}
+           </tr>
+         {% endfor %}
+       </table>
+     {% endif %}
+     ```
+     ```python
+     @app.route('/database/view/<table>')
+     def view_table(table):
+         data = db.get_table_data(table)
+         return render_template('database.html', table_data=data, table=table)
+     ```
+   - **Log Rotation**:
+     ```python
+     import logging.handlers
+     handler = logging.handlers.RotatingFileHandler('bot.log', maxBytes=10*1024*1024, backupCount=5)
+     logging.getLogger().addHandler(handler)
+     ```
+   - **Error Handling**:
+     ```python
+     @app.errorhandler(Exception)
+     def handle_error(error):
+         logging.error(f"Flask error: {error}")
+         return render_template('error.html'), 500
+     ```
+     ```html
+     {% if errors %}
+       <div class="alert alert-danger">
+         {% for error in errors %}
+           <p>{{ error }}</p>
+         {% endfor %}
+       </div>
+     {% endif %}
+     ```
+2. **Fix LSP Errors**:
+   - Resolve type hints/imports in `handlers.py`:
+     ```python
+     from aiogram.types import Message
+     from typing import Optional
+     async def handle_inquiry(message: Message, state: FSMContext) -> None:
+         ...
+     ```
+3. **Add Tests**:
+   - Aiogram:
+     ```python
+     import pytest
+     from aiogram.types import Message
+     @pytest.mark.asyncio
+     async def test_start_command():
+         message = Message(text="/start", chat_id=123)
+         response = await start_command(message, None)
+         assert response.text == START_TEXT
+     ```
+   - PostgreSQL:
+     ```python
+     import pytest
+     import psycopg2
+     @pytest.fixture
+     def db_conn():
+         conn = psycopg2.connect(os.getenv('DATABASE_URL'))
+         yield conn
+         conn.close()
+     def test_get_product(db_conn):
+         with db_conn.cursor() as cur:
+             cur.execute("SELECT * FROM products WHERE id = 1")
+             assert cur.fetchone() is not None
+     ```
+   - Frontend (pytest-playwright):
+     ```python
+     from playwright.sync_api import Page
+     def test_dashboard(page: Page):
+         page.goto('http://localhost:5000/')
+         assert page.title() == 'وضعیت ربات | RFCBot'
+     ```
+   - JavaScript (Jest):
+     ```javascript
+     test('filterLogs filters log entries', () => {
+       document.body.innerHTML = `
+         <input id="logFilter">
+         <div id="log-container">
+           <div>Log 1</div>
+           <div>Log 2</div>
+         </div>
+       `;
+       document.getElementById('logFilter').value = '1';
+       filterLogs();
+       expect(document.querySelectorAll('#log-container div')[0].style.display).toBe('');
+     });
+     ```
+4. **Documentation**:
+   - Inline comments:
+     ```html
+     <!-- index.html: داشبورد اصلی برای وضعیت و لاگ‌های ربات -->
+     ```
+   - Update `README.md`:
+     ```markdown
+     ## رابط وب
+     - داشبورد: کنترل ربات و مشاهده لاگ‌ها (`/`)
+     - پیکربندی: ویرایش تنظیمات (`/configuration`)
+     - پایگاه داده: مشاهده وضعیت (`/database`)
+     - پنل مدیریتی: مدیریت محتوا (`/admin`)
+     ```
+   - Create `docs/templates.md`:
+     ```markdown
+     # ارجاع به قالب‌ها
+     - `index.html`: داشبورد اصلی، مسیر `/`
+     - `configuration.html`: تنظیمات، مسیر `/configuration`
+     ...
+     ```
+
+### Deliverables
+- Updated templates, `handlers.py`, `database.py`.
+- Test suite (`tests/test_bot.py`, `tests/test_db.py`, `tests/test_templates.py`).
+- Documentation (`README.md`, `docs/templates.md`).
+- Report confirming UI features, LSP fixes, and test results.
+```
