@@ -494,21 +494,28 @@ class handle_inquiry:
         data = callback_query.data
         
         try:
-            # Extract product ID from callback data
-            product_id = int(data[len(INQUIRY_PREFIX):])
-            product = db.get_product(product_id)
+            # Extract product/service ID from callback data
+            item_id = int(data[len(INQUIRY_PREFIX):])
+            product = db.get_product(item_id)
+            service = None
             
+            # If product not found, check if it's a service
             if not product:
-                await callback_query.message.edit_text("محصول مورد نظر یافت نشد.")
-                return
+                service = db.get_service(item_id)
+                if not service:
+                    await callback_query.message.edit_text("محصول/خدمت مورد نظر یافت نشد.")
+                    return
             
-            # Store product ID in state
+            # Store item ID in state
             await state.set_state(InquiryForm.name)
-            await state.update_data(inquiry_product_id=product_id)
+            await state.update_data(inquiry_product_id=item_id)
             
-            # Send inquiry form message
+            # Send inquiry form message with appropriate item name
+            item_name = product['name'] if product else service['name']
+            item_type = "محصول" if product else "خدمت"
+            
             await callback_query.message.edit_text(
-                f"استعلام قیمت برای محصول/خدمت: {product['name']}\n\n"
+                f"استعلام قیمت برای {item_type}: {item_name}\n\n"
                 f"{INQUIRY_START}",
                 reply_markup=cancel_keyboard()
             )
@@ -579,21 +586,37 @@ class handle_inquiry:
         phone = data.get('inquiry_phone', '')
         product_id = data.get('inquiry_product_id')
         
+        # Determine if this is a product or service inquiry
+        # We use the same callback prefix (INQUIRY_PREFIX) for both products and services,
+        # so we need to check which one exists to know the type
+        product = None
+        service = None
+        product_type = 'product'
+        
+        if product_id:
+            product = db.get_product(product_id)
+            if not product:
+                service = db.get_service(product_id)
+                if service:
+                    product_type = 'service'
+        
         # Add inquiry to database
         inquiry_id = db.add_inquiry(
             user_id=user_id,
             name=name,
             phone=phone,
             description=description,
-            product_id=product_id
+            product_id=product_id,
+            service_id=product_id if product_type == 'service' else None
         )
         
-        # Get product name if available
+        # Get product/service name if available
         product_name = ""
         if product_id:
-            product = db.get_product(product_id)
-            if product:
-                product_name = f"\nمحصول/خدمت: {product['name']}"
+            if product_type == 'product' and product:
+                product_name = f"\nمحصول: {product['name']}"
+            elif product_type == 'service' and service:
+                product_name = f"\nخدمت: {service['name']}"
         
         # Send confirmation message
         await message.reply(
