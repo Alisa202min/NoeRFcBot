@@ -100,11 +100,11 @@ async def main():
     
     # Admin educational content edit handlers
     dp.callback_query.register(admin_handlers.start_edit_edu, lambda c: c.data.startswith("admin_edit_edu_"))
-    dp.message.register(admin_handlers.process_edit_edu, lambda m: not m.text.startswith('/'))
+    dp.message.register(admin_handlers.process_edit_edu, AdminActions.edit_edu)
     
     # Admin add educational content handlers
     dp.callback_query.register(admin_handlers.start_add_edu, lambda c: c.data == "admin_add_edu")
-    dp.message.register(admin_handlers.process_add_edu, lambda m: not m.text.startswith('/'))
+    dp.message.register(admin_handlers.process_add_edu, AdminActions.add_edu)
     
     # Admin static content edit handlers
     dp.callback_query.register(admin_handlers.start_edit_static, lambda c: c.data.startswith("admin_edit_static_"))

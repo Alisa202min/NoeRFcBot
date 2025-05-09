@@ -1645,112 +1645,113 @@ class admin_handlers:
             await state.clear()
     
     @staticmethod
-    async def start_edit_edu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def start_edit_edu(callback_query: types.CallbackQuery, state: FSMContext) -> None:
         """Start editing educational content."""
-        query = update.callback_query
-        await query.answer()
+        await callback_query.answer()
         
-        user_id = update.effective_user.id
-        data = query.data
+        user_id = callback_query.from_user.id
+        data = callback_query.data
         content_id = int(data[len(ADMIN_PREFIX + "edit_edu_"):])
         
         content = db.get_educational_content(content_id)
         if not content:
-            await query.edit_message_text("مطلب مورد نظر یافت نشد.")
-            return ConversationHandler.END
+            await callback_query.message.edit_text("مطلب مورد نظر یافت نشد.")
+            return
         
-        # Store content ID and current data in user state
-        if user_id not in user_states:
-            user_states[user_id] = {}
-        user_states[user_id]['edit_edu_id'] = content_id
-        user_states[user_id]['edit_edu_title'] = content['title']
-        user_states[user_id]['edit_edu_content'] = content['content']
-        user_states[user_id]['edit_edu_category'] = content['category']
-        user_states[user_id]['edit_edu_type'] = content['type']
-        user_states[user_id]['edit_edu_step'] = 0  # 0: title, 1: content, 2: category, 3: type
+        # Store content ID and current data in state
+        await state.set_state(AdminActions.edit_edu)
+        await state.update_data(
+            edit_edu_id=content_id,
+            edit_edu_title=content['title'],
+            edit_edu_content=content['content'],
+            edit_edu_category=content['category'],
+            edit_edu_type=content['type'],
+            edit_edu_step=0  # 0: title, 1: content, 2: category, 3: type
+        )
         
         # Send edit form - start with title
-        await query.edit_message_text(
+        await callback_query.message.edit_text(
             f"ویرایش مطلب «{content['title']}»\n\n"
             f"مرحله 1/4: لطفاً عنوان جدید را وارد کنید (یا 'skip' برای رد کردن):",
             reply_markup=cancel_keyboard()
         )
-        
-        return ADMIN_EDIT_EDU
     
     @staticmethod
-    async def process_edit_edu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def process_edit_edu(message: types.Message, state: FSMContext) -> None:
         """Process educational content edit, step by step."""
-        user_id = update.effective_user.id
-        text = update.message.text
+        user_id = message.from_user.id
+        text = message.text
         
-        if user_id not in user_states:
-            await update.message.reply_text(ERROR_MESSAGE)
-            return ConversationHandler.END
+        # Get data from state
+        data = await state.get_data()
+        content_id = data.get('edit_edu_id')
+        step = data.get('edit_edu_step', 0)
         
-        content_id = user_states[user_id]['edit_edu_id']
-        step = user_states[user_id]['edit_edu_step']
+        if not content_id:
+            await message.reply(ERROR_MESSAGE)
+            await state.clear()
+            return
         
         # Process current step
         if step == 0:  # Title
+            # Update title if not skipped
             if text.lower() != 'skip':
-                user_states[user_id]['edit_edu_title'] = text
+                await state.update_data(edit_edu_title=text)
             
-            # Move to content
-            user_states[user_id]['edit_edu_step'] = 1
+            # Move to content step
+            await state.update_data(edit_edu_step=1)
             
-            await update.message.reply_text(
+            await message.reply(
                 f"مرحله 2/4: لطفاً محتوای جدید را وارد کنید (یا 'skip' برای رد کردن):",
                 reply_markup=cancel_keyboard()
             )
             
-            return ADMIN_EDIT_EDU
-            
         elif step == 1:  # Content
+            # Update content if not skipped
             if text.lower() != 'skip':
-                user_states[user_id]['edit_edu_content'] = text
+                await state.update_data(edit_edu_content=text)
             
-            # Move to category
-            user_states[user_id]['edit_edu_step'] = 2
+            # Move to category step
+            await state.update_data(edit_edu_step=2)
             
-            await update.message.reply_text(
+            await message.reply(
                 f"مرحله 3/4: لطفاً دسته‌بندی جدید را وارد کنید (یا 'skip' برای رد کردن):",
                 reply_markup=cancel_keyboard()
             )
             
-            return ADMIN_EDIT_EDU
-            
         elif step == 2:  # Category
+            # Update category if not skipped
             if text.lower() != 'skip':
-                user_states[user_id]['edit_edu_category'] = text
+                await state.update_data(edit_edu_category=text)
             
-            # Move to type
-            user_states[user_id]['edit_edu_step'] = 3
+            # Move to type step
+            await state.update_data(edit_edu_step=3)
             
-            await update.message.reply_text(
+            await message.reply(
                 f"مرحله 4/4: لطفاً نوع محتوا را وارد کنید (text یا link) (یا 'skip' برای رد کردن):",
                 reply_markup=cancel_keyboard()
             )
             
-            return ADMIN_EDIT_EDU
-            
         elif step == 3:  # Type
+            # Update content type if not skipped
             if text.lower() != 'skip':
                 content_type = text.lower()
                 if content_type not in ['text', 'link']:
-                    await update.message.reply_text(
+                    await message.reply(
                         "لطفاً یکی از انواع معتبر (text یا link) را وارد کنید:",
                         reply_markup=cancel_keyboard()
                     )
-                    return ADMIN_EDIT_EDU
-                user_states[user_id]['edit_edu_type'] = content_type
+                    return
+                await state.update_data(edit_edu_type=content_type)
             
-            # Update content
-            title = user_states[user_id]['edit_edu_title']
-            content = user_states[user_id]['edit_edu_content']
-            category = user_states[user_id]['edit_edu_category']
-            content_type = user_states[user_id]['edit_edu_type']
+            # Get final data from state
+            data = await state.get_data()
+            title = data.get('edit_edu_title')
+            content = data.get('edit_edu_content')
+            category = data.get('edit_edu_category')
+            content_type = data.get('edit_edu_type')
             
+            # Update database record
             success = db.update_educational_content(
                 content_id=content_id,
                 title=title,
@@ -1762,7 +1763,7 @@ class admin_handlers:
             if success:
                 edu_content = db.get_educational_content(content_id)
                 
-                await update.message.reply_text(
+                await message.reply(
                     f"مطلب «{title}» با موفقیت به‌روزرسانی شد.",
                     reply_markup=admin_keyboard()
                 )
@@ -1776,115 +1777,94 @@ class admin_handlers:
                         f"محتوا:\n{edu_content['content']}"
                     )
                     
-                    await update.message.reply_text(
+                    await message.reply(
                         content_text,
                         reply_markup=admin_keyboards.admin_edu_detail_keyboard(content_id)
                     )
             else:
-                await update.message.reply_text(
+                await message.reply(
                     "خطا در به‌روزرسانی مطلب. لطفاً دوباره تلاش کنید.",
                     reply_markup=admin_keyboard()
                 )
             
-            # Clear user state
-            if user_id in user_states:
-                del user_states[user_id]
-            
-            return ConversationHandler.END
+            # Clear state
+            await state.clear()
     
     @staticmethod
-    async def start_add_edu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def start_add_edu(callback_query: types.CallbackQuery, state: FSMContext) -> None:
         """Start adding new educational content."""
-        query = update.callback_query
-        await query.answer()
+        await callback_query.answer()
         
-        user_id = update.effective_user.id
-        
-        # Store data in user state
-        if user_id not in user_states:
-            user_states[user_id] = {}
-        user_states[user_id]['add_edu_step'] = 0  # 0: title, 1: content, 2: category, 3: type
+        # Set state and initialize step
+        await state.set_state(AdminActions.add_edu)
+        await state.update_data(add_edu_step=0)  # 0: title, 1: content, 2: category, 3: type
         
         # Send add form - start with title
-        await query.edit_message_text(
+        await callback_query.message.edit_text(
             f"افزودن مطلب آموزشی جدید\n\n"
             f"مرحله 1/4: لطفاً عنوان را وارد کنید:",
             reply_markup=cancel_keyboard()
         )
-        
-        return ADMIN_EDIT_EDU
     
     @staticmethod
-    async def process_add_edu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def process_add_edu(message: types.Message, state: FSMContext) -> None:
         """Process new educational content addition, step by step."""
-        user_id = update.effective_user.id
-        text = update.message.text
+        user_id = message.from_user.id
+        text = message.text
         
-        if user_id not in user_states:
-            await update.message.reply_text(ERROR_MESSAGE)
-            return ConversationHandler.END
-        
-        step = user_states[user_id]['add_edu_step']
+        # Get data from state
+        data = await state.get_data()
+        step = data.get('add_edu_step', 0)
         
         # Process current step
         if step == 0:  # Title
-            user_states[user_id]['add_edu_title'] = text
+            # Store title and move to content step
+            await state.update_data(add_edu_title=text, add_edu_step=1)
             
-            # Move to content
-            user_states[user_id]['add_edu_step'] = 1
-            
-            await update.message.reply_text(
+            await message.reply(
                 f"مرحله 2/4: لطفاً محتوا را وارد کنید:",
                 reply_markup=cancel_keyboard()
             )
             
-            return ADMIN_EDIT_EDU
-            
         elif step == 1:  # Content
-            user_states[user_id]['add_edu_content'] = text
-            
-            # Move to category
-            user_states[user_id]['add_edu_step'] = 2
+            # Store content and move to category step
+            await state.update_data(add_edu_content=text, add_edu_step=2)
             
             # Show existing categories as suggestions
             categories = db.get_educational_categories()
             category_list = "\n".join([f"- {cat}" for cat in categories]) if categories else "هنوز دسته‌بندی ثبت نشده است."
             
-            await update.message.reply_text(
+            await message.reply(
                 f"مرحله 3/4: لطفاً دسته‌بندی را وارد کنید:\n\n"
                 f"دسته‌بندی‌های موجود:\n{category_list}",
                 reply_markup=cancel_keyboard()
             )
             
-            return ADMIN_EDIT_EDU
-            
         elif step == 2:  # Category
-            user_states[user_id]['add_edu_category'] = text
+            # Store category and move to type step
+            await state.update_data(add_edu_category=text, add_edu_step=3)
             
-            # Move to type
-            user_states[user_id]['add_edu_step'] = 3
-            
-            await update.message.reply_text(
+            await message.reply(
                 f"مرحله 4/4: لطفاً نوع محتوا را وارد کنید (text یا link):",
                 reply_markup=cancel_keyboard()
             )
             
-            return ADMIN_EDIT_EDU
-            
         elif step == 3:  # Type
             content_type = text.lower()
             if content_type not in ['text', 'link']:
-                await update.message.reply_text(
+                await message.reply(
                     "لطفاً یکی از انواع معتبر (text یا link) را وارد کنید:",
                     reply_markup=cancel_keyboard()
                 )
-                return ADMIN_EDIT_EDU
+                return
             
-            # Add content
-            title = user_states[user_id]['add_edu_title']
-            content = user_states[user_id]['add_edu_content']
-            category = user_states[user_id]['add_edu_category']
+            # Get all data from state
+            data = await state.get_data()
+            title = data.get('add_edu_title')
+            content = data.get('add_edu_content')
+            category = data.get('add_edu_category')
             
+            # Add the educational content
             content_id = db.add_educational_content(
                 title=title,
                 content=content,
@@ -1893,7 +1873,7 @@ class admin_handlers:
             )
             
             if content_id:
-                await update.message.reply_text(
+                await message.reply(
                     f"مطلب «{title}» با موفقیت ایجاد شد.",
                     reply_markup=admin_keyboard()
                 )
@@ -1901,54 +1881,45 @@ class admin_handlers:
                 # Show all educational content
                 contents = db.get_all_educational_content()
                 
-                await update.message.reply_text(
+                await message.reply(
                     "مدیریت مطالب آموزشی:",
                     reply_markup=admin_keyboards.admin_educational_keyboard(contents)
                 )
             else:
-                await update.message.reply_text(
+                await message.reply(
                     "خطا در ایجاد مطلب. لطفاً دوباره تلاش کنید.",
                     reply_markup=admin_keyboard()
                 )
             
-            # Clear user state
-            if user_id in user_states:
-                del user_states[user_id]
-            
-            return ConversationHandler.END
+            # Clear state
+            await state.clear()
     
     @staticmethod
-    async def start_edit_static(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def start_edit_static(callback_query: types.CallbackQuery, state: FSMContext) -> None:
         """Start editing static content."""
-        query = update.callback_query
-        await query.answer()
+        await callback_query.answer()
         
-        user_id = update.effective_user.id
-        data = query.data
+        data = callback_query.data
         content_type = data[len(ADMIN_PREFIX + "edit_static_"):]
         
         if content_type not in ['contact', 'about']:
-            await query.edit_message_text("نوع محتوا نامعتبر است.")
-            return ConversationHandler.END
+            await callback_query.message.edit_text("نوع محتوا نامعتبر است.")
+            return
         
         content = db.get_static_content(content_type)
         
-        # Store type and current content in user state
-        if user_id not in user_states:
-            user_states[user_id] = {}
-        user_states[user_id]['edit_static_type'] = content_type
-        user_states[user_id]['edit_static_content'] = content
+        # Set state and store type and current content
+        await state.set_state(AdminActions.edit_static)
+        await state.update_data(edit_static_type=content_type, edit_static_content=content)
         
         # Send edit form
         title = "تماس با ما" if content_type == 'contact' else "درباره ما"
-        await query.edit_message_text(
+        await callback_query.message.edit_text(
             f"ویرایش {title}\n\n"
             f"محتوای فعلی:\n{content}\n\n"
             f"لطفاً محتوای جدید را وارد کنید:",
             reply_markup=cancel_keyboard()
         )
-        
-        return ADMIN_EDIT_STATIC
     
     @staticmethod
     async def process_edit_static(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -2064,28 +2035,27 @@ class admin_handlers:
         return ConversationHandler.END
     
     @staticmethod
-    async def cancel_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Cancel admin action."""
-        user_id = update.effective_user.id
+    async def cancel_admin_action(message_or_callback, state: FSMContext = None) -> None:
+        """Cancel admin action.
         
-        # Clear user state
-        if user_id in user_states:
-            del user_states[user_id]
-        
+        Can be called from either a message handler or a callback query handler.
+        """
         # Check if it's a callback query or a message
-        if update.callback_query:
-            await update.callback_query.answer()
-            await update.callback_query.edit_message_text(
+        if isinstance(message_or_callback, types.CallbackQuery):
+            await message_or_callback.answer()
+            await message_or_callback.message.edit_text(
                 "عملیات لغو شد.",
                 reply_markup=None
             )
-        else:
-            await update.message.reply_text(
+        else:  # It's a Message
+            await message_or_callback.reply(
                 "عملیات لغو شد.",
                 reply_markup=admin_keyboard()
             )
         
-        return ConversationHandler.END
+        # Clear state if provided
+        if state:
+            await state.clear()
 
 # Admin keyboard utilities (defined here to avoid circular imports)
 class admin_keyboards:
