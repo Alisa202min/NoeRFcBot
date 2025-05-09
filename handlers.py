@@ -379,9 +379,8 @@ class handle_inquiry:
                 return
             
             # Store product ID in state
-            if state:
-                await state.set_state(InquiryForm.name)
-                await state.update_data(inquiry_product_id=product_id)
+            await state.set_state(InquiryForm.name)
+            await state.update_data(inquiry_product_id=product_id)
             
             # Send inquiry form message
             await callback_query.message.edit_text(
@@ -408,9 +407,8 @@ class handle_inquiry:
             return
         
         # Store name in state
-        if state:
-            await state.update_data(inquiry_name=name)
-            await state.set_state(InquiryForm.phone)
+        await state.update_data(inquiry_name=name)
+        await state.set_state(InquiryForm.phone)
         
         # Ask for phone number
         await message.reply(
@@ -432,9 +430,8 @@ class handle_inquiry:
             return
         
         # Store phone in state
-        if state:
-            await state.update_data(inquiry_phone=phone)
-            await state.set_state(InquiryForm.description)
+        await state.update_data(inquiry_phone=phone)
+        await state.set_state(InquiryForm.description)
         
         # Ask for description
         await message.reply(
@@ -503,8 +500,7 @@ class handle_inquiry:
     @staticmethod
     async def cancel_inquiry(callback_query: types.CallbackQuery, state: FSMContext) -> None:
         """Cancel inquiry process."""
-        if state:
-            await state.clear()
+        await state.clear()
         
         # Answer the callback query
         await callback_query.answer()
@@ -521,8 +517,7 @@ class handle_inquiry:
     @staticmethod
     async def cancel_inquiry_message(message: types.Message, state: FSMContext) -> None:
         """Cancel inquiry process from a message."""
-        if state:
-            await state.clear()
+        await state.clear()
         
         await message.reply(
             "استعلام قیمت لغو شد.",
@@ -539,8 +534,7 @@ class handle_search:
     async def start_search(message: types.Message, state: FSMContext) -> None:
         """Start search process."""
         # Set state for search
-        if state:
-            await state.set_state(SearchForm.query)
+        await state.set_state(SearchForm.query)
         
         await message.reply(
             SEARCH_PROMPT,
@@ -574,15 +568,13 @@ class handle_search:
             )
         
         # Clear state
-        if state:
-            await state.clear()
+        await state.clear()
     
     @staticmethod
     async def cancel_search(message: types.Message, state: FSMContext) -> None:
         """Cancel search process."""
         # Clear state
-        if state:
-            await state.clear()
+        await state.clear()
             
         await message.reply(
             "جستجو لغو شد.",
@@ -600,7 +592,7 @@ class AdminForm(StatesGroup):
 # Admin handlers
 class admin_handlers:
     @staticmethod
-    async def start_admin(message: types.Message, state: FSMContext = None) -> None:
+    async def start_admin(message: types.Message, state: FSMContext) -> None:
         """Start admin panel."""
         user_id = message.from_user.id
         
@@ -616,7 +608,7 @@ class admin_handlers:
         )
     
     @staticmethod
-    async def handle_admin_action(callback_query: types.CallbackQuery, state: FSMContext = None) -> None:
+    async def handle_admin_action(callback_query: types.CallbackQuery, state: FSMContext) -> None:
         """Handle admin actions from inline buttons."""
         data = callback_query.data
         admin_data = data[len(ADMIN_PREFIX):]
