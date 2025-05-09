@@ -204,19 +204,20 @@ def setup_bot_webhook():
     """Setup webhook for Telegram bot"""
     if not WEBHOOK_URL or not BOT_AVAILABLE:
         logger.warning("WEBHOOK_URL not set or bot not available. Webhook setup skipped.")
-        return
+        return None
 
     # Create aiohttp app
     webhook_app = web.Application()
 
     try:
-        # Setup webhook handler
-        asyncio.run(setup_webhook(webhook_app, WEBHOOK_PATH))
+        if setup_webhook is not None:
+            # Setup webhook handler
+            asyncio.run(setup_webhook(webhook_app, WEBHOOK_PATH))
 
-        # Set webhook URL
-        asyncio.run(bot.set_webhook(WEBHOOK_URL + WEBHOOK_PATH))
-
-        logger.info(f"Webhook set to {WEBHOOK_URL + WEBHOOK_PATH}")
+            # Set webhook URL if bot is available
+            if bot is not None:
+                asyncio.run(bot.set_webhook(WEBHOOK_URL + WEBHOOK_PATH))
+                logger.info(f"Webhook set to {WEBHOOK_URL + WEBHOOK_PATH}")
     except Exception as e:
         logger.error(f"Error setting up webhook: {e}")
     
