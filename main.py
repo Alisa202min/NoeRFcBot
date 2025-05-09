@@ -235,8 +235,8 @@ def setup_bot_webhook():
     try:
         if setup_webhook is not None:
             # Setup webhook handler
-            asyncio.run(setup_webhook(webhook_app, WEBHOOK_PATH))
-
+            asyncio.run(setup_webhook(webhook_app, WEBHOOK_PATH, WEBHOOK_URL))
+            
             # Set webhook URL if bot is available
             if bot is not None:
                 asyncio.run(bot.set_webhook(WEBHOOK_URL + WEBHOOK_PATH))

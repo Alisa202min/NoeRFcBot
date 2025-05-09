@@ -225,9 +225,18 @@ class Database:
             return product_id
 
     def add_service(self, name: str, price: int, description: str, 
-                   category_id: int, photo_url: Optional[str] = None) -> int:
+                   category_id: int, photo_url: Optional[str] = None, 
+                   featured: bool = False, tags: str = '') -> int:
         """Add a new service - now all stored in products table with cat_type determining the type"""
-        return self.add_product(name, price, description, category_id, photo_url)
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                '''INSERT INTO products 
+                   (name, price, description, photo_url, category_id, featured, tags, product_type) 
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id''',
+                (name, price, description, photo_url, category_id, featured, tags, 'service')
+            )
+            service_id = cursor.fetchone()[0]
+            return service_id
 
     def get_product(self, product_id: int) -> Optional[Dict]:
         """Get a product by ID"""
