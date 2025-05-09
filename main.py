@@ -258,8 +258,16 @@ def webhook():
     """Forward webhook data to the bot's webhook handler"""
     if request.headers.get('content-type') == 'application/json':
         json_string = request.get_data().decode('utf-8')
-        logger.info(f"Received webhook data: {json_string[:100]}...")
-        return '', 200
+        update_dict = json.loads(json_string)
+        logger.info(f"Received webhook update: {json_string[:100]}...")
+        
+        # Process the update using asyncio
+        try:
+            asyncio.run(bot.process_update(update=update_dict))
+            return '', 200
+        except Exception as e:
+            logger.error(f"Error processing webhook update: {str(e)}")
+            return '', 500
     else:
         logger.warning("Received non-JSON data in webhook")
         return '', 403
@@ -1263,4 +1271,17 @@ def admin_delete_inquiry():
     return redirect(url_for('admin_inquiries'))
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    # Initialize the webhook setup
+    if WEBHOOK_URL:
+        # Setup webhook 
+        try:
+            logger.info(f"Setting up webhook at {WEBHOOK_URL + WEBHOOK_PATH}")
+            setup_bot_webhook()
+            logger.info("Webhook setup successful")
+        except Exception as e:
+            logger.error(f"Error setting up webhook: {str(e)}")
+    else:
+        logger.warning("WEBHOOK_URL not set, bot will not receive updates via webhook")
+    
+    # Start Flask app
+    app.run(host=WEBHOOK_HOST, port=WEBHOOK_PORT)
