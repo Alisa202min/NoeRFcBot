@@ -15,6 +15,7 @@ from aiogram.filters import Command, CommandStart
 from aiogram.filters import Filter
 from aiogram.enums import ParseMode
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # Create a Text filter since it's not included in aiogram 3.x
 class Text(Filter):
@@ -1922,67 +1923,64 @@ class admin_handlers:
         )
     
     @staticmethod
-    async def process_edit_static(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def process_edit_static(message: types.Message, state: FSMContext) -> None:
         """Process static content edit."""
-        user_id = update.effective_user.id
-        text = update.message.text
+        text = message.text
         
-        if user_id not in user_states:
-            await update.message.reply_text(ERROR_MESSAGE)
-            return ConversationHandler.END
+        # Get data from state
+        data = await state.get_data()
+        content_type = data.get('edit_static_type')
         
-        content_type = user_states[user_id]['edit_static_type']
+        if not content_type:
+            await message.reply(ERROR_MESSAGE)
+            await state.clear()
+            return
         
         # Update static content
         success = db.update_static_content(content_type, text)
         
         if success:
             title = "تماس با ما" if content_type == 'contact' else "درباره ما"
-            await update.message.reply_text(
+            await message.reply(
                 f"محتوای {title} با موفقیت به‌روزرسانی شد.",
                 reply_markup=admin_keyboard()
             )
             
             # Show updated content
-            await update.message.reply_text(
+            await message.reply(
                 f"محتوای جدید {title}:\n\n{text}",
                 reply_markup=InlineKeyboardMarkup([[
                     InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}static_content")
                 ]])
             )
         else:
-            await update.message.reply_text(
+            await message.reply(
                 "خطا در به‌روزرسانی محتوا. لطفاً دوباره تلاش کنید.",
                 reply_markup=admin_keyboard()
             )
         
-        # Clear user state
-        if user_id in user_states:
-            del user_states[user_id]
-        
-        return ConversationHandler.END
+        # Clear state
+        await state.clear()
     
     @staticmethod
-    async def start_import_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def start_import_data(callback_query: types.CallbackQuery, state: FSMContext) -> None:
         """Start importing data from CSV."""
-        query = update.callback_query
-        await query.answer()
+        await callback_query.answer()
         
-        user_id = update.effective_user.id
-        data = query.data
+        data = callback_query.data
         entity_type = data[len(ADMIN_PREFIX + "import_"):]
         
         if entity_type not in ['products', 'categories', 'educational']:
-            await query.edit_message_text("نوع داده نامعتبر است.")
-            return ConversationHandler.END
+            await callback_query.message.edit_text("نوع داده نامعتبر است.")
+            await state.clear()
+            return
         
-        # Store entity type in user state
-        if user_id not in user_states:
-            user_states[user_id] = {}
-        user_states[user_id]['import_entity_type'] = entity_type
+        # Set state and store entity type
+        await state.set_state(AdminActions.upload_csv)
+        await state.update_data(import_entity_type=entity_type)
         
         # Send instruction
-        await query.edit_message_text(
+        await callback_query.message.edit_text(
             f"ورود داده‌های {entity_type} از فایل CSV\n\n"
             f"لطفاً فایل CSV را آپلود کنید.\n"
             f"توجه: فایل باید شامل ستون‌های مناسب باشد.",
@@ -1991,28 +1989,28 @@ class admin_handlers:
                 InlineKeyboardButton("انصراف", callback_data="cancel")
             ]])
         )
-        
-        return ADMIN_UPLOAD_CSV
     
     @staticmethod
-    async def process_import_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    async def process_import_data(message: types.Message, state: FSMContext, bot: Bot) -> None:
         """Process CSV import."""
-        user_id = update.effective_user.id
-        file = update.message.document
+        file = message.document
         
-        if user_id not in user_states:
-            await update.message.reply_text(ERROR_MESSAGE)
-            return ConversationHandler.END
+        # Get entity type from state
+        data = await state.get_data()
+        entity_type = data.get('import_entity_type')
         
-        entity_type = user_states[user_id]['import_entity_type']
+        if not entity_type:
+            await message.reply(ERROR_MESSAGE)
+            await state.clear()
+            return
         
         # Download file
-        file_info = await context.bot.get_file(file.file_id)
+        file_info = await bot.get_file(file.file_id)
         
         with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as temp_file:
             temp_path = temp_file.name
         
-        await file_info.download_to_drive(custom_path=temp_path)
+        await bot.download_file(file_info.file_path, temp_path)
         
         # Import data
         success_count, error_count = db.import_from_csv(entity_type, temp_path)
@@ -2021,18 +2019,15 @@ class admin_handlers:
         os.unlink(temp_path)
         
         # Send result
-        await update.message.reply_text(
+        await message.reply(
             f"نتیجه ورود داده‌ها:\n"
             f"تعداد موارد موفق: {success_count}\n"
             f"تعداد خطاها: {error_count}",
             reply_markup=admin_keyboard()
         )
         
-        # Clear user state
-        if user_id in user_states:
-            del user_states[user_id]
-        
-        return ConversationHandler.END
+        # Clear state
+        await state.clear()
     
     @staticmethod
     async def cancel_admin_action(message_or_callback, state: FSMContext = None) -> None:
