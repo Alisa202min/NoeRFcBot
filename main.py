@@ -18,6 +18,7 @@ from aiohttp import web
 from werkzeug.utils import secure_filename
 import io
 import uuid
+import csv
 from configuration import ADMIN_ID
 
 # Create Flask app
@@ -34,6 +35,8 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def allowed_file(filename):
     """Check if the file has an allowed extension"""
+    if not filename:
+        return False
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # Import bot components, which may be None if BOT_TOKEN isn't set
@@ -359,17 +362,21 @@ def update_config():
     from configuration import CONFIG_PATH, save_config
     
     try:
-        view_type = request.form.get('view_type')
+        view_type = request.form.get('view_type', '')
         
         if view_type == 'raw':
             # Handle raw JSON editing
-            raw_config = request.form.get('raw_config')
-            try:
-                new_config = json.loads(raw_config)
-                save_config(new_config)
-                flash('پیکربندی با موفقیت به‌روزرسانی شد.', 'success')
-            except json.JSONDecodeError:
-                flash('خطا در ساختار JSON. لطفاً ساختار را بررسی کنید.', 'danger')
+            raw_config = request.form.get('raw_config', '')
+            if raw_config:
+                try:
+                    new_config = json.loads(raw_config)
+                    save_config(new_config)
+                    flash('پیکربندی با موفقیت به‌روزرسانی شد.', 'success')
+                except json.JSONDecodeError:
+                    flash('خطا در ساختار JSON. لطفاً ساختار را بررسی کنید.', 'danger')
+                    return redirect(url_for('loadConfig'))
+            else:
+                flash('فایل پیکربندی خالی است.', 'danger')
                 return redirect(url_for('loadConfig'))
         else:
             # Handle form-based editing
@@ -379,11 +386,12 @@ def update_config():
             # Update config from form data
             for key in current_config:
                 if key in request.form:
+                    form_value = request.form.get(key, '')
                     # Convert ADMIN_ID to int if it's a number
-                    if key == 'ADMIN_ID' and request.form[key].isdigit():
-                        current_config[key] = int(request.form[key])
+                    if key == 'ADMIN_ID' and form_value and form_value.isdigit():
+                        current_config[key] = int(form_value)
                     else:
-                        current_config[key] = request.form[key]
+                        current_config[key] = form_value
             
             # Save updated config
             save_config(current_config)
@@ -527,7 +535,10 @@ def execute_sql():
         # Get SQL query from POST data
         if request.is_json:
             data = request.get_json()
-            sql_query = data.get('sql_query', '')
+            if data and 'sql_query' in data:
+                sql_query = data.get('sql_query', '')
+            else:
+                sql_query = ''
         else:
             sql_query = request.form.get('sql_query', '')
         
@@ -541,7 +552,7 @@ def execute_sql():
         with db.conn.cursor() as cursor:
             cursor.execute(sql_query)
             
-            if is_select:
+            if is_select and cursor.description:  # Make sure description is not None
                 # For SELECT queries, return the results
                 columns = [desc[0] for desc in cursor.description]
                 results = []
