@@ -265,8 +265,9 @@ class StaticContent(db.Model):
     __tablename__ = 'static_content'
     
     id = db.Column(db.Integer, primary_key=True)
-    content_type = db.Column(db.String(20), nullable=False, unique=True)  # 'about' or 'contact'
+    type = db.Column(db.String(20), nullable=False)  # Column required by the database
     content = db.Column(db.Text, nullable=False)
+    content_type = db.Column(db.String(20), nullable=False, unique=True)  # 'about' or 'contact'
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     def __repr__(self):

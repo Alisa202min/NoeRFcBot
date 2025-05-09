@@ -389,6 +389,7 @@ def create_test_static_content():
     
     # محتوای تماس با ما
     contact_content = StaticContent(
+        type="contact_page",  # مقدار متفاوت برای هر رکورد
         content_type="contact",
         content="""<h2>تماس با ما</h2>
         <p>شما می‌توانید از طریق راه‌های زیر با ما در ارتباط باشید:</p>
@@ -404,6 +405,7 @@ def create_test_static_content():
     
     # محتوای درباره ما
     about_content = StaticContent(
+        type="about_page",  # مقدار متفاوت برای هر رکورد
         content_type="about",
         content="""<h2>درباره ما</h2>
         <p>شرکت ما با بیش از ۱۵ سال سابقه در زمینه تجهیزات مخابراتی و رادیویی، یکی از معتبرترین شرکت‌های ارائه‌دهنده خدمات و محصولات RF در ایران است.</p>
