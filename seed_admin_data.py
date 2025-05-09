@@ -201,8 +201,8 @@ def create_test_services(service_categories):
     services = []
     
     for i, category in enumerate(service_categories):
-        # تعداد خدمات متفاوت برای هر دسته
-        num_services = random.randint(1, 3)
+        # تعداد خدمات متفاوت برای هر دسته - کاهش به ۱ خدمت برای سرعت بیشتر
+        num_services = 1
         
         for j in range(num_services):
             price = random.randint(500000, 10000000)  # قیمت بین ۵۰۰ هزار تا ۱۰ میلیون تومان
@@ -239,8 +239,8 @@ def create_test_media(products, services):
     
     # فایل‌های رسانه برای محصولات
     for product in products:
-        # هر محصول ۱ تا ۳ عکس دارد
-        num_media = random.randint(1, 3)
+        # محدود کردن به ۱ عکس برای هر محصول
+        num_media = 1
         
         for i in range(num_media):
             media = ProductMedia(
@@ -255,8 +255,8 @@ def create_test_media(products, services):
     
     # فایل‌های رسانه برای خدمات
     for service in services:
-        # هر خدمت ۱ تا ۲ عکس دارد
-        num_media = random.randint(1, 2)
+        # محدود کردن به ۱ عکس برای هر خدمت
+        num_media = 1
         
         for i in range(num_media):
             media = ProductMedia(
@@ -284,8 +284,8 @@ def create_test_inquiries(products, services, users):
     
     inquiries = []
     
-    # استعلام برای محصولات
-    for _ in range(15):
+    # استعلام برای محصولات - کاهش تعداد برای سرعت بیشتر
+    for _ in range(5):
         product = random.choice(products)
         user = random.choice(users)
         
@@ -306,8 +306,8 @@ def create_test_inquiries(products, services, users):
         
         inquiries.append(inquiry)
     
-    # استعلام برای خدمات
-    for _ in range(10):
+    # استعلام برای خدمات - کاهش تعداد برای سرعت بیشتر
+    for _ in range(3):
         service = random.choice(services)
         user = random.choice(users)
         
@@ -346,8 +346,8 @@ def create_test_educational_content():
     # دسته‌بندی‌های محتوای آموزشی
     categories = ["آموزش عمومی", "آموزش فنی", "نکات کاربردی", "مقالات تخصصی", "ویدئوهای آموزشی"]
     
-    # محتوای آموزشی متنی
-    for i in range(8):
+    # محتوای آموزشی متنی - کاهش تعداد برای سرعت بیشتر
+    for i in range(3):
         category = random.choice(categories)
         
         days_ago = random.randint(0, 60)
