@@ -30,9 +30,8 @@ from handlers import (
     handle_inquiry,
     handle_search,
     admin_handlers,
-    INQUIRY_NAME, INQUIRY_PHONE, INQUIRY_DESC,
-    ADMIN_EDIT_CAT, ADMIN_EDIT_PRODUCT, ADMIN_EDIT_EDU, ADMIN_EDIT_STATIC,
-    ADMIN_UPLOAD_CSV
+    InquiryForm,
+    SearchForm
 )
 
 # Create data directory if it doesn't exist
@@ -57,18 +56,30 @@ async def main():
     # Admin command
     dp.message.register(admin_handlers.start_admin, Command(commands=["admin"]))
     
-    # Inquiry conversation handlers
+    # Inquiry conversation handlers with state management
     dp.callback_query.register(handle_inquiry.start_inquiry, lambda c: c.data.startswith("inquiry_"))
-    dp.message.register(handle_inquiry.process_name, lambda m: not m.text.startswith('/'))
-    dp.message.register(handle_inquiry.process_phone, lambda m: not m.text.startswith('/'))
-    dp.message.register(handle_inquiry.process_description, lambda m: not m.text.startswith('/'))
-    dp.message.register(handle_inquiry.cancel_inquiry, Command(commands=["cancel"]))
+    
+    # Name state handler - add state filter
+    dp.message.register(handle_inquiry.process_name, InquiryForm.name)
+    
+    # Phone state handler
+    dp.message.register(handle_inquiry.process_phone, InquiryForm.phone)
+    
+    # Description state handler
+    dp.message.register(handle_inquiry.process_description, InquiryForm.description)
+    
+    # Cancel handlers
+    dp.message.register(handle_inquiry.cancel_inquiry_message, Command(commands=["cancel"]))
     dp.callback_query.register(handle_inquiry.cancel_inquiry, lambda c: c.data == "cancel")
     
     # Search conversation handlers
     dp.message.register(handle_search.start_search, lambda m: m.text == "جستجو 🔍")
-    dp.message.register(handle_search.process_search, lambda m: not m.text.startswith('/'))
-    dp.message.register(handle_search.cancel_search, Command(commands=["cancel"]))
+    
+    # Process search query with state filter
+    dp.message.register(handle_search.process_search, SearchForm.query)
+    
+    # Cancel search
+    dp.message.register(handle_search.cancel_search, Command(commands=["cancel"]), SearchForm.query)
     
     # Admin category edit handlers
     dp.callback_query.register(admin_handlers.start_edit_category, lambda c: c.data.startswith("admin_edit_cat_"))
@@ -106,7 +117,7 @@ async def main():
     dp.message.register(admin_handlers.cancel_admin_action, Command(commands=["cancel"]))
     dp.callback_query.register(admin_handlers.cancel_admin_action, lambda c: c.data.startswith("cancel"))
     
-    # General callback query handler for button presses
+    # General callback query handler for button presses (must be registered last)
     dp.callback_query.register(handle_callback_query, lambda c: True)
     
     # Message handler for text messages (must be registered last)
