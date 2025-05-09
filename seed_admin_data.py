@@ -301,6 +301,7 @@ def create_test_inquiries(products, services, users):
             phone=f"09{random.randint(10000000, 99999999)}",
             description=f"استعلام قیمت برای {product.name}. نیاز به {random.randint(1, 10)} دستگاه داریم.",
             status="new",
+            date=created_at,  # اضافه کردن فیلد date که در دیتابیس الزامی است
             created_at=created_at
         )
         
@@ -323,6 +324,7 @@ def create_test_inquiries(products, services, users):
             phone=f"09{random.randint(10000000, 99999999)}",
             description=f"استعلام قیمت برای {service.name}. نیاز به خدمات در منطقه {random.choice(['تهران', 'اصفهان', 'شیراز', 'مشهد'])} داریم.",
             status=random.choice(["new", "in_progress", "completed"]),
+            date=created_at,  # اضافه کردن فیلد date که در دیتابیس الزامی است
             created_at=created_at
         )
         
