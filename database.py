@@ -211,12 +211,15 @@ class Database:
             return False
 
     def add_product(self, name: str, price: int, description: str, 
-                   category_id: int, photo_url: Optional[str] = None) -> int:
+                   category_id: int, photo_url: Optional[str] = None, brand: str = '', 
+                   model: str = '', in_stock: bool = True, tags: str = '', featured: bool = False) -> int:
         """Add a new product"""
         with self.conn.cursor() as cursor:
             cursor.execute(
-                'INSERT INTO products (name, price, description, photo_url, category_id) VALUES (%s, %s, %s, %s, %s) RETURNING id',
-                (name, price, description, photo_url, category_id)
+                '''INSERT INTO products 
+                   (name, price, description, photo_url, category_id, brand, model, in_stock, tags, featured, product_type) 
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id''',
+                (name, price, description, photo_url, category_id, brand, model, in_stock, tags, featured, 'product')
             )
             product_id = cursor.fetchone()[0]
             return product_id

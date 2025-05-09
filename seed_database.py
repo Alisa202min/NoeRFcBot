@@ -54,7 +54,7 @@ def seed_database():
 
 def clear_tables(db):
     """Clear existing data from tables"""
-    with db._conn.cursor() as cur:
+    with db.conn.cursor() as cur:
         # Disable foreign key constraints temporarily
         cur.execute("SET CONSTRAINTS ALL DEFERRED")
         
@@ -69,7 +69,7 @@ def clear_tables(db):
         # Re-enable constraints
         cur.execute("SET CONSTRAINTS ALL IMMEDIATE")
         
-    db._conn.commit()
+    db.conn.commit()
 
 def create_product_categories(db):
     """Create product categories with a hierarchical structure"""
