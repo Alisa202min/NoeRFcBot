@@ -4,6 +4,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from models import User, Category, Product, ProductMedia, Inquiry, EducationalContent, StaticContent
 from werkzeug.utils import secure_filename
 from database import Database
+from sqlalchemy import text
 
 import json
 import os
@@ -660,7 +661,7 @@ def database():
     # Get list of tables
     if db_info['type'] == 'postgresql':
         try:
-            tables = db.session.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public'").fetchall()
+            tables = db.session.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema='public'")).fetchall()
             db_info['tables'] = [table[0] for table in tables]
         except Exception as e:
             flash(f'Error fetching database tables: {str(e)}', 'danger')
@@ -679,14 +680,14 @@ def view_table_data(table_name):
     try:
         # Get total count
         count_query = f"SELECT COUNT(*) FROM {table_name}"
-        total_count = db.session.execute(count_query).scalar()
+        total_count = db.session.execute(text(count_query)).scalar()
         
         # Calculate offset
         offset = (page - 1) * per_page
         
         # Get data with pagination
         data_query = f"SELECT * FROM {table_name} LIMIT {per_page} OFFSET {offset}"
-        rows = db.session.execute(data_query).fetchall()
+        rows = db.session.execute(text(data_query)).fetchall()
         
         # Get column names
         columns_query = f"""
@@ -695,7 +696,7 @@ def view_table_data(table_name):
             WHERE table_name = '{table_name}'
             ORDER BY ordinal_position
         """
-        columns = [col[0] for col in db.session.execute(columns_query).fetchall()]
+        columns = [col[0] for col in db.session.execute(text(columns_query)).fetchall()]
         
         # Format data as list of dicts
         data = []
@@ -733,7 +734,7 @@ def execute_sql():
     
     try:
         # Execute the query
-        result = db.session.execute(sql_query)
+        result = db.session.execute(text(sql_query))
         
         # Check if query returns data
         if result.returns_rows:
@@ -783,7 +784,7 @@ def export_table_csv(table_name):
     try:
         # Get all data
         data_query = f"SELECT * FROM {table_name}"
-        rows = db.session.execute(data_query).fetchall()
+        rows = db.session.execute(text(data_query)).fetchall()
         
         # Get column names
         columns_query = f"""
@@ -792,7 +793,7 @@ def export_table_csv(table_name):
             WHERE table_name = '{table_name}'
             ORDER BY ordinal_position
         """
-        columns = [col[0] for col in db.session.execute(columns_query).fetchall()]
+        columns = [col[0] for col in db.session.execute(text(columns_query)).fetchall()]
         
         # Create CSV in memory
         output = io.StringIO()
