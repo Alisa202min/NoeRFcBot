@@ -11,9 +11,18 @@ from typing import Dict, List, Optional, Any, Union, Tuple
 from aiogram import Bot, Dispatcher, types
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.filters import Command, CommandStart, Text
+from aiogram.filters import Command, CommandStart
+from aiogram.filters import Filter
 from aiogram.enums import ParseMode
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+# Create a Text filter since it's not included in aiogram 3.x
+class Text(Filter):
+    def __init__(self, text: str | list[str]):
+        self.text = [text] if isinstance(text, str) else text
+    
+    async def __call__(self, message: types.Message) -> bool:
+        return message.text in self.text
 
 from configuration import (
     ADMIN_ID, START_TEXT, PRODUCTS_BTN, SERVICES_BTN, INQUIRY_BTN, EDUCATION_BTN, 
