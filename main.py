@@ -730,31 +730,35 @@ def view_table_data(table_name):
     
     try:
         # Get total count
-        count_query = f"SELECT COUNT(*) FROM {table_name}"
-        total_count = db.session.execute(text(count_query)).scalar()
+        count_query = text(f"SELECT COUNT(*) FROM {table_name}")
+        total_count = db.session.execute(count_query).scalar()
         
         # Calculate offset
         offset = (page - 1) * per_page
         
         # Get data with pagination
-        data_query = f"SELECT * FROM {table_name} LIMIT {per_page} OFFSET {offset}"
-        rows = db.session.execute(text(data_query)).fetchall()
+        data_query = text(f"SELECT * FROM {table_name} LIMIT {per_page} OFFSET {offset}")
+        rows = db.session.execute(data_query).fetchall()
         
         # Get column names
-        columns_query = f"""
+        columns_query = text(f"""
             SELECT column_name 
             FROM information_schema.columns 
             WHERE table_name = '{table_name}'
             ORDER BY ordinal_position
-        """
-        columns = [col[0] for col in db.session.execute(text(columns_query)).fetchall()]
+        """)
+        columns = [col[0] for col in db.session.execute(columns_query).fetchall()]
         
         # Format data as list of dicts
         data = []
         for row in rows:
             row_dict = {}
             for i, col in enumerate(columns):
-                row_dict[col] = row[i]
+                value = row[i]
+                # Format datetime objects for display
+                if isinstance(value, datetime):
+                    value = value.strftime('%Y-%m-%d %H:%M:%S')
+                row_dict[col] = value
             data.append(row_dict)
         
         # Generate pagination data
@@ -767,6 +771,9 @@ def view_table_data(table_name):
                               pagination=pagination)
     
     except Exception as e:
+        import traceback
+        app.logger.error(f"View table error: {str(e)}")
+        app.logger.error(traceback.format_exc())
         flash(f'خطا در بازیابی داده‌ها: {str(e)}', 'danger')
         return redirect(url_for('database'))
 
@@ -775,7 +782,12 @@ def view_table_data(table_name):
 @admin_required
 def execute_sql():
     """Execute a SQL query and return results as JSON"""
-    sql_query = request.form.get('sql_query', '')
+    # Handle both form data and JSON requests
+    if request.is_json:
+        data = request.get_json()
+        sql_query = data.get('sql_query', '')
+    else:
+        sql_query = request.form.get('sql_query', '')
     
     if not sql_query:
         return jsonify({
@@ -787,8 +799,8 @@ def execute_sql():
         # Execute the query
         result = db.session.execute(text(sql_query))
         
-        # Check if query returns data
-        if result.returns_rows:
+        # Check if query returns columns (has results)
+        if hasattr(result, 'keys'):
             # Get column names
             columns = result.keys()
             
@@ -807,24 +819,30 @@ def execute_sql():
             db.session.commit()
             return jsonify({
                 'success': True,
-                'columns': columns,
-                'data': data,
+                'results': data,
+                'columns': [str(col) for col in columns],
                 'rowCount': len(data)
             })
         else:
             # For queries that don't return rows (INSERT, UPDATE, etc.)
             db.session.commit()
+            affected_rows = 0
+            if hasattr(result, 'rowcount'):
+                affected_rows = result.rowcount
             return jsonify({
                 'success': True,
                 'message': 'Query executed successfully',
-                'rowCount': result.rowcount
+                'affected_rows': affected_rows
             })
     
     except Exception as e:
+        import traceback
+        app.logger.error(f"SQL execution error: {str(e)}")
+        app.logger.error(traceback.format_exc())
         db.session.rollback()
         return jsonify({
             'success': False,
-            'message': str(e)
+            'error': str(e)
         })
 
 
@@ -834,17 +852,17 @@ def export_table_csv(table_name):
     """Export table data as CSV"""
     try:
         # Get all data
-        data_query = f"SELECT * FROM {table_name}"
-        rows = db.session.execute(text(data_query)).fetchall()
+        data_query = text(f"SELECT * FROM {table_name}")
+        rows = db.session.execute(data_query).fetchall()
         
         # Get column names
-        columns_query = f"""
+        columns_query = text(f"""
             SELECT column_name 
             FROM information_schema.columns 
             WHERE table_name = '{table_name}'
             ORDER BY ordinal_position
-        """
-        columns = [col[0] for col in db.session.execute(text(columns_query)).fetchall()]
+        """)
+        columns = [col[0] for col in db.session.execute(columns_query).fetchall()]
         
         # Create CSV in memory
         output = io.StringIO()
@@ -855,7 +873,14 @@ def export_table_csv(table_name):
         
         # Write data
         for row in rows:
-            writer.writerow(row)
+            row_values = []
+            for value in row:
+                # Handle datetime objects
+                if isinstance(value, datetime):
+                    row_values.append(value.strftime('%Y-%m-%d %H:%M:%S'))
+                else:
+                    row_values.append(value)
+            writer.writerow(row_values)
         
         # Create response
         output.seek(0)
@@ -867,6 +892,9 @@ def export_table_csv(table_name):
         )
     
     except Exception as e:
+        import traceback
+        app.logger.error(f"CSV Export error: {str(e)}")
+        app.logger.error(traceback.format_exc())
         flash(f'خطا در صدور CSV: {str(e)}', 'danger')
         return redirect(url_for('view_table_data', table_name=table_name))
 
