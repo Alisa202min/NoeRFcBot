@@ -310,8 +310,9 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
-                <form id="deleteCategoryForm" action="{{ url_for('admin_delete_category') }}" method="post">
+                <form id="deleteCategoryForm" action="{{ url_for('admin_add_category') }}" method="post">
                     <input type="hidden" id="deleteCategoryId" name="id">
+                    <input type="hidden" name="_action" value="delete">
                     <button type="submit" class="btn btn-danger">حذف</button>
                 </form>
             </div>
@@ -358,7 +359,7 @@
         
         // تنظیم فرم
         const form = document.getElementById('categoryForm');
-        form.action = "{{ url_for('admin_edit_category') }}";
+        form.action = "{{ url_for('admin_add_category') }}";
         document.getElementById('formAction').value = 'edit';
         document.getElementById('categoryId').value = id;
         document.getElementById('categoryName').value = name;
