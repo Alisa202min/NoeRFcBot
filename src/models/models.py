@@ -67,8 +67,8 @@ class Product(db.Model):
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
     photo_url = db.Column(db.String(255), nullable=True)
     
-    # Type field to reuse this table for services as well
-    cat_type = db.Column(db.String(10), default='product')  # product or service
+    # Type field to reuse this table for services as well - match with database column name
+    product_type = db.Column(db.String(20), default='product')  # product or service
     
     # Extended fields for better search
     brand = db.Column(db.String(64), nullable=True)
@@ -76,6 +76,13 @@ class Product(db.Model):
     in_stock = db.Column(db.Boolean, default=True)
     tags = db.Column(db.String(255), nullable=True)
     featured = db.Column(db.Boolean, default=False)
+    
+    # Additional database columns that exist in the schema
+    model_number = db.Column(db.String(100), nullable=True)
+    manufacturer = db.Column(db.String(100), nullable=True)
+    provider = db.Column(db.String(100), nullable=True)
+    service_code = db.Column(db.String(100), nullable=True)
+    duration = db.Column(db.String(100), nullable=True)
     
     # Relationships
     media = db.relationship('ProductMedia', backref='product', lazy='dynamic', cascade='all, delete-orphan')
@@ -137,12 +144,13 @@ class EducationalContent(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(128), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    category = db.Column(db.String(64), nullable=False)
+    category = db.Column(db.Text, nullable=False)
     content_type = db.Column(db.String(20), default='text')  # text, video, link, etc.
+    type = db.Column(db.Text)  # Duplicate of content_type for backward compatibility
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # Note: updated_at is removed as it doesn't exist in the database schema
     
     def __repr__(self):
         return f'<EducationalContent {self.title}>'
@@ -155,9 +163,10 @@ class StaticContent(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     content_type = db.Column(db.String(20), nullable=False, unique=True)  # about, contact, etc.
     content = db.Column(db.Text, nullable=False)
+    type = db.Column(db.Text)  # Duplicate of content_type for backward compatibility
     
     # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # Note: created_at is not in the database schema
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     def __repr__(self):

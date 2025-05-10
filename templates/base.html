@@ -215,7 +215,7 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if active_page == 'admin' %}active{% endif %}" href="{{ url_for('admin_dashboard') }}">
+                <a class="nav-link {% if active_page == 'admin' %}active{% endif %}" href="{{ url_for('admin_index') }}">
                     <i class="bi bi-speedometer2"></i> پنل مدیریت
                 </a>
             </li>
@@ -272,12 +272,12 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if active_page == 'database' %}active{% endif %}" href="{{ url_for('database') }}">
+                        <a class="nav-link {% if active_page == 'database' %}active{% endif %}" href="{{ url_for('index') }}">
                             <i class="bi bi-database"></i> دیتابیس
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if active_page == 'admin' %}active{% endif %}" href="{{ url_for('admin_dashboard') }}">
+                        <a class="nav-link {% if active_page == 'admin' %}active{% endif %}" href="{{ url_for('admin_index') }}">
                             <i class="bi bi-speedometer2"></i> پنل مدیریت
                         </a>
                     </li>
