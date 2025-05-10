@@ -626,6 +626,14 @@ def admin_static_content():
                           about_content=about_content,
                           contact_content=contact_content)
 
+# روت مدیریت محتوا (برای رفع ارور 404)
+@app.route('/admin/content')
+@login_required
+def admin_content():
+    """پنل مدیریت - محتوا"""
+    # این روت به صفحه مدیریت محتوای ثابت ریدایرکت می‌کند
+    return redirect(url_for('admin_static_content'))
+
 # ---- API routes for bot webhook - NO authentication required ----
 @app.route('/api/webhook', methods=['POST'])
 def telegram_webhook():
