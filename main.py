@@ -1,5 +1,5 @@
 from app import app, db, media_files
-from flask import render_template, request, redirect, url_for, flash, jsonify, abort, send_file
+from flask import render_template, request, redirect, url_for, flash, jsonify, abort, send_file, session
 from flask_login import login_user, logout_user, login_required, current_user
 from models import User, Category, Product, ProductMedia, Inquiry, EducationalContent, StaticContent
 from werkzeug.utils import secure_filename
