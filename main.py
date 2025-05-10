@@ -250,8 +250,12 @@ def setup_bot_webhook():
 # Admin authentication decorator
 def admin_required(f):
     @wraps(f)
-    @login_required
     def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            # Store the requested URL for redirecting after login
+            session['next'] = request.url
+            flash('لطفا ابتدا وارد شوید', 'warning')
+            return redirect(url_for('login'))
         if not current_user.is_admin:
             flash('شما دسترسی مدیریتی ندارید', 'danger')
             return redirect(url_for('index'))
@@ -299,7 +303,15 @@ def login():
         
         if user and user.check_password(password):
             login_user(user)
-            next_page = request.args.get('next')
+            # Check if there's a stored 'next' URL in the session
+            next_page = session.get('next')
+            if not next_page:
+                next_page = request.args.get('next')
+            
+            # Clear the session variable
+            if 'next' in session:
+                session.pop('next', None)
+                
             return redirect(next_page or url_for('index'))
         else:
             flash('نام کاربری یا رمز عبور اشتباه است', 'danger')
@@ -902,6 +914,7 @@ def export_table_csv(table_name):
 
 # Product management routes
 @app.route('/admin/products')
+@login_required
 @admin_required
 def admin_products():
     """List all products for admin"""
@@ -920,6 +933,7 @@ def admin_products():
 
 
 @app.route('/admin/services')
+@login_required
 @admin_required
 def admin_services():
     """List all services for admin"""
