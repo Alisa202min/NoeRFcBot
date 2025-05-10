@@ -379,7 +379,7 @@ class TestAdminPanel(unittest.TestCase):
         inquiry = Inquiry.query.first()
         
         # مشاهده جزئیات استعلام
-        response = self.client.get(f'/admin/inquiries/{inquiry.id}')
+        response = self.client.get(f'/admin/inquiries?action=view&id={inquiry.id}')
         self.assertEqual(response.status_code, 200)
         
         # بررسی وجود اطلاعات استعلام در صفحه
@@ -396,7 +396,7 @@ class TestAdminPanel(unittest.TestCase):
         new_status = 'in_progress' if inquiry.status != 'in_progress' else 'completed'
         
         # ارسال فرم به‌روزرسانی وضعیت
-        response = self.client.post(f'/admin/inquiries/{inquiry.id}/status', data={
+        response = self.client.post(f'/admin/inquiries?action=update_status&id={inquiry.id}', data={
             'status': new_status
         }, follow_redirects=True)
         
@@ -428,7 +428,7 @@ class TestAdminPanel(unittest.TestCase):
         contents_count_before = EducationalContent.query.count()
         
         # ارسال فرم افزودن محتوای آموزشی
-        response = self.client.post('/admin/education/add', data={
+        response = self.client.post('/admin/education?action=save', data={
             'title': 'محتوای آموزشی تست',
             'content': '<p>این یک محتوای آموزشی تست است.</p>',
             'category': 'دسته تست',
