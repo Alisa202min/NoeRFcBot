@@ -13,7 +13,11 @@ from .utils import (
 from .utils_upload import (
     handle_media_upload,
     remove_file,
-    serve_file
+    serve_file,
+    UploadSet,
+    configure_uploads,
+    IMAGES,
+    VIDEO
 )
 
 __all__ = [
@@ -24,5 +28,9 @@ __all__ = [
     'save_uploaded_file',
     'handle_media_upload',
     'remove_file',
-    'serve_file'
+    'serve_file',
+    'UploadSet',
+    'configure_uploads',
+    'IMAGES',
+    'VIDEO'
 ]
