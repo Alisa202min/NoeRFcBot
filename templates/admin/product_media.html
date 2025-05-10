@@ -1,6 +1,6 @@
-{% extends 'base.html' %}
+{% extends "admin_layout.html" %}
 
-{% block title %}مدیریت رسانه‌های محصول{% endblock %}
+{% block title %}رسانه‌های محصول: {{ product.name }} - RFCBot{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -8,80 +8,130 @@
         <div class="col-md-12">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">خانه</a></li>
-                    <li class="breadcrumb-item"><a href="{{ url_for('admin_products') }}">مدیریت محصولات</a></li>
-                    <li class="breadcrumb-item"><a href="{{ url_for('edit_product', product_id=product.id) }}">ویرایش محصول</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">مدیریت رسانه‌ها</li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_index') }}">داشبورد ادمین</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_products') }}">محصولات</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">رسانه‌های محصول: {{ product.name }}</li>
                 </ol>
             </nav>
             
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">مدیریت رسانه‌های محصول: {{ product.name }}</h5>
-                    <a href="{{ url_for('add_product_media', product_id=product.id) }}" class="btn btn-sm btn-light">
-                        <i class="bi bi-plus-circle"></i> افزودن رسانه جدید
+                    <h5 class="card-title mb-0">رسانه‌های محصول: {{ product.name }}</h5>
+                    <a href="{{ url_for('admin_products') }}" class="btn btn-sm btn-light">
+                        <i class="bi bi-arrow-left"></i> بازگشت به لیست محصولات
                     </a>
                 </div>
                 <div class="card-body">
-                    {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                    <div class="messages">
-                        {% for category, message in messages %}
-                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                    {% endwith %}
-                    
-                    {% if media|length == 0 %}
-                    <div class="alert alert-info mb-0">
-                        این محصول هیچ رسانه‌ای ندارد. <a href="{{ url_for('add_product_media', product_id=product.id) }}">افزودن رسانه</a>
-                    </div>
-                    {% else %}
-                    <div class="row">
-                        {% for item in media %}
-                        <div class="col-md-4 col-sm-6 mb-4">
-                            <div class="card h-100">
-                                <div class="card-body text-center">
-                                    <div class="media-preview mb-3">
-                                        {% if item.file_type == 'photo' %}
-                                        <img src="{{ url_for('static', filename=item.local_path) }}" alt="تصویر محصول" class="img-fluid" style="max-height: 200px;">
-                                        {% else %}
-                                        <div class="video-container bg-dark d-flex align-items-center justify-content-center" style="height: 200px;">
-                                            <a href="{{ url_for('static', filename=item.local_path) }}" target="_blank" class="text-decoration-none">
-                                                <i class="bi bi-play-circle-fill text-white" style="font-size: 3rem;"></i>
-                                                <div class="text-white mt-2">مشاهده ویدیو</div>
-                                            </a>
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <span class="badge bg-{{ 'primary' if item.file_type == 'photo' else 'danger' }}">
-                                            {{ 'تصویر' if item.file_type == 'photo' else 'ویدیو' }}
-                                        </span>
-                                        <form method="POST" action="{{ url_for('delete_product_media', product_id=product.id, media_id=item.id) }}" class="d-inline">
-                                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('آیا از حذف این رسانه مطمئن هستید؟');">
-                                                <i class="bi bi-trash"></i> حذف
-                                            </button>
-                                        </form>
-                                    </div>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>تصویر اصلی محصول</h6>
+                            {% if product.photo_url %}
+                            <div class="card mb-3">
+                                <img src="{{ url_for('static', filename=product.photo_url) }}" class="card-img-top product-img-preview" alt="{{ product.name }}">
+                                <div class="card-body">
+                                    <p class="card-text">
+                                        <small class="text-muted">{{ product.photo_url }}</small>
+                                    </p>
                                 </div>
-                                <div class="card-footer bg-light">
-                                    <small class="text-muted">شناسه تلگرام: {{ item.file_id|truncate(15) }}</small>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info">
+                                تصویر اصلی تنظیم نشده است. لطفاً از صفحه ویرایش محصول، تصویر اصلی را آپلود کنید.
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <h6>ویدیوی محصول</h6>
+                            {% if product.video_url %}
+                            <div class="card mb-3">
+                                <div class="ratio ratio-16x9">
+                                    <video controls>
+                                        <source src="{{ url_for('static', filename=product.video_url) }}" type="video/mp4">
+                                        مرورگر شما از پخش ویدیو پشتیبانی نمی‌کند.
+                                    </video>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text">
+                                        <small class="text-muted">{{ product.video_url }}</small>
+                                    </p>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info">
+                                ویدیویی تنظیم نشده است.
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <h6>رسانه‌های اضافی</h6>
+                    <form method="post" action="{{ url_for('admin_products') }}?action=upload_media" enctype="multipart/form-data">
+                        <input type="hidden" name="product_id" value="{{ product.id }}">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="file" class="form-label">افزودن فایل جدید</label>
+                                    <input type="file" class="form-control" id="file" name="file" required>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="file_type" class="form-label">نوع فایل</label>
+                                    <select class="form-select" id="file_type" name="file_type">
+                                        <option value="photo">تصویر</option>
+                                        <option value="video">ویدیو</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-upload"></i> آپلود فایل
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    
+                    <div class="row">
+                        {% if media|length > 0 %}
+                        {% for item in media %}
+                        <div class="col-md-3 mb-4">
+                            <div class="card h-100">
+                                {% if item.file_type == 'photo' %}
+                                <img src="{{ url_for('telegram_file', file_id=item.file_id) }}" class="card-img-top product-img-preview" alt="تصویر محصول">
+                                {% elif item.file_type == 'video' %}
+                                <div class="ratio ratio-16x9">
+                                    <video controls>
+                                        <source src="{{ url_for('telegram_file', file_id=item.file_id) }}" type="video/mp4">
+                                        مرورگر شما از پخش ویدیو پشتیبانی نمی‌کند.
+                                    </video>
+                                </div>
+                                {% endif %}
+                                <div class="card-body">
+                                    <p class="card-text">
+                                        <small class="text-muted">نوع: {{ item.file_type }}</small><br>
+                                        <small class="text-muted">شناسه فایل: {{ item.file_id[:10] }}...</small>
+                                    </p>
+                                </div>
+                                <div class="card-footer">
+                                    <form method="post" action="{{ url_for('admin_products') }}?action=delete_media">
+                                        <input type="hidden" name="media_id" value="{{ item.id }}">
+                                        <input type="hidden" name="product_id" value="{{ product.id }}">
+                                        <button type="submit" class="btn btn-sm btn-danger w-100">
+                                            <i class="bi bi-trash"></i> حذف
+                                        </button>
+                                    </form>
                                 </div>
                             </div>
                         </div>
                         {% endfor %}
+                        {% else %}
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                هیچ رسانه اضافی برای این محصول وجود ندارد.
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
-                    {% endif %}
-                </div>
-                <div class="card-footer">
-                    <a href="{{ url_for('edit_product', product_id=product.id) }}" class="btn btn-secondary">
-                        <i class="bi bi-arrow-left"></i> بازگشت به ویرایش محصول
-                    </a>
                 </div>
             </div>
         </div>
