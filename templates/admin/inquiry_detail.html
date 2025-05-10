@@ -1,0 +1,220 @@
+{% extends 'admin_layout.html' %}
+
+{% block title %}جزئیات استعلام قیمت{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_index') }}">داشبورد ادمین</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_inquiries') }}">استعلام‌های قیمت</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">استعلام #{{ inquiry.id }}</li>
+                </ol>
+            </nav>
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="messages mb-4">
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+            
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-chat-quote"></i> جزئیات استعلام قیمت
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <h6 class="fw-bold">شناسه استعلام:</h6>
+                                    <p>{{ inquiry.id }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="fw-bold">تاریخ ثبت:</h6>
+                                    <p>{{ inquiry.created_at.strftime('%Y-%m-%d %H:%M') if inquiry.created_at else '-' }}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <h6 class="fw-bold">نام مشتری:</h6>
+                                    <p>{{ inquiry.name }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="fw-bold">شماره تماس:</h6>
+                                    <p>{{ inquiry.phone }}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <h6 class="fw-bold">نوع استعلام:</h6>
+                                    <p>
+                                        {% if inquiry.product_type == 'product' %}
+                                            <span class="badge bg-primary">محصول</span>
+                                        {% elif inquiry.product_type == 'service' %}
+                                            <span class="badge bg-success">خدمت</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">عمومی</span>
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="fw-bold">وضعیت:</h6>
+                                    <p>
+                                        {% if inquiry.status == 'pending' %}
+                                            <span class="badge bg-warning">در انتظار بررسی</span>
+                                        {% elif inquiry.status == 'in_progress' %}
+                                            <span class="badge bg-info">در حال بررسی</span>
+                                        {% elif inquiry.status == 'completed' %}
+                                            <span class="badge bg-success">تکمیل شده</span>
+                                        {% elif inquiry.status == 'cancelled' %}
+                                            <span class="badge bg-danger">لغو شده</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">نامشخص</span>
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-4">
+                                <div class="col-md-12">
+                                    <h6 class="fw-bold">توضیحات استعلام:</h6>
+                                    <div class="p-3 bg-light rounded">
+                                        {{ inquiry.description|nl2br|safe }}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {% if product %}
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h6 class="mb-0">محصول/خدمت مرتبط</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            {% if product.photo_url %}
+                                            <img src="{{ product.photo_url }}" class="img-fluid img-thumbnail" alt="{{ product.name }}">
+                                            {% else %}
+                                            <div class="bg-light p-4 text-center">
+                                                <i class="bi bi-image fs-1"></i>
+                                                <p class="mt-2">بدون تصویر</p>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-8">
+                                            <h5>{{ product.name }}</h5>
+                                            <p class="text-muted">
+                                                {% if inquiry.product_type == 'product' %}
+                                                <a href="{{ url_for('admin_products') }}?action=edit&id={{ product.id }}" class="text-decoration-none">
+                                                    مشاهده محصول
+                                                </a>
+                                                {% else %}
+                                                <a href="{{ url_for('admin_services') }}?action=edit&id={{ product.id }}" class="text-decoration-none">
+                                                    مشاهده خدمت
+                                                </a>
+                                                {% endif %}
+                                            </p>
+                                            <p><strong>قیمت:</strong> {{ "{:,}".format(product.price) }} تومان</p>
+                                            <p><strong>توضیحات:</strong> {{ product.description|truncate(200) }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <!-- بخش تغییر وضعیت استعلام -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-arrow-repeat"></i> تغییر وضعیت
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="post" action="{{ url_for('admin_inquiries') }}?action=update_status&id={{ inquiry.id }}">
+                                <div class="mb-3">
+                                    <label for="status" class="form-label">وضعیت استعلام</label>
+                                    <select class="form-select" id="status" name="status">
+                                        <option value="pending" {% if inquiry.status == 'pending' %}selected{% endif %}>در انتظار بررسی</option>
+                                        <option value="in_progress" {% if inquiry.status == 'in_progress' %}selected{% endif %}>در حال بررسی</option>
+                                        <option value="completed" {% if inquiry.status == 'completed' %}selected{% endif %}>تکمیل شده</option>
+                                        <option value="cancelled" {% if inquiry.status == 'cancelled' %}selected{% endif %}>لغو شده</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-check-lg"></i> ذخیره تغییرات
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- بخش عملیات -->
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-gear"></i> عملیات
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <a href="{{ url_for('admin_inquiries') }}" class="btn btn-outline-secondary w-100 mb-2">
+                                <i class="bi bi-arrow-left"></i> بازگشت به لیست استعلام‌ها
+                            </a>
+                            <button type="button" class="btn btn-outline-danger w-100" onclick="confirmDelete({{ inquiry.id }})">
+                                <i class="bi bi-trash"></i> حذف این استعلام
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal حذف استعلام -->
+<div class="modal fade" id="deleteInquiryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">تایید حذف استعلام</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>آیا از حذف این استعلام اطمینان دارید؟ این عملیات قابل بازگشت نیست.</p>
+            </div>
+            <div class="modal-footer">
+                <form id="deleteInquiryForm" method="post" action="{{ url_for('admin_inquiries') }}?action=delete&id={{ inquiry.id }}">
+                    <input type="hidden" name="_method" value="delete">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
+                    <button type="submit" class="btn btn-danger">حذف</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function confirmDelete(inquiryId) {
+        const modal = new bootstrap.Modal(document.getElementById('deleteInquiryModal'));
+        modal.show();
+    }
+</script>
+{% endblock %}
