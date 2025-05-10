@@ -1,0 +1,127 @@
+{% extends "admin_layout.html" %}
+
+{% block title %}پنل مدیریت - RFCBot{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-4">
+                <i class="bi bi-speedometer2"></i> داشبورد پنل مدیریت
+            </h2>
+            
+            <!-- آمار سیستم -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card text-center mb-3">
+                        <div class="card-body">
+                            <h1>{{ product_count }}</h1>
+                            <p class="card-text">محصولات</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center mb-3">
+                        <div class="card-body">
+                            <h1>{{ service_count }}</h1>
+                            <p class="card-text">خدمات</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center mb-3">
+                        <div class="card-body">
+                            <h1>{{ category_count }}</h1>
+                            <p class="card-text">دسته‌بندی‌ها</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center mb-3">
+                        <div class="card-body">
+                            <h1>{{ inquiry_count }}</h1>
+                            <p class="card-text">استعلام‌ها</p>
+                            <p><span class="badge bg-warning">{{ pending_count }} در انتظار</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- استعلام‌های اخیر -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-chat-text"></i> استعلام‌های اخیر
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_inquiries %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>نام</th>
+                                    <th>تلفن</th>
+                                    <th>توضیحات</th>
+                                    <th>وضعیت</th>
+                                    <th>تاریخ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for inquiry in recent_inquiries %}
+                                <tr>
+                                    <td>{{ inquiry.name }}</td>
+                                    <td>{{ inquiry.phone }}</td>
+                                    <td>{{ inquiry.description|truncate(30) }}</td>
+                                    <td>
+                                        {% if inquiry.status == 'pending' %}
+                                        <span class="badge bg-warning">در انتظار</span>
+                                        {% elif inquiry.status == 'responded' %}
+                                        <span class="badge bg-info">پاسخ داده شده</span>
+                                        {% elif inquiry.status == 'completed' %}
+                                        <span class="badge bg-success">تکمیل شده</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ inquiry.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if inquiry.created_at %}
+                                            {{ inquiry.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                        {% else %}
+                                            --
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <a href="{{ url_for('admin_inquiries') }}" class="btn btn-primary">مشاهده همه استعلام‌ها</a>
+                    {% else %}
+                    <p class="text-muted">هیچ استعلامی موجود نیست.</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- دکمه‌های میانبر -->
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <a href="{{ url_for('admin_products') }}" class="btn btn-primary btn-lg w-100">
+                        <i class="bi bi-box"></i> مدیریت محصولات
+                    </a>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <a href="{{ url_for('admin_services') }}" class="btn btn-success btn-lg w-100">
+                        <i class="bi bi-tools"></i> مدیریت خدمات
+                    </a>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <a href="{{ url_for('admin_categories') }}" class="btn btn-info btn-lg w-100">
+                        <i class="bi bi-folder"></i> مدیریت دسته‌بندی‌ها
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
