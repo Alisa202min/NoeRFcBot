@@ -823,6 +823,33 @@ def execute_sql():
         logger.error(f"Error executing SQL: {e}")
         return jsonify({'error': str(e)})
 
+# ----- Bot Configuration Routes -----
+
+@app.route('/configuration', methods=['GET', 'POST'])
+@login_required
+def configuration_page():
+    """صفحه تنظیمات ربات"""
+    try:
+        from configuration import load_config, save_config
+        
+        if request.method == 'POST':
+            config = load_config()
+            
+            # به‌روزرسانی تنظیمات
+            for key in request.form:
+                if key in config:
+                    config[key] = request.form[key]
+            
+            save_config(config)
+            flash('تنظیمات با موفقیت به‌روزرسانی شد.', 'success')
+        
+        config = load_config()
+        return render_template('configuration.html', config=config, active_page='admin')
+    except Exception as e:
+        logger.error(f"Error in configuration page: {e}")
+        flash('خطا در بارگذاری تنظیمات: ' + str(e), 'danger')
+        return redirect(url_for('admin_index'))
+
 # ----- Bot Control Routes -----
 
 @app.route('/logs')
