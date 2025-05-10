@@ -67,57 +67,61 @@ def check_database():
 
 def check_api_routes():
     """بررسی مسیرهای API"""
-    client = app.test_client()
+    import requests
+    
+    base_url = "http://localhost:5000"
     
     print("\n=== بررسی API دسته‌بندی‌ها ===")
-    response = client.get('/api/categories?type=product')
+    response = requests.get(f"{base_url}/api/categories?type=product")
     print(f"وضعیت پاسخ: {response.status_code}")
-    print(f"محتوای پاسخ: {response.data[:100]}...")
+    print(f"محتوای پاسخ: {response.text[:100]}...")
     
     print("\n=== بررسی API محصولات ===")
-    response = client.get('/api/products')
+    response = requests.get(f"{base_url}/api/products")
     print(f"وضعیت پاسخ: {response.status_code}")
-    print(f"محتوای پاسخ: {response.data[:100]}...")
+    print(f"محتوای پاسخ: {response.text[:100]}...")
     
     print("\n=== بررسی API خدمات ===")
-    response = client.get('/api/services')
+    response = requests.get(f"{base_url}/api/services")
     print(f"وضعیت پاسخ: {response.status_code}")
-    print(f"محتوای پاسخ: {response.data[:100]}...")
+    print(f"محتوای پاسخ: {response.text[:100]}...")
     
     print("\n=== بررسی API محتوای آموزشی ===")
-    response = client.get('/api/educational')
+    response = requests.get(f"{base_url}/api/educational")
     print(f"وضعیت پاسخ: {response.status_code}")
-    print(f"محتوای پاسخ: {response.data[:100]}...")
+    print(f"محتوای پاسخ: {response.text[:100]}...")
 
 def check_web_routes():
     """بررسی مسیرهای وب‌سایت"""
-    client = app.test_client()
+    import requests
+    
+    base_url = "http://localhost:5000"
     
     print("\n=== بررسی صفحه اصلی ===")
-    response = client.get('/')
+    response = requests.get(f"{base_url}/")
     print(f"وضعیت پاسخ: {response.status_code}")
-    print(f"طول پاسخ: {len(response.data)} بایت")
+    print(f"طول پاسخ: {len(response.text)} بایت")
     
     print("\n=== بررسی صفحه محصولات ===")
-    response = client.get('/products')
+    response = requests.get(f"{base_url}/products")
     print(f"وضعیت پاسخ: {response.status_code}")
-    print(f"طول پاسخ: {len(response.data)} بایت")
+    print(f"طول پاسخ: {len(response.text)} بایت")
     
     print("\n=== بررسی صفحه خدمات ===")
-    response = client.get('/services')
+    response = requests.get(f"{base_url}/services")
     print(f"وضعیت پاسخ: {response.status_code}")
-    print(f"طول پاسخ: {len(response.data)} بایت")
+    print(f"طول پاسخ: {len(response.text)} بایت")
     
     print("\n=== بررسی صفحه ورود ادمین ===")
-    response = client.get('/admin/login')
+    response = requests.get(f"{base_url}/admin/login")
     print(f"وضعیت پاسخ: {response.status_code}")
-    print(f"طول پاسخ: {len(response.data)} بایت")
+    print(f"طول پاسخ: {len(response.text)} بایت")
     
     # تست درخواست پنل ادمین بدون لاگین
     print("\n=== بررسی دسترسی به پنل ادمین بدون لاگین ===")
-    response = client.get('/admin/')
+    response = requests.get(f"{base_url}/admin/", allow_redirects=False)
     print(f"وضعیت پاسخ: {response.status_code}")
-    print(f"آدرس ریدایرکت: {response.location}" if response.status_code == 302 else "بدون ریدایرکت")
+    print(f"آدرس ریدایرکت: {response.headers.get('Location')}" if response.status_code in [301, 302, 303, 307, 308] else "بدون ریدایرکت")
 
 def main():
     """تابع اصلی"""
