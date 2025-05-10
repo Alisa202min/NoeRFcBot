@@ -169,8 +169,8 @@ def logout():
 def admin_index():
     """پنل مدیریت - داشبورد"""
     # آمار سیستم
-    product_count = Product.query.filter_by(cat_type='product').count()
-    service_count = Product.query.filter_by(cat_type='service').count()
+    product_count = Product.query.count()
+    service_count = Service.query.count()
     category_count = Category.query.count()
     inquiry_count = Inquiry.query.count()
     pending_count = Inquiry.query.filter_by(status='pending').count()
@@ -209,8 +209,7 @@ def build_category_tree(categories, parent_id=None):
             tree.append({
                 'id': category.id,
                 'name': category.name,
-                'children': children,
-                'cat_type': category.cat_type
+                'children': children
             })
     return tree
 
@@ -220,7 +219,6 @@ def admin_add_category():
     """اضافه کردن دسته‌بندی جدید"""
     name = request.form.get('name')
     parent_id = request.form.get('parent_id')
-    cat_type = request.form.get('cat_type', 'product')
     
     # تبدیل parent_id به None اگر خالی باشد
     if parent_id and parent_id != '':
@@ -228,7 +226,7 @@ def admin_add_category():
     else:
         parent_id = None
     
-    category = Category(name=name, parent_id=parent_id, cat_type=cat_type)
+    category = Category(name=name, parent_id=parent_id)
     db.session.add(category)
     db.session.commit()
     
@@ -242,8 +240,8 @@ def admin_add_category():
 @login_required
 def admin_products():
     """پنل مدیریت - محصولات"""
-    products = Product.query.filter_by(cat_type='product').all()
-    categories = Category.query.filter_by(cat_type='product').all()
+    products = Product.query.all()
+    categories = Category.query.all()
     
     return render_template('admin/products.html', 
                           products=products,
@@ -254,8 +252,8 @@ def admin_products():
 @login_required
 def admin_services():
     """پنل مدیریت - خدمات"""
-    services = Product.query.filter_by(cat_type='service').all()
-    categories = Category.query.filter_by(cat_type='service').all()
+    services = Service.query.all()
+    categories = Category.query.all()
     
     return render_template('admin/services.html', 
                           services=services,
