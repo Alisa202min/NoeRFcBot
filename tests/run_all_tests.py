@@ -100,6 +100,10 @@ def main():
         ("db_test.py", "تست دیتابیس"),
         ("simple_handlers_test.py", "تست ساده handlers"),
         ("comprehensive_test.py", "تست جامع سیستم"),
+        ("test_admin_panel.py", "تست پنل ادمین"),
+        ("test_system.py", "تست وب اپلیکیشن"),
+        ("test_telegram_bot.py", "تست کامل ربات تلگرام"),
+        ("test_inquiry_system.py", "تست سیستم استعلام قیمت"),
     ]
     
     # نتایج اجرای تست‌ها
