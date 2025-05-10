@@ -1635,12 +1635,14 @@ def logs():
                 
             return render_template('logs.html', 
                                  logs=bot_logs,
+                                 datetime=datetime,
                                  active_page='logs')
         except Exception as e:
             logger.error(f"Error reading log file for HTML view: {e}")
             bot_logs = [f'خطا در خواندن فایل لاگ: {str(e)}']
             return render_template('logs.html',
                                  logs=bot_logs,
+                                 datetime=datetime,
                                  active_page='logs')
     except Exception as e:
         logger.error(f"Error in logs route: {e}")
