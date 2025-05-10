@@ -10,7 +10,7 @@ from flask import render_template, request, redirect, url_for, flash, session, j
 from flask_login import login_user, logout_user, login_required, current_user
 
 from src.web.app import app, db, media_files
-from src.models.models import User, Category, Product, Service, ProductMedia, ServiceMedia, Inquiry, EducationalContent, StaticContent
+from src.models.models import User, Category, Product, ProductMedia, Inquiry, EducationalContent, StaticContent
 from src.utils.utils import allowed_file, save_uploaded_file, create_directory
 from src.utils.utils_upload import handle_media_upload, remove_file, serve_file
 
@@ -22,9 +22,9 @@ logger = logging.getLogger(__name__)
 def index():
     """صفحه اصلی"""
     try:
-        # اکنون محصولات و خدمات در جدول‌های مجزا هستند
-        products = Product.query.filter_by(featured=True).limit(6).all()
-        services = Service.query.limit(6).all()
+        # محصولات و خدمات در جدول products ذخیره می‌شوند
+        products = Product.query.filter_by(product_type='product', featured=True).limit(6).all()
+        services = Product.query.filter_by(product_type='service').limit(6).all()
         
         # برای اطمینان، اگر محتوا وجود نداشت از یک لیست خالی استفاده می‌کنیم
         if not products:
@@ -172,8 +172,8 @@ def admin_index():
     """پنل مدیریت - داشبورد"""
     try:
         # آمار سیستم
-        product_count = Product.query.count()
-        service_count = Service.query.count()
+        product_count = Product.query.filter_by(product_type='product').count()
+        service_count = Product.query.filter_by(product_type='service').count()
         category_count = Category.query.count()
         inquiry_count = Inquiry.query.count()
         pending_count = Inquiry.query.filter_by(status='pending').count()
@@ -333,22 +333,22 @@ def admin_services():
                               title="افزودن خدمت جدید",
                               categories=categories)
     elif action == 'edit' and service_id:
-        service = Service.query.get_or_404(int(service_id))
+        service = Product.query.filter_by(product_type='service', id=int(service_id)).first_or_404()
         categories = Category.query.filter_by(cat_type='service').all()
         return render_template('admin/service_form.html',
                               title="ویرایش خدمت",
                               service=service,
                               categories=categories)
     elif action == 'media' and service_id:
-        service = Service.query.get_or_404(int(service_id))
-        media = ServiceMedia.query.filter_by(service_id=service.id).all()
+        service = Product.query.filter_by(product_type='service', id=int(service_id)).first_or_404()
+        media = ProductMedia.query.filter_by(product_id=service.id).all()
         return render_template('admin/service_media.html',
                               service=service,
                               media=media)
     
     # نمایش لیست خدمات
     page = request.args.get('page', 1, type=int)
-    pagination = Service.query.paginate(
+    pagination = Product.query.filter_by(product_type='service').paginate(
         page=page, per_page=10, error_out=False)
     categories = Category.query.all()
     
@@ -858,8 +858,8 @@ def services():
     try:
         category_id = request.args.get('category', type=int)
         
-        # دریافت خدمات
-        query = Service.query
+        # دریافت خدمات (در واقع محصولات با نوع service)
+        query = Product.query.filter_by(product_type='service')
         if category_id:
             query = query.filter_by(category_id=category_id)
         services_list = query.all()
