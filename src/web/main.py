@@ -619,10 +619,11 @@ def admin_static_content():
     about = StaticContent.query.filter_by(content_type='about').first()
     contact = StaticContent.query.filter_by(content_type='contact').first()
     
-    about_content = about.content if about else ''
-    contact_content = contact.content if contact else ''
+    # اگر محتوا وجود نداشته باشد، یک شیء خالی ایجاد می‌کنیم
+    about_content = about if about else {'content_type': 'about', 'content': ''}
+    contact_content = contact if contact else {'content_type': 'contact', 'content': ''}
     
-    return render_template('admin/static_content.html', 
+    return render_template('admin_content.html', 
                           about_content=about_content,
                           contact_content=contact_content)
 
@@ -632,6 +633,39 @@ def admin_static_content():
 def admin_content():
     """پنل مدیریت - محتوا"""
     # این روت به صفحه مدیریت محتوای ثابت ریدایرکت می‌کند
+    return redirect(url_for('admin_static_content'))
+
+# روت به‌روزرسانی محتوای ثابت
+@app.route('/admin/update-static-content', methods=['POST'])
+@login_required
+def admin_update_static_content():
+    """به‌روزرسانی محتوای ثابت (درباره ما / تماس با ما)"""
+    try:
+        content_type = request.form.get('content_type')
+        content_text = request.form.get('content')
+        
+        if not content_type or content_type not in ['about', 'contact']:
+            flash('نوع محتوا نامعتبر است.', 'danger')
+            return redirect(url_for('admin_static_content'))
+        
+        # دریافت رکورد موجود یا ایجاد یکی جدید
+        content = StaticContent.query.filter_by(content_type=content_type).first()
+        if not content:
+            content = StaticContent()
+            content.content_type = content_type
+            
+        content.content = content_text
+        content.updated_at = datetime.datetime.now()
+        
+        db.session.add(content)
+        db.session.commit()
+        
+        flash(f'محتوای {content_type} با موفقیت به‌روزرسانی شد.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating static content: {e}")
+        flash(f'خطا در به‌روزرسانی محتوا: {str(e)}', 'danger')
+    
     return redirect(url_for('admin_static_content'))
 
 # ---- API routes for bot webhook - NO authentication required ----
