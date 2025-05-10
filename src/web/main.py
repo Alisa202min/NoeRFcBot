@@ -377,12 +377,18 @@ def admin_products():
                               title="ویرایش محصول",
                               product=product,
                               categories=categories)
-    elif action == 'media' and product_id:
+    elif action == 'media':
+        if not product_id:
+            # اگر شناسه محصول وجود نداشت، خطا نمایش داده می‌شود
+            flash('شناسه محصول الزامی است.', 'danger')
+            return redirect(url_for('admin_products'))
+            
         product = Product.query.get_or_404(int(product_id))
         media = ProductMedia.query.filter_by(product_id=product.id).all()
         return render_template('admin/product_media.html',
                               product=product,
-                              media=media)
+                              media=media,
+                              active_page='products')
     
     # نمایش لیست محصولات
     products = Product.query.all()
