@@ -169,7 +169,7 @@ class Inquiry(db.Model):
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # Note: updated_at is removed as it doesn't exist in the database schema
     
     # Relationships
     user = db.relationship('User', backref='inquiries')
