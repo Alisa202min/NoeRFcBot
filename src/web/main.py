@@ -268,6 +268,30 @@ def admin_add_category():
 @login_required
 def admin_products():
     """پنل مدیریت - محصولات"""
+    action = request.args.get('action')
+    product_id = request.args.get('id')
+    
+    # اگر action برابر با 'add' یا 'edit' باشد، فرم نمایش داده می‌شود
+    if action == 'add':
+        categories = Category.query.filter_by(cat_type='product').all()
+        return render_template('admin/product_form.html',
+                              title="افزودن محصول جدید",
+                              categories=categories)
+    elif action == 'edit' and product_id:
+        product = Product.query.get_or_404(int(product_id))
+        categories = Category.query.filter_by(cat_type='product').all()
+        return render_template('admin/product_form.html',
+                              title="ویرایش محصول",
+                              product=product,
+                              categories=categories)
+    elif action == 'media' and product_id:
+        product = Product.query.get_or_404(int(product_id))
+        media = ProductMedia.query.filter_by(product_id=product.id).all()
+        return render_template('admin/product_media.html',
+                              product=product,
+                              media=media)
+    
+    # نمایش لیست محصولات
     products = Product.query.all()
     categories = Category.query.all()
     
