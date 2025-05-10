@@ -6,7 +6,7 @@
 import os
 import logging
 import datetime
-from flask import render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory
+from flask import render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory, Response
 from flask_login import login_user, logout_user, login_required, current_user
 
 from src.web.app import app, db, media_files
@@ -717,7 +717,7 @@ def api_services():
         featured = request.args.get('featured', type=bool)
         
         # فیلتر بر اساس پارامترهای ورودی
-        query = Service.query
+        query = Product.query.filter_by(product_type='service')
         
         if category_id:
             query = query.filter_by(category_id=category_id)
@@ -1186,6 +1186,169 @@ def view_table_data(table_name):
     except Exception as e:
         logger.error(f"Error in view table data route: {e}")
         return render_template('500.html'), 500
+
+@app.route('/admin/import_export')
+@login_required
+def admin_import_export():
+    """پنل مدیریت - ورود و خروج داده‌ها"""
+    message = session.pop('import_export_message', None)
+    return render_template('admin_import_export.html', 
+                          message=message,
+                          active_page='import_export')
+
+@app.route('/admin/export/<entity_type>')
+@login_required
+def export_entity(entity_type):
+    """خروجی داده‌ها به فرمت CSV"""
+    import csv
+    from io import StringIO
+    
+    # مپ کردن نوع داده به مدل
+    entity_map = {
+        'products': Product.query.filter_by(product_type='product'),
+        'services': Product.query.filter_by(product_type='service'),
+        'categories': Category.query,
+        'inquiries': Inquiry.query,
+        'educational': EducationalContent.query,
+    }
+    
+    if entity_type not in entity_map:
+        flash(f'نوع داده {entity_type} معتبر نیست.', 'danger')
+        return redirect(url_for('admin_import_export'))
+    
+    # ایجاد فایل CSV در حافظه
+    output = StringIO()
+    writer = csv.writer(output)
+    
+    # دریافت داده‌ها
+    query = entity_map[entity_type]
+    items = query.all()
+    
+    if not items:
+        flash(f'داده‌ای برای {entity_type} یافت نشد.', 'warning')
+        return redirect(url_for('admin_import_export'))
+    
+    # نوشتن هدر بر اساس نام ستون‌ها
+    sample_item = items[0]
+    headers = [c.name for c in sample_item.__table__.columns if c.name != 'id']
+    writer.writerow(headers)
+    
+    # نوشتن داده‌ها
+    for item in items:
+        row = [getattr(item, header) for header in headers]
+        writer.writerow(row)
+    
+    # تنظیم پاسخ HTTP
+    output.seek(0)
+    response = Response(output.getvalue(), mimetype='text/csv')
+    response.headers.set('Content-Disposition', f'attachment; filename={entity_type}.csv')
+    
+    return response
+
+@app.route('/admin/import', methods=['POST'])
+@login_required
+def import_entity():
+    """ورود داده‌ها از فایل CSV"""
+    try:
+        entity_type = request.form.get('entity_type')
+        if not entity_type:
+            flash('لطفا نوع داده را انتخاب کنید.', 'danger')
+            return redirect(url_for('admin_import_export'))
+            
+        # بررسی فایل
+        if 'csv_file' not in request.files:
+            flash('لطفا یک فایل CSV انتخاب کنید.', 'danger')
+            return redirect(url_for('admin_import_export'))
+            
+        file = request.files['csv_file']
+        if file.filename == '':
+            flash('فایلی انتخاب نشده است.', 'danger')
+            return redirect(url_for('admin_import_export'))
+            
+        if not file.filename.endswith('.csv'):
+            flash('فایل باید فرمت CSV داشته باشد.', 'danger')
+            return redirect(url_for('admin_import_export'))
+        
+        # پردازش فایل CSV
+        import csv
+        from io import StringIO
+        
+        content = file.read().decode('utf-8')
+        csv_data = StringIO(content)
+        reader = csv.DictReader(csv_data)
+        
+        # تعداد رکوردهای وارد شده
+        imported_count = 0
+        
+        # پردازش بر اساس نوع داده
+        for row in reader:
+            if entity_type == 'products':
+                item = Product(
+                    name=row.get('name', ''),
+                    price=int(row.get('price', 0)),
+                    description=row.get('description', ''),
+                    category_id=int(row.get('category_id', 0)),
+                    product_type='product',
+                    photo_url=row.get('photo_url', None)
+                )
+                db.session.add(item)
+                imported_count += 1
+                
+            elif entity_type == 'services':
+                item = Product(
+                    name=row.get('name', ''),
+                    price=int(row.get('price', 0)),
+                    description=row.get('description', ''),
+                    category_id=int(row.get('category_id', 0)),
+                    product_type='service',
+                    photo_url=row.get('photo_url', None)
+                )
+                db.session.add(item)
+                imported_count += 1
+                
+            elif entity_type == 'categories':
+                item = Category(
+                    name=row.get('name', ''),
+                    parent_id=int(row.get('parent_id', 0)) if row.get('parent_id') else None,
+                    cat_type=row.get('cat_type', 'product')
+                )
+                db.session.add(item)
+                imported_count += 1
+                
+            elif entity_type == 'educational':
+                item = EducationalContent(
+                    title=row.get('title', ''),
+                    content=row.get('content', ''),
+                    category=row.get('category', ''),
+                    content_type=row.get('content_type', 'general')
+                )
+                db.session.add(item)
+                imported_count += 1
+        
+        # ذخیره تغییرات
+        db.session.commit()
+        
+        flash(f'{imported_count} مورد با موفقیت وارد شد.', 'success')
+        return redirect(url_for('admin_import_export'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'خطا در وارد کردن داده‌ها: {str(e)}', 'danger')
+        return redirect(url_for('admin_import_export'))
+
+@app.route('/admin/backup')
+@login_required
+def backup_database():
+    """تهیه پشتیبان از دیتابیس"""
+    flash('این ویژگی هنوز پیاده‌سازی نشده است.', 'warning')
+    return redirect(url_for('admin_import_export'))
+    
+@app.route('/admin/restore', methods=['POST'])
+@login_required
+def restore_database():
+    """بازیابی دیتابیس از فایل پشتیبان"""
+    flash('این ویژگی هنوز پیاده‌سازی نشده است.', 'warning')
+    return redirect(url_for('admin_import_export'))
 
 @app.route('/admin/database/export/<table_name>', methods=['POST'])
 @login_required
