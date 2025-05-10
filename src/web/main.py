@@ -216,9 +216,25 @@ def build_category_tree(categories, parent_id=None):
 @app.route('/admin/categories/add', methods=['POST'])
 @login_required
 def admin_add_category():
-    """اضافه کردن دسته‌بندی جدید"""
+    """اضافه کردن، ویرایش یا حذف دسته‌بندی"""
+    # بررسی نوع عملیات
+    action = request.form.get('_action', 'add')
+    
+    if action == 'delete':
+        # حذف دسته‌بندی
+        category_id = request.form.get('id')
+        if category_id:
+            category = Category.query.get_or_404(int(category_id))
+            name = category.name
+            db.session.delete(category)
+            db.session.commit()
+            flash(f'دسته‌بندی {name} با موفقیت حذف شد.', 'success')
+        return redirect(url_for('admin_categories'))
+    
+    # دریافت پارامترهای مشترک برای اضافه کردن و ویرایش
     name = request.form.get('name')
     parent_id = request.form.get('parent_id')
+    cat_type = request.form.get('cat_type', 'product')
     
     # تبدیل parent_id به None اگر خالی باشد
     if parent_id and parent_id != '':
@@ -226,11 +242,23 @@ def admin_add_category():
     else:
         parent_id = None
     
-    category = Category(name=name, parent_id=parent_id)
-    db.session.add(category)
-    db.session.commit()
-    
-    flash(f'دسته‌بندی {name} با موفقیت اضافه شد.', 'success')
+    if action == 'edit':
+        # ویرایش دسته‌بندی موجود
+        category_id = request.form.get('id')
+        if category_id:
+            category = Category.query.get_or_404(int(category_id))
+            category.name = name
+            category.parent_id = parent_id
+            category.cat_type = cat_type
+            db.session.commit()
+            flash(f'دسته‌بندی {name} با موفقیت ویرایش شد.', 'success')
+    else:
+        # اضافه کردن دسته‌بندی جدید
+        category = Category(name=name, parent_id=parent_id, cat_type=cat_type)
+        db.session.add(category)
+        db.session.commit()
+        flash(f'دسته‌بندی {name} با موفقیت اضافه شد.', 'success')
+        
     return redirect(url_for('admin_categories'))
 
 # ... Routes for products, services, inquiries, etc. ...
