@@ -386,10 +386,8 @@ def admin_inquiries():
         # اطلاعات محصول/خدمت مرتبط
         product = None
         if inquiry.product_id:
-            if inquiry.product_type == 'product':
-                product = Product.query.get(inquiry.product_id)
-            elif inquiry.product_type == 'service':
-                product = Service.query.get(inquiry.product_id)
+            # تمام محصولات و خدمات در جدول Product ذخیره می‌شوند
+            product = Product.query.get(inquiry.product_id)
         
         return render_template('admin/inquiry_detail.html',
                              inquiry=inquiry,
