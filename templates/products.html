@@ -1,0 +1,143 @@
+{% extends "layout.html" %}
+
+{% block title %}محصولات{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">محصولات</h1>
+    
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    دسته‌بندی‌ها
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <a href="{{ url_for('products') }}" class="list-group-item list-group-item-action {% if not selected_category %}active{% endif %}">
+                            همه محصولات
+                        </a>
+                        
+                        {% for category in categories %}
+                        <a href="{{ url_for('products', category=category.id) }}" class="list-group-item list-group-item-action {% if selected_category == category.id %}active{% endif %}">
+                            {{ category.name }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-9">
+            <div class="row">
+                {% if products %}
+                    {% for product in products %}
+                    <div class="col-md-4 mb-4">
+                        <div class="card h-100">
+                            {% if product.photo_url %}
+                            <img src="{{ product.photo_url }}" class="card-img-top product-img" alt="{{ product.name }}">
+                            {% else %}
+                            <div class="card-img-top product-img bg-light text-center">
+                                <i class="bi bi-image" style="font-size: 4rem; line-height: 200px;"></i>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="card-body">
+                                <h5 class="card-title">{{ product.name }}</h5>
+                                <p class="card-text text-muted small">{{ product.description|truncate(100) }}</p>
+                                <p class="card-text">
+                                    <span class="badge bg-primary">{{ "{:,}".format(product.price) }} تومان</span>
+                                    {% if product.in_stock %}
+                                    <span class="badge bg-success">موجود</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">ناموجود</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <div class="card-footer">
+                                <button class="btn btn-sm btn-primary inquiry-btn" data-product-id="{{ product.id }}" data-product-name="{{ product.name }}">
+                                    <i class="bi bi-chat-dots"></i> استعلام قیمت
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        محصولی یافت نشد
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- مودال استعلام قیمت -->
+<div class="modal fade" id="inquiryModal" tabindex="-1" aria-labelledby="inquiryModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="inquiryModalLabel">استعلام قیمت محصول</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="inquiryForm" method="post" action="/submit-inquiry">
+                    <input type="hidden" id="product_id" name="product_id">
+                    <input type="hidden" name="product_type" value="product">
+                    
+                    <div class="mb-3">
+                        <label for="product_name" class="form-label">نام محصول</label>
+                        <input type="text" class="form-control" id="product_name" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="name" class="form-label">نام شما</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">شماره تماس</label>
+                        <input type="text" class="form-control" id="phone" name="phone" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">توضیحات</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
+                <button type="button" class="btn btn-primary" id="submitInquiry">ارسال درخواست</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // برای تمام دکمه‌های استعلام قیمت
+        document.querySelectorAll('.inquiry-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const productId = this.getAttribute('data-product-id');
+                const productName = this.getAttribute('data-product-name');
+                
+                document.getElementById('product_id').value = productId;
+                document.getElementById('product_name').value = productName;
+                
+                const modal = new bootstrap.Modal(document.getElementById('inquiryModal'));
+                modal.show();
+            });
+        });
+        
+        // ارسال فرم استعلام
+        document.getElementById('submitInquiry').addEventListener('click', function() {
+            document.getElementById('inquiryForm').submit();
+        });
+    });
+</script>
+{% endblock %}
