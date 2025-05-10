@@ -209,7 +209,8 @@ def build_category_tree(categories, parent_id=None):
             tree.append({
                 'id': category.id,
                 'name': category.name,
-                'children': children
+                'children': children,
+                'cat_type': category.cat_type
             })
     return tree
 
