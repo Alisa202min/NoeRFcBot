@@ -1,173 +1,178 @@
-{% extends "layout.html" %}
-{% set active_page = 'configuration' %}
+{% extends 'admin_layout.html' %}
+
+{% block title %}تنظیمات ربات{% endblock %}
 
 {% block content %}
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h4>پیکربندی ربات</h4>
-        <div>
-            <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#defaultConfigModal">
-                <i class="bi bi-arrow-counterclockwise"></i> بازگشت به تنظیمات پیش‌فرض
-            </button>
-        </div>
-    </div>
-    <div class="card-body">
-        <ul class="nav nav-tabs" id="configTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="form-tab" data-bs-toggle="tab" data-bs-target="#form" type="button">نمای فرم</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="raw-tab" data-bs-toggle="tab" data-bs-target="#raw" type="button">نمای JSON</button>
-            </li>
-        </ul>
-
-        <div class="tab-content mt-3" id="configTabContent">
-            <!-- Form View -->
-            <div class="tab-pane fade show active" id="form" role="tabpanel">
-                <form method="post" action="{{ url_for('update_config') }}" class="config-form">
-                    <input type="hidden" name="view_type" value="form">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">BOT_TOKEN</label>
-                                <div class="input-group">
-                                    <input type="password" class="form-control" name="BOT_TOKEN" value="{{ config.BOT_TOKEN }}" id="botTokenInput">
-                                    <button class="btn btn-outline-secondary" type="button" id="toggleBotToken">
-                                        <i class="bi bi-eye"></i>
-                                    </button>
-                                </div>
-                                <small class="form-text text-muted">توکن ربات تلگرام (از @BotFather دریافت می‌شود)</small>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">ADMIN_ID</label>
-                                <input type="number" class="form-control" name="ADMIN_ID" value="{{ config.ADMIN_ID }}">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">DB_TYPE</label>
-                                <select class="form-select" name="DB_TYPE">
-                                    <option value="sqlite" {% if config.DB_TYPE == 'sqlite' %}selected{% endif %}>SQLite</option>
-                                    <option value="replit" {% if config.DB_TYPE == 'replit' %}selected{% endif %}>Replit DB</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <h5 class="mb-3 mt-4">پیشوندها</h5>
-                    <div class="row">
-                        {% for key, value in config.items() if '_PREFIX' in key %}
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label class="form-label">{{ key }}</label>
-                                <input type="text" class="form-control" name="{{ key }}" value="{{ value }}">
-                            </div>
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_index') }}">داشبورد ادمین</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">تنظیمات ربات</li>
+                </ol>
+            </nav>
+            
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-gear"></i> تنظیمات ربات
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                    <div class="messages mb-4">
+                        {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                         </div>
                         {% endfor %}
                     </div>
-
-                    <h5 class="mb-3 mt-4">متن دکمه‌ها</h5>
-                    <div class="row">
-                        {% for key, value in config.items() if '_BTN' in key %}
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label class="form-label">{{ key }}</label>
-                                <input type="text" class="form-control" name="{{ key }}" value="{{ value }}">
+                    {% endif %}
+                    {% endwith %}
+                    
+                    <form method="post">
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <h5>تنظیمات اصلی</h5>
+                                <hr>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="PRODUCTS_BTN" class="form-label">دکمه محصولات</label>
+                                <input type="text" class="form-control" id="PRODUCTS_BTN" name="PRODUCTS_BTN" value="{{ config.PRODUCTS_BTN }}">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="SERVICES_BTN" class="form-label">دکمه خدمات</label>
+                                <input type="text" class="form-control" id="SERVICES_BTN" name="SERVICES_BTN" value="{{ config.SERVICES_BTN }}">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="INQUIRY_BTN" class="form-label">دکمه استعلام قیمت</label>
+                                <input type="text" class="form-control" id="INQUIRY_BTN" name="INQUIRY_BTN" value="{{ config.INQUIRY_BTN }}">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="EDUCATION_BTN" class="form-label">دکمه مطالب آموزشی</label>
+                                <input type="text" class="form-control" id="EDUCATION_BTN" name="EDUCATION_BTN" value="{{ config.EDUCATION_BTN }}">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="CONTACT_BTN" class="form-label">دکمه تماس با ما</label>
+                                <input type="text" class="form-control" id="CONTACT_BTN" name="CONTACT_BTN" value="{{ config.CONTACT_BTN }}">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="ABOUT_BTN" class="form-label">دکمه درباره ما</label>
+                                <input type="text" class="form-control" id="ABOUT_BTN" name="ABOUT_BTN" value="{{ config.ABOUT_BTN }}">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="BACK_BTN" class="form-label">دکمه بازگشت</label>
+                                <input type="text" class="form-control" id="BACK_BTN" name="BACK_BTN" value="{{ config.BACK_BTN }}">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="SEARCH_BTN" class="form-label">دکمه جستجو</label>
+                                <input type="text" class="form-control" id="SEARCH_BTN" name="SEARCH_BTN" value="{{ config.SEARCH_BTN }}">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="ADMIN_BTN" class="form-label">دکمه پنل ادمین</label>
+                                <input type="text" class="form-control" id="ADMIN_BTN" name="ADMIN_BTN" value="{{ config.ADMIN_BTN }}">
+                            </div>
+                            
+                            <div class="col-md-12 mt-3">
+                                <h5>متن‌های پیش‌فرض</h5>
+                                <hr>
+                            </div>
+                            
+                            <div class="col-md-12 mb-3">
+                                <label for="START_TEXT" class="form-label">متن شروع</label>
+                                <textarea class="form-control" id="START_TEXT" name="START_TEXT" rows="10">{{ config.START_TEXT }}</textarea>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="NOT_FOUND_TEXT" class="form-label">متن یافت نشد</label>
+                                <input type="text" class="form-control" id="NOT_FOUND_TEXT" name="NOT_FOUND_TEXT" value="{{ config.NOT_FOUND_TEXT }}">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="ERROR_MESSAGE" class="form-label">پیام خطا</label>
+                                <input type="text" class="form-control" id="ERROR_MESSAGE" name="ERROR_MESSAGE" value="{{ config.ERROR_MESSAGE }}">
+                            </div>
+                            
+                            <div class="col-md-12 mb-3">
+                                <label for="CONTACT_DEFAULT" class="form-label">متن پیش‌فرض تماس با ما</label>
+                                <textarea class="form-control" id="CONTACT_DEFAULT" name="CONTACT_DEFAULT" rows="3">{{ config.CONTACT_DEFAULT }}</textarea>
+                            </div>
+                            
+                            <div class="col-md-12 mb-3">
+                                <label for="ABOUT_DEFAULT" class="form-label">متن پیش‌فرض درباره ما</label>
+                                <textarea class="form-control" id="ABOUT_DEFAULT" name="ABOUT_DEFAULT" rows="3">{{ config.ABOUT_DEFAULT }}</textarea>
+                            </div>
+                            
+                            <div class="col-md-12 mt-3">
+                                <h5>تنظیمات استعلام قیمت</h5>
+                                <hr>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="INQUIRY_START" class="form-label">متن شروع استعلام</label>
+                                <input type="text" class="form-control" id="INQUIRY_START" name="INQUIRY_START" value="{{ config.INQUIRY_START }}">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="INQUIRY_PHONE" class="form-label">درخواست شماره تماس</label>
+                                <input type="text" class="form-control" id="INQUIRY_PHONE" name="INQUIRY_PHONE" value="{{ config.INQUIRY_PHONE }}">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="INQUIRY_DESC" class="form-label">درخواست توضیحات</label>
+                                <input type="text" class="form-control" id="INQUIRY_DESC" name="INQUIRY_DESC" value="{{ config.INQUIRY_DESC }}">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="INQUIRY_COMPLETE" class="form-label">پیام تکمیل استعلام</label>
+                                <input type="text" class="form-control" id="INQUIRY_COMPLETE" name="INQUIRY_COMPLETE" value="{{ config.INQUIRY_COMPLETE }}">
+                            </div>
+                            
+                            <div class="col-md-12 mt-3">
+                                <h5>تنظیمات پنل ادمین</h5>
+                                <hr>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="ADMIN_WELCOME" class="form-label">پیام خوش‌آمدگویی ادمین</label>
+                                <input type="text" class="form-control" id="ADMIN_WELCOME" name="ADMIN_WELCOME" value="{{ config.ADMIN_WELCOME }}">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="ADMIN_ACCESS_DENIED" class="form-label">پیام عدم دسترسی</label>
+                                <input type="text" class="form-control" id="ADMIN_ACCESS_DENIED" name="ADMIN_ACCESS_DENIED" value="{{ config.ADMIN_ACCESS_DENIED }}">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="SEARCH_PROMPT" class="form-label">درخواست جستجو</label>
+                                <input type="text" class="form-control" id="SEARCH_PROMPT" name="SEARCH_PROMPT" value="{{ config.SEARCH_PROMPT }}">
                             </div>
                         </div>
-                        {% endfor %}
-                    </div>
-
-                    <h5 class="mb-3 mt-4">متن‌های پیام‌ها</h5>
-                    <div class="row">
-                        {% for key, value in config.items() if '_TEXT' in key or 'DEFAULT' in key or 'START' in key or 'PHONE' in key or 'DESC' in key or 'COMPLETE' in key or 'WELCOME' in key or 'DENIED' in key or 'PROMPT' in key %}
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">{{ key }}</label>
-                                <textarea class="form-control" name="{{ key }}" rows="3">{{ value }}</textarea>
-                            </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('admin_index') }}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> بازگشت به داشبورد
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> ذخیره تنظیمات
+                            </button>
                         </div>
-                        {% endfor %}
-                    </div>
-
-                    <div class="mt-4">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-save"></i> ذخیره تنظیمات
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            <!-- Raw JSON View -->
-            <div class="tab-pane fade" id="raw" role="tabpanel">
-                <form method="post" action="{{ url_for('update_config') }}">
-                    <input type="hidden" name="view_type" value="raw">
-                    <div class="mb-3">
-                        <textarea class="form-control" name="raw_config" rows="20">{{ config_json }}</textarea>
-                    </div>
-                    <div class="mt-4">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-save"></i> ذخیره تنظیمات
-                        </button>
-                    </div>
-                </form>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
 </div>
-
-<!-- Modal for Default Config -->
-<div class="modal fade" id="defaultConfigModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">بازگشت به تنظیمات پیش‌فرض</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>آیا مطمئن هستید که می‌خواهید تنظیمات را به حالت پیش‌فرض برگردانید؟</p>
-                <p class="text-danger">این عمل غیرقابل بازگشت است!</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
-                <button type="button" class="btn btn-warning" onclick="resetToDefault()">بازگشت به پیش‌فرض</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-{% block scripts %}
-<script>
-function resetToDefault() {
-    if(confirm('آیا از بازگشت به تنظیمات پیش‌فرض اطمینان دارید؟')) {
-        fetch('/config/reset', {
-            method: 'POST',
-        }).then(response => {
-            if(response.ok) {
-                location.reload();
-            } else {
-                alert('خطا در بازگشت به تنظیمات پیش‌فرض.');
-            }
-        });
-    }
-}
-
-// Toggle BOT_TOKEN visibility
-document.addEventListener('DOMContentLoaded', function() {
-    const tokenInput = document.getElementById('botTokenInput');
-    const toggleBtn = document.getElementById('toggleBotToken');
-    const toggleIcon = toggleBtn.querySelector('i');
-    
-    toggleBtn.addEventListener('click', function() {
-        if (tokenInput.type === 'password') {
-            tokenInput.type = 'text';
-            toggleIcon.classList.remove('bi-eye');
-            toggleIcon.classList.add('bi-eye-slash');
-        } else {
-            tokenInput.type = 'password';
-            toggleIcon.classList.remove('bi-eye-slash');
-            toggleIcon.classList.add('bi-eye');
-        }
-    });
-});
-</script>
-{% endblock %}
 {% endblock %}

@@ -1,0 +1,215 @@
+{% extends 'admin_layout.html' %}
+
+{% block title %}مدیریت محتوای آموزشی{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_index') }}">داشبورد ادمین</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">مدیریت محتوای آموزشی</li>
+                </ol>
+            </nav>
+            
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">لیست محتوای آموزشی</h5>
+                    <a href="{{ url_for('admin_education') }}?action=add" class="btn btn-sm btn-light">
+                        <i class="bi bi-plus-circle"></i> افزودن محتوای جدید
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                    <div class="messages mb-4">
+                        {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+                    
+                    <!-- فیلتر محتوا -->
+                    <div class="row mb-4">
+                        <div class="col-md-8">
+                            <form class="d-flex" method="get">
+                                <div class="input-group">
+                                    <select class="form-select" name="category" style="max-width: 200px;">
+                                        <option value="">همه دسته‌بندی‌ها</option>
+                                        {% for cat in categories %}
+                                        <option value="{{ cat }}" {% if request.args.get('category') == cat %}selected{% endif %}>{{ cat }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <input type="text" class="form-control" placeholder="جستجو..." name="q" value="{{ request.args.get('q', '') }}">
+                                    <button class="btn btn-outline-primary" type="submit">
+                                        <i class="bi bi-search"></i> جستجو
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <div class="col-md-4 text-end">
+                            <div class="btn-group">
+                                <a href="{{ url_for('admin_education') }}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-funnel"></i> حذف فیلترها
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if educational_content|length == 0 %}
+                    <div class="alert alert-info mb-0">
+                        هیچ محتوای آموزشی یافت نشد. <a href="{{ url_for('admin_education') }}?action=add">افزودن محتوای جدید</a>
+                    </div>
+                    {% else %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th scope="col" width="80">#</th>
+                                    <th scope="col">عنوان</th>
+                                    <th scope="col">دسته‌بندی</th>
+                                    <th scope="col">نوع محتوا</th>
+                                    <th scope="col">تاریخ ایجاد</th>
+                                    <th scope="col" width="180">عملیات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for content in educational_content %}
+                                <tr>
+                                    <td>{{ content.id }}</td>
+                                    <td>{{ content.title }}</td>
+                                    <td>
+                                        <span class="badge bg-info">{{ content.category }}</span>
+                                    </td>
+                                    <td>
+                                        {% if content.content_type == 'text' %}
+                                        <span class="badge bg-primary">متن</span>
+                                        {% elif content.content_type == 'video' %}
+                                        <span class="badge bg-danger">ویدیو</span>
+                                        {% elif content.content_type == 'image' %}
+                                        <span class="badge bg-success">تصویر</span>
+                                        {% elif content.content_type == 'file' %}
+                                        <span class="badge bg-warning">فایل</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">نامشخص</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ content.created_at.strftime('%Y-%m-%d %H:%M') if content.created_at else '-' }}</td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('admin_education') }}?action=edit&id={{ content.id }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-pencil"></i> ویرایش
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmDelete({{ content.id }}, '{{ content.title }}')">
+                                                <i class="bi bi-trash"></i> حذف
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    {% if pagination and pagination.pages > 1 %}
+                    <nav aria-label="Page navigation" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if pagination.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin_education', page=pagination.prev_num, category=request.args.get('category', ''), q=request.args.get('q', '')) }}" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                                {% if page_num %}
+                                    {% if page_num == pagination.page %}
+                                    <li class="page-item active">
+                                        <a class="page-link" href="{{ url_for('admin_education', page=page_num, category=request.args.get('category', ''), q=request.args.get('q', '')) }}">{{ page_num }}</a>
+                                    </li>
+                                    {% else %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('admin_education', page=page_num, category=request.args.get('category', ''), q=request.args.get('q', '')) }}">{{ page_num }}</a>
+                                    </li>
+                                    {% endif %}
+                                {% else %}
+                                <li class="page-item disabled">
+                                    <a class="page-link" href="#">...</a>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if pagination.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin_education', page=pagination.next_num, category=request.args.get('category', ''), q=request.args.get('q', '')) }}" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal حذف محتوا -->
+<div class="modal fade" id="deleteContentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">تایید حذف محتوا</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>آیا از حذف محتوای <span id="contentTitle" class="fw-bold"></span> اطمینان دارید؟</p>
+                <p class="text-danger">این عملیات قابل بازگشت نیست.</p>
+            </div>
+            <div class="modal-footer">
+                <form id="deleteContentForm" method="post" action="">
+                    <input type="hidden" name="_method" value="delete">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
+                    <button type="submit" class="btn btn-danger">حذف</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function confirmDelete(contentId, title) {
+        document.getElementById('contentTitle').textContent = title;
+        
+        const form = document.getElementById('deleteContentForm');
+        form.action = "{{ url_for('admin_education') }}?action=delete&id=" + contentId;
+        
+        const modal = new bootstrap.Modal(document.getElementById('deleteContentModal'));
+        modal.show();
+    }
+</script>
+{% endblock %}
