@@ -5,6 +5,7 @@
 
 import os
 import logging
+import datetime
 from flask import render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory
 from flask_login import login_user, logout_user, login_required, current_user
 
@@ -169,23 +170,39 @@ def logout():
 @login_required
 def admin_index():
     """پنل مدیریت - داشبورد"""
-    # آمار سیستم
-    product_count = Product.query.count()
-    service_count = Service.query.count()
-    category_count = Category.query.count()
-    inquiry_count = Inquiry.query.count()
-    pending_count = Inquiry.query.filter_by(status='pending').count()
-    
-    # استعلام‌های اخیر
-    recent_inquiries = Inquiry.query.order_by(Inquiry.created_at.desc()).limit(5).all()
-    
-    return render_template('admin/index.html', 
-                          product_count=product_count,
-                          service_count=service_count,
-                          category_count=category_count,
-                          inquiry_count=inquiry_count,
-                          pending_count=pending_count,
-                          recent_inquiries=recent_inquiries)
+    try:
+        # آمار سیستم
+        product_count = Product.query.count()
+        service_count = Service.query.count()
+        category_count = Category.query.count()
+        inquiry_count = Inquiry.query.count()
+        pending_count = Inquiry.query.filter_by(status='pending').count()
+        
+        # استعلام‌های اخیر
+        recent_inquiries = Inquiry.query.order_by(Inquiry.created_at.desc()).limit(5).all()
+        
+        # Add missing parameters required by the template
+        now = datetime.datetime.now()
+        
+        app.logger.debug("Admin index page data loaded successfully")
+        return render_template('admin/index.html', 
+                            product_count=product_count,
+                            service_count=service_count,
+                            category_count=category_count,
+                            inquiry_count=inquiry_count,
+                            pending_count=pending_count,
+                            recent_inquiries=recent_inquiries,
+                            now=now)
+                            
+    except Exception as e:
+        app.logger.error(f"Error in admin_index: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
+        
+        # Return a simple error page rather than crashing
+        return render_template('error.html', 
+                            error=str(e),
+                            traceback=traceback.format_exc())
 
 @app.route('/admin/categories')
 @login_required
