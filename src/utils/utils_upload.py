@@ -1,175 +1,121 @@
 """
-Flask-Uploads extension modified to work with newer Werkzeug versions.
-This fixes the "ImportError: cannot import name 'secure_filename' from 'werkzeug'" error.
+توابع کمکی برای آپلود، مدیریت و نمایش فایل‌ها
 """
 
 import os
-import posixpath
-from flask import Blueprint, Flask, current_app, request, abort, send_from_directory
+import logging
+from typing import Tuple, List, Dict, Optional
 from werkzeug.utils import secure_filename
-from werkzeug.datastructures import FileStorage
+from flask import current_app, send_from_directory
+# Flask-Uploads with modifications for Flask 2.x
+from flask_uploads import UploadSet, IMAGES, VIDEO, configure_uploads
 
-# This check ensures that the code will work with any versions
-try:
-    from werkzeug import FileStorage  # For compatibility with older Flask-Uploads
-except ImportError:
-    pass  # Already imported from werkzeug.datastructures
+# Allowed media types
+ALLOWED_MEDIA_TYPES = ['photo', 'video']
 
-class UploadNotAllowed(Exception):
-    """Exception raised if the upload is not allowed."""
-    pass
+# Configure logging
+logger = logging.getLogger(__name__)
 
-class UploadSet:
-    """This represents a set of uploads as defined by the user."""
-    def __init__(self, name, extensions=None, default_dest=None):
-        self.name = name
-        self.extensions = extensions
-        self.default_dest = default_dest
-
-    def file_allowed(self, storage, basename=None):
-        """
-        Check if a file is allowed based on extension.
-        """
-        if basename is None:
-            basename = storage.filename
-        return self.extension_allowed(extension(basename))
-
-    def extension_allowed(self, ext):
-        """
-        Check if an extension is allowed.
-        """
-        return (self.extensions is None or
-                ext.lower() in self.extensions)
-
-    def get_basename(self, filename):
-        """
-        Returns the basename for the provided filename.
-        """
-        return secure_filename(filename)
-
-    def save(self, storage, folder=None, name=None):
-        """
-        Save a storage to disk.
-        """
-        if not isinstance(storage, FileStorage):
-            raise TypeError("storage must be a werkzeug.FileStorage")
-
-        if not self.file_allowed(storage):
-            raise UploadNotAllowed()
-
-        if name is not None:
-            basename = name
-            if '.' not in basename:
-                basename = '%s.%s' % (basename, extension(storage.filename))
+def handle_media_upload(file, directory: str, file_type: str = 'photo', 
+                       custom_filename: Optional[str] = None) -> Tuple[bool, Optional[str]]:
+    """
+    Handle media file upload (photos/videos)
+    
+    Args:
+        file: The uploaded file object
+        directory: Upload directory
+        file_type: Type of media (photo/video)
+        custom_filename: Optional custom filename
+        
+    Returns:
+        (success, file_path) tuple
+    """
+    try:
+        # Check if file exists and is allowed
+        if not file or not allowed_media_type(file, file_type):
+            logger.warning(f"Invalid file or file type: {file}")
+            return False, None
+        
+        # Ensure directory exists
+        os.makedirs(directory, exist_ok=True)
+        
+        # Use custom filename or secure the original
+        if custom_filename:
+            filename = secure_filename(custom_filename)
+            # Make sure extension is preserved
+            if '.' in file.filename:
+                ext = file.filename.rsplit('.', 1)[1].lower()
+                if not filename.endswith(f".{ext}"):
+                    filename = f"{filename}.{ext}"
         else:
-            basename = self.get_basename(storage.filename)
-
-        if not basename:
-            raise ValueError("Invalid filename: %s" % storage.filename)
-
-        target_folder = self.get_path(folder)
-        if not os.path.exists(target_folder):
-            os.makedirs(target_folder)
-
-        target = os.path.join(target_folder, basename)
-        storage.save(target)
-        return basename
-
-    def get_path(self, folder=None):
-        """
-        Get the absolute path for this upload set.
-        """
-        if folder is None:
-            folder = self.default_dest
+            filename = secure_filename(file.filename)
         
-        config = current_app.config
+        # Create full file path
+        file_path = os.path.join(directory, filename)
         
-        if folder:
-            return os.path.join(config.get('UPLOADS_DEFAULT_DEST'), folder)
+        # Save the file
+        file.save(file_path)
         
-        return config.get('UPLOADS_DEFAULT_DEST')
+        logger.info(f"File uploaded successfully: {file_path}")
+        return True, file_path
+    except Exception as e:
+        logger.error(f"Error in file upload: {e}")
+        return False, None
 
-    def url(self, filename):
-        """
-        Get the URL for a given filename.
-        """
-        folder = self.default_dest
-        if folder is None:
-            raise RuntimeError("No default folder specified for %r" % self)
-        
-        path = posixpath.normpath(posixpath.join(folder, filename))
-        return path
-
-
-# Common extensions
-TEXT = ('txt',)
-DOCUMENTS = tuple('rtf odf ods gnumeric abw doc docx xls xlsx'.split())
-IMAGES = tuple('jpg jpe jpeg png gif svg bmp webp'.split())
-AUDIO = tuple('wav mp3 aac ogg oga flac'.split())
-DATA = tuple('csv ini json plist xml yaml yml'.split())
-SCRIPTS = tuple('js php pl py rb sh'.split())
-ARCHIVES = tuple('gz bz2 zip tar tgz txz 7z'.split())
-EXECUTABLES = tuple('so exe dll'.split())
-VIDEO = tuple('mp4 webm'.split())
-
-# All available extension sets
-DEFAULTS = {
-    'text': TEXT,
-    'documents': DOCUMENTS,
-    'images': IMAGES,
-    'audio': AUDIO,
-    'data': DATA,
-    'scripts': SCRIPTS,
-    'archives': ARCHIVES,
-    'executables': EXECUTABLES,
-    'video': VIDEO
-}
-
-
-def configure_uploads(app, upload_sets):
+def allowed_media_type(file, file_type: str) -> bool:
     """
-    Configure the upload sets for an application.
-    """
-    if isinstance(upload_sets, UploadSet):
-        upload_sets = (upload_sets,)
-
-    if not hasattr(app, 'upload_set_config'):
-        app.upload_set_config = {}
+    Check if file is allowed for the given media type
     
-    for uset in upload_sets:
-        config_prefix = 'UPLOADED_%s_' % uset.name.upper()
-        dest = os.path.join(app.config.get('UPLOADS_DEFAULT_DEST', 'uploads'),
-                           uset.name)
-        app.config.setdefault(config_prefix + 'DEST', dest)
+    Args:
+        file: The file to check
+        file_type: Type of media (photo/video)
         
-        try:
-            uset.default_dest = app.config[config_prefix + 'DEST']
-        except KeyError:
-            pass
+    Returns:
+        True if file is allowed, False otherwise
+    """
+    if not file or not file.filename or '.' not in file.filename:
+        return False
     
-    return app
+    extension = file.filename.rsplit('.', 1)[1].lower()
+    
+    if file_type == 'photo':
+        return extension in ['jpg', 'jpeg', 'png', 'gif']
+    elif file_type == 'video':
+        return extension in ['mp4', 'mov', 'avi']
+    
+    return False
 
+def remove_file(file_path: str) -> bool:
+    """
+    Remove a file from the filesystem
+    
+    Args:
+        file_path: Path to the file to remove
+        
+    Returns:
+        True if file was removed, False otherwise
+    """
+    try:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            logger.info(f"File removed: {file_path}")
+            return True
+        else:
+            logger.warning(f"File not found: {file_path}")
+            return False
+    except Exception as e:
+        logger.error(f"Error removing file: {e}")
+        return False
 
-def extension(filename):
+def serve_file(directory: str, filename: str):
     """
-    Get the extension of a file.
+    Serve a file from a directory
+    
+    Args:
+        directory: Directory containing the file
+        filename: Name of the file to serve
+        
+    Returns:
+        Flask response with the file
     """
-    return filename.rsplit('.', 1)[-1] if '.' in filename else ''
-
-
-def addslash(url):
-    """
-    Add a trailing slash to a URL.
-    """
-    if url.endswith('/'):
-        return url
-    return url + '/'
-
-
-def patch_request_class(app, size=None):
-    """
-    Patch the request class to set the max size (not implemented).
-    """
-    if size is not None:
-        app.config['MAX_CONTENT_LENGTH'] = size
-    return app
+    return send_from_directory(directory, filename)

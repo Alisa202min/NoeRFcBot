@@ -1,3 +1,8 @@
+"""
+ماژول اصلی بات تلگرام
+این ماژول رابط اتصال به API تلگرام و تنظیمات بات را فراهم می‌کند.
+"""
+
 import os
 import asyncio
 import logging
@@ -6,9 +11,6 @@ from aiogram.types import BotCommand
 from aiogram.fsm.storage.memory import MemoryStorage
 from dotenv import load_dotenv
 from aiohttp import web
-
-# Import handlers
-import handlers
 
 # Load environment variables
 load_dotenv()
@@ -22,88 +24,75 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Initialize bot and dispatcher
-bot_token = os.environ.get('BOT_TOKEN')
-if not bot_token:
-    logger.error("BOT_TOKEN not set in environment variables")
-    exit(1)
-
-# Create bot instance
-bot = Bot(token=bot_token)
+BOT_TOKEN = os.environ.get('BOT_TOKEN')
+bot = Bot(token=BOT_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
-# Register available commands
 async def set_commands():
+    """Set bot commands in the menu"""
     commands = [
-        BotCommand(command="/start", description="شروع مجدد"),
-        BotCommand(command="/products", description="مشاهده محصولات"),
-        BotCommand(command="/services", description="مشاهده خدمات"),
-        BotCommand(command="/contact", description="تماس با ما"),
-        BotCommand(command="/about", description="درباره ما"),
-        BotCommand(command="/help", description="راهنما")
+        BotCommand(command='/start', description='شروع / بازگشت به منوی اصلی'),
+        BotCommand(command='/products', description='محصولات'),
+        BotCommand(command='/services', description='خدمات'),
+        BotCommand(command='/education', description='محتوای آموزشی'),
+        BotCommand(command='/about', description='درباره ما'),
+        BotCommand(command='/contact', description='تماس با ما'),
+        BotCommand(command='/help', description='راهنما'),
     ]
     await bot.set_my_commands(commands)
 
-async def register_handlers():
+async def register_handlers(dp):
     """Register all handlers for the bot"""
-    # Include the router from handlers module
-    dp.include_router(handlers.router)
+    from src.bot.handlers import register_all_handlers
+    register_all_handlers(dp)
 
 async def setup_webhook(app, webhook_path, webhook_host):
     """Set up webhook handling for the bot with aiohttp app"""
-    webhook_url = f"{webhook_host}{webhook_path}"
-    logger.info(f"Setting webhook to {webhook_url}")
+    # Get webhook info
+    webhook_info = await bot.get_webhook_info()
     
-    # Set webhook
-    await bot.set_webhook(webhook_url)
+    # If URL is different from the one we want, set new URL
+    if webhook_info.url != webhook_host + webhook_path:
+        # If we already have a webhook, remove it
+        if webhook_info.url:
+            await bot.delete_webhook()
+            logger.info(f"Old webhook {webhook_info.url} removed")
+        
+        # Set webhook with the proper URL
+        await bot.set_webhook(url=webhook_host + webhook_path)
+        logger.info(f"Webhook set to {webhook_host + webhook_path}")
+    else:
+        logger.info(f"Webhook is already set to {webhook_info.url}")
     
-    # Process webhook
+    # Function to process updates from Telegram
     async def handle_webhook(request):
-        url = str(request.url)
-        if url.startswith(webhook_url) or webhook_path in url:
+        """Process webhook updates from Telegram"""
+        if request.match_info.get('token') == BOT_TOKEN.split(':')[1]:
             update = await request.json()
             await dp.feed_update(bot, update)
-            return web.Response(status=200)
+            return web.Response()
         return web.Response(status=403)
     
+    # Map the handler to our app at the proper route
     app.router.add_post(webhook_path, handle_webhook)
-    logger.info(f"Webhook handler added for path: {webhook_path}")
 
 async def start_polling():
     """Start the bot in polling mode (for testing)"""
-    logger.info("Starting bot in polling mode")
+    # Delete webhook if exists
+    webhook_info = await bot.get_webhook_info()
+    if webhook_info.url:
+        logger.info(f"Removing existing webhook: {webhook_info.url}")
+        await bot.delete_webhook()
+        logger.info("No webhook is currently set")
+    else:
+        logger.info("No webhook is currently set")
     
     # Set commands
     await set_commands()
     
-    # Register all handlers
-    await register_handlers()
-    
-    # Delete any existing webhook before starting polling
-    webhook_info = await bot.get_webhook_info()
-    if webhook_info.url:
-        logger.info(f"Deleting existing webhook: {webhook_info.url}")
-        await bot.delete_webhook(drop_pending_updates=True)
-        logger.info("Deleted existing webhook")
-    else:
-        logger.info("No webhook is currently set")
-    
     # Start polling
-    try:
-        await dp.start_polling(bot)
-    except Exception as e:
-        logger.error(f"Error in polling: {e}")
-        # Try to force delete webhook if we're still having issues
-        await bot.delete_webhook(drop_pending_updates=True)
-        logger.info("Forcefully deleted webhook after error")
-        # Try polling again
-        await dp.start_polling(bot)
+    await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    try:
-        # Run the bot with polling (for development/testing)
-        asyncio.run(start_polling())
-    except (KeyboardInterrupt, SystemExit):
-        logger.info("Bot stopped")
-    except Exception as e:
-        logger.error(f"Error in bot: {e}")
+    asyncio.run(start_polling())
