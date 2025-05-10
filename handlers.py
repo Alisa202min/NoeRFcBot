@@ -640,9 +640,9 @@ async def callback_confirm_inquiry(callback: CallbackQuery, state: FSMContext):
             notification += f"\n📅 تاریخ: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
             
             try:
-                from bot import bot
-                if bot:
-                    await bot.send_message(chat_id=ADMIN_ID, text=notification)
+                # به جای واردکردن bot که ممکن است باعث خطای دور (circular import) شود
+                # از آرگومان callback استفاده می‌کنیم
+                await callback.bot.send_message(chat_id=ADMIN_ID, text=notification)
             except Exception as e:
                 logger.error(f"Failed to notify admin: {e}")
         
