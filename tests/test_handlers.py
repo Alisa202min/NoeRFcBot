@@ -48,9 +48,9 @@ class TestTelegramBot(unittest.TestCase):
         storage = MemoryStorage()
         # در aiogram 3.7.0+ باید از StorageKey استفاده کنیم
         from aiogram.fsm.storage.base import StorageKey
-        from aiogram.types import User as BotUser
-        bot = Bot("TEST_TOKEN")
-        key = StorageKey(bot_id=bot.id, chat_id=123456789, user_id=123456789)
+        # با ایجاد یک StorageKey ساده، خطا را برطرف می‌کنیم
+        # نیازی به ایجاد Bot با توکن معتبر نیست
+        key = StorageKey(bot_id=123456789, chat_id=123456789, user_id=123456789)
         fsm_context = FSMContext(storage=storage, key=key)
         
         # تست وضعیت اولیه
@@ -89,6 +89,8 @@ class TestTelegramBot(unittest.TestCase):
         storage = MemoryStorage()
         # در aiogram 3.7.0+ باید از StorageKey استفاده کنیم
         from aiogram.fsm.storage.base import StorageKey
+        # با ایجاد یک StorageKey ساده، خطا را برطرف می‌کنیم
+        # نیازی به ایجاد Bot با توکن معتبر نیست
         key = StorageKey(bot_id=123456789, chat_id=123456789, user_id=123456789)
         fsm_context = FSMContext(storage=storage, key=key)
         
@@ -220,19 +222,26 @@ class TestTelegramBot(unittest.TestCase):
     async def run_all_tests(self):
         """اجرای تمام تست‌ها"""
         try:
+            # اجرای تست‌ها و بازگرداندن None برای جلوگیری از خطای RuntimeWarning
             await self.test_fsm_states()
+            await asyncio.sleep(0)  # چرخش event loop برای اطمینان از تکمیل کوروتین‌ها
         except Exception as e:
             print(f"❌ خطا در تست حالت‌های FSM: {str(e)}")
             
         try:
             await self.test_inquiry_flow()
+            await asyncio.sleep(0)  # چرخش event loop برای اطمینان از تکمیل کوروتین‌ها
         except Exception as e:
             print(f"❌ خطا در تست گردش کار استعلام: {str(e)}")
             
         try:
             await self.test_database_model_relationships()
+            await asyncio.sleep(0)  # چرخش event loop برای اطمینان از تکمیل کوروتین‌ها
         except Exception as e:
             print(f"❌ خطا در تست ارتباطات مدل‌ها: {str(e)}")
+            
+        # بازگشت None برای جلوگیری از warning
+        return None
     
     def test_bot(self):
         """متد اصلی تست که توسط unittest فراخوانی می‌شود"""
