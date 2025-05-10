@@ -21,25 +21,94 @@ logger = logging.getLogger(__name__)
 def index():
     """صفحه اصلی"""
     try:
+        # استفاده از نام ستون درست product_type
         products = Product.query.filter_by(
             product_type='product', featured=True).limit(6).all()
         services = Product.query.filter_by(
             product_type='service', featured=True).limit(6).all()
-        educational = EducationalContent.query.order_by(
-            EducationalContent.created_at.desc()).limit(3).all()
+        
+        # برای اطمینان، اگر محتوا وجود نداشت از یک لیست خالی استفاده می‌کنیم
+        if not products:
+            products = []
+        if not services:
+            services = []
+            
+        # دریافت محتوای آموزشی
+        try:
+            educational = EducationalContent.query.order_by(
+                EducationalContent.created_at.desc()).limit(3).all()
+        except Exception as e:
+            logger.warning(f"Error loading educational content: {e}")
+            educational = []
         
         # دریافت محتوای استاتیک
-        about_content = StaticContent.query.filter_by(content_type='about').first()
-        about_text = about_content.content if about_content else ''
+        try:
+            about_content = StaticContent.query.filter_by(content_type='about').first()
+            about_text = about_content.content if about_content else ''
+        except Exception as e:
+            logger.warning(f"Error loading about content: {e}")
+            about_text = ''
+        
+        # بررسی وضعیت ربات
+        import subprocess
+        import os
+        import datetime
+        
+        try:
+            # بررسی وضعیت ربات با پیدا کردن پروسس مربوطه
+            result = subprocess.run(['pgrep', '-f', 'python bot.py'], 
+                            capture_output=True, text=True)
+            bot_status = 'running' if result.stdout.strip() else 'stopped'
+            
+            # بررسی وضعیت متغیرهای محیطی
+            env_status = all([
+                os.environ.get('BOT_TOKEN'),
+                os.environ.get('DATABASE_URL')
+            ])
+        except Exception as e:
+            logger.warning(f"Error checking bot status: {e}")
+            bot_status = 'unknown'
+            env_status = False
+        
+        # بررسی تاریخ آخرین اجرا (اگر فایل لاگ وجود داشته باشد)
+        try:
+            last_run = datetime.datetime.now()
+        except Exception as e:
+            logger.warning(f"Error getting last run time: {e}")
+            last_run = None
+        
+        # آماده‌سازی لاگ‌های اولیه برای نمایش
+        try:
+            log_file = 'bot.log'
+            if os.path.exists(log_file):
+                with open(log_file, 'r', encoding='utf-8') as f:
+                    # خواندن آخرین خطوط
+                    lines = f.readlines()
+                    bot_logs = lines[-50:] if len(lines) > 50 else lines
+            else:
+                bot_logs = ['فایل لاگ موجود نیست.']
+        except Exception as e:
+            logger.warning(f"Error reading log file: {e}")
+            bot_logs = [f'خطا در خواندن فایل لاگ: {str(e)}']
         
         return render_template('index.html', 
                               products=products, 
                               services=services, 
                               educational=educational,
-                              about_text=about_text)
+                              about_text=about_text,
+                              bot_status=bot_status,
+                              env_status=env_status,
+                              last_run=last_run,
+                              datetime=datetime,
+                              bot_logs=bot_logs)
     except Exception as e:
         logger.error(f"Error in index route: {e}")
-        return render_template('500.html'), 500
+        # مطمئن شویم که صفحه خطا بدون مشکل نمایش داده می‌شود
+        try:
+            return render_template('500.html'), 500
+        except Exception as template_error:
+            logger.error(f"Error rendering error template: {template_error}")
+            return "Internal Server Error", 500
 
 @app.route('/configuration')
 @login_required
@@ -243,6 +312,149 @@ def telegram_webhook():
 def page_not_found(e):
     """صفحه ۴۰۴ - صفحه پیدا نشد"""
     return render_template('404.html'), 404
+
+@app.route('/search')
+def search():
+    """جستجوی پیشرفته محصولات و خدمات"""
+    try:
+        query = request.args.get('q', '')
+        category_id = request.args.get('category', type=int)
+        product_type = request.args.get('type')
+        min_price = request.args.get('min_price', type=int)
+        max_price = request.args.get('max_price', type=int)
+        sort_by = request.args.get('sort_by', 'name')
+        
+        # بررسی پارامترها و اعمال فیلترها
+        filters = {}
+        if query:
+            filters['query'] = query
+        if category_id:
+            filters['category_id'] = category_id
+        if product_type:
+            filters['product_type'] = product_type
+        if min_price:
+            filters['min_price'] = min_price
+        if max_price:
+            filters['max_price'] = max_price
+        
+        # تنظیم فیلتر پایه برای محصولات
+        base_query = Product.query
+        
+        # اعمال فیلترها
+        if query:
+            search_query = f"%{query}%"
+            base_query = base_query.filter(
+                db.or_(
+                    Product.name.ilike(search_query),
+                    Product.description.ilike(search_query),
+                    Product.tags.ilike(search_query)
+                )
+            )
+        
+        if category_id:
+            base_query = base_query.filter(Product.category_id == category_id)
+        
+        if product_type:
+            base_query = base_query.filter(Product.product_type == product_type)
+        
+        if min_price:
+            base_query = base_query.filter(Product.price >= min_price)
+        
+        if max_price:
+            base_query = base_query.filter(Product.price <= max_price)
+        
+        # مرتب‌سازی
+        if sort_by == 'price_asc':
+            base_query = base_query.order_by(Product.price.asc())
+        elif sort_by == 'price_desc':
+            base_query = base_query.order_by(Product.price.desc())
+        elif sort_by == 'newest':
+            base_query = base_query.order_by(Product.created_at.desc())
+        else:  # default: sort by name
+            base_query = base_query.order_by(Product.name.asc())
+        
+        # دریافت دسته‌بندی‌ها برای فیلتر
+        categories = Category.query.all()
+        
+        # اجرای کوئری
+        products = base_query.all()
+        
+        return render_template('search.html', 
+                            products=products,
+                            categories=categories,
+                            filters=filters,
+                            query=query,
+                            active_page='search')
+    except Exception as e:
+        logger.error(f"Error in search route: {e}")
+        return render_template('500.html'), 500
+
+# ----- Bot Control Routes -----
+
+@app.route('/logs')
+def logs():
+    """دریافت لاگ‌های ربات"""
+    try:
+        # تلاش برای خواندن آخرین خطوط فایل لاگ
+        log_file = 'bot.log'
+        max_lines = 50  # حداکثر تعداد خطوط برای نمایش
+        
+        try:
+            import os
+            if os.path.exists(log_file):
+                with open(log_file, 'r', encoding='utf-8') as f:
+                    # خواندن آخرین خطوط
+                    lines = list(f)[-max_lines:] if len(list(f)) > max_lines else list(f)
+                    return jsonify({'logs': ''.join(lines)})
+            else:
+                return jsonify({'logs': 'فایل لاگ موجود نیست.'})
+        except Exception as e:
+            logger.error(f"Error reading log file: {e}")
+            return jsonify({'logs': f'خطا در خواندن فایل لاگ: {str(e)}'})
+    except Exception as e:
+        logger.error(f"Error in logs route: {e}")
+        return jsonify({'logs': 'خطای داخلی سرور'})
+
+@app.route('/control/start', methods=['POST'])
+@login_required
+def control_start():
+    """شروع ربات تلگرام"""
+    try:
+        # راه‌اندازی ربات در یک پروسس جداگانه
+        import subprocess
+        subprocess.Popen(["python", "bot.py"])
+        flash('ربات با موفقیت راه‌اندازی شد.', 'success')
+    except Exception as e:
+        logger.error(f"Error starting bot: {e}")
+        flash('خطا در راه‌اندازی ربات.', 'danger')
+    
+    return redirect(url_for('index'))
+
+@app.route('/control/stop', methods=['POST'])
+@login_required
+def control_stop():
+    """توقف ربات تلگرام"""
+    try:
+        # توقف ربات با ارسال سیگنال
+        import os
+        import signal
+        import subprocess
+        
+        # یافتن پروسس‌های پایتون
+        result = subprocess.run(['pgrep', '-f', 'python bot.py'], 
+                               capture_output=True, text=True)
+        
+        if result.stdout.strip():
+            pid = int(result.stdout.strip())
+            os.kill(pid, signal.SIGTERM)
+            flash('ربات با موفقیت متوقف شد.', 'success')
+        else:
+            flash('ربات در حال اجرا نیست.', 'warning')
+    except Exception as e:
+        logger.error(f"Error stopping bot: {e}")
+        flash('خطا در توقف ربات.', 'danger')
+    
+    return redirect(url_for('index'))
 
 @app.errorhandler(500)
 def server_error(e):
