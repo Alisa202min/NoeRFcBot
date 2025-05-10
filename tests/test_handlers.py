@@ -88,7 +88,7 @@ class TestTelegramBot(unittest.TestCase):
         await fsm_context.set_state(UserStates.view_product)
         
         with app.app_context():
-            product = Product.query.filter_by(product_type="product").first()
+            product = Product.query.first()
             if not product:
                 self.skipTest("هیچ محصولی در دیتابیس یافت نشد")
                 return
@@ -152,18 +152,25 @@ class TestTelegramBot(unittest.TestCase):
                     self.assertEqual(children[0].parent_id, parent_category.id, "رابطه parent_id باید درست باشد")
             
             # بررسی ارتباط محصول و دسته‌بندی
-            product = Product.query.filter_by(product_type="product").first()
+            product = Product.query.first()
             if product:
                 print(f"محصول: {product.name}")
                 category = Category.query.get(product.category_id)
                 if category:
                     print(f"دسته‌بندی محصول: {category.name}")
+            
+            # بررسی ارتباط خدمت و دسته‌بندی
+            service = Service.query.first()
+            if service:
+                print(f"خدمت: {service.name}")
+                category = Category.query.get(service.category_id)
+                if category:
+                    print(f"دسته‌بندی خدمت: {category.name}")
                     
             # بررسی ارتباط محصول و رسانه
-            from models import ProductMedia
             media = ProductMedia.query.first()
             if media:
-                print(f"رسانه: {media.file_id}, نوع: {media.file_type}")
+                print(f"رسانه محصول: {media.file_id}, نوع: {media.file_type}")
                 related_product = Product.query.get(media.product_id)
                 if related_product:
                     print(f"محصول مرتبط با رسانه: {related_product.name}")
@@ -177,13 +184,28 @@ class TestTelegramBot(unittest.TestCase):
                             break
                     self.assertTrue(found, "رسانه باید در لیست رسانه‌های محصول باشد")
             
-            # بررسی ارتباط استعلام و محصول
-            inquiry = Inquiry.query.filter_by(product_type="product").first()
+            # بررسی ارتباط خدمت و رسانه
+            service_media = ServiceMedia.query.first()
+            if service_media:
+                print(f"رسانه خدمت: {service_media.file_id}, نوع: {service_media.file_type}")
+                related_service = Service.query.get(service_media.service_id)
+                if related_service:
+                    print(f"خدمت مرتبط با رسانه: {related_service.name}")
+            
+            # بررسی ارتباط استعلام و محصول/خدمت
+            inquiry = Inquiry.query.first()
             if inquiry:
                 print(f"استعلام: {inquiry.name}, تلفن: {inquiry.phone}")
-                inquiry_product = Product.query.get(inquiry.product_id)
-                if inquiry_product:
-                    print(f"محصول مرتبط با استعلام: {inquiry_product.name}")
+                related_item = None
+                
+                if inquiry.product_id:
+                    if inquiry.product_type == 'product':
+                        related_item = Product.query.get(inquiry.product_id)
+                    elif inquiry.product_type == 'service':
+                        related_item = Service.query.get(inquiry.product_id)
+                        
+                    if related_item:
+                        print(f"محصول/خدمت مرتبط با استعلام: {related_item.name}")
                     
         print("✓ تست ارتباطات مدل‌های دیتابیس با موفقیت انجام شد")
     
