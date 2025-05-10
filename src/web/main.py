@@ -394,55 +394,88 @@ def search():
 def database_management():
     """صفحه مدیریت دیتابیس"""
     try:
-        # بررسی وضعیت اتصال به دیتابیس
-        connection_status = True
+        import psycopg2
         
-        # دریافت آدرس دیتابیس (بدون نمایش کلمه عبور)
+        # دریافت اطلاعات اتصال به دیتابیس
         db_url = os.environ.get('DATABASE_URL', '')
-        if 'postgres://' in db_url:
-            # حذف کلمه عبور از نمایش
-            parts = db_url.split('@')
-            if len(parts) > 1:
-                user_pass = parts[0].split('://')
-                if len(user_pass) > 1:
-                    user = user_pass[1].split(':')[0]
-                    db_url = f"{user_pass[0]}://{user}:******@{parts[1]}"
+        pg_host = os.environ.get('PGHOST', 'localhost')
+        pg_database = os.environ.get('PGDATABASE', 'postgres')
+        pg_user = os.environ.get('PGUSER', 'postgres')
+        
+        # دریافت نسخه PostgreSQL
+        conn = None
+        try:
+            conn = psycopg2.connect(db_url)
+            cursor = conn.cursor()
+            cursor.execute("SELECT version();")
+            pg_version = cursor.fetchone()[0].split(',')[0]
+            cursor.close()
+        except Exception as e:
+            logger.error(f"Error getting PostgreSQL version: {e}")
+            pg_version = 'نامشخص'
+        finally:
+            if conn:
+                conn.close()
         
         # دریافت لیست جداول و تعداد رکوردها
-        tables = []
-        try:
-            # دریافت لیست جداول
-            model_classes = [
-                User, Category, Product, Service, ProductMedia, ServiceMedia, 
-                Inquiry, EducationalContent, StaticContent
-            ]
-            
-            for model in model_classes:
-                table = {
-                    'name': model.__tablename__,
-                    'count': db.session.query(model).count()
-                }
-                tables.append(table)
-        except Exception as e:
-            logger.error(f"Error getting table information: {e}")
+        table_counts = {}
+        model_classes = [
+            User, Category, Product, Service, ProductMedia, ServiceMedia, 
+            Inquiry, EducationalContent, StaticContent
+        ]
         
-        return render_template('database_management.html', 
-                              connection_status=connection_status,
-                              db_url=db_url,
-                              tables=tables,
+        for model in model_classes:
+            table_name = model.__tablename__
+            count = db.session.query(model).count()
+            table_counts[table_name] = count
+        
+        # دریافت ساختار جداول
+        table_structures = {}
+        try:
+            conn = psycopg2.connect(db_url)
+            cursor = conn.cursor()
+            
+            for table_name in table_counts.keys():
+                cursor.execute(f"""
+                    SELECT column_name, data_type, is_nullable, column_default
+                    FROM information_schema.columns
+                    WHERE table_name = '{table_name}'
+                    ORDER BY ordinal_position;
+                """)
+                columns = []
+                for row in cursor.fetchall():
+                    columns.append({
+                        'column_name': row[0],
+                        'data_type': row[1],
+                        'is_nullable': row[2],
+                        'column_default': row[3]
+                    })
+                table_structures[table_name] = columns
+            
+            cursor.close()
+        except Exception as e:
+            logger.error(f"Error getting table structures: {e}")
+        finally:
+            if conn:
+                conn.close()
+        
+        return render_template('database.html', 
+                              pg_version=pg_version,
+                              pg_host=pg_host,
+                              pg_database=pg_database,
+                              pg_user=pg_user,
+                              table_counts=table_counts,
+                              table_structures=table_structures,
                               active_page='admin')
     except Exception as e:
         logger.error(f"Error in database management route: {e}")
         return render_template('500.html'), 500
 
-@app.route('/admin/database/view/<table_name>')
+@app.route('/admin/database/table/<table_name>')
 @login_required
-def view_table(table_name):
+def view_table_data(table_name):
     """نمایش محتوای جدول"""
     try:
-        page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 20, type=int)
-        
         # مپ کردن نام جدول به کلاس مدل
         model_map = {
             'users': User,
@@ -462,26 +495,86 @@ def view_table(table_name):
         
         model = model_map[table_name]
         
-        # دریافت داده‌های جدول با صفحه‌بندی
+        # پارامترهای صفحه‌بندی
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        # کوئری پایه
         query = db.session.query(model)
-        pagination = query.paginate(page=page, per_page=per_page)
+        
+        # تعداد کل رکوردها
+        total_count = query.count()
+        
+        # اعمال صفحه‌بندی
+        offset = (page - 1) * per_page
+        items = query.limit(per_page).offset(offset).all()
         
         # دریافت نام ستون‌ها
         columns = [column.name for column in model.__table__.columns]
         
-        return render_template('view_table.html',
+        # تبدیل به دیکشنری
+        rows = []
+        for item in items:
+            row = {}
+            for column in columns:
+                row[column] = getattr(item, column)
+            rows.append(row)
+        
+        # ساخت اطلاعات صفحه‌بندی
+        # محاسبه تعداد صفحات
+        total_pages = (total_count + per_page - 1) // per_page if total_count > 0 else 1
+        
+        # ساخت URL برای صفحات
+        def url_for_page(page):
+            return url_for('view_table_data', table_name=table_name, page=page, per_page=per_page)
+        
+        # ساخت لیست صفحات نمایش داده شده
+        # نمایش حداکثر 5 صفحه اطراف صفحه فعلی
+        pages = []
+        left_edge = max(1, page - 2)
+        right_edge = min(total_pages, page + 2)
+        
+        # اضافه کردن صفحه اول
+        if left_edge > 1:
+            pages.append(1)
+            if left_edge > 2:
+                pages.append('...')
+        
+        # اضافه کردن صفحات میانی
+        for p in range(left_edge, right_edge + 1):
+            pages.append(p)
+        
+        # اضافه کردن صفحه آخر
+        if right_edge < total_pages:
+            if right_edge < total_pages - 1:
+                pages.append('...')
+            pages.append(total_pages)
+        
+        # ساخت اطلاعات صفحه‌بندی
+        pagination = {
+            'page': page,
+            'per_page': per_page,
+            'total_count': total_count,
+            'total_pages': total_pages,
+            'pages': pages,
+            'prev_url': url_for_page(page - 1) if page > 1 else None,
+            'next_url': url_for_page(page + 1) if page < total_pages else None,
+            'url_for_page': url_for_page
+        }
+        
+        return render_template('table_data.html',
                               table_name=table_name,
                               columns=columns,
-                              data=pagination.items,
+                              rows=rows,
                               pagination=pagination,
                               active_page='admin')
     except Exception as e:
-        logger.error(f"Error in view table route: {e}")
+        logger.error(f"Error in view table data route: {e}")
         return render_template('500.html'), 500
 
-@app.route('/admin/database/export/<table_name>')
+@app.route('/admin/database/export/<table_name>', methods=['POST'])
 @login_required
-def export_table(table_name):
+def export_table_csv(table_name):
     """خروجی CSV از جدول"""
     try:
         # مپ کردن نام جدول به کلاس مدل
@@ -503,8 +596,32 @@ def export_table(table_name):
         
         model = model_map[table_name]
         
-        # دریافت تمام داده‌های جدول
-        data = db.session.query(model).all()
+        # پارامترهای خروجی
+        export_type = request.form.get('export_type', 'all')
+        include_headers = request.form.get('include_headers') == 'on'
+        
+        # کوئری پایه
+        query = db.session.query(model)
+        
+        # اعمال محدودیت‌ها
+        if export_type == 'current':
+            page = request.form.get('page', 1, type=int)
+            per_page = request.form.get('per_page', 20, type=int)
+            offset = (page - 1) * per_page
+            query = query.limit(per_page).offset(offset)
+        elif export_type == 'custom':
+            start_row = request.form.get('start_row', 1, type=int)
+            end_row = request.form.get('end_row', None, type=int)
+            
+            if start_row > 1:
+                query = query.offset(start_row - 1)
+            
+            if end_row:
+                limit = end_row - (start_row - 1)
+                query = query.limit(limit)
+        
+        # اجرای کوئری
+        items = query.all()
         
         # دریافت نام ستون‌ها
         columns = [column.name for column in model.__table__.columns]
@@ -516,293 +633,118 @@ def export_table(table_name):
         writer = csv.writer(output)
         
         # نوشتن هدر
-        writer.writerow(columns)
+        if include_headers:
+            writer.writerow(columns)
         
         # نوشتن داده‌ها
-        for row in data:
-            writer.writerow([getattr(row, column) for column in columns])
+        for item in items:
+            row = []
+            for column in columns:
+                value = getattr(item, column)
+                # تبدیل None به رشته خالی
+                if value is None:
+                    value = ''
+                row.append(value)
+            writer.writerow(row)
         
         # ایجاد پاسخ
-        response = app.response_class(
-            output.getvalue(),
-            mimetype='text/csv',
-            headers={'Content-Disposition': f'attachment;filename={table_name}.csv'}
-        )
-        
-        return response
-    except Exception as e:
-        logger.error(f"Error in export table route: {e}")
-        flash(f'خطا در خروجی‌گیری از جدول: {str(e)}', 'danger')
-        return redirect(url_for('database_management'))
-
-@app.route('/admin/database/truncate', methods=['POST'])
-@login_required
-def truncate_table():
-    """حذف محتوای جدول"""
-    try:
-        table_name = request.form.get('table_name')
-        
-        # مپ کردن نام جدول به کلاس مدل
-        model_map = {
-            'users': User,
-            'categories': Category,
-            'products': Product,
-            'services': Service,
-            'product_media': ProductMedia,
-            'service_media': ServiceMedia,
-            'inquiries': Inquiry,
-            'educational_content': EducationalContent,
-            'static_content': StaticContent
-        }
-        
-        if table_name not in model_map:
-            flash(f'جدول {table_name} یافت نشد.', 'danger')
-            return redirect(url_for('database_management'))
-        
-        model = model_map[table_name]
-        
-        # محافظت از جدول کاربران ادمین
-        if table_name == 'users':
-            # حذف همه کاربران غیر ادمین
-            non_admin_users = db.session.query(model).filter_by(is_admin=False).all()
-            for user in non_admin_users:
-                db.session.delete(user)
-            db.session.commit()
-            flash(f'محتوای جدول {table_name} (به جز کاربران ادمین) با موفقیت حذف شد.', 'success')
-        else:
-            # حذف تمام محتوای جدول
-            db.session.query(model).delete()
-            db.session.commit()
-            flash(f'محتوای جدول {table_name} با موفقیت حذف شد.', 'success')
-        
-        return redirect(url_for('database_management'))
-    except Exception as e:
-        logger.error(f"Error in truncate table route: {e}")
-        flash(f'خطا در حذف محتوای جدول: {str(e)}', 'danger')
-        return redirect(url_for('database_management'))
-
-@app.route('/admin/database/backup', methods=['POST'])
-@login_required
-def backup_database():
-    """پشتیبان‌گیری از دیتابیس"""
-    try:
-        # دریافت جداول انتخابی برای پشتیبان‌گیری
-        selected_tables = request.form.getlist('tables[]')
-        
-        # مپ کردن نام جدول به کلاس مدل
-        model_map = {
-            'users': User,
-            'categories': Category,
-            'products': Product,
-            'services': Service,
-            'product_media': ProductMedia,
-            'service_media': ServiceMedia,
-            'inquiries': Inquiry,
-            'educational_content': EducationalContent,
-            'static_content': StaticContent
-        }
-        
-        # ایجاد فایل ZIP برای پشتیبان‌گیری
-        import io
-        import zipfile
-        import csv
+        output.seek(0)
         import datetime
-        
-        memory_file = io.BytesIO()
-        
-        with zipfile.ZipFile(memory_file, 'w') as zf:
-            for table_name in selected_tables:
-                if table_name in model_map:
-                    model = model_map[table_name]
-                    
-                    # دریافت تمام داده‌های جدول
-                    data = db.session.query(model).all()
-                    
-                    # دریافت نام ستون‌ها
-                    columns = [column.name for column in model.__table__.columns]
-                    
-                    # ایجاد فایل CSV در حافظه
-                    output = io.StringIO()
-                    writer = csv.writer(output)
-                    
-                    # نوشتن هدر
-                    writer.writerow(columns)
-                    
-                    # نوشتن داده‌ها
-                    for row in data:
-                        writer.writerow([getattr(row, column) for column in columns])
-                    
-                    # اضافه کردن به فایل ZIP
-                    zf.writestr(f"{table_name}.csv", output.getvalue())
-            
-            # اضافه کردن فایل توضیحات
-            now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            readme_content = f"""پشتیبان دیتابیس RFCBot
-تاریخ: {now}
-جداول: {', '.join(selected_tables)}
-"""
-            zf.writestr("README.txt", readme_content)
-        
-        memory_file.seek(0)
-        
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         
         return app.response_class(
-            memory_file.getvalue(),
-            mimetype='application/zip',
-            headers={'Content-Disposition': f'attachment;filename=database_backup_{timestamp}.zip'}
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={'Content-Disposition': f'attachment;filename={table_name}_{timestamp}.csv'}
         )
     except Exception as e:
-        logger.error(f"Error in backup database route: {e}")
-        flash(f'خطا در پشتیبان‌گیری از دیتابیس: {str(e)}', 'danger')
+        logger.error(f"Error in export table CSV route: {e}")
+        flash(f'خطا در خروجی‌گیری از جدول: {str(e)}', 'danger')
         return redirect(url_for('database_management'))
 
-@app.route('/admin/database/reset', methods=['POST'])
+@app.route('/execute_sql', methods=['POST'])
 @login_required
-def reset_database():
-    """بازنشانی کامل دیتابیس"""
+def execute_sql():
+    """اجرای کوئری SQL"""
     try:
-        confirmation = request.form.get('confirmation')
+        if request.is_json:
+            data = request.get_json()
+            sql_query = data.get('sql_query', '')
+        else:
+            sql_query = request.form.get('sql_query', '')
         
-        if confirmation != 'بازنشانی':
-            flash('لطفاً عبارت تأیید را به درستی وارد کنید.', 'danger')
-            return redirect(url_for('database_management'))
+        if not sql_query.strip():
+            return jsonify({'error': 'کوئری خالی است.'})
         
-        # ذخیره کاربران ادمین
-        admin_users = db.session.query(User).filter_by(is_admin=True).all()
+        # بررسی عملیات‌های غیرمجاز (DROP, ALTER, و غیره)
+        import re
+        import datetime
+        dangerous_patterns = [
+            r'\bDROP\s+DATABASE\b',
+            r'\bDROP\s+SCHEMA\b',
+            r'\bTRUNCATE\s+DATABASE\b',
+            r'\bALTER\s+DATABASE\b',
+            r'\bCREATE\s+DATABASE\b',
+            r'\bCREATE\s+USER\b',
+            r'\bALTER\s+USER\b',
+            r'\bDROP\s+USER\b',
+            r'\bGRANT\b',
+            r'\bREVOKE\b',
+        ]
         
-        # حذف محتوای تمام جداول
-        # ترتیب حذف مهم است به خاطر کلیدهای خارجی
-        db.session.query(ProductMedia).delete()
-        db.session.query(ServiceMedia).delete()
-        db.session.query(Inquiry).delete()
-        db.session.query(Product).delete()
-        db.session.query(Service).delete()
-        db.session.query(Category).delete()
-        db.session.query(EducationalContent).delete()
-        db.session.query(StaticContent).delete()
-        db.session.query(User).delete()
+        for pattern in dangerous_patterns:
+            if re.search(pattern, sql_query, re.IGNORECASE):
+                return jsonify({'error': 'عملیات غیرمجاز. شما اجازه اجرای این نوع کوئری را ندارید.'})
         
-        db.session.commit()
+        # اجرای کوئری
+        import psycopg2
+        import psycopg2.extras
         
-        # بازگرداندن کاربران ادمین
-        for user in admin_users:
-            db.session.add(user)
+        db_url = os.environ.get('DATABASE_URL', '')
+        conn = psycopg2.connect(db_url)
+        cursor = None
         
-        db.session.commit()
-        
-        flash('دیتابیس با موفقیت بازنشانی شد.', 'success')
-        return redirect(url_for('database_management'))
-    except Exception as e:
-        logger.error(f"Error in reset database route: {e}")
-        flash(f'خطا در بازنشانی دیتابیس: {str(e)}', 'danger')
-        return redirect(url_for('database_management'))
-
-@app.route('/admin/database/import', methods=['POST'])
-@login_required
-def import_data():
-    """وارد کردن داده از فایل CSV"""
-    try:
-        table_name = request.form.get('table_name')
-        
-        if 'import_file' not in request.files:
-            flash('فایلی انتخاب نشده است.', 'danger')
-            return redirect(url_for('database_management'))
-        
-        import_file = request.files['import_file']
-        
-        if import_file.filename == '':
-            flash('فایلی انتخاب نشده است.', 'danger')
-            return redirect(url_for('database_management'))
-        
-        if not import_file.filename.endswith('.csv'):
-            flash('فرمت فایل باید CSV باشد.', 'danger')
-            return redirect(url_for('database_management'))
-        
-        # مپ کردن نام جدول به کلاس مدل
-        model_map = {
-            'users': User,
-            'categories': Category,
-            'products': Product,
-            'services': Service,
-            'product_media': ProductMedia,
-            'service_media': ServiceMedia,
-            'inquiries': Inquiry,
-            'educational_content': EducationalContent,
-            'static_content': StaticContent
-        }
-        
-        if table_name not in model_map:
-            flash(f'جدول {table_name} یافت نشد.', 'danger')
-            return redirect(url_for('database_management'))
-        
-        model = model_map[table_name]
-        
-        # خواندن فایل CSV
-        import csv
-        import io
-        
-        # دریافت نام ستون‌های مدل
-        model_columns = [column.name for column in model.__table__.columns]
-        
-        # تعداد رکوردهای وارد شده
-        imported_count = 0
-        
-        # خواندن فایل
-        content = import_file.stream.read().decode('utf-8')
-        csv_data = csv.reader(io.StringIO(content))
-        
-        # خواندن هدر
-        headers = next(csv_data)
-        
-        # بررسی تطابق هدرها با ستون‌های مدل
-        for header in headers:
-            if header not in model_columns:
-                flash(f'ستون {header} در مدل {table_name} وجود ندارد.', 'danger')
-                return redirect(url_for('database_management'))
-        
-        # وارد کردن داده‌ها
-        for row in csv_data:
-            # ایجاد شیء از مدل
-            obj = model()
+        try:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+            cursor.execute(sql_query)
             
-            # تنظیم مقادیر
-            for idx, header in enumerate(headers):
-                if idx < len(row):
-                    value = row[idx]
-                    if value == '':
-                        value = None
-                    
-                    # تبدیل نوع داده
-                    column_type = str(model.__table__.columns[header].type)
-                    if 'INTEGER' in column_type and value is not None:
-                        value = int(value)
-                    elif 'BOOLEAN' in column_type and value is not None:
-                        value = value.lower() in ('true', '1', 't', 'yes')
-                    elif 'DATETIME' in column_type and value is not None:
-                        import datetime
-                        try:
-                            # تلاش برای تبدیل به datetime
-                            value = datetime.datetime.strptime(value, '%Y-%m-%d %H:%M:%S.%f')
-                        except ValueError:
-                            try:
-                                value = datetime.datetime.strptime(value, '%Y-%m-%d %H:%M:%S')
-                            except ValueError:
-                                value = None
-                    
-                    setattr(obj, header, value)
+            # بررسی نوع کوئری
+            sql_type = sql_query.strip().upper().split()[0]
             
-            db.session.add(obj)
-            imported_count += 1
-        
-        db.session.commit()
-        
-        flash(f'{imported_count} رکورد با موفقیت به جدول {table_name} اضافه شد.', 'success')
-        return redirect(url_for('database_management'))
+            if sql_type in ('SELECT', 'SHOW', 'DESCRIBE', 'EXPLAIN'):
+                # برای کوئری‌های SELECT
+                results = cursor.fetchall()
+                
+                # تبدیل نتایج به لیست دیکشنری‌ها
+                column_names = [desc[0] for desc in cursor.description]
+                result_dicts = []
+                
+                for row in results:
+                    row_dict = {}
+                    for i, value in enumerate(row):
+                        # تبدیل مقادیر غیرقابل سریالایز
+                        if isinstance(value, (datetime.date, datetime.datetime)):
+                            value = value.isoformat()
+                        row_dict[column_names[i]] = value
+                    result_dicts.append(row_dict)
+                
+                conn.commit()
+                return jsonify({'results': result_dicts})
+            else:
+                # برای کوئری‌های غیر SELECT (INSERT, UPDATE, DELETE)
+                affected_rows = cursor.rowcount
+                conn.commit()
+                return jsonify({'message': f'{affected_rows} رکورد تحت تأثیر قرار گرفت.', 'affected_rows': affected_rows})
+        except Exception as e:
+            conn.rollback()
+            return jsonify({'error': str(e)})
+        finally:
+            if cursor:
+                cursor.close()
+            conn.close()
     except Exception as e:
-        logger.error(f"Error in import data route: {e}")
-        flash(f'خطا در وارد کردن داده: {str(e)}', 'danger')
-        return redirect(url_for('database_management'))
+        logger.error(f"Error executing SQL: {e}")
+        return jsonify({'error': str(e)})
 
 # ----- Bot Control Routes -----
 

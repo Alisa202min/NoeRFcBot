@@ -209,22 +209,10 @@
                     <i class="bi bi-gear"></i> پیکربندی
                 </a>
             </li>
-            <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {% if active_page == 'admin' %}active{% endif %}" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <li class="nav-item">
+                <a class="nav-link {% if active_page == 'admin' %}active{% endif %}" href="{{ url_for('admin_index') }}">
                     <i class="bi bi-speedometer2"></i> پنل مدیریت
                 </a>
-                <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="adminDropdown">
-                    <li>
-                        <a class="dropdown-item" href="{{ url_for('admin_index') }}">
-                            <i class="bi bi-house-door"></i> داشبورد مدیریت
-                        </a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item" href="{{ url_for('database_management') }}">
-                            <i class="bi bi-database"></i> مدیریت دیتابیس
-                        </a>
-                    </li>
-                </ul>
             </li>
             <li class="nav-item dropdown mt-4">
                 <a class="nav-link dropdown-toggle" href="#" id="displayModeDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -278,22 +266,10 @@
                             <i class="bi bi-gear"></i> پیکربندی
                         </a>
                     </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if active_page == 'admin' %}active{% endif %}" href="#" id="mobileAdminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'admin' %}active{% endif %}" href="{{ url_for('admin_index') }}">
                             <i class="bi bi-speedometer2"></i> پنل مدیریت
                         </a>
-                        <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="mobileAdminDropdown">
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('admin_index') }}">
-                                    <i class="bi bi-house-door"></i> داشبورد مدیریت
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('database_management') }}">
-                                    <i class="bi bi-database"></i> مدیریت دیتابیس
-                                </a>
-                            </li>
-                        </ul>
                     </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="mobileDisplayModeDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
