@@ -339,14 +339,118 @@ def admin_services():
                           categories=categories)
 
 # روت‌های مربوط به استعلام‌ها
-@app.route('/admin/inquiries')
+@app.route('/admin/inquiries', methods=['GET', 'POST'])
 @login_required
 def admin_inquiries():
     """پنل مدیریت - استعلام‌های قیمت"""
-    inquiries = Inquiry.query.order_by(Inquiry.created_at.desc()).all()
+    action = request.args.get('action')
+    inquiry_id = request.args.get('id')
+    
+    # عملیات حذف استعلام
+    if action == 'delete' and inquiry_id and request.method == 'POST':
+        try:
+            inquiry = Inquiry.query.get(int(inquiry_id))
+            if inquiry:
+                db.session.delete(inquiry)
+                db.session.commit()
+                flash('استعلام قیمت با موفقیت حذف شد.', 'success')
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error deleting inquiry: {e}")
+            flash(f'خطا در حذف استعلام: {str(e)}', 'danger')
+        
+        return redirect(url_for('admin_inquiries'))
+    
+    # نمایش جزئیات استعلام
+    elif action == 'view' and inquiry_id:
+        inquiry = Inquiry.query.get_or_404(int(inquiry_id))
+        
+        # اطلاعات محصول/خدمت مرتبط
+        product = None
+        if inquiry.product_id:
+            if inquiry.product_type == 'product':
+                product = Product.query.get(inquiry.product_id)
+            elif inquiry.product_type == 'service':
+                product = Service.query.get(inquiry.product_id)
+        
+        return render_template('admin/inquiry_detail.html',
+                             inquiry=inquiry,
+                             product=product,
+                             active_page='admin')
+    
+    # به‌روزرسانی وضعیت استعلام
+    elif action == 'update_status' and inquiry_id and request.method == 'POST':
+        status = request.form.get('status')
+        
+        try:
+            inquiry = Inquiry.query.get(int(inquiry_id))
+            if inquiry and status:
+                inquiry.status = status
+                db.session.commit()
+                flash('وضعیت استعلام با موفقیت به‌روزرسانی شد.', 'success')
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error updating inquiry status: {e}")
+            flash(f'خطا در به‌روزرسانی وضعیت استعلام: {str(e)}', 'danger')
+        
+        return redirect(url_for('admin_inquiries'))
+    
+    # نمایش لیست استعلام‌ها با فیلتر
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    status = request.args.get('status')
+    
+    # ساخت کوئری پایه
+    query = Inquiry.query
+    
+    # اعمال فیلترها
+    if start_date:
+        query = query.filter(Inquiry.created_at >= start_date)
+    if end_date:
+        query = query.filter(Inquiry.created_at <= end_date + ' 23:59:59')
+    if status:
+        query = query.filter(Inquiry.status == status)
+    
+    # خروجی CSV
+    if request.args.get('export') == 'csv':
+        import csv
+        from io import StringIO
+        
+        # ایجاد فایل CSV
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # هدر فایل
+        writer.writerow(['ID', 'تاریخ', 'نام', 'شماره تماس', 'توضیحات', 'وضعیت', 'نوع محصول', 'شناسه محصول'])
+        
+        # داده‌ها
+        inquiries = query.order_by(Inquiry.created_at.desc()).all()
+        for inquiry in inquiries:
+            writer.writerow([
+                inquiry.id,
+                inquiry.created_at.strftime('%Y-%m-%d %H:%M') if inquiry.created_at else '-',
+                inquiry.name,
+                inquiry.phone,
+                inquiry.description,
+                inquiry.status,
+                inquiry.product_type,
+                inquiry.product_id
+            ])
+        
+        # ارسال فایل
+        output.seek(0)
+        return app.response_class(
+            output,
+            mimetype='text/csv',
+            headers={'Content-Disposition': 'attachment;filename=inquiries.csv'}
+        )
+    
+    # مرتب‌سازی و بازیابی داده‌ها
+    inquiries = query.order_by(Inquiry.created_at.desc()).all()
     
     return render_template('admin/inquiries.html', 
-                          inquiries=inquiries)
+                          inquiries=inquiries,
+                          active_page='admin')
 
 # روت‌های مربوط به محتوای آموزشی
 @app.route('/admin/education', methods=['GET', 'POST'])
