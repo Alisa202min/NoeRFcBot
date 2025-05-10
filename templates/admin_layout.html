@@ -101,6 +101,9 @@
                     <a class="nav-link {% if active_page == 'content' %}active{% endif %}" href="/admin/content">
                         <i class="bi bi-file-text"></i> محتوای ثابت
                     </a>
+                    <a class="nav-link {% if active_page == 'database' %}active{% endif %}" href="{{ url_for('database_management') }}">
+                        <i class="bi bi-database"></i> مدیریت دیتابیس
+                    </a>
                     <a class="nav-link {% if active_page == 'import_export' %}active{% endif %}" href="/admin/import_export">
                         <i class="bi bi-arrow-down-up"></i> ورود/خروج داده
                     </a>
