@@ -4,7 +4,8 @@
 """
 
 from .bot import bot, dp, start_polling, setup_webhook
-from .handlers import register_handlers
+from .handlers import register_all_handlers as register_handlers
+from .handlers import UserStates
 from .keyboards import (
     get_main_keyboard, 
     get_back_keyboard, 
@@ -18,6 +19,7 @@ __all__ = [
     'start_polling', 
     'setup_webhook',
     'register_handlers',
+    'UserStates',
     'get_main_keyboard',
     'get_back_keyboard',
     'get_categories_keyboard',

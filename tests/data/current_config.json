@@ -1,0 +1,29 @@
+{
+    "BOT_TOKEN": "7630601243:AAHCSLe-tZ7UGHBIiWx4u2sSV-FUJ8xnj50",
+    "ADMIN_ID": "123456789",
+    "DB_TYPE": "postgresql",
+    "DATA_DIR": "data",
+    "DB_PATH": "data/database.db",
+    "CSV_PATH": "data/initial_data.csv",
+    "PRODUCT_PREFIX": "product_",
+    "SERVICE_PREFIX": "service_",
+    "CATEGORY_PREFIX": "category_",
+    "BACK_PREFIX": "back_",
+    "INQUIRY_PREFIX": "inquiry_",
+    "EDUCATION_PREFIX": "edu_",
+    "ADMIN_PREFIX": "admin_",
+    "PRODUCTS_BTN": "محصولات 🛍",
+    "SERVICES_BTN": "خدمات 🔧",
+    "INQUIRY_BTN": "استعلام قیمت 💰",
+    "EDUCATION_BTN": "محتوای آموزشی 📚",
+    "CONTACT_BTN": "تماس با ما ☎️",
+    "ABOUT_BTN": "درباره ما ℹ️",
+    "BACK_BTN": "بازگشت به منوی اصلی 🏠",
+    "SEARCH_BTN": "جستجو 🔍",
+    "ADMIN_BTN": "پنل مدیریت 👨‍💼",
+    "WEBHOOK_HOST": "https://example.com",
+    "WEBHOOK_PATH": "/api/webhook",
+    "DATABASE_URL": "postgresql://neondb_owner:npg_nguJUcZGPX83@ep-rapid-hat-a5axh8ww.us-east-2.aws.neon.tech/neondb?sslmode=require",
+    "LOG_LEVEL": "INFO",
+    "UPLOAD_FOLDER": "data/uploads"
+}
