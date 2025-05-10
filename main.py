@@ -650,6 +650,7 @@ def reset_config():
 
 
 @app.route('/database')
+@login_required
 @admin_required
 def database():
     """Display database information"""
