@@ -40,23 +40,23 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
-            <a class="navbar-brand" href="/">مدیریت ربات تلگرام</a>
+            <a class="navbar-brand" href="/">RFCBot</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav">
+                <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="/">داشبورد</a>
+                        <a class="nav-link {{ 'active' if active_page == 'dashboard' }}" href="/">داشبورد اصلی</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/configuration">پیکربندی</a>
+                        <a class="nav-link {{ 'active' if active_page == 'configuration' }}" href="/configuration">پیکربندی</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/database">دیتابیس</a>
+                        <a class="nav-link {{ 'active' if active_page == 'database' }}" href="/database">دیتابیس</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/admin">پنل مدیریت</a>
+                        <a class="nav-link {{ 'active' if active_page == 'admin' }}" href="/admin">پنل مدیریت</a>
                     </li>
                 </ul>
             </div>

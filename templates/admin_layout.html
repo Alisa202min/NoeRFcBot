@@ -74,8 +74,14 @@
             <!-- Sidebar -->
             <div class="col-md-3 col-lg-2 admin-sidebar">
                 <nav class="nav flex-column">
+                    <a class="nav-link" href="#" id="sidebar-toggle">
+                        <i class="bi bi-list"></i> منو
+                    </a>
+                    <a class="nav-link {% if active_page == 'login' %}active{% endif %}" href="/login">
+                        <i class="bi bi-person"></i> ورود
+                    </a>
                     <a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" href="/admin">
-                        <i class="bi bi-speedometer2"></i> داشبورد
+                        <i class="bi bi-speedometer2"></i> داشبورد پنل مدیریت
                     </a>
                     <a class="nav-link {% if active_page == 'categories' %}active{% endif %}" href="/admin/categories">
                         <i class="bi bi-folder"></i> دسته‌بندی‌ها
@@ -96,8 +102,13 @@
                         <i class="bi bi-file-text"></i> محتوای ثابت
                     </a>
                     <a class="nav-link {% if active_page == 'import_export' %}active{% endif %}" href="/admin/import_export">
-                        <i class="bi bi-arrow-down-up"></i> ورود/خروجی داده
+                        <i class="bi bi-arrow-down-up"></i> ورود/خروج داده
                     </a>
+                    <div id="back-menu" class="collapse">
+                        <a class="nav-link bg-secondary" href="/">
+                            <i class="bi bi-arrow-return-left"></i> بازگشت به منوی قبل
+                        </a>
+                    </div>
                 </nav>
             </div>
             
@@ -117,6 +128,21 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebarToggle = document.getElementById('sidebar-toggle');
+            const backMenu = document.getElementById('back-menu');
+            
+            sidebarToggle.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (backMenu.classList.contains('show')) {
+                    backMenu.classList.remove('show');
+                } else {
+                    backMenu.classList.add('show');
+                }
+            });
+        });
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>
