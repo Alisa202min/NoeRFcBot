@@ -165,6 +165,7 @@ def logout():
 # ----- Admin Panel Routes -----
 
 @app.route('/admin')
+@app.route('/admin/')
 @login_required
 def admin_index():
     """پنل مدیریت - داشبورد"""
