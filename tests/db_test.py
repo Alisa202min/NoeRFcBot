@@ -7,8 +7,13 @@
 
 import sys
 import logging
-from app import app, db
-from models import User, Product, Category, Inquiry, ProductMedia, EducationalContent, StaticContent
+import os
+
+# اضافه کردن مسیر پروژه به PYTHONPATH برای دسترسی به ماژول‌های پروژه
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from src.web.app import app, db
+from src.models.models import User, Category, Product, Service, ProductMedia, ServiceMedia, Inquiry, EducationalContent, StaticContent
 
 # تنظیم لاگر
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -67,41 +72,51 @@ def test_product_model():
     try:
         with app.app_context():
             products = Product.query.all()
-            logger.info(f"✅ تعداد کل محصولات/خدمات: {len(products)}")
-            
-            # تفکیک محصولات و خدمات
-            actual_products = Product.query.filter_by(product_type='product').all()
-            services = Product.query.filter_by(product_type='service').all()
-            
-            logger.info(f"✅ تعداد محصولات: {len(actual_products)}")
+            services = Service.query.all()
+            logger.info(f"✅ تعداد محصولات: {len(products)}")
             logger.info(f"✅ تعداد خدمات: {len(services)}")
             
             # تست ارتباط محصول و دسته‌بندی
-            if actual_products:
-                product = actual_products[0]
+            if products:
+                product = products[0]
                 category = Category.query.get(product.category_id)
                 logger.info(f"✅ محصول '{product.name}' در دسته‌بندی '{category.name if category else 'نامشخص'}' قرار دارد")
+            
+            # تست ارتباط خدمت و دسته‌بندی
+            if services:
+                service = services[0]
+                category = Category.query.get(service.category_id)
+                logger.info(f"✅ خدمت '{service.name}' در دسته‌بندی '{category.name if category else 'نامشخص'}' قرار دارد")
             return True
     except Exception as e:
-        logger.error(f"❌ خطا در تست مدل Product: {e}")
+        logger.error(f"❌ خطا در تست مدل Product و Service: {e}")
         return False
 
-def test_product_media_model():
-    """تست مدل ProductMedia"""
+def test_media_models():
+    """تست مدل‌های ProductMedia و ServiceMedia"""
     try:
         with app.app_context():
-            media_files = ProductMedia.query.all()
-            logger.info(f"✅ تعداد فایل‌های چندرسانه‌ای: {len(media_files)}")
+            product_media_files = ProductMedia.query.all()
+            service_media_files = ServiceMedia.query.all()
+            logger.info(f"✅ تعداد فایل‌های چندرسانه‌ای محصولات: {len(product_media_files)}")
+            logger.info(f"✅ تعداد فایل‌های چندرسانه‌ای خدمات: {len(service_media_files)}")
             
             # تست ارتباط محصول و رسانه
-            if media_files:
-                media = media_files[0]
+            if product_media_files:
+                media = product_media_files[0]
                 product = Product.query.get(media.product_id)
-                logger.info(f"✅ رسانه با ID {media.id} مربوط به محصول '{product.name if product else 'نامشخص'}' است")
-                logger.info(f"✅ نوع فایل: {media.file_type}, file_id: {media.file_id[:10]}...")
+                logger.info(f"✅ رسانه محصول با ID {media.id} مربوط به محصول '{product.name if product else 'نامشخص'}' است")
+                logger.info(f"✅ نوع فایل: {media.file_type}, file_id: {media.file_id[:10] if len(media.file_id) > 10 else media.file_id}...")
+            
+            # تست ارتباط خدمت و رسانه
+            if service_media_files:
+                media = service_media_files[0]
+                service = Service.query.get(media.service_id)
+                logger.info(f"✅ رسانه خدمت با ID {media.id} مربوط به خدمت '{service.name if service else 'نامشخص'}' است")
+                logger.info(f"✅ نوع فایل: {media.file_type}, file_id: {media.file_id[:10] if len(media.file_id) > 10 else media.file_id}...")
             return True
     except Exception as e:
-        logger.error(f"❌ خطا در تست مدل ProductMedia: {e}")
+        logger.error(f"❌ خطا در تست مدل‌های ProductMedia و ServiceMedia: {e}")
         return False
 
 def test_inquiry_model():
@@ -114,13 +129,26 @@ def test_inquiry_model():
             # تست جزئیات استعلام‌ها
             if inquiries:
                 inquiry = inquiries[0]
-                product = Product.query.get(inquiry.product_id) if inquiry.product_id else None
+                
+                # بررسی محصول یا خدمت مرتبط
+                related_item = None
+                related_name = "ندارد"
+                
+                if inquiry.product_id:
+                    if inquiry.product_type == 'product':
+                        related_item = Product.query.get(inquiry.product_id)
+                    elif inquiry.product_type == 'service':
+                        related_item = Service.query.get(inquiry.product_id)
+                    
+                    if related_item:
+                        related_name = related_item.name
                 
                 logger.info(f"✅ استعلام با ID {inquiry.id}:")
                 logger.info(f"   • نام مشتری: {inquiry.name}")
                 logger.info(f"   • تلفن: {inquiry.phone}")
                 logger.info(f"   • وضعیت: {inquiry.status or 'در انتظار بررسی'}")
-                logger.info(f"   • محصول مرتبط: {product.name if product else 'ندارد'}")
+                logger.info(f"   • نوع استعلام: {inquiry.product_type or 'عمومی'}")
+                logger.info(f"   • محصول/خدمت مرتبط: {related_name}")
             return True
     except Exception as e:
         logger.error(f"❌ خطا در تست مدل Inquiry: {e}")
@@ -173,8 +201,8 @@ def run_all_tests():
         "اتصال به دیتابیس": test_database_connection,
         "مدل User": test_user_model,
         "مدل Category": test_category_model,
-        "مدل Product": test_product_model,
-        "مدل ProductMedia": test_product_media_model,
+        "مدل Product و Service": test_product_model,
+        "مدل‌های ProductMedia و ServiceMedia": test_media_models,
         "مدل Inquiry": test_inquiry_model,
         "مدل EducationalContent": test_educational_content_model,
         "مدل StaticContent": test_static_content_model

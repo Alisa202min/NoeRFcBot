@@ -10,19 +10,23 @@ import unittest
 import asyncio
 import logging
 import os
+import sys
 from datetime import datetime
+
+# اضافه کردن مسیر پروژه به PYTHONPATH برای دسترسی به ماژول‌های پروژه
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # تنظیم لاگر
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Import project modules
-from app import app, db
-from models import Product, Inquiry, User, Category
+from src.web.app import app, db
+from src.models.models import Product, Service, Inquiry, User, Category, ProductMedia, ServiceMedia
 from aiogram import Bot
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.context import FSMContext
-from handlers import UserStates
+from src.bot.handlers import UserStates
 
 # کلاس تست ربات تلگرام
 class TestTelegramBot(unittest.TestCase):
