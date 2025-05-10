@@ -46,7 +46,12 @@ class TestTelegramBot(unittest.TestCase):
         
         # ایجاد ذخیره‌ساز حافظه و context
         storage = MemoryStorage()
-        fsm_context = FSMContext(storage=storage, user_id=123456789, chat_id=123456789)
+        # در aiogram 3.7.0+ باید از StorageKey استفاده کنیم
+        from aiogram.fsm.storage.base import StorageKey
+        from aiogram.types import User as BotUser
+        bot = Bot("TEST_TOKEN")
+        key = StorageKey(bot_id=bot.id, chat_id=123456789, user_id=123456789)
+        fsm_context = FSMContext(storage=storage, key=key)
         
         # تست وضعیت اولیه
         state = await fsm_context.get_state()
@@ -82,7 +87,10 @@ class TestTelegramBot(unittest.TestCase):
         
         # ایجاد ذخیره‌ساز حافظه و context
         storage = MemoryStorage()
-        fsm_context = FSMContext(storage=storage, user_id=123456789, chat_id=123456789)
+        # در aiogram 3.7.0+ باید از StorageKey استفاده کنیم
+        from aiogram.fsm.storage.base import StorageKey
+        key = StorageKey(bot_id=123456789, chat_id=123456789, user_id=123456789)
+        fsm_context = FSMContext(storage=storage, key=key)
         
         # 1. شبیه‌سازی ورود به حالت view_product
         await fsm_context.set_state(UserStates.view_product)
@@ -229,8 +237,9 @@ class TestTelegramBot(unittest.TestCase):
     def test_bot(self):
         """متد اصلی تست که توسط unittest فراخوانی می‌شود"""
         print("\n===== شروع تست‌های ربات تلگرام =====")
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.run_all_tests())
+        # برای جلوگیری از خطای RuntimeWarning: coroutine ... was never awaited
+        # باید از asyncio.run استفاده کرد
+        asyncio.run(self.run_all_tests())
         print("\n===== پایان تست‌های ربات تلگرام =====")
 
 if __name__ == "__main__":
