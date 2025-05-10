@@ -126,14 +126,34 @@
         
         // Function to fetch logs
         function fetchLogs() {
-            fetch('{{ url_for("logs") }}')
-                .then(response => response.json())
-                .then(data => {
-                    logContent.textContent = data.join('\n');
-                    // Scroll to bottom
-                    logContent.parentElement.scrollTop = logContent.parentElement.scrollHeight;
-                })
-                .catch(error => console.error('Error fetching logs:', error));
+            fetch('{{ url_for("logs") }}', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'  // برای ارسال کوکی‌های احراز هویت
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                // اگر داده‌ها در فیلد logs موجود باشند
+                if (data && data.logs) {
+                    logContent.textContent = data.logs;
+                } else {
+                    logContent.textContent = "لاگی موجود نیست یا فرمت داده‌ها نادرست است.";
+                }
+                // Scroll to bottom
+                logContent.parentElement.scrollTop = logContent.parentElement.scrollHeight;
+            })
+            .catch(error => {
+                console.error('Error fetching logs:', error);
+                logContent.textContent = "خطا در دریافت لاگ‌ها: " + error.message;
+            });
         }
         
         // Refresh logs button

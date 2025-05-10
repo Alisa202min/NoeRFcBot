@@ -9,7 +9,7 @@ from flask import render_template, request, redirect, url_for, flash, session, j
 from flask_login import login_user, logout_user, login_required, current_user
 
 from src.web.app import app, db, media_files
-from src.models.models import User, Category, Product, ProductMedia, Inquiry, EducationalContent, StaticContent
+from src.models.models import User, Category, Product, Service, ProductMedia, ServiceMedia, Inquiry, EducationalContent, StaticContent
 from src.utils.utils import allowed_file, save_uploaded_file, create_directory
 from src.utils.utils_upload import handle_media_upload, remove_file, serve_file
 
@@ -21,11 +21,9 @@ logger = logging.getLogger(__name__)
 def index():
     """صفحه اصلی"""
     try:
-        # استفاده از نام ستون درست product_type
-        products = Product.query.filter_by(
-            product_type='product', featured=True).limit(6).all()
-        services = Product.query.filter_by(
-            product_type='service', featured=True).limit(6).all()
+        # اکنون محصولات و خدمات در جدول‌های مجزا هستند
+        products = Product.query.filter_by(featured=True).limit(6).all()
+        services = Service.query.limit(6).all()
         
         # برای اطمینان، اگر محتوا وجود نداشت از یک لیست خالی استفاده می‌کنیم
         if not products:
@@ -392,6 +390,7 @@ def search():
 # ----- Bot Control Routes -----
 
 @app.route('/logs')
+@login_required
 def logs():
     """دریافت لاگ‌های ربات"""
     try:
@@ -404,7 +403,8 @@ def logs():
             if os.path.exists(log_file):
                 with open(log_file, 'r', encoding='utf-8') as f:
                     # خواندن آخرین خطوط
-                    lines = list(f)[-max_lines:] if len(list(f)) > max_lines else list(f)
+                    all_lines = f.readlines()
+                    lines = all_lines[-max_lines:] if len(all_lines) > max_lines else all_lines
                     return jsonify({'logs': ''.join(lines)})
             else:
                 return jsonify({'logs': 'فایل لاگ موجود نیست.'})
