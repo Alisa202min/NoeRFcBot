@@ -7,14 +7,74 @@ import logging
 from typing import Tuple, List, Dict, Optional
 from werkzeug.utils import secure_filename
 from flask import current_app, send_from_directory
-# Flask-Uploads with modifications for Flask 2.x
-from flask_uploads import UploadSet, IMAGES, VIDEO, configure_uploads
+
+# Define constants for file types
+IMAGES = ('jpg', 'jpe', 'jpeg', 'png', 'gif', 'svg', 'bmp', 'webp')
+VIDEO = ('mp4', 'mov', 'avi', 'webm')
 
 # Allowed media types
 ALLOWED_MEDIA_TYPES = ['photo', 'video']
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+# Simple UploadSet replacement
+class UploadSet:
+    """A simplified implementation of UploadSet functionality"""
+    
+    def __init__(self, name, extensions=None):
+        self.name = name
+        self.extensions = extensions
+        
+    def save(self, storage, folder=None, name=None):
+        """Save a file."""
+        if not storage:
+            return None
+            
+        filename = secure_filename(storage.filename)
+        if name:
+            filename = secure_filename(name)
+            # Keep the file extension
+            if '.' in storage.filename:
+                ext = storage.filename.rsplit('.', 1)[1]
+                if not filename.endswith('.' + ext):
+                    filename = filename + '.' + ext
+                    
+        path = os.path.join(current_app.config.get('UPLOADS_DEFAULT_DEST', 'uploads'), 
+                           self.name, folder or '')
+        
+        if not os.path.exists(path):
+            os.makedirs(path, exist_ok=True)
+            
+        target = os.path.join(path, filename)
+        storage.save(target)
+        return filename
+        
+    def path(self, filename, folder=None):
+        """Return absolute path to the file."""
+        base_path = os.path.join(current_app.config.get('UPLOADS_DEFAULT_DEST', 'uploads'), 
+                                self.name, folder or '')
+        return os.path.join(base_path, filename)
+        
+def configure_uploads(app, upload_sets):
+    """A simplified implementation of configure_uploads functionality"""
+    if not hasattr(app, 'uploads_configured'):
+        app.uploads_configured = True
+        
+    app.config.setdefault('UPLOADS_DEFAULT_DEST', os.path.join(app.instance_path, 'uploads'))
+    
+    # Make sure we have the upload folder
+    os.makedirs(app.config['UPLOADS_DEFAULT_DEST'], exist_ok=True)
+    
+    # Register upload_sets with the app
+    if not hasattr(app, 'upload_sets'):
+        app.upload_sets = {}
+        
+    if isinstance(upload_sets, UploadSet):
+        upload_sets = (upload_sets,)
+        
+    for upload_set in upload_sets:
+        app.upload_sets[upload_set.name] = upload_set
 
 def handle_media_upload(file, directory: str, file_type: str = 'photo', 
                        custom_filename: Optional[str] = None) -> Tuple[bool, Optional[str]]:

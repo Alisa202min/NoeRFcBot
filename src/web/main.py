@@ -20,22 +20,40 @@ logger = logging.getLogger(__name__)
 @app.route('/')
 def index():
     """صفحه اصلی"""
-    products = Product.query.filter_by(
-        cat_type='product', featured=True).limit(6).all()
-    services = Product.query.filter_by(
-        cat_type='service', featured=True).limit(6).all()
-    educational = EducationalContent.query.order_by(
-        EducationalContent.created_at.desc()).limit(3).all()
-    
-    # دریافت محتوای استاتیک
-    about_content = StaticContent.query.filter_by(content_type='about').first()
-    about_text = about_content.content if about_content else ''
-    
-    return render_template('index.html', 
-                          products=products, 
-                          services=services, 
-                          educational=educational,
-                          about_text=about_text)
+    try:
+        products = Product.query.filter_by(
+            product_type='product', featured=True).limit(6).all()
+        services = Product.query.filter_by(
+            product_type='service', featured=True).limit(6).all()
+        educational = EducationalContent.query.order_by(
+            EducationalContent.created_at.desc()).limit(3).all()
+        
+        # دریافت محتوای استاتیک
+        about_content = StaticContent.query.filter_by(content_type='about').first()
+        about_text = about_content.content if about_content else ''
+        
+        return render_template('index.html', 
+                              products=products, 
+                              services=services, 
+                              educational=educational,
+                              about_text=about_text)
+    except Exception as e:
+        logger.error(f"Error in index route: {e}")
+        return render_template('500.html'), 500
+
+@app.route('/configuration')
+@login_required
+def loadConfig():
+    """صفحه پیکربندی"""
+    try:
+        from src.config.configuration import load_config
+        config = load_config()
+        return render_template('configuration.html', 
+                            config=config,
+                            active_page='configuration')
+    except Exception as e:
+        logger.error(f"Error in loadConfig route: {e}")
+        return render_template('500.html'), 500
 
 # ----- Authentication Routes -----
 

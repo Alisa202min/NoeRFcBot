@@ -1,3 +1,8 @@
+"""
+ماژول تنظیمات و پیکربندی
+این ماژول تنظیمات پیش‌فرض و امکان بارگذاری و ذخیره پیکربندی را فراهم می‌کند.
+"""
+
 import json
 import os
 import shutil
@@ -11,6 +16,7 @@ CONFIG_PATH = "data/current_config.json"
 DEFAULT_CONFIG_PATH = "data/default_config.json"
 
 def load_config():
+    """Load configuration from JSON file or create default if not exists"""
     if not os.path.exists(CONFIG_PATH):
         # Create default config if it doesn't exist
         default_config = {
@@ -28,113 +34,103 @@ def load_config():
             "EDUCATION_PREFIX": "edu_",
             "ADMIN_PREFIX": "admin_",
             "PRODUCTS_BTN": "محصولات 🛍",
-            "SERVICES_BTN": "خدمات 🛠",
-            "INQUIRY_BTN": "استعلام قیمت 📝",
-            "EDUCATION_BTN": "مطالب آموزشی 📚",
-            "CONTACT_BTN": "تماس با ما 📞",
+            "SERVICES_BTN": "خدمات 🔧",
+            "INQUIRY_BTN": "استعلام قیمت 💰",
+            "EDUCATION_BTN": "محتوای آموزشی 📚",
+            "CONTACT_BTN": "تماس با ما ☎️",
             "ABOUT_BTN": "درباره ما ℹ️",
-            "BACK_BTN": "بازگشت ↩️",
+            "BACK_BTN": "بازگشت به منوی اصلی 🏠",
             "SEARCH_BTN": "جستجو 🔍",
-            "ADMIN_BTN": "پنل ادمین 👤",
-            "START_TEXT": """🌟 به ربات جامع محصولات و خدمات خوش آمدید! 
-
-            این ربات امکانات زیر را در اختیار شما قرار می‌دهد:
-
-            📦 محصولات:
-            • مشاهده محصولات در دسته‌بندی‌های مختلف
-            • جزئیات کامل هر محصول شامل قیمت و توضیحات
-            • امکان مشاهده تصاویر محصولات
-
-            🛠 خدمات:
-            • دسترسی به لیست خدمات قابل ارائه
-            • اطلاعات کامل هر خدمت و شرایط ارائه
-            • امکان استعلام قیمت مستقیم
-
-            📝 استعلام قیمت:
-            • درخواست استعلام قیمت برای محصولات و خدمات
-            • فرم ساده و سریع برای ثبت درخواست
-            • پیگیری آسان درخواست‌ها
-
-            📚 مطالب آموزشی:
-            • دسترسی به محتوای آموزشی دسته‌بندی شده
-            • مقالات و راهنماهای کاربردی
-            • به‌روزرسانی مستمر محتوا
-
-            🔍 امکانات دیگر:
-            • جستجو در محصولات و خدمات
-            • تماس مستقیم با پشتیبانی
-            • اطلاعات تماس و درباره ما
-
-            لطفاً از منوی زیر بخش مورد نظر خود را انتخاب کنید:""",
-            "NOT_FOUND_TEXT": "موردی یافت نشد.",
-            "CONTACT_DEFAULT": "با ما از طریق شماره 1234567890+ یا ایمیل info@example.com در تماس باشید.",
-            "ABOUT_DEFAULT": "ما یک شرکت فعال در زمینه تجهیزات الکترونیکی هستیم.",
-            "INQUIRY_START": "لطفاً فرم استعلام قیمت را کامل کنید. نام خود را وارد کنید:",
-            "INQUIRY_PHONE": "لطفاً شماره تماس خود را وارد کنید:",
-            "INQUIRY_DESC": "لطفاً توضیحات بیشتر را وارد کنید (اختیاری):",
-            "INQUIRY_COMPLETE": "استعلام قیمت شما با موفقیت ثبت شد. به زودی با شما تماس خواهیم گرفت.",
-            "ADMIN_WELCOME": "به پنل مدیریت خوش آمدید. لطفاً یکی از گزینه‌های زیر را انتخاب کنید:",
-            "ADMIN_ACCESS_DENIED": "شما دسترسی به پنل مدیریت ندارید.",
-            "SEARCH_PROMPT": "لطفاً عبارت جستجو را وارد کنید:",
-            "ERROR_MESSAGE": "خطایی رخ داد. لطفاً دوباره تلاش کنید."
+            "ADMIN_BTN": "پنل مدیریت 👨‍💼",
+            "WEBHOOK_HOST": os.environ.get("WEBHOOK_HOST", "https://example.com"),
+            "WEBHOOK_PATH": os.environ.get("WEBHOOK_PATH", "/api/webhook"),
+            "DATABASE_URL": os.environ.get("DATABASE_URL"),
+            "LOG_LEVEL": os.environ.get("LOG_LEVEL", "INFO"),
+            "UPLOAD_FOLDER": os.environ.get("UPLOAD_FOLDER", "data/uploads")
         }
-        os.makedirs("data", exist_ok=True)
+        
+        # Create data directory if it doesn't exist
+        os.makedirs('data', exist_ok=True)
+        
+        # Save default config
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+            json.dump(default_config, f, ensure_ascii=False, indent=4)
+            
+        # Also save a copy as default_config.json for reset purposes
         with open(DEFAULT_CONFIG_PATH, 'w', encoding='utf-8') as f:
             json.dump(default_config, f, ensure_ascii=False, indent=4)
-        shutil.copy(DEFAULT_CONFIG_PATH, CONFIG_PATH)    
-
-    with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
-        return json.load(f)
+            
+        return default_config
+    else:
+        # Load existing config
+        try:
+            with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                
+            # Update with any new environment variables
+            if os.environ.get("BOT_TOKEN"):
+                config["BOT_TOKEN"] = os.environ.get("BOT_TOKEN")
+            if os.environ.get("DATABASE_URL"):
+                config["DATABASE_URL"] = os.environ.get("DATABASE_URL")
+                
+            return config
+        except Exception as e:
+            logging.error(f"Error loading configuration: {e}")
+            return {}
 
 def save_config(config):
-    with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
-        json.dump(config, f, ensure_ascii=False, indent=4)
+    """Save configuration to JSON file"""
+    try:
+        # Create data directory if it doesn't exist
+        os.makedirs('data', exist_ok=True)
+        
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+            json.dump(config, f, ensure_ascii=False, indent=4)
+        return True
+    except Exception as e:
+        logging.error(f"Error saving configuration: {e}")
+        return False
 
 def reset_to_default():
-    shutil.copy(DEFAULT_CONFIG_PATH, CONFIG_PATH)
+    """Reset configuration to default values"""
+    if os.path.exists(DEFAULT_CONFIG_PATH):
+        try:
+            shutil.copy(DEFAULT_CONFIG_PATH, CONFIG_PATH)
+            return True
+        except Exception as e:
+            logging.error(f"Error resetting configuration: {e}")
+            return False
+    else:
+        # If default config doesn't exist, create a new one
+        load_config()
+        return True
 
+# Directly export commonly used configuration constants
+# This allows importing them directly from configuration module
 config = load_config()
-BOT_TOKEN = config["BOT_TOKEN"]
-ADMIN_ID = int(config["ADMIN_ID"])
-DB_TYPE = config["DB_TYPE"]
-DATA_DIR = config["DATA_DIR"]
-DB_PATH = config["DB_PATH"]
-CSV_PATH = config["CSV_PATH"]
-PRODUCT_PREFIX = config["PRODUCT_PREFIX"]
-SERVICE_PREFIX = config["SERVICE_PREFIX"]
-CATEGORY_PREFIX = config["CATEGORY_PREFIX"]
-BACK_PREFIX = config["BACK_PREFIX"]
-INQUIRY_PREFIX = config["INQUIRY_PREFIX"]
-EDUCATION_PREFIX = config["EDUCATION_PREFIX"]
-ADMIN_PREFIX = config["ADMIN_PREFIX"]
-PRODUCTS_BTN = config["PRODUCTS_BTN"]
-SERVICES_BTN = config["SERVICES_BTN"]
-INQUIRY_BTN = config["INQUIRY_BTN"]
-EDUCATION_BTN = config["EDUCATION_BTN"]
-CONTACT_BTN = config["CONTACT_BTN"]
-ABOUT_BTN = config["ABOUT_BTN"]
-BACK_BTN = config["BACK_BTN"]
-SEARCH_BTN = config["SEARCH_BTN"]
-ADMIN_BTN = config["ADMIN_BTN"]
-START_TEXT = config["START_TEXT"]
-NOT_FOUND_TEXT = config["NOT_FOUND_TEXT"]
-CONTACT_DEFAULT = config["CONTACT_DEFAULT"]
-ABOUT_DEFAULT = config["ABOUT_DEFAULT"]
-INQUIRY_START = config["INQUIRY_START"]
-INQUIRY_PHONE = config["INQUIRY_PHONE"]
-INQUIRY_DESC = config["INQUIRY_DESC"]
-INQUIRY_COMPLETE = config["INQUIRY_COMPLETE"]
-ADMIN_WELCOME = config["ADMIN_WELCOME"]
-ADMIN_ACCESS_DENIED = config["ADMIN_ACCESS_DENIED"]
-SEARCH_PROMPT = config["SEARCH_PROMPT"]
-ERROR_MESSAGE = config["ERROR_MESSAGE"]
 
-# Configure logging
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO,
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler("bot.log")
-    ]
-)
+# Button text
+PRODUCTS_BTN = config.get("PRODUCTS_BTN", "محصولات 🛍")
+SERVICES_BTN = config.get("SERVICES_BTN", "خدمات 🔧")
+INQUIRY_BTN = config.get("INQUIRY_BTN", "استعلام قیمت 💰")
+EDUCATION_BTN = config.get("EDUCATION_BTN", "محتوای آموزشی 📚")
+CONTACT_BTN = config.get("CONTACT_BTN", "تماس با ما ☎️")
+ABOUT_BTN = config.get("ABOUT_BTN", "درباره ما ℹ️")
+BACK_BTN = config.get("BACK_BTN", "بازگشت به منوی اصلی 🏠")
+SEARCH_BTN = config.get("SEARCH_BTN", "جستجو 🔍")
+ADMIN_BTN = config.get("ADMIN_BTN", "پنل مدیریت 👨‍💼")
+
+# Callback prefixes
+PRODUCT_PREFIX = config.get("PRODUCT_PREFIX", "product_")
+SERVICE_PREFIX = config.get("SERVICE_PREFIX", "service_")
+CATEGORY_PREFIX = config.get("CATEGORY_PREFIX", "category_")
+BACK_PREFIX = config.get("BACK_PREFIX", "back_")
+INQUIRY_PREFIX = config.get("INQUIRY_PREFIX", "inquiry_")
+EDUCATION_PREFIX = config.get("EDUCATION_PREFIX", "edu_")
+ADMIN_PREFIX = config.get("ADMIN_PREFIX", "admin_")
+
+# Other settings
+WEBHOOK_HOST = config.get("WEBHOOK_HOST", "https://example.com")
+WEBHOOK_PATH = config.get("WEBHOOK_PATH", "/api/webhook")
+DATABASE_URL = config.get("DATABASE_URL", os.environ.get("DATABASE_URL"))
+UPLOAD_FOLDER = config.get("UPLOAD_FOLDER", "data/uploads")
