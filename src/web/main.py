@@ -611,6 +611,8 @@ def admin_education():
                           categories=categories,
                           active_page='admin')
 
+# فانکشن مدیریت دیتابیس در پایین فایل تعریف شده است
+
 # روت‌های مربوط به محتوای ثابت
 @app.route('/admin/static-content')
 @login_required
