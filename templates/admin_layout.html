@@ -136,15 +136,53 @@
             const sidebarToggle = document.getElementById('sidebar-toggle');
             const backMenu = document.getElementById('back-menu');
             
-            sidebarToggle.addEventListener('click', function(e) {
-                e.preventDefault();
-                if (backMenu.classList.contains('show')) {
-                    backMenu.classList.remove('show');
-                } else {
-                    backMenu.classList.add('show');
-                }
-            });
+            if (sidebarToggle && backMenu) {
+                sidebarToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (backMenu.classList.contains('show')) {
+                        backMenu.classList.remove('show');
+                    } else {
+                        backMenu.classList.add('show');
+                    }
+                });
+            }
+            
+            // اضافه کردن کنترل تغییر تم روشن/تاریک
+            const themeToggler = document.createElement('li');
+            themeToggler.className = 'nav-item dropdown mt-3';
+            themeToggler.innerHTML = `
+                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-palette"></i> نمایش
+                </a>
+                <ul class="dropdown-menu dropdown-menu-dark">
+                    <li><a class="dropdown-item" href="#" onclick="setLightMode(); return false;"><i class="bi bi-sun"></i> حالت روز</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="setDarkMode(); return false;"><i class="bi bi-moon"></i> حالت شب</a></li>
+                </ul>
+            `;
+            
+            // اضافه کردن به منوی اصلی
+            const navLinks = document.querySelector('.admin-sidebar .nav');
+            if (navLinks) {
+                navLinks.appendChild(themeToggler);
+            }
         });
+        
+        // توابع تغییر تم
+        function setDarkMode() {
+            document.documentElement.setAttribute('data-bs-theme', 'dark');
+            localStorage.setItem('theme', 'dark');
+        }
+        
+        function setLightMode() {
+            document.documentElement.setAttribute('data-bs-theme', 'light');
+            localStorage.setItem('theme', 'light');
+        }
+        
+        // بررسی تنظیمات ذخیره شده
+        const storedTheme = localStorage.getItem('theme');
+        if (storedTheme) {
+            document.documentElement.setAttribute('data-bs-theme', storedTheme);
+        }
     </script>
     {% block scripts %}{% endblock %}
 </body>
