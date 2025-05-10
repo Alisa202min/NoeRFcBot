@@ -200,28 +200,23 @@
         </div>
         <ul class="nav flex-column">
             <li class="nav-item">
-                <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{{ url_for('index') }}">
-                    <i class="bi bi-house-door"></i> داشبورد
+                <a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" href="{{ url_for('index') }}">
+                    <i class="bi bi-house-door"></i> داشبورد اصلی
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if '/admin/products' in request.path %}active{% endif %}" href="{{ url_for('admin_products') }}">
-                    <i class="bi bi-box-seam"></i> محصولات
+                <a class="nav-link {% if active_page == 'configuration' %}active{% endif %}" href="{{ url_for('loadConfig') }}">
+                    <i class="bi bi-gear"></i> پیکربندی
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if '/admin/services' in request.path %}active{% endif %}" href="{{ url_for('admin_services') }}">
-                    <i class="bi bi-tools"></i> خدمات
+                <a class="nav-link {% if active_page == 'database' %}active{% endif %}" href="{{ url_for('database') }}">
+                    <i class="bi bi-database"></i> دیتابیس
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if '/configuration' in request.path %}active{% endif %}" href="{{ url_for('loadConfig') }}">
-                    <i class="bi bi-gear"></i> تنظیمات
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {% if '/database' in request.path %}active{% endif %}" href="{{ url_for('database') }}">
-                    <i class="bi bi-database"></i> پایگاه داده
+                <a class="nav-link {% if active_page == 'admin' %}active{% endif %}" href="{{ url_for('admin_dashboard') }}">
+                    <i class="bi bi-speedometer2"></i> پنل مدیریت
                 </a>
             </li>
             <li class="nav-item mt-4">
@@ -255,28 +250,23 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{{ url_for('index') }}">
-                            <i class="bi bi-house-door"></i> داشبورد
+                        <a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" href="{{ url_for('index') }}">
+                            <i class="bi bi-house-door"></i> داشبورد اصلی
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if '/admin/products' in request.path %}active{% endif %}" href="{{ url_for('admin_products') }}">
-                            <i class="bi bi-box-seam"></i> محصولات
+                        <a class="nav-link {% if active_page == 'configuration' %}active{% endif %}" href="{{ url_for('loadConfig') }}">
+                            <i class="bi bi-gear"></i> پیکربندی
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if '/admin/services' in request.path %}active{% endif %}" href="{{ url_for('admin_services') }}">
-                            <i class="bi bi-tools"></i> خدمات
+                        <a class="nav-link {% if active_page == 'database' %}active{% endif %}" href="{{ url_for('database') }}">
+                            <i class="bi bi-database"></i> دیتابیس
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if '/configuration' in request.path %}active{% endif %}" href="{{ url_for('loadConfig') }}">
-                            <i class="bi bi-gear"></i> تنظیمات
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if '/database' in request.path %}active{% endif %}" href="{{ url_for('database') }}">
-                            <i class="bi bi-database"></i> پایگاه داده
+                        <a class="nav-link {% if active_page == 'admin' %}active{% endif %}" href="{{ url_for('admin_dashboard') }}">
+                            <i class="bi bi-speedometer2"></i> پنل مدیریت
                         </a>
                     </li>
                     <li class="nav-item">
@@ -302,6 +292,7 @@
     
     <!-- Main content -->
     <div class="main-content">
+        {% if active_page not in ['dashboard', 'configuration', 'database', 'admin'] %}
         <!-- Search bar -->
         <div class="search-bar bg-light py-3 border-bottom">
             <div class="container">
@@ -322,6 +313,7 @@
                 </div>
             </div>
         </div>
+        {% endif %}
         
         <div class="content-wrapper fade-in">
             {% block content %}{% endblock %}
