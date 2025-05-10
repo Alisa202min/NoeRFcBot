@@ -301,15 +301,41 @@ def admin_products():
                           categories=categories)
 
 # روت‌های مربوط به خدمات
-@app.route('/admin/services')
+@app.route('/admin/services', methods=['GET', 'POST'])
 @login_required
 def admin_services():
     """پنل مدیریت - خدمات"""
-    services = Service.query.all()
+    action = request.args.get('action')
+    service_id = request.args.get('id')
+    
+    # اگر action برابر با 'add' یا 'edit' باشد، فرم نمایش داده می‌شود
+    if action == 'add':
+        categories = Category.query.filter_by(cat_type='service').all()
+        return render_template('admin/service_form.html',
+                              title="افزودن خدمت جدید",
+                              categories=categories)
+    elif action == 'edit' and service_id:
+        service = Service.query.get_or_404(int(service_id))
+        categories = Category.query.filter_by(cat_type='service').all()
+        return render_template('admin/service_form.html',
+                              title="ویرایش خدمت",
+                              service=service,
+                              categories=categories)
+    elif action == 'media' and service_id:
+        service = Service.query.get_or_404(int(service_id))
+        media = ServiceMedia.query.filter_by(service_id=service.id).all()
+        return render_template('admin/service_media.html',
+                              service=service,
+                              media=media)
+    
+    # نمایش لیست خدمات
+    page = request.args.get('page', 1, type=int)
+    pagination = Service.query.paginate(
+        page=page, per_page=10, error_out=False)
     categories = Category.query.all()
     
     return render_template('admin/services.html', 
-                          services=services,
+                          services=pagination,
                           categories=categories)
 
 # روت‌های مربوط به استعلام‌ها
