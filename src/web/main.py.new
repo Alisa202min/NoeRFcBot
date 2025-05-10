@@ -1099,9 +1099,7 @@ def view_table_data(table_name):
             'users': User,
             'categories': Category,
             'products': Product,
-            'services': Service,
             'product_media': ProductMedia,
-            'service_media': ServiceMedia,
             'inquiries': Inquiry,
             'educational_content': EducationalContent,
             'static_content': StaticContent
@@ -1363,9 +1361,7 @@ def export_table_csv(table_name):
             'users': User,
             'categories': Category,
             'products': Product,
-            'services': Service,
             'product_media': ProductMedia,
-            'service_media': ServiceMedia,
             'inquiries': Inquiry,
             'educational_content': EducationalContent,
             'static_content': StaticContent
