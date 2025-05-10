@@ -349,14 +349,145 @@ def admin_inquiries():
                           inquiries=inquiries)
 
 # روت‌های مربوط به محتوای آموزشی
-@app.route('/admin/educational')
+@app.route('/admin/education', methods=['GET', 'POST'])
 @login_required
-def admin_educational():
+def admin_education():
     """پنل مدیریت - محتوای آموزشی"""
-    contents = EducationalContent.query.all()
+    action = request.args.get('action')
+    content_id = request.args.get('id')
     
-    return render_template('admin/educational.html', 
-                          contents=contents)
+    # اگر action برابر با 'add' یا 'edit' باشد، فرم نمایش داده می‌شود
+    if action == 'add':
+        # دریافت لیست دسته‌بندی‌های موجود
+        categories = db.session.query(EducationalContent.category).distinct().all()
+        categories = [cat[0] for cat in categories if cat[0]] 
+        
+        return render_template('admin/education_form.html',
+                              title="افزودن محتوای آموزشی جدید",
+                              categories=categories,
+                              active_page='admin')
+    
+    elif action == 'edit' and content_id:
+        # دریافت محتوا برای ویرایش
+        content = EducationalContent.query.get_or_404(int(content_id))
+        
+        # دریافت لیست دسته‌بندی‌های موجود
+        categories = db.session.query(EducationalContent.category).distinct().all()
+        categories = [cat[0] for cat in categories if cat[0]]
+        
+        return render_template('admin/education_form.html',
+                              title="ویرایش محتوای آموزشی",
+                              content=content,
+                              categories=categories,
+                              active_page='admin')
+    
+    elif action == 'save' and request.method == 'POST':
+        # ذخیره محتوای جدید یا ویرایش شده
+        content_id = request.form.get('id')
+        title = request.form.get('title')
+        category = request.form.get('category')
+        content_type = request.form.get('content_type')
+        content_text = request.form.get('content')
+        
+        # اگر دسته‌بندی جدید انتخاب شده، از فیلد new_category استفاده می‌کنیم
+        if category == 'new_category':
+            category = request.form.get('new_category')
+        
+        # بررسی آپلود فایل برای محتوای نوع تصویر، ویدیو یا فایل
+        uploaded_file = request.files.get('file')
+        file_path = None
+        
+        if uploaded_file and uploaded_file.filename and allowed_file(uploaded_file.filename):
+            # ذخیره فایل
+            file_path = save_uploaded_file(uploaded_file, 'educational')
+        
+        try:
+            if content_id:
+                # ویرایش محتوای موجود
+                content = EducationalContent.query.get(int(content_id))
+                if content:
+                    content.title = title
+                    content.category = category
+                    content.content_type = content_type
+                    
+                    # اگر فایل جدید آپلود شده، از آن استفاده می‌کنیم
+                    if file_path and (content_type in ['image', 'video', 'file']):
+                        content.content = file_path
+                    # در غیر این صورت، فقط اگر نوع محتوا متن باشد، متن را به‌روزرسانی می‌کنیم
+                    elif content_type == 'text':
+                        content.content = content_text
+                    
+                    db.session.commit()
+                    flash('محتوای آموزشی با موفقیت به‌روزرسانی شد.', 'success')
+            else:
+                # افزودن محتوای جدید
+                content = EducationalContent()
+                content.title = title
+                content.category = category
+                content.content_type = content_type
+                
+                # تنظیم محتوا بر اساس نوع
+                if file_path and (content_type in ['image', 'video', 'file']):
+                    content.content = file_path
+                else:
+                    content.content = content_text
+                
+                db.session.add(content)
+                db.session.commit()
+                flash('محتوای آموزشی جدید با موفقیت ایجاد شد.', 'success')
+        
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error saving educational content: {e}")
+            flash(f'خطا در ذخیره محتوا: {str(e)}', 'danger')
+        
+        return redirect(url_for('admin_education'))
+    
+    elif action == 'delete' and content_id and request.method == 'POST':
+        # حذف محتوا
+        try:
+            content = EducationalContent.query.get(int(content_id))
+            if content:
+                db.session.delete(content)
+                db.session.commit()
+                flash('محتوای آموزشی با موفقیت حذف شد.', 'success')
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error deleting educational content: {e}")
+            flash(f'خطا در حذف محتوا: {str(e)}', 'danger')
+        
+        return redirect(url_for('admin_education'))
+    
+    # نمایش لیست محتوای آموزشی
+    query = request.args.get('q')
+    category = request.args.get('category')
+    page = request.args.get('page', 1, type=int)
+    
+    # ساخت کوئری پایه
+    base_query = EducationalContent.query
+    
+    # اعمال فیلترها
+    if query:
+        base_query = base_query.filter(EducationalContent.title.ilike(f'%{query}%'))
+    if category:
+        base_query = base_query.filter(EducationalContent.category == category)
+    
+    # مرتب‌سازی
+    base_query = base_query.order_by(EducationalContent.created_at.desc())
+    
+    # صفحه‌بندی
+    pagination = base_query.paginate(page=page, per_page=10, error_out=False)
+    educational_content = pagination.items
+    
+    # دریافت لیست همه دسته‌بندی‌ها برای فیلتر
+    categories = db.session.query(EducationalContent.category).distinct().all()
+    categories = [cat[0] for cat in categories if cat[0]]
+    
+    return render_template('admin/education.html',
+                          educational_content=educational_content,
+                          pagination=pagination,
+                          categories=categories,
+                          active_page='admin')
 
 # روت‌های مربوط به محتوای ثابت
 @app.route('/admin/static-content')

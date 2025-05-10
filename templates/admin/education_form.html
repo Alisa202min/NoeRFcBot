@@ -1,0 +1,153 @@
+{% extends 'admin_layout.html' %}
+
+{% block title %}{{ title }} - RFCBot{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_index') }}">داشبورد ادمین</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_education') }}">محتوای آموزشی</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ title }}</li>
+                </ol>
+            </nav>
+            
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">{{ title }}</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('admin_education') }}?action=save" enctype="multipart/form-data">
+                        {% if content %}
+                        <input type="hidden" name="id" value="{{ content.id }}">
+                        {% endif %}
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="title" class="form-label">عنوان</label>
+                                    <input type="text" class="form-control" id="title" name="title" value="{{ content.title if content else '' }}" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="category" class="form-label">دسته‌بندی</label>
+                                    <select class="form-select" id="category" name="category">
+                                        {% for cat in categories %}
+                                        <option value="{{ cat }}" {% if content and content.category == cat %}selected{% endif %}>{{ cat }}</option>
+                                        {% endfor %}
+                                        <option value="new_category" {% if not categories %}selected{% endif %}>دسته‌بندی جدید</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3" id="newCategoryDiv" style="display: none;">
+                                    <label for="new_category" class="form-label">دسته‌بندی جدید</label>
+                                    <input type="text" class="form-control" id="new_category" name="new_category" placeholder="نام دسته‌بندی جدید">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="content_type" class="form-label">نوع محتوا</label>
+                                    <select class="form-select" id="content_type" name="content_type" required>
+                                        <option value="text" {% if content and content.content_type == 'text' %}selected{% endif %}>متن</option>
+                                        <option value="video" {% if content and content.content_type == 'video' %}selected{% endif %}>ویدیو</option>
+                                        <option value="image" {% if content and content.content_type == 'image' %}selected{% endif %}>تصویر</option>
+                                        <option value="file" {% if content and content.content_type == 'file' %}selected{% endif %}>فایل</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="content_text" class="form-label">محتوا</label>
+                                    <textarea class="form-control" id="content_text" name="content" rows="12">{{ content.content if content else '' }}</textarea>
+                                    <div class="form-text" id="contentHelp">
+                                        برای محتوای متنی: متن مورد نظر را وارد کنید.<br>
+                                        برای ویدیو: آدرس ویدیو را وارد کنید.<br>
+                                        برای تصویر: آدرس تصویر را وارد کنید یا از فرم آپلود استفاده نمایید.<br>
+                                        برای فایل: توضیحات فایل را در اینجا وارد کنید و از فرم آپلود استفاده نمایید.
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3 upload-section" id="uploadSection" style="display: none;">
+                                    <label for="file" class="form-label">آپلود فایل</label>
+                                    <input type="file" class="form-control" id="file" name="file">
+                                    {% if content and content.content_type in ['image', 'video', 'file'] %}
+                                    <div class="mt-2">
+                                        {% if content.content_type == 'image' %}
+                                        <div class="mb-2">
+                                            <img src="{{ content.content }}" alt="{{ content.title }}" class="img-thumbnail" style="max-height: 200px;">
+                                        </div>
+                                        {% elif content.content_type == 'video' %}
+                                        <div class="mb-2">
+                                            <div class="ratio ratio-16x9">
+                                                <video controls>
+                                                    <source src="{{ content.content }}" type="video/mp4">
+                                                    مرورگر شما از پخش ویدیو پشتیبانی نمی‌کند.
+                                                </video>
+                                            </div>
+                                        </div>
+                                        {% elif content.content_type == 'file' %}
+                                        <div class="mb-2">
+                                            <div class="alert alert-info">
+                                                فایل فعلی: <a href="{{ content.content }}" target="_blank">{{ content.content.split('/')[-1] }}</a>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('admin_education') }}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> بازگشت به لیست
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> ذخیره محتوا
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const category = document.getElementById('category');
+        const newCategoryDiv = document.getElementById('newCategoryDiv');
+        const contentType = document.getElementById('content_type');
+        const uploadSection = document.getElementById('uploadSection');
+        
+        // نمایش/عدم نمایش فیلد دسته‌بندی جدید
+        function updateCategoryField() {
+            if (category.value === 'new_category') {
+                newCategoryDiv.style.display = 'block';
+            } else {
+                newCategoryDiv.style.display = 'none';
+            }
+        }
+        
+        // نمایش/عدم نمایش بخش آپلود فایل
+        function updateUploadSection() {
+            if (contentType.value === 'image' || contentType.value === 'video' || contentType.value === 'file') {
+                uploadSection.style.display = 'block';
+            } else {
+                uploadSection.style.display = 'none';
+            }
+        }
+        
+        category.addEventListener('change', updateCategoryField);
+        contentType.addEventListener('change', updateUploadSection);
+        
+        // فراخوانی اولیه برای تنظیم حالت فرم
+        updateCategoryField();
+        updateUploadSection();
+    });
+</script>
+{% endblock %}
