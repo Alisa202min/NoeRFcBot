@@ -8,6 +8,7 @@ import logging
 import datetime
 from flask import render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory, Response
 from flask_login import login_user, logout_user, login_required, current_user
+from werkzeug.utils import secure_filename
 
 from src.web.app import app, db, media_files
 from src.models.models import User, Category, Product, ProductMedia, Inquiry, EducationalContent, StaticContent
@@ -283,12 +284,85 @@ def admin_add_category():
 # ... Routes for products, services, inquiries, etc. ...
 
 # روت‌های مربوط به محصولات
-@app.route('/admin/products')
+@app.route('/admin/products', methods=['GET', 'POST'])
 @login_required
 def admin_products():
     """پنل مدیریت - محصولات"""
     action = request.args.get('action')
     product_id = request.args.get('id')
+    
+    # عملیات POST
+    if request.method == 'POST':
+        # آپلود رسانه جدید
+        if action == 'upload_media':
+            product_id = request.form.get('product_id')
+            if not product_id:
+                flash('شناسه محصول الزامی است.', 'danger')
+                return redirect(url_for('admin_products'))
+            
+            product = Product.query.get_or_404(int(product_id))
+            file = request.files.get('file')
+            file_type = request.form.get('file_type', 'photo')
+            
+            if file and file.filename:
+                try:
+                    # مسیر فایل‌های آپلودی
+                    upload_dir = os.path.join('static', 'uploads', 'products', str(product.id))
+                    os.makedirs(upload_dir, exist_ok=True)
+                    
+                    # ذخیره فایل
+                    filename = secure_filename(file.filename)
+                    file_path = os.path.join(upload_dir, filename)
+                    file.save(file_path)
+                    
+                    # افزودن به دیتابیس
+                    media = ProductMedia(
+                        product_id=product.id,
+                        file_id=os.path.join('uploads', 'products', str(product.id), filename),
+                        file_type=file_type
+                    )
+                    db.session.add(media)
+                    db.session.commit()
+                    
+                    flash('رسانه با موفقیت آپلود شد.', 'success')
+                except Exception as e:
+                    db.session.rollback()
+                    logger.error(f"Error uploading media: {e}")
+                    flash(f'خطا در آپلود رسانه: {str(e)}', 'danger')
+            else:
+                flash('لطفاً یک فایل انتخاب کنید.', 'warning')
+                
+            return redirect(url_for('admin_products', action='media', id=product_id))
+            
+        # حذف رسانه
+        elif action == 'delete_media':
+            media_id = request.form.get('media_id')
+            product_id = request.form.get('product_id')
+            
+            if not media_id or not product_id:
+                flash('شناسه رسانه و شناسه محصول الزامی هستند.', 'danger')
+                return redirect(url_for('admin_products'))
+            
+            try:
+                media = ProductMedia.query.get(int(media_id))
+                if media:
+                    # اگر فایل روی فایل سیستم ذخیره شده، آن را حذف می‌کنیم
+                    if not media.file_id.startswith('http'):
+                        file_path = os.path.join('static', media.file_id)
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+                    
+                    db.session.delete(media)
+                    db.session.commit()
+                    flash('رسانه با موفقیت حذف شد.', 'success')
+                else:
+                    flash('رسانه مورد نظر یافت نشد.', 'warning')
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Error deleting media: {e}")
+                flash(f'خطا در حذف رسانه: {str(e)}', 'danger')
+                
+            return redirect(url_for('admin_products', action='media', id=product_id))
     
     # اگر action برابر با 'add' یا 'edit' باشد، فرم نمایش داده می‌شود
     if action == 'add':
