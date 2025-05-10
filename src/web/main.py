@@ -616,6 +616,291 @@ def telegram_webhook():
     # and is only a placeholder for the Flask app
     return jsonify({"status": "ok", "method": "webhook"})
 
+# ----- JSON API endpoints -----
+
+@app.route('/api/categories', methods=['GET'])
+def api_categories():
+    """API دریافت دسته‌بندی‌ها"""
+    try:
+        cat_type = request.args.get('type', None)
+        parent_id = request.args.get('parent_id', type=int)
+        
+        # فیلتر بر اساس پارامترهای ورودی
+        query = Category.query
+        
+        if cat_type:
+            query = query.filter_by(cat_type=cat_type)
+        
+        if parent_id is not None:
+            query = query.filter_by(parent_id=parent_id)
+        else:
+            # اگر parent_id ارسال نشده باشد، دسته‌های اصلی را برمی‌گرداند
+            query = query.filter_by(parent_id=None)
+            
+        categories = query.all()
+        
+        # تبدیل به دیکشنری برای پاسخ JSON
+        result = []
+        for category in categories:
+            result.append({
+                'id': category.id,
+                'name': category.name,
+                'type': category.cat_type,
+                'parent_id': category.parent_id
+            })
+            
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/products', methods=['GET'])
+def api_products():
+    """API دریافت محصولات"""
+    try:
+        category_id = request.args.get('category_id', type=int)
+        featured = request.args.get('featured', type=bool)
+        
+        # فیلتر بر اساس پارامترهای ورودی
+        query = Product.query
+        
+        if category_id:
+            query = query.filter_by(category_id=category_id)
+            
+        if featured is not None:
+            query = query.filter_by(featured=featured)
+            
+        products = query.all()
+        
+        # تبدیل به دیکشنری برای پاسخ JSON
+        result = []
+        for product in products:
+            result.append({
+                'id': product.id,
+                'name': product.name,
+                'price': product.price,
+                'description': product.description,
+                'category_id': product.category_id,
+                'photo_url': product.photo_url,
+                'featured': product.featured,
+                'brand': product.brand,
+                'model': product.model,
+                'in_stock': product.in_stock,
+            })
+            
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/services', methods=['GET'])
+def api_services():
+    """API دریافت خدمات"""
+    try:
+        category_id = request.args.get('category_id', type=int)
+        featured = request.args.get('featured', type=bool)
+        
+        # فیلتر بر اساس پارامترهای ورودی
+        query = Service.query
+        
+        if category_id:
+            query = query.filter_by(category_id=category_id)
+            
+        if featured is not None:
+            query = query.filter_by(featured=featured)
+            
+        services = query.all()
+        
+        # تبدیل به دیکشنری برای پاسخ JSON
+        result = []
+        for service in services:
+            result.append({
+                'id': service.id,
+                'name': service.name,
+                'price': service.price,
+                'description': service.description,
+                'category_id': service.category_id,
+                'photo_url': service.photo_url,
+                'featured': service.featured
+            })
+            
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/educational', methods=['GET'])
+def api_educational():
+    """API دریافت محتوای آموزشی"""
+    try:
+        category = request.args.get('category')
+        
+        # فیلتر بر اساس پارامترهای ورودی
+        query = EducationalContent.query
+        
+        if category:
+            query = query.filter_by(category=category)
+            
+        contents = query.all()
+        
+        # تبدیل به دیکشنری برای پاسخ JSON
+        result = []
+        for content in contents:
+            result.append({
+                'id': content.id,
+                'title': content.title,
+                'content': content.content,
+                'category': content.category,
+                'content_type': content.content_type,
+                'created_at': content.created_at.isoformat() if content.created_at else None
+            })
+            
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/inquiries', methods=['GET'])
+def api_inquiries():
+    """API دریافت استعلام‌ها (فقط برای ادمین)"""
+    try:
+        # چک کردن دسترسی ادمین
+        if not current_user.is_authenticated or not current_user.is_admin:
+            return jsonify({'error': 'دسترسی غیرمجاز'}), 403
+            
+        inquiries = Inquiry.query.all()
+        
+        # تبدیل به دیکشنری برای پاسخ JSON
+        result = []
+        for inquiry in inquiries:
+            result.append({
+                'id': inquiry.id,
+                'user_id': inquiry.user_id,
+                'name': inquiry.name,
+                'phone': inquiry.phone,
+                'description': inquiry.description,
+                'product_id': inquiry.product_id,
+                'product_type': inquiry.product_type,
+                'status': inquiry.status,
+                'created_at': inquiry.created_at.isoformat() if inquiry.created_at else None
+            })
+            
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/telegram_file/<file_id>')
+def telegram_file(file_id):
+    """سرو فایل‌های آپلود شده از تلگرام"""
+    try:
+        # جستجوی فایل در جدول ProductMedia
+        media = ProductMedia.query.filter_by(file_id=file_id).first()
+        
+        if not media:
+            # جستجو در جدول ServiceMedia
+            media = ServiceMedia.query.filter_by(file_id=file_id).first()
+            
+        if not media or not media.local_path:
+            return jsonify({'error': 'فایل پیدا نشد'}), 404
+            
+        # فایل را از مسیر محلی سرو می‌کنیم
+        directory = os.path.dirname(media.local_path)
+        filename = os.path.basename(media.local_path)
+        
+        return send_from_directory(directory, filename)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ----- Additional Web Routes -----
+
+@app.route('/products')
+def products():
+    """صفحه محصولات"""
+    try:
+        category_id = request.args.get('category', type=int)
+        
+        # دریافت محصولات
+        query = Product.query
+        if category_id:
+            query = query.filter_by(category_id=category_id)
+        products_list = query.all()
+        
+        # دریافت دسته‌بندی‌ها
+        categories = Category.query.filter_by(cat_type='product', parent_id=None).all()
+        
+        return render_template('products.html', 
+                              products=products_list,
+                              categories=categories,
+                              selected_category=category_id)
+    except Exception as e:
+        flash(f'خطا در نمایش صفحه محصولات: {str(e)}', 'danger')
+        return render_template('products.html', products=[], categories=[], selected_category=None)
+
+@app.route('/services')
+def services():
+    """صفحه خدمات"""
+    try:
+        category_id = request.args.get('category', type=int)
+        
+        # دریافت خدمات
+        query = Service.query
+        if category_id:
+            query = query.filter_by(category_id=category_id)
+        services_list = query.all()
+        
+        # دریافت دسته‌بندی‌ها
+        categories = Category.query.filter_by(cat_type='service', parent_id=None).all()
+        
+        return render_template('services.html', 
+                              services=services_list,
+                              categories=categories,
+                              selected_category=category_id)
+    except Exception as e:
+        flash(f'خطا در نمایش صفحه خدمات: {str(e)}', 'danger')
+        return render_template('services.html', services=[], categories=[], selected_category=None)
+
+@app.route('/educational')
+def educational():
+    """صفحه محتوای آموزشی"""
+    try:
+        category = request.args.get('category')
+        
+        # دریافت محتوای آموزشی
+        query = EducationalContent.query
+        if category:
+            query = query.filter_by(category=category)
+        contents = query.order_by(EducationalContent.created_at.desc()).all()
+        
+        # دریافت دسته‌بندی‌های منحصر به فرد
+        categories = db.session.query(EducationalContent.category).distinct().all()
+        categories = [c[0] for c in categories]
+        
+        return render_template('educational.html', 
+                              contents=contents,
+                              categories=categories,
+                              selected_category=category)
+    except Exception as e:
+        flash(f'خطا در نمایش صفحه محتوای آموزشی: {str(e)}', 'danger')
+        return render_template('educational.html', contents=[], categories=[], selected_category=None)
+
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    """صفحه ورود ادمین"""
+    # اگر کاربر قبلاً وارد شده باشد، به پنل ادمین منتقل می‌شود
+    if current_user.is_authenticated:
+        return redirect(url_for('admin_panel'))
+        
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        user = User.query.filter_by(username=username).first()
+        
+        if user and user.check_password(password):
+            login_user(user)
+            next_page = request.args.get('next', url_for('admin_panel'))
+            return redirect(next_page)
+        else:
+            flash('نام کاربری یا رمز عبور اشتباه است', 'danger')
+            
+    return render_template('admin/login.html')
+
 # ----- Common error handlers -----
 
 @app.errorhandler(404)
@@ -627,7 +912,7 @@ def page_not_found(e):
 def search():
     """جستجوی پیشرفته محصولات و خدمات"""
     try:
-        query = request.args.get('q', '')
+        query_text = request.args.get('q', '')
         category_id = request.args.get('category', type=int)
         product_type = request.args.get('type')
         min_price = request.args.get('min_price', type=int)
@@ -636,15 +921,15 @@ def search():
         
         # بررسی پارامترها و اعمال فیلترها
         filters = {}
-        if query:
-            filters['query'] = query
-        if category_id:
+        if query_text:
+            filters['query'] = query_text
+        if category_id is not None:
             filters['category_id'] = category_id
         if product_type:
             filters['product_type'] = product_type
-        if min_price:
+        if min_price is not None:
             filters['min_price'] = min_price
-        if max_price:
+        if max_price is not None:
             filters['max_price'] = max_price
         
         # تنظیم فیلتر پایه برای محصولات
