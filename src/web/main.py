@@ -1602,27 +1602,52 @@ def configuration_page():
 @login_required
 def logs():
     """دریافت لاگ‌های ربات"""
+    import os
     try:
         # تلاش برای خواندن آخرین خطوط فایل لاگ
         log_file = 'bot.log'
         max_lines = 50  # حداکثر تعداد خطوط برای نمایش
         
+        # برای درخواست‌های AJAX، پاسخ JSON برگردان
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            try:
+                if os.path.exists(log_file):
+                    with open(log_file, 'r', encoding='utf-8') as f:
+                        # خواندن آخرین خطوط
+                        all_lines = f.readlines()
+                        lines = all_lines[-max_lines:] if len(all_lines) > max_lines else all_lines
+                        return jsonify({'logs': ''.join(lines)})
+                else:
+                    return jsonify({'logs': 'فایل لاگ موجود نیست.'})
+            except Exception as e:
+                logger.error(f"Error reading log file: {e}")
+                return jsonify({'logs': f'خطا در خواندن فایل لاگ: {str(e)}'})
+        
+        # برای درخواست‌های معمولی، صفحه HTML برگردان
         try:
-            import os
+            bot_logs = []
             if os.path.exists(log_file):
                 with open(log_file, 'r', encoding='utf-8') as f:
-                    # خواندن آخرین خطوط
-                    all_lines = f.readlines()
-                    lines = all_lines[-max_lines:] if len(all_lines) > max_lines else all_lines
-                    return jsonify({'logs': ''.join(lines)})
+                    lines = f.readlines()
+                    bot_logs = lines[-50:] if len(lines) > 50 else lines
             else:
-                return jsonify({'logs': 'فایل لاگ موجود نیست.'})
+                bot_logs = ['فایل لاگ موجود نیست.']
+                
+            return render_template('logs.html', 
+                                 logs=bot_logs,
+                                 active_page='logs')
         except Exception as e:
-            logger.error(f"Error reading log file: {e}")
-            return jsonify({'logs': f'خطا در خواندن فایل لاگ: {str(e)}'})
+            logger.error(f"Error reading log file for HTML view: {e}")
+            bot_logs = [f'خطا در خواندن فایل لاگ: {str(e)}']
+            return render_template('logs.html',
+                                 logs=bot_logs,
+                                 active_page='logs')
     except Exception as e:
         logger.error(f"Error in logs route: {e}")
-        return jsonify({'logs': 'خطای داخلی سرور'})
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'logs': 'خطای داخلی سرور'})
+        else:
+            return render_template('error.html', error='خطای داخلی سرور')
 
 @app.route('/control/start', methods=['POST'])
 @login_required
