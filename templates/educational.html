@@ -1,0 +1,67 @@
+{% extends "layout.html" %}
+
+{% block title %}محتوای آموزشی{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">محتوای آموزشی</h1>
+    
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    دسته‌بندی‌ها
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <a href="{{ url_for('educational') }}" class="list-group-item list-group-item-action {% if not selected_category %}active{% endif %}">
+                            همه محتوا
+                        </a>
+                        
+                        {% for category in categories %}
+                        <a href="{{ url_for('educational', category=category) }}" class="list-group-item list-group-item-action {% if selected_category == category %}active{% endif %}">
+                            {{ category }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-9">
+            <div class="row">
+                {% if contents %}
+                    {% for content in contents %}
+                    <div class="col-12 mb-4">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">{{ content.title }}</h5>
+                                <span class="badge bg-info">{{ content.category }}</span>
+                            </div>
+                            <div class="card-body">
+                                {% if content.content_type == 'text' %}
+                                    {{ content.content|safe }}
+                                {% elif content.content_type == 'video' %}
+                                    <div class="ratio ratio-16x9">
+                                        <iframe src="{{ content.content }}" title="{{ content.title }}" allowfullscreen></iframe>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="card-footer text-muted">
+                                <small>تاریخ انتشار: {{ content.created_at.strftime('%Y/%m/%d') if content.created_at else 'نامشخص' }}</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        محتوای آموزشی یافت نشد
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
