@@ -47,6 +47,7 @@ class Category(db.Model):
     # Relationships
     children = db.relationship('Category', backref=db.backref('parent', remote_side=[id]))
     products = db.relationship('Product', backref='category', lazy='dynamic')
+    services = db.relationship('Service', backref='category', lazy='dynamic')
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -57,32 +58,37 @@ class Category(db.Model):
 
 
 class Product(db.Model):
-    """Product/Service model"""
+    """Product model - now separate from services"""
     __tablename__ = 'products'
     
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(128), nullable=False)
+    name = db.Column(db.Text, nullable=False)
     description = db.Column(db.Text)
     price = db.Column(db.Integer, default=0)
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
-    photo_url = db.Column(db.String(255), nullable=True)
+    photo_url = db.Column(db.Text, nullable=True)
     
-    # Type field to reuse this table for services as well - match with database column name
-    product_type = db.Column(db.String(20), default='product')  # product or service
+    # Type field for compatibility with old code
+    product_type = db.Column(db.Text, default='product')
     
     # Extended fields for better search
-    brand = db.Column(db.String(64), nullable=True)
+    brand = db.Column(db.Text, nullable=True)
     model = db.Column(db.String(64), nullable=True)
     in_stock = db.Column(db.Boolean, default=True)
-    tags = db.Column(db.String(255), nullable=True)
+    tags = db.Column(db.Text, nullable=True)
     featured = db.Column(db.Boolean, default=False)
     
     # Additional database columns that exist in the schema
-    model_number = db.Column(db.String(100), nullable=True)
-    manufacturer = db.Column(db.String(100), nullable=True)
-    provider = db.Column(db.String(100), nullable=True)
-    service_code = db.Column(db.String(100), nullable=True)
-    duration = db.Column(db.String(100), nullable=True)
+    model_number = db.Column(db.Text, nullable=True)
+    manufacturer = db.Column(db.Text, nullable=True)
+    provider = db.Column(db.String(255), nullable=True)
+    service_code = db.Column(db.String(255), nullable=True)
+    duration = db.Column(db.String(255), nullable=True)
+    
+    # Media-related columns
+    file_id = db.Column(db.Text, nullable=True)  # Main Telegram file_id
+    video_url = db.Column(db.Text, nullable=True)
+    video_file_id = db.Column(db.Text, nullable=True)
     
     # Relationships
     media = db.relationship('ProductMedia', backref='product', lazy='dynamic', cascade='all, delete-orphan')
@@ -96,8 +102,31 @@ class Product(db.Model):
         return f'<Product {self.name}>'
 
 
+class Service(db.Model):
+    """Service model - now separate from products"""
+    __tablename__ = 'services'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.Text, nullable=False)
+    description = db.Column(db.Text)
+    price = db.Column(db.Integer, default=0)
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
+    photo_url = db.Column(db.Text, nullable=True)
+    
+    # Media-related columns
+    file_id = db.Column(db.Text, nullable=True)  # Main Telegram file_id
+    video_url = db.Column(db.Text, nullable=True)
+    video_file_id = db.Column(db.Text, nullable=True)
+    
+    # Relationships
+    media = db.relationship('ServiceMedia', backref='service', lazy='dynamic', cascade='all, delete-orphan')
+    
+    def __repr__(self):
+        return f'<Service {self.name}>'
+
+
 class ProductMedia(db.Model):
-    """Media files for products and services"""
+    """Media files for products"""
     __tablename__ = 'product_media'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -111,6 +140,19 @@ class ProductMedia(db.Model):
     
     def __repr__(self):
         return f'<Media {self.id} for Product {self.product_id}>'
+
+
+class ServiceMedia(db.Model):
+    """Media files for services"""
+    __tablename__ = 'service_media'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    service_id = db.Column(db.Integer, db.ForeignKey('services.id', ondelete='CASCADE'))
+    file_id = db.Column(db.String(255), nullable=False)  # Telegram file_id
+    file_type = db.Column(db.String(10), default='photo')  # photo, video, etc.
+    
+    def __repr__(self):
+        return f'<Media {self.id} for Service {self.service_id}>'
 
 
 class Inquiry(db.Model):
