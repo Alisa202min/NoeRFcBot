@@ -45,6 +45,7 @@ def main_menu_keyboard() -> ReplyKeyboardMarkup:
         is_persistent=True,    # Show keyboard permanently
         input_field_placeholder="انتخاب از منو..."  # Placeholder text for the input field
     )
+    return keyboard
 
 def admin_keyboard() -> ReplyKeyboardMarkup:
     """

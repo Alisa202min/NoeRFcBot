@@ -58,31 +58,45 @@ async def cmd_start(message: Message, state: FSMContext):
             "از منوی زیر گزینه مورد نظر خود را انتخاب کنید:"
         )
         
-        # Create keyboard - use more explicit approach
-        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+        # Import the necessary keyboard types
+        from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
         
-        # Create button rows directly
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            # First row - 2 buttons
-            [
-                InlineKeyboardButton(text="🛒 محصولات", callback_data="products"),
-                InlineKeyboardButton(text="🛠️ خدمات", callback_data="services")
+        # Use the configured button text from configuration.py
+        from configuration import PRODUCTS_BTN, SERVICES_BTN, INQUIRY_BTN, EDUCATION_BTN
+        from configuration import CONTACT_BTN, ABOUT_BTN, SEARCH_BTN
+        
+        # Create a ReplyKeyboardMarkup with solid buttons that stay fixed at the bottom
+        keyboard = ReplyKeyboardMarkup(
+            keyboard=[
+                # First row - 2 buttons
+                [
+                    KeyboardButton(text=PRODUCTS_BTN),
+                    KeyboardButton(text=SERVICES_BTN)
+                ],
+                # Second row - 2 buttons
+                [
+                    KeyboardButton(text=INQUIRY_BTN),
+                    KeyboardButton(text=EDUCATION_BTN)
+                ],
+                # Third row - 2 buttons
+                [
+                    KeyboardButton(text=CONTACT_BTN),
+                    KeyboardButton(text=ABOUT_BTN)
+                ],
+                # Fourth row - 1 button
+                [
+                    KeyboardButton(text=SEARCH_BTN)
+                ]
             ],
-            # Second row - 2 buttons
-            [
-                InlineKeyboardButton(text="📚 محتوای آموزشی", callback_data="educational"),
-                InlineKeyboardButton(text="📞 تماس با ما", callback_data="contact")
-            ],
-            # Third row - 1 button
-            [
-                InlineKeyboardButton(text="ℹ️ درباره ما", callback_data="about")
-            ]
-        ])
+            resize_keyboard=True,  # Make the keyboard smaller to fit better
+            is_persistent=True,    # Keep the keyboard visible all the time
+            input_field_placeholder="انتخاب از منو..."  # Placeholder text for the input field
+        )
         
         # Log that we're about to send the message with buttons
         logging.info("Sending welcome message with keyboard buttons")
         
-        # Send the message with the markup
+        # Send the message with the solid buttons
         await message.answer(welcome_text, reply_markup=keyboard)
         logging.info("Start command response sent successfully")
     except Exception as e:
@@ -106,14 +120,16 @@ async def cmd_help(message: Message):
 
 # Products command handler
 @router.message(Command("products"))
+@router.message(lambda message: message.text == PRODUCTS_BTN)
 async def cmd_products(message: Message, state: FSMContext):
-    """Handle /products command"""
+    """Handle /products command or Products button"""
     await show_categories(message, 'product', state)
 
 # Services command handler
 @router.message(Command("services"))
+@router.message(lambda message: message.text == SERVICES_BTN)
 async def cmd_services(message: Message, state: FSMContext):
-    """Handle /services command"""
+    """Handle /services command or Services button"""
     await show_categories(message, 'service', state)
 
 # Contact command handler
