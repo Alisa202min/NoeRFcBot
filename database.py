@@ -15,20 +15,41 @@ class Database:
     def __init__(self):
         """Initialize the PostgreSQL database using DATABASE_URL from environment"""
         from configuration import config
-        db_type = config.get('DB_TYPE', 'postgresql').lower()
-
-        if db_type == 'postgresql':
+        self.db_type = config.get('DB_TYPE', 'postgresql').lower()
+        self.database_url = os.environ.get('DATABASE_URL')
+        
+        if self.db_type == 'postgresql':
             # Use PostgreSQL
-            self.db_type = 'postgresql'
-            database_url = os.environ.get('DATABASE_URL')
-            if not database_url:
+            if not self.database_url:
                 raise Exception("DATABASE_URL environment variable is not set")
             
             # Connect to PostgreSQL
-            self.conn = psycopg2.connect(database_url)
+            self.connect()
+        
+    def connect(self):
+        """Establish a new database connection"""
+        try:
+            logging.info("Establishing new database connection")
+            self.conn = psycopg2.connect(self.database_url)
             self.conn.autocommit = True
-        else:
-            raise Exception(f"Unsupported database type: {db_type}")
+            logging.info("Database connection established successfully")
+        except Exception as e:
+            logging.error(f"Failed to connect to database: {str(e)}")
+            raise
+    
+    def ensure_connection(self):
+        """Ensure database connection is active, reconnect if needed"""
+        if self.db_type != 'postgresql':
+            return
+            
+        try:
+            # Test if connection is alive
+            cur = self.conn.cursor()
+            cur.execute("SELECT 1")
+            cur.close()
+        except Exception as e:
+            logging.warning(f"Database connection lost: {str(e)}. Attempting to reconnect...")
+            self.connect()
             
         self._init_db()
 

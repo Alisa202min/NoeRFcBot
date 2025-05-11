@@ -114,42 +114,111 @@ async def cmd_services(message: Message, state: FSMContext):
 @router.message(lambda message: message.text == CONTACT_BTN)
 async def cmd_contact(message: Message):
     """Handle /contact command or Contact button"""
-    contact_text = db.get_static_content('contact')
-    await message.answer(contact_text)
+    try:
+        logging.info(f"Contact information requested by user: {message.from_user.id}")
+        contact_text = db.get_static_content('contact')
+        if not contact_text:
+            await message.answer("⚠️ اطلاعات تماس در حال حاضر در دسترس نیست. لطفا بعدا تلاش کنید.")
+            logging.warning("Contact information not found in database")
+            return
+            
+        # Format the message nicely
+        formatted_text = f"📞 *اطلاعات تماس*\n\n{contact_text}"
+        await message.answer(formatted_text, parse_mode="Markdown")
+        logging.info("Contact information sent successfully")
+    except Exception as e:
+        error_msg = f"خطا در دریافت اطلاعات تماس: {str(e)}"
+        logging.error(f"Error in cmd_contact: {str(e)}\n{traceback.format_exc()}")
+        await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
 
 # About command handler
 @router.message(Command("about"))
 @router.message(lambda message: message.text == ABOUT_BTN)
 async def cmd_about(message: Message):
     """Handle /about command or About button"""
-    about_text = db.get_static_content('about')
-    await message.answer(about_text)
+    try:
+        logging.info(f"About information requested by user: {message.from_user.id}")
+        about_text = db.get_static_content('about')
+        if not about_text:
+            await message.answer("⚠️ اطلاعات درباره ما در حال حاضر در دسترس نیست. لطفا بعدا تلاش کنید.")
+            logging.warning("About information not found in database")
+            return
+            
+        # Format the message nicely
+        formatted_text = f"ℹ️ *درباره ما*\n\n{about_text}"
+        await message.answer(formatted_text, parse_mode="Markdown")
+        logging.info("About information sent successfully")
+    except Exception as e:
+        error_msg = f"خطا در دریافت اطلاعات درباره ما: {str(e)}"
+        logging.error(f"Error in cmd_about: {str(e)}\n{traceback.format_exc()}")
+        await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
 
 # Education button handler
 @router.message(lambda message: message.text == EDUCATION_BTN)
 async def cmd_education(message: Message):
     """Handle Education button"""
-    categories = db.get_educational_categories()
-    if not categories:
-        await message.answer("محتوای آموزشی در حال حاضر در دسترس نیست. لطفا بعدا تلاش کنید.")
-        return
-    
-    from keyboards import education_categories_keyboard
-    keyboard = education_categories_keyboard(categories)
-    await message.answer("لطفا یک دسته‌بندی آموزشی را انتخاب کنید:", reply_markup=keyboard)
+    try:
+        logging.info(f"Educational content requested by user: {message.from_user.id}")
+        categories = db.get_educational_categories()
+        if not categories:
+            await message.answer("⚠️ محتوای آموزشی در حال حاضر در دسترس نیست. لطفا بعدا تلاش کنید.")
+            logging.warning("No educational categories found in database")
+            return
+        
+        # Format the message nicely
+        from keyboards import education_categories_keyboard
+        keyboard = education_categories_keyboard(categories)
+        await message.answer(
+            "📚 *محتوای آموزشی*\n\nلطفا یکی از دسته‌بندی‌های زیر را انتخاب کنید:", 
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        logging.info(f"Educational categories sent: {len(categories)} categories")
+    except Exception as e:
+        error_msg = f"خطا در دریافت محتوای آموزشی: {str(e)}"
+        logging.error(f"Error in cmd_education: {str(e)}\n{traceback.format_exc()}")
+        await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
 
 # Inquiry button handler
 @router.message(lambda message: message.text == INQUIRY_BTN)
 async def cmd_inquiry(message: Message, state: FSMContext):
     """Handle Inquiry button"""
-    await message.answer("لطفا نام خود را وارد کنید:")
-    await state.set_state(UserStates.inquiry_name)
+    try:
+        logging.info(f"Inquiry process started by user: {message.from_user.id}")
+        
+        # Format the message nicely
+        inquiry_text = (
+            "📝 *استعلام قیمت*\n\n"
+            "برای ارسال استعلام قیمت، لطفا اطلاعات زیر را به ترتیب وارد کنید:\n"
+            "1️⃣ نام و نام خانوادگی\n"
+            "2️⃣ شماره تماس\n"
+            "3️⃣ شرح محصول یا خدمات درخواستی\n\n"
+            "لطفا نام و نام خانوادگی خود را وارد کنید:"
+        )
+        
+        await message.answer(inquiry_text, parse_mode="Markdown")
+        await state.set_state(UserStates.inquiry_name)
+        logging.info(f"User {message.from_user.id} entered inquiry name state")
+    except Exception as e:
+        error_msg = f"خطا در شروع فرآیند استعلام: {str(e)}"
+        logging.error(f"Error in cmd_inquiry: {str(e)}\n{traceback.format_exc()}")
+        await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
 
 # Search button handler
 @router.message(lambda message: message.text == SEARCH_BTN)
 async def cmd_search(message: Message):
     """Handle Search button"""
-    await message.answer("این قابلیت در حال حاضر در دسترس نیست. لطفا بعدا تلاش کنید.")
+    try:
+        logging.info(f"Search requested by user: {message.from_user.id}")
+        await message.answer(
+            "🔍 *جستجو*\n\n"
+            "این قابلیت در حال حاضر در دسترس نیست. لطفا بعدا تلاش کنید.",
+            parse_mode="Markdown"
+        )
+        logging.info("Search feature not available message sent")
+    except Exception as e:
+        logging.error(f"Error in cmd_search: {str(e)}\n{traceback.format_exc()}")
+        await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
 
 # Button callbacks
 @router.callback_query(F.data == "products")
