@@ -4,127 +4,128 @@
 این اسکریپت تست‌های مختلف را به ترتیب اجرا می‌کند و نتایج را گزارش می‌دهد.
 """
 
-import os
 import sys
+import os
 import time
+import datetime
 import logging
 import subprocess
-from datetime import datetime
+from typing import List, Tuple, Optional
 
-# تنظیمات logging
+# تنظیم لاگینگ
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filename='test_results.log'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler("test_results.log"),
+        logging.StreamHandler(sys.stdout)
+    ]
 )
-
-logger = logging.getLogger('RFCBot Tests')
+logger = logging.getLogger(__name__)
 
 def print_and_log(message):
     """چاپ پیام در خروجی استاندارد و ثبت آن در لاگ"""
-    print(message)
     logger.info(message)
 
 def run_command(command, description, timeout=300):
     """اجرای یک دستور و بازگرداندن نتیجه"""
     print_and_log(f"در حال اجرای {description}...")
+    start_time = time.time()
+    
     try:
         result = subprocess.run(
             command,
+            shell=True,
+            check=False,
             capture_output=True,
             text=True,
-            check=False,
             timeout=timeout
         )
-        if result.returncode == 0:
-            print_and_log(f"{description} با موفقیت اجرا شد.")
-            return True, result.stdout
+        
+        elapsed_time = time.time() - start_time
+        success = result.returncode == 0
+        
+        if success:
+            print_and_log(f"✅ {description} با موفقیت اجرا شد (زمان: {elapsed_time:.2f} ثانیه)")
         else:
-            print_and_log(f"خطا در اجرای {description}:")
-            print_and_log(result.stderr)
-            return False, result.stderr
+            print_and_log(f"❌ خطا در اجرای {description}")
+            print_and_log(f"خروجی استاندارد:\n{result.stdout}")
+            print_and_log(f"خروجی خطا:\n{result.stderr}")
+        
+        return success, result.stdout, result.stderr, elapsed_time
     except subprocess.TimeoutExpired:
-        print_and_log(f"تایم‌اوت در اجرای {description}")
-        return False, "Timeout"
+        print_and_log(f"⏱️ تایم‌اوت در اجرای {description} (بیش از {timeout} ثانیه)")
+        return False, "", f"Timeout after {timeout} seconds", timeout
     except Exception as e:
-        print_and_log(f"خطای غیرمنتظره در اجرای {description}: {e}")
-        return False, str(e)
+        print_and_log(f"❌ خطای غیرمنتظره در اجرای {description}: {str(e)}")
+        return False, "", str(e), time.time() - start_time
 
 def check_test_database():
     """بررسی وجود دیتابیس تست"""
-    print_and_log("بررسی دیتابیس تست...")
-    
-    if 'DATABASE_URL' not in os.environ:
-        print_and_log("متغیر محیطی DATABASE_URL تنظیم نشده است.")
+    if not os.environ.get("DATABASE_URL"):
+        print_and_log("❌ متغیر محیطی DATABASE_URL تنظیم نشده است")
         return False
     
-    # دریافت نام دیتابیس از DATABASE_URL
-    db_url = os.environ['DATABASE_URL']
-    if 'postgresql' not in db_url.lower():
-        print_and_log("DATABASE_URL باید به یک دیتابیس PostgreSQL اشاره کند.")
+    # بررسی اتصال به دیتابیس
+    result, stdout, stderr, _ = run_command(
+        "python -c \"from database import Database; db = Database(); print('دیتابیس متصل شد')\"",
+        "بررسی اتصال به دیتابیس"
+    )
+    
+    if not result:
+        print_and_log("❌ اتصال به دیتابیس ناموفق بود")
         return False
     
     return True
 
 def run_tests():
     """اجرای تمام تست‌ها و گزارش نتایج"""
-    start_time = time.time()
-    test_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    print_and_log(f"شروع اجرای تست‌ها در {test_date}")
+    print_and_log("=" * 60)
+    print_and_log(f"شروع اجرای تست‌ها در {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print_and_log("=" * 60)
     
     # بررسی پیش‌نیازها
     if not check_test_database():
-        print_and_log("خطا در پیش‌نیازها. تست‌ها اجرا نمی‌شوند.")
+        print_and_log("❌ پایان اجرا به دلیل مشکل در دیتابیس")
         return False
     
-    # لیست تمام تست‌ها
+    test_results = []
+    total_time = 0
+    
+    # لیست تست‌ها برای اجرا
     tests = [
-        {
-            "name": "تست‌های بات",
-            "command": ["pytest", "-v", "tests/test_bot.py"],
-        },
-        {
-            "name": "تست‌های جریان‌های مکالمه",
-            "command": ["pytest", "-v", "tests/test_flows.py"],
-        },
-        {
-            "name": "تست‌های پایگاه داده",
-            "command": ["pytest", "-v", "tests/test_db.py"],
-        },
-        {
-            "name": "تست‌های پنل مدیریت",
-            "command": ["pytest", "-v", "tests/test_admin.py"],
-        }
+        ("pytest tests/test_db.py -v", "تست‌های پایگاه داده"),
+        ("pytest tests/test_bot.py -v", "تست‌های پایه بات"),
+        ("pytest tests/test_flows.py -v", "تست‌های جریان مکالمه"),
+        ("pytest tests/test_admin.py -v", "تست‌های پنل مدیریت")
     ]
     
-    # اجرای هر تست
-    results = []
-    for test in tests:
-        success, output = run_command(test["command"], test["name"])
-        results.append({
-            "name": test["name"],
-            "success": success,
-            "output": output
-        })
+    # اجرای تک تک تست‌ها
+    for command, description in tests:
+        success, stdout, stderr, elapsed_time = run_command(command, description)
+        test_results.append((description, success, elapsed_time))
+        total_time += elapsed_time
         
-        # کمی تأخیر بین تست‌ها
-        time.sleep(1)
+        # فاصله بین تست‌ها
+        print_and_log("-" * 40)
     
-    # گزارش کلی
-    print_and_log("\n--- گزارش نتایج تست‌ها ---")
-    all_passed = True
-    for result in results:
-        status = "موفق" if result["success"] else "ناموفق"
-        print_and_log(f"{result['name']}: {status}")
-        if not result["success"]:
-            all_passed = False
+    # نمایش نتایج نهایی
+    print_and_log("\n" + "=" * 60)
+    print_and_log("نتایج نهایی تست‌ها:")
+    print_and_log("=" * 60)
     
-    # زمان اجرا
-    elapsed_time = time.time() - start_time
-    print_and_log(f"زمان کل اجرا: {elapsed_time:.2f} ثانیه")
+    success_count = sum(1 for _, success, _ in test_results if success)
     
-    return all_passed
+    for description, success, elapsed_time in test_results:
+        status = "✅ موفق" if success else "❌ ناموفق"
+        print_and_log(f"{status} - {description} (زمان: {elapsed_time:.2f} ثانیه)")
+    
+    print_and_log("-" * 60)
+    print_and_log(f"نتیجه کلی: {success_count} موفق از {len(tests)} تست")
+    print_and_log(f"زمان کل اجرا: {total_time:.2f} ثانیه")
+    print_and_log("=" * 60)
+    
+    return success_count == len(tests)
 
 if __name__ == "__main__":
     success = run_tests()

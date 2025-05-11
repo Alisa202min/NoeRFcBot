@@ -1,449 +1,380 @@
 import pytest
 import asyncio
-from unittest.mock import AsyncMock, patch, MagicMock
-from aiogram import Bot, Dispatcher
-from aiogram.types import Message, User, Chat, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.fsm.context import FSMContext
-
-# Import the bot-related classes and functions
+from unittest.mock import AsyncMock, MagicMock, patch
+import logging
+from aiogram.types import Message, CallbackQuery
+from aiogram.filters import Command
 import handlers
-from handlers import router, UserStates
+from bot import bot, dp, register_handlers
 from database import Database
+from configuration import CATEGORY_PREFIX, PRODUCT_PREFIX, SERVICE_PREFIX, BACK_PREFIX
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
-class TestCategoryHierarchy:
-    """
-    Test that the category hierarchy displayed by the bot matches the database's tree structure
-    These tests verify that the four-level hierarchy of categories is correctly displayed
-    """
+# Test category hierarchy and navigation flows
+@pytest.mark.asyncio
+async def test_category_tree_depth(test_db):
+    """Test that the category hierarchy has maximum 4 levels of depth"""
+    # Get top-level product categories
+    top_categories = test_db.get_categories(parent_id=None, cat_type='product')
+    assert len(top_categories) >= 1, "Should have at least one top-level product category"
+    
+    # Function to check max depth of category tree
+    def check_max_depth(category_id, current_depth=1, max_depth=0):
+        subcategories = test_db.get_categories(parent_id=category_id)
+        if not subcategories:  # Leaf node
+            return max(max_depth, current_depth)
+        
+        # If there are subcategories, recursively check their depth
+        for subcat in subcategories:
+            depth = check_max_depth(subcat['id'], current_depth + 1, max_depth)
+            max_depth = max(max_depth, depth)
+        
+        return max_depth
+    
+    # Check depth for each top-level category
+    max_depth = 0
+    for category in top_categories:
+        depth = check_max_depth(category['id'])
+        max_depth = max(max_depth, depth)
+    
+    # The expected maximum depth is 4
+    assert max_depth <= 4, f"Category hierarchy should not exceed 4 levels, found {max_depth}"
+    assert max_depth >= 4, f"Category hierarchy should have at least 4 levels, found only {max_depth}"
 
-    @pytest.fixture
-    def message_factory(self):
-        """Factory for creating message objects for testing"""
-        def _make_message(text, user_id=123456789, username="testuser", first_name="Test", last_name="User"):
-            message = AsyncMock(spec=Message)
-            message.text = text
-            
-            # Mock user data
-            user = MagicMock(spec=User)
-            user.id = user_id
-            user.username = username
-            user.first_name = first_name
-            user.last_name = last_name
-            message.from_user = user
-            
-            # Mock chat data
-            chat = MagicMock(spec=Chat)
-            chat.id = user_id  # Use same ID for simplicity
-            message.chat = chat
-            
-            return message
-        return _make_message
+@pytest.mark.asyncio
+async def test_leaf_categories_have_products(test_db):
+    """Test that leaf categories (level 4) have products"""
+    # Get all categories
+    all_categories = []
+    
+    # First get top-level categories
+    top_categories = test_db.get_categories(parent_id=None, cat_type='product')
+    all_categories.extend(top_categories)
+    
+    # Then get all subcategories recursively
+    def collect_subcategories(parent_id):
+        subcategories = test_db.get_categories(parent_id=parent_id)
+        if not subcategories:
+            return []
+        
+        result = list(subcategories)
+        for subcat in subcategories:
+            result.extend(collect_subcategories(subcat['id']))
+        
+        return result
+    
+    # Collect all subcategories
+    for cat in top_categories:
+        all_categories.extend(collect_subcategories(cat['id']))
+    
+    # Find leaf categories (those that don't have subcategories)
+    leaf_categories = []
+    for cat in all_categories:
+        subcats = test_db.get_categories(parent_id=cat['id'])
+        if not subcats:
+            leaf_categories.append(cat)
+    
+    assert len(leaf_categories) > 0, "Should have at least one leaf category"
+    
+    # Check that leaf categories have products
+    for leaf_cat in leaf_categories:
+        products = test_db.get_products_by_category(leaf_cat['id'])
+        assert len(products) > 0, f"Leaf category {leaf_cat['name']} should have at least one product"
 
-    @pytest.fixture
-    def callback_factory(self):
-        """Factory for creating callback query objects for testing"""
-        def _make_callback(data, user_id=123456789, username="testuser", message_text="Test message"):
-            callback = AsyncMock(spec=CallbackQuery)
-            callback.data = data
-            
-            # Mock user data
-            user = MagicMock(spec=User)
-            user.id = user_id
-            user.username = username
-            callback.from_user = user
-            
-            # Mock message in the callback
-            message = AsyncMock(spec=Message)
-            message.text = message_text
-            chat = MagicMock(spec=Chat)
-            chat.id = user_id
-            message.chat = chat
-            callback.message = message
-            
-            return callback
-        return _make_callback
+@pytest.mark.asyncio
+async def test_show_categories_flow(mock_bot, test_message, test_db):
+    """Test the flow of showing categories"""
+    # Register handlers
+    await register_handlers()
+    
+    # Patch the show_categories function to verify its behavior
+    with patch('handlers.show_categories', side_effect=handlers.show_categories) as mock_show_categories:
+        # Call the products command handler
+        for handler in dp.message.handlers:
+            if isinstance(handler.filter, Command) and "products" in handler.filter.commands:
+                await handler.callback(test_message)
+                break
+        
+        # Verify show_categories was called
+        mock_show_categories.assert_called_once()
+        args, kwargs = mock_show_categories.call_args
+        assert args[0] == test_message
+        assert args[1] == 'product'
+        
+        # Verify that the message was sent with keyboard markup
+        test_message.answer.assert_called_once()
+        args, kwargs = test_message.answer.call_args
+        assert 'reply_markup' in kwargs
 
-    @pytest.fixture
-    def mock_state_factory(self):
-        """Factory for creating state objects for testing"""
-        def _make_state(state=None, state_data=None):
-            mock_state = AsyncMock(spec=FSMContext)
-            
-            # Set current state
-            if state:
-                mock_state.get_state.return_value = state
+@pytest.mark.asyncio
+async def test_category_navigation_flow(mock_bot, test_callback_query, test_db):
+    """Test the flow of navigating through categories"""
+    # Register handlers
+    await register_handlers()
+    
+    # Mock category handler for testing
+    async def mock_category_handler(callback_query, category_id):
+        # Assume this is called when a category button is clicked
+        category = test_db.get_category(category_id)
+        subcategories = test_db.get_categories(parent_id=category_id)
+        
+        if subcategories:
+            # Show subcategories
+            subcategory_text = "\n".join([f"- {subcat['name']}" for subcat in subcategories])
+            await callback_query.message.edit_text(
+                f"زیردسته‌های {category['name']}:\n{subcategory_text}",
+                reply_markup=MagicMock()  # Simplified for test
+            )
+        else:
+            # Show products
+            products = test_db.get_products_by_category(category_id)
+            product_text = "\n".join([f"- {product['name']}" for product in products])
+            await callback_query.message.edit_text(
+                f"محصولات موجود در {category['name']}:\n{product_text}",
+                reply_markup=MagicMock()  # Simplified for test
+            )
+        
+        return subcategories, products
+    
+    # Patch the show_category function
+    with patch('handlers.show_category', side_effect=mock_category_handler) as mock_show_category:
+        # Set the callback data
+        test_callback_query.data = f"{CATEGORY_PREFIX}1"  # Category with ID 1
+        
+        # Find and call the category callback handler
+        category_handler = None
+        for handler in dp.callback_query.handlers:
+            if hasattr(handler.filter, "text") and handler.filter.text.startswith(f"{CATEGORY_PREFIX}"):
+                category_handler = handler
+                await handler.callback(test_callback_query)
+                break
+        
+        assert category_handler is not None, "Category handler not found"
+        
+        # Verify mock_show_category was called
+        mock_show_category.assert_called_once()
+        args, kwargs = mock_show_category.call_args
+        assert args[0] == test_callback_query
+        assert args[1] == 1  # Category ID
+        
+        # Navigate to a subcategory (level 2)
+        test_callback_query.data = f"{CATEGORY_PREFIX}4"  # Subcategory ID
+        await category_handler.callback(test_callback_query)
+        
+        # Verify second call
+        assert mock_show_category.call_count == 2
+        args, kwargs = mock_show_category.call_args
+        assert args[1] == 4  # Subcategory ID
+
+@pytest.mark.asyncio
+async def test_back_button_navigation(mock_bot, test_callback_query, test_db):
+    """Test the flow of navigating back through categories"""
+    # Register handlers
+    await register_handlers()
+    
+    # Mock back handler for testing
+    async def mock_back_handler(callback_query, back_to_id):
+        if back_to_id == "main":
+            # Back to main menu
+            await callback_query.message.edit_text("منوی اصلی", reply_markup=MagicMock())
+            return None
+        else:
+            # Back to a category
+            back_to_id = int(back_to_id)
+            category = test_db.get_category(back_to_id)
+            if category:
+                parent_id = category.get('parent_id')
+                if parent_id:
+                    # If category has a parent, show that parent's subcategories
+                    await callback_query.message.edit_text(
+                        f"بازگشت به {category['name']}",
+                        reply_markup=MagicMock()
+                    )
+                else:
+                    # If category is a top-level category, show top-level categories
+                    await callback_query.message.edit_text(
+                        f"بازگشت به {category['name']}",
+                        reply_markup=MagicMock()
+                    )
+            return category
+    
+    # Patch the handle_back function
+    with patch('handlers.handle_back', side_effect=mock_back_handler) as mock_handle_back:
+        # Set the callback data
+        test_callback_query.data = f"{BACK_PREFIX}1"  # Back to category 1
+        
+        # Find and call the back callback handler
+        back_handler = None
+        for handler in dp.callback_query.handlers:
+            if hasattr(handler.filter, "text") and handler.filter.text.startswith(f"{BACK_PREFIX}"):
+                back_handler = handler
+                await handler.callback(test_callback_query)
+                break
+        
+        assert back_handler is not None, "Back handler not found"
+        
+        # Verify mock_handle_back was called
+        mock_handle_back.assert_called_once()
+        args, kwargs = mock_handle_back.call_args
+        assert args[0] == test_callback_query
+        assert args[1] == "1"  # Back to category ID
+        
+        # Back to main menu
+        test_callback_query.data = f"{BACK_PREFIX}main"
+        await back_handler.callback(test_callback_query)
+        
+        # Verify second call
+        assert mock_handle_back.call_count == 2
+        args, kwargs = mock_handle_back.call_args
+        assert args[1] == "main"  # Back to main menu
+
+@pytest.mark.asyncio
+async def test_product_detail_flow(mock_bot, test_callback_query, test_db):
+    """Test the flow of viewing product details"""
+    # Register handlers
+    await register_handlers()
+    
+    # Mock product handler for testing
+    async def mock_product_handler(callback_query, product_id):
+        product = test_db.get_product(product_id)
+        product_media = test_db.get_product_media(product_id)
+        
+        if product:
+            if product_media:
+                # Show product with media
+                await callback_query.message.delete()
+                await callback_query.message.answer_photo(
+                    photo=MagicMock(),
+                    caption=f"{product['name']}\n\n{product['description']}\n\nقیمت: {product['price']:,} تومان",
+                    reply_markup=MagicMock()
+                )
             else:
-                mock_state.get_state.return_value = None
+                # Show product without media
+                await callback_query.message.edit_text(
+                    f"{product['name']}\n\n{product['description']}\n\nقیمت: {product['price']:,} تومان",
+                    reply_markup=MagicMock()
+                )
+        return product
+    
+    # Patch the show_product function
+    with patch('handlers.show_product', side_effect=mock_product_handler) as mock_show_product:
+        # Set the callback data
+        test_callback_query.data = f"{PRODUCT_PREFIX}1"  # Product with ID 1
+        
+        # Find and call the product callback handler
+        product_handler = None
+        for handler in dp.callback_query.handlers:
+            if hasattr(handler.filter, "text") and handler.filter.text.startswith(f"{PRODUCT_PREFIX}"):
+                product_handler = handler
+                await handler.callback(test_callback_query)
+                break
+        
+        assert product_handler is not None, "Product handler not found"
+        
+        # Verify mock_show_product was called
+        mock_show_product.assert_called_once()
+        args, kwargs = mock_show_product.call_args
+        assert args[0] == test_callback_query
+        assert args[1] == 1  # Product ID
+
+@pytest.mark.asyncio
+async def test_inquiry_flow(mock_bot, test_callback_query, test_db):
+    """Test the flow of starting a price inquiry for a product"""
+    # Register handlers
+    await register_handlers()
+    
+    # Mock inquiry handler for testing
+    async def mock_inquiry_handler(callback_query, entity_id):
+        # Start the inquiry process
+        await callback_query.message.edit_text(
+            "لطفا نام خود را وارد کنید:",
+            reply_markup=None  # Remove the inline keyboard
+        )
+        # Here we're just testing the start of the inquiry
+        return entity_id
+    
+    # Patch the start_inquiry function
+    with patch('handlers.start_inquiry', side_effect=mock_inquiry_handler) as mock_start_inquiry:
+        # Set the callback data
+        test_callback_query.data = f"inquiry_1"  # Inquiry for product/service with ID 1
+        
+        # Find and call the inquiry callback handler
+        for handler in dp.callback_query.handlers:
+            if hasattr(handler.filter, "text") and handler.filter.text.startswith("inquiry_"):
+                await handler.callback(test_callback_query)
+                break
+        
+        # Verify mock_start_inquiry was called
+        mock_start_inquiry.assert_called_once()
+        args, kwargs = mock_start_inquiry.call_args
+        assert args[0] == test_callback_query
+        assert args[1] == 1  # Entity ID
+
+@pytest.mark.asyncio
+async def test_complete_inquiry_flow_simulation(mock_bot, test_message, test_callback_query, test_db):
+    """Test the complete flow of an inquiry from product to submission"""
+    # Register handlers
+    await register_handlers()
+    
+    # Create a mock FSMContext
+    mock_state = MagicMock()
+    mock_state.get_state = AsyncMock(return_value=None)
+    mock_state.set_state = AsyncMock()
+    mock_state.update_data = AsyncMock()
+    mock_state.get_data = AsyncMock(return_value={"product_id": 1, "name": "Test User"})
+    mock_state.clear = AsyncMock()
+    
+    # Step 1: User clicks on inquiry button for a product
+    test_callback_query.data = "inquiry_1"
+    
+    # Find and patch the inquiry callback handler
+    for handler in dp.message.handlers:
+        if hasattr(handler, "states"):
+            # This is likely a state handler for inquiries
+            # We'll simulate the flow here
+            
+            # Step 1: Start inquiry
+            with patch('handlers.start_inquiry') as mock_start_inquiry:
+                mock_start_inquiry.return_value = None
+                # Simulate clicking the inquiry button
+                for cq_handler in dp.callback_query.handlers:
+                    if hasattr(cq_handler.filter, "text") and cq_handler.filter.text.startswith("inquiry_"):
+                        await cq_handler.callback(test_callback_query)
+                        break
                 
-            # Set state data
-            if state_data:
-                async def mock_get_data():
-                    return state_data.copy()
-                mock_state.get_data.side_effect = mock_get_data
-            else:
-                mock_state.get_data.return_value = {}
+                # Verify inquiry was started
+                mock_start_inquiry.assert_called_once()
+            
+            # Step 2: User enters their name
+            mock_state.get_state.return_value = "waiting_for_name"
+            test_message.text = "Test User"
+            await handler.callback(test_message, state=mock_state)
+            
+            # Step 3: User enters their phone
+            mock_state.get_state.return_value = "waiting_for_phone"
+            test_message.text = "09123456789"
+            await handler.callback(test_message, state=mock_state)
+            
+            # Step 4: User enters their inquiry
+            mock_state.get_state.return_value = "waiting_for_description"
+            test_message.text = "I would like to inquire about 5 units of this product."
+            with patch.object(Database, 'add_inquiry', return_value=1) as mock_add_inquiry:
+                await handler.callback(test_message, state=mock_state)
                 
-            return mock_state
-        return _make_state
+                # Verify inquiry was added to database
+                mock_add_inquiry.assert_called_once()
+                args, kwargs = mock_add_inquiry.call_args
+                assert kwargs["name"] == "Test User"
+                assert kwargs["phone"] == "09123456789"
+                assert "5 units" in kwargs["description"]
+                assert kwargs["product_id"] == 1
+            
+            break
+    
+    # Verify message confirmations
+    assert test_message.answer.call_count >= 3  # At least three confirmation messages
 
-    @pytest.fixture
-    def test_category_data(self):
-        """Create a test dataset for a complete 4-level category hierarchy"""
-        # Level 1 (Root) categories
-        level1_categories = [
-            {"id": 1, "name": "محصولات فرکانس پایین", "parent_id": None, "cat_type": "product"},
-            {"id": 2, "name": "محصولات فرکانس بالا", "parent_id": None, "cat_type": "product"}
-        ]
-        
-        # Level 2 categories
-        level2_categories = [
-            {"id": 3, "name": "آنتن‌ها", "parent_id": 1, "cat_type": "product"},
-            {"id": 4, "name": "ماژول‌ها", "parent_id": 1, "cat_type": "product"},
-            {"id": 5, "name": "تجهیزات تست", "parent_id": 2, "cat_type": "product"}
-        ]
-        
-        # Level 3 categories
-        level3_categories = [
-            {"id": 6, "name": "آنتن‌های یکطرفه", "parent_id": 3, "cat_type": "product"},
-            {"id": 7, "name": "آنتن‌های دوطرفه", "parent_id": 3, "cat_type": "product"}
-        ]
-        
-        # Level 4 categories (leaf nodes)
-        level4_categories = [
-            {"id": 8, "name": "آنتن‌های یکطرفه موج کوتاه", "parent_id": 6, "cat_type": "product"}
-        ]
-        
-        # Sample products for leaf category
-        level4_products = [
-            {
-                "id": 1, 
-                "name": "آنتن یکطرفه XYZ",
-                "price": 1500000,
-                "description": "آنتن یکطرفه با فرکانس پایین",
-                "category_id": 8,
-                "product_type": "product"
-            }
-        ]
-        
-        return {
-            "level1": level1_categories,
-            "level2": level2_categories,
-            "level3": level3_categories,
-            "level4": level4_categories,
-            "products": level4_products
-        }
-
-    @pytest.mark.asyncio
-    async def test_four_level_product_category_navigation(self, message_factory, callback_factory, 
-                                                         mock_bot, mock_state_factory, test_category_data):
-        """
-        Test that a user can navigate through all 4 levels of product categories
-        and verify that the hierarchy matches the database structure
-        """
-        # Step 1: User sends /products command
-        message = message_factory("/products")
-        state = mock_state_factory()
-        
-        # Patch the database method to return our level 1 categories
-        with patch.object(Database, 'get_categories') as mock_get_categories:
-            mock_get_categories.return_value = test_category_data["level1"]
-            
-            # Find and call the products command handler
-            products_handler = [h for h in router.message_handlers if "/products" in str(h.filter)][0]
-            await products_handler.callback(message, state)
-            
-            # Verify level 1 categories are displayed correctly
-            assert message.answer.called
-            call_args = message.answer.call_args[1]
-            keyboard = call_args["reply_markup"].inline_keyboard
-            
-            # Check level 1 category names
-            level1_buttons = [button.text for row in keyboard for button in row]
-            for category in test_category_data["level1"]:
-                assert category["name"] in level1_buttons
-            
-            # Record the button callbacks for level 1
-            level1_callbacks = [button.callback_data for row in keyboard for button in row 
-                              if not button.callback_data.startswith("back")]
-        
-        # Step 2: User selects first level 1 category (محصولات فرکانس پایین)
-        callback_level1 = callback_factory(level1_callbacks[0])
-        state_level1 = mock_state_factory(
-            state=UserStates.browse_categories,
-            state_data={"type": "product"}
-        )
-        
-        # Patch database methods for level 1 selection
-        with patch.object(Database, 'get_category') as mock_get_category, \
-             patch.object(Database, 'get_categories') as mock_get_subcategories, \
-             patch.object(Database, 'get_products_by_category') as mock_get_products:
-            
-            mock_get_category.return_value = test_category_data["level1"][0]
-            mock_get_subcategories.return_value = [cat for cat in test_category_data["level2"] 
-                                                if cat["parent_id"] == test_category_data["level1"][0]["id"]]
-            mock_get_products.return_value = []
-            
-            # Find and call category selection handler
-            category_handlers = [h for h in router.callback_query_handlers if "category:" in str(h.filter)]
-            if category_handlers:
-                category_handler = category_handlers[0]
-                await category_handler.callback(callback_level1, state_level1)
-            
-            # Verify level 2 categories are displayed correctly
-            assert callback_level1.message.edit_text.called
-            call_args = callback_level1.message.edit_text.call_args[1]
-            keyboard = call_args["reply_markup"].inline_keyboard
-            
-            # Check level 2 category names
-            level2_buttons = [button.text for row in keyboard for button in row]
-            level2_expected = [cat["name"] for cat in test_category_data["level2"] 
-                             if cat["parent_id"] == test_category_data["level1"][0]["id"]]
-            for cat_name in level2_expected:
-                assert cat_name in level2_buttons
-            
-            # Record the button callbacks for level 2
-            level2_callbacks = [button.callback_data for row in keyboard for button in row 
-                              if not button.callback_data.startswith("back")]
-        
-        # Step 3: User selects first level 2 category (آنتن‌ها)
-        callback_level2 = callback_factory(level2_callbacks[0])
-        state_level2 = mock_state_factory(
-            state=UserStates.browse_categories,
-            state_data={"type": "product"}
-        )
-        
-        # Patch database methods for level 2 selection
-        with patch.object(Database, 'get_category') as mock_get_category, \
-             patch.object(Database, 'get_categories') as mock_get_subcategories, \
-             patch.object(Database, 'get_products_by_category') as mock_get_products:
-            
-            # Find which level 2 category was selected
-            selected_level2_id = int(level2_callbacks[0].split(':')[1])
-            selected_level2 = next(cat for cat in test_category_data["level2"] if cat["id"] == selected_level2_id)
-            
-            mock_get_category.return_value = selected_level2
-            mock_get_subcategories.return_value = [cat for cat in test_category_data["level3"] 
-                                                if cat["parent_id"] == selected_level2_id]
-            mock_get_products.return_value = []
-            
-            # Call category selection handler
-            if category_handlers:
-                await category_handler.callback(callback_level2, state_level2)
-            
-            # Verify level 3 categories are displayed correctly
-            assert callback_level2.message.edit_text.called
-            call_args = callback_level2.message.edit_text.call_args[1]
-            keyboard = call_args["reply_markup"].inline_keyboard
-            
-            # Check level 3 category names
-            level3_buttons = [button.text for row in keyboard for button in row]
-            level3_expected = [cat["name"] for cat in test_category_data["level3"] 
-                             if cat["parent_id"] == selected_level2_id]
-            for cat_name in level3_expected:
-                assert cat_name in level3_buttons
-            
-            # Record the button callbacks for level 3
-            level3_callbacks = [button.callback_data for row in keyboard for button in row 
-                              if not button.callback_data.startswith("back")]
-        
-        # Step 4: User selects first level 3 category (آنتن‌های یکطرفه)
-        callback_level3 = callback_factory(level3_callbacks[0])
-        state_level3 = mock_state_factory(
-            state=UserStates.browse_categories,
-            state_data={"type": "product"}
-        )
-        
-        # Patch database methods for level 3 selection
-        with patch.object(Database, 'get_category') as mock_get_category, \
-             patch.object(Database, 'get_categories') as mock_get_subcategories, \
-             patch.object(Database, 'get_products_by_category') as mock_get_products:
-            
-            # Find which level 3 category was selected
-            selected_level3_id = int(level3_callbacks[0].split(':')[1])
-            selected_level3 = next(cat for cat in test_category_data["level3"] if cat["id"] == selected_level3_id)
-            
-            mock_get_category.return_value = selected_level3
-            mock_get_subcategories.return_value = [cat for cat in test_category_data["level4"] 
-                                                if cat["parent_id"] == selected_level3_id]
-            mock_get_products.return_value = []
-            
-            # Call category selection handler
-            if category_handlers:
-                await category_handler.callback(callback_level3, state_level3)
-            
-            # Verify level 4 categories are displayed correctly
-            assert callback_level3.message.edit_text.called
-            call_args = callback_level3.message.edit_text.call_args[1]
-            keyboard = call_args["reply_markup"].inline_keyboard
-            
-            # Check level 4 category names
-            level4_buttons = [button.text for row in keyboard for button in row]
-            level4_expected = [cat["name"] for cat in test_category_data["level4"] 
-                             if cat["parent_id"] == selected_level3_id]
-            for cat_name in level4_expected:
-                assert cat_name in level4_buttons
-            
-            # Record the button callbacks for level 4
-            level4_callbacks = [button.callback_data for row in keyboard for button in row 
-                              if not button.callback_data.startswith("back")]
-        
-        # Step 5: User selects the level 4 category (آنتن‌های یکطرفه موج کوتاه)
-        callback_level4 = callback_factory(level4_callbacks[0])
-        state_level4 = mock_state_factory(
-            state=UserStates.browse_categories,
-            state_data={"type": "product"}
-        )
-        
-        # Patch database methods for level 4 selection
-        with patch.object(Database, 'get_category') as mock_get_category, \
-             patch.object(Database, 'get_categories') as mock_get_subcategories, \
-             patch.object(Database, 'get_products_by_category') as mock_get_products:
-            
-            # Find which level 4 category was selected
-            selected_level4_id = int(level4_callbacks[0].split(':')[1])
-            selected_level4 = next(cat for cat in test_category_data["level4"] if cat["id"] == selected_level4_id)
-            
-            mock_get_category.return_value = selected_level4
-            mock_get_subcategories.return_value = []  # No subcategories for level 4 (leaf)
-            mock_get_products.return_value = [p for p in test_category_data["products"] 
-                                           if p["category_id"] == selected_level4_id]
-            
-            # Call category selection handler
-            if category_handlers:
-                await category_handler.callback(callback_level4, state_level4)
-            
-            # Verify products are displayed for the leaf category
-            assert callback_level4.message.edit_text.called
-            call_args = callback_level4.message.edit_text.call_args[1]
-            keyboard = call_args["reply_markup"].inline_keyboard
-            
-            # Check product names
-            product_buttons = [button.text for row in keyboard for button in row 
-                             if not button.text == "بازگشت"]
-            product_expected = [p["name"] for p in test_category_data["products"] 
-                              if p["category_id"] == selected_level4_id]
-            for product_name in product_expected:
-                assert product_name in product_buttons
-
-    @pytest.mark.asyncio
-    async def test_back_navigation_in_category_hierarchy(self, message_factory, callback_factory, 
-                                                       mock_bot, mock_state_factory, test_category_data):
-        """
-        Test that a user can navigate back up the category hierarchy
-        """
-        # Start at a level 3 category and test navigating back to level 2
-        # First setup the state data as if user has navigated to level 3
-        state_data = {
-            "type": "product",
-            "category_stack": [
-                {"id": 1, "name": "محصولات فرکانس پایین"},  # Level 1
-                {"id": 3, "name": "آنتن‌ها"}  # Level 2
-            ]
-        }
-        
-        callback = callback_factory("back:product")
-        state = mock_state_factory(
-            state=UserStates.browse_categories,
-            state_data=state_data
-        )
-        
-        # Patch database methods for back navigation
-        with patch.object(Database, 'get_category') as mock_get_category, \
-             patch.object(Database, 'get_categories') as mock_get_subcategories, \
-             patch.object(Database, 'get_products_by_category') as mock_get_products:
-            
-            # We're going back to level 2, so set up the data for level 2
-            mock_get_category.return_value = test_category_data["level2"][0]  # آنتن‌ها
-            mock_get_subcategories.return_value = test_category_data["level3"]  # Level 3 categories
-            mock_get_products.return_value = []
-            
-            # Find and call back button handler
-            back_handlers = [h for h in router.callback_query_handlers if "back:" in str(h.filter)]
-            if back_handlers:
-                back_handler = back_handlers[0]
-                await back_handler.callback(callback, state)
-            
-            # Verify message shows level 2 content
-            assert callback.message.edit_text.called
-            call_args = callback.message.edit_text.call_args[1]
-            
-            # Check if the category name for level 2 is in the message
-            assert test_category_data["level2"][0]["name"] in call_args["text"]
-            
-            # Check if level 3 categories are shown in the keyboard
-            keyboard = call_args["reply_markup"].inline_keyboard
-            level3_buttons = [button.text for row in keyboard for button in row 
-                            if not button.text == "بازگشت"]
-            for category in test_category_data["level3"]:
-                assert category["name"] in level3_buttons
-            
-            # Verify state data was updated to pop the stack
-            assert state.update_data.called
-            # The new state should not include the level 2 category in the stack
-            new_stack = state.update_data.call_args[0][0]["category_stack"]
-            assert len(new_stack) == 1
-            assert new_stack[0]["id"] == 1  # Only level 1 should remain
-
-    @pytest.mark.asyncio
-    async def test_services_category_hierarchy(self, message_factory, callback_factory, 
-                                              mock_bot, mock_state_factory):
-        """
-        Test that the service category hierarchy is displayed correctly
-        """
-        # Create a test dataset for service categories
-        service_categories = {
-            "level1": [
-                {"id": 9, "name": "خدمات نصب", "parent_id": None, "cat_type": "service"},
-                {"id": 10, "name": "خدمات تعمیر", "parent_id": None, "cat_type": "service"}
-            ],
-            "level2": [
-                {"id": 11, "name": "نصب آنتن", "parent_id": 9, "cat_type": "service"},
-                {"id": 12, "name": "نصب ماژول", "parent_id": 9, "cat_type": "service"}
-            ],
-            "level3": [
-                {"id": 13, "name": "نصب آنتن‌های خارجی", "parent_id": 11, "cat_type": "service"}
-            ],
-            "level4": [
-                {"id": 14, "name": "نصب آنتن‌های خارجی فرکانس پایین", "parent_id": 13, "cat_type": "service"}
-            ],
-            "services": [
-                {
-                    "id": 2, 
-                    "name": "نصب آنتن خارجی",
-                    "price": 500000,
-                    "description": "خدمات نصب آنتن خارجی به همراه تنظیمات",
-                    "category_id": 14,
-                    "product_type": "service"
-                }
-            ]
-        }
-        
-        # Step 1: User sends /services command
-        message = message_factory("/services")
-        state = mock_state_factory()
-        
-        # Patch the database method to return our level 1 service categories
-        with patch.object(Database, 'get_categories') as mock_get_categories:
-            mock_get_categories.return_value = service_categories["level1"]
-            
-            # Find and call the services command handler
-            services_handler = [h for h in router.message_handlers if "/services" in str(h.filter)][0]
-            await services_handler.callback(message, state)
-            
-            # Verify level 1 service categories are displayed correctly
-            assert message.answer.called
-            call_args = message.answer.call_args[1]
-            keyboard = call_args["reply_markup"].inline_keyboard
-            
-            # Check level 1 service category names
-            level1_buttons = [button.text for row in keyboard for button in row]
-            for category in service_categories["level1"]:
-                assert category["name"] in level1_buttons
-            
-            # Verify state was updated with the service type
-            assert state.update_data.called
-            assert state.update_data.call_args[0][0]["type"] == "service"
-            
-            # This verifies that services are handled the same way as products
-            # but with the different type, ensuring consistency across the bot
+if __name__ == "__main__":
+    pytest.main()

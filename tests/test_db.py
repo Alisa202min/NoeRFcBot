@@ -1,308 +1,318 @@
 import pytest
-import os
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import asyncio
+from unittest.mock import MagicMock
+import logging
 from database import Database
-from unittest.mock import patch, MagicMock
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
 class TestDatabase:
-    """
-    Test database interactions to ensure category hierarchy is properly maintained
-    and queries are returning the expected data structures
-    """
-
-    @pytest.fixture
-    def test_db(self, test_db_url):
-        """Create a test database instance"""
-        # Save the current DATABASE_URL
-        original_db_url = os.environ.get('DATABASE_URL')
+    """Test cases for database functionality"""
+    
+    def test_db_connection(self, test_db):
+        """Test database connection"""
+        assert test_db is not None, "Database connection failed"
+    
+    def test_category_operations(self, test_db):
+        """Test CRUD operations for categories"""
+        # Create a test category
+        category_name = "Test Category"
+        parent_id = None
+        cat_type = "product"
         
-        # Set the test database URL for the duration of the test
-        os.environ['DATABASE_URL'] = test_db_url
+        # Test add category
+        category_id = test_db.add_category(category_name, parent_id, cat_type)
+        assert category_id > 0, "Failed to add category"
         
-        # Create the database instance
-        db = Database()
+        # Test get category
+        category = test_db.get_category(category_id)
+        assert category is not None, "Failed to get category"
+        assert category["name"] == category_name, "Category name doesn't match"
+        assert category["type"] == cat_type, "Category type doesn't match"
         
-        # Yield the database to the test
-        yield db
+        # Test update category
+        new_name = "Updated Test Category"
+        updated = test_db.update_category(category_id, new_name, parent_id, cat_type)
+        assert updated, "Failed to update category"
         
-        # Restore the original DATABASE_URL
-        if original_db_url:
-            os.environ['DATABASE_URL'] = original_db_url
-        else:
-            os.environ.pop('DATABASE_URL', None)
-
-    def test_get_categories_hierarchy(self, test_db):
-        """Test retrieving categories with parent-child relationships intact"""
-        # Get all product categories
-        product_categories = test_db.get_categories(cat_type='product')
+        # Verify the update
+        updated_category = test_db.get_category(category_id)
+        assert updated_category["name"] == new_name, "Category name wasn't updated"
         
-        # Verify we got some categories
-        assert len(product_categories) > 0
+        # Test add subcategory
+        subcategory_name = "Test Subcategory"
+        subcategory_id = test_db.add_category(subcategory_name, category_id, cat_type)
+        assert subcategory_id > 0, "Failed to add subcategory"
         
-        # Check that the hierarchy is properly represented
-        # Level 1 categories should have parent_id = None
-        level1_categories = [cat for cat in product_categories if cat['parent_id'] is None]
-        assert len(level1_categories) > 0
+        # Test get categories
+        categories = test_db.get_categories(parent_id=category_id)
+        assert len(categories) >= 1, "Failed to get subcategories"
+        assert any(cat["name"] == subcategory_name for cat in categories), "Subcategory not found"
         
-        # Get a level 1 category to test with
-        test_level1 = level1_categories[0]
+        # Test delete subcategory
+        deleted = test_db.delete_category(subcategory_id)
+        assert deleted, "Failed to delete subcategory"
         
-        # Get level 2 categories under the test level 1 category
-        level2_categories = test_db.get_categories(parent_id=test_level1['id'], cat_type='product')
-        assert len(level2_categories) > 0
+        # Verify the subcategory was deleted
+        subcategories = test_db.get_categories(parent_id=category_id)
+        assert not any(cat["id"] == subcategory_id for cat in subcategories), "Subcategory wasn't deleted"
         
-        # All level 2 categories should have the level 1 category as parent
-        for cat in level2_categories:
-            assert cat['parent_id'] == test_level1['id']
+        # Test delete category
+        deleted = test_db.delete_category(category_id)
+        assert deleted, "Failed to delete category"
         
-        # Get a level 2 category to test with
-        test_level2 = level2_categories[0]
+        # Verify the category was deleted
+        category = test_db.get_category(category_id)
+        assert category is None, "Category wasn't deleted"
+    
+    def test_product_operations(self, test_db):
+        """Test CRUD operations for products"""
+        # Create a test category for products
+        category_name = "Test Product Category"
+        category_id = test_db.add_category(category_name, parent_id=None, cat_type="product")
         
-        # Get level 3 categories under the test level 2 category
-        level3_categories = test_db.get_categories(parent_id=test_level2['id'], cat_type='product')
-        
-        # If there are level 3 categories, test level 4
-        if level3_categories:
-            test_level3 = level3_categories[0]
-            level4_categories = test_db.get_categories(parent_id=test_level3['id'], cat_type='product')
-            
-            # Level 4 categories should be leaf nodes with no children
-            if level4_categories:
-                test_level4 = level4_categories[0]
-                leaf_categories = test_db.get_categories(parent_id=test_level4['id'], cat_type='product')
-                assert len(leaf_categories) == 0, "Level 4 categories should be leaf nodes with no children"
-
-    def test_add_and_retrieve_category(self, test_db):
-        """Test adding a new category and retrieving it with the correct hierarchy"""
-        # Add a new level 1 category
-        new_level1_name = "دسته‌بندی تست"
-        new_level1_id = test_db.add_category(name=new_level1_name, cat_type='product')
-        
-        # Verify it was added
-        category = test_db.get_category(new_level1_id)
-        assert category is not None
-        assert category['name'] == new_level1_name
-        assert category['parent_id'] is None
-        
-        # Add a level 2 category under it
-        new_level2_name = "زیردسته تست"
-        new_level2_id = test_db.add_category(name=new_level2_name, parent_id=new_level1_id, cat_type='product')
-        
-        # Verify the level 2 category
-        level2_category = test_db.get_category(new_level2_id)
-        assert level2_category is not None
-        assert level2_category['name'] == new_level2_name
-        assert level2_category['parent_id'] == new_level1_id
-        
-        # Add a level 3 category
-        new_level3_name = "زیردسته تست سطح ۳"
-        new_level3_id = test_db.add_category(name=new_level3_name, parent_id=new_level2_id, cat_type='product')
-        
-        # Verify the level 3 category
-        level3_category = test_db.get_category(new_level3_id)
-        assert level3_category is not None
-        assert level3_category['name'] == new_level3_name
-        assert level3_category['parent_id'] == new_level2_id
-        
-        # Add a level 4 category (leaf node)
-        new_level4_name = "زیردسته تست سطح ۴"
-        new_level4_id = test_db.add_category(name=new_level4_name, parent_id=new_level3_id, cat_type='product')
-        
-        # Verify the level 4 category
-        level4_category = test_db.get_category(new_level4_id)
-        assert level4_category is not None
-        assert level4_category['name'] == new_level4_name
-        assert level4_category['parent_id'] == new_level3_id
-        
-        # Verify that getting subcategories of level 4 returns empty (leaf node)
-        level5_categories = test_db.get_categories(parent_id=new_level4_id, cat_type='product')
-        assert len(level5_categories) == 0, "Level 4 categories should be leaf nodes with no children"
-        
-        # Retrieve all categories and check the hierarchy
-        all_categories = test_db.get_categories(cat_type='product')
-        
-        # Find our test categories in the result
-        level1_found = False
-        level2_found = False
-        level3_found = False
-        level4_found = False
-        
-        for cat in all_categories:
-            if cat['id'] == new_level1_id:
-                level1_found = True
-                assert cat['parent_id'] is None
-            elif cat['id'] == new_level2_id:
-                level2_found = True
-                assert cat['parent_id'] == new_level1_id
-            elif cat['id'] == new_level3_id:
-                level3_found = True
-                assert cat['parent_id'] == new_level2_id
-            elif cat['id'] == new_level4_id:
-                level4_found = True
-                assert cat['parent_id'] == new_level3_id
-        
-        # Verify all categories were found
-        assert level1_found, "Level 1 category not found in results"
-        assert level2_found, "Level 2 category not found in results"
-        assert level3_found, "Level 3 category not found in results"
-        assert level4_found, "Level 4 category not found in results"
-
-    def test_add_and_retrieve_products(self, test_db):
-        """Test adding products to a leaf category and retrieving them"""
-        # First create a 4-level category hierarchy
-        level1_id = test_db.add_category(name="محصولات تست", cat_type='product')
-        level2_id = test_db.add_category(name="زیردسته تست", parent_id=level1_id, cat_type='product')
-        level3_id = test_db.add_category(name="زیردسته تست سطح ۳", parent_id=level2_id, cat_type='product')
-        level4_id = test_db.add_category(name="زیردسته تست سطح ۴", parent_id=level3_id, cat_type='product')
-        
-        # Add a product to the level 4 (leaf) category
-        product_name = "محصول تست"
+        # Test add product
+        product_name = "Test Product"
         product_price = 1000000
-        product_description = "توضیحات محصول تست"
+        product_description = "This is a test product"
         
         product_id = test_db.add_product(
             name=product_name,
             price=product_price,
             description=product_description,
-            category_id=level4_id
+            category_id=category_id,
+            photo_url=None,
+            brand="Test Brand",
+            model="Test Model",
+            in_stock=True,
+            tags="test,product",
+            featured=False
         )
+        assert product_id > 0, "Failed to add product"
         
-        # Verify the product was added
+        # Test get product
         product = test_db.get_product(product_id)
-        assert product is not None
-        assert product['name'] == product_name
-        assert product['price'] == product_price
-        assert product['description'] == product_description
-        assert product['category_id'] == level4_id
+        assert product is not None, "Failed to get product"
+        assert product["name"] == product_name, "Product name doesn't match"
+        assert product["price"] == product_price, "Product price doesn't match"
+        assert product["description"] == product_description, "Product description doesn't match"
         
-        # Retrieve products by category
-        products_in_category = test_db.get_products_by_category(level4_id)
-        assert len(products_in_category) == 1
-        assert products_in_category[0]['id'] == product_id
-        assert products_in_category[0]['name'] == product_name
-
-    def test_service_category_operations(self, test_db):
-        """Test operations on service categories to ensure they follow the same hierarchy rules"""
-        # Add service categories with a 4-level hierarchy
-        service_level1_id = test_db.add_category(name="خدمات تست", cat_type='service')
-        service_level2_id = test_db.add_category(name="خدمات تست سطح ۲", parent_id=service_level1_id, cat_type='service')
-        service_level3_id = test_db.add_category(name="خدمات تست سطح ۳", parent_id=service_level2_id, cat_type='service')
-        service_level4_id = test_db.add_category(name="خدمات تست سطح ۴", parent_id=service_level3_id, cat_type='service')
+        # Test update product
+        new_price = 1500000
+        updated = test_db.update_product(product_id, price=new_price)
+        assert updated, "Failed to update product"
         
-        # Verify service categories were added correctly
-        service_level1 = test_db.get_category(service_level1_id)
-        assert service_level1['cat_type'] == 'service'
-        assert service_level1['parent_id'] is None
+        # Verify the update
+        updated_product = test_db.get_product(product_id)
+        assert updated_product["price"] == new_price, "Product price wasn't updated"
         
-        # Get service categories
-        service_categories = test_db.get_categories(cat_type='service')
-        assert len(service_categories) > 0
+        # Test add product media
+        file_id = "test_file_id"
+        file_type = "photo"
+        media_id = test_db.add_product_media(product_id, file_id, file_type)
+        assert media_id > 0, "Failed to add product media"
         
-        # Verify the hierarchy is maintained for services
-        level2_services = test_db.get_categories(parent_id=service_level1_id, cat_type='service')
-        assert len(level2_services) > 0
-        assert level2_services[0]['id'] == service_level2_id
+        # Test get product media
+        media = test_db.get_product_media(product_id)
+        assert len(media) > 0, "Failed to get product media"
+        assert media[0]["file_id"] == file_id, "Media file_id doesn't match"
         
-        level3_services = test_db.get_categories(parent_id=service_level2_id, cat_type='service')
-        assert len(level3_services) > 0
-        assert level3_services[0]['id'] == service_level3_id
+        # Test get media by id
+        media_item = test_db.get_media_by_id(media_id)
+        assert media_item is not None, "Failed to get media by id"
+        assert media_item["file_id"] == file_id, "Media file_id doesn't match"
         
-        level4_services = test_db.get_categories(parent_id=service_level3_id, cat_type='service')
-        assert len(level4_services) > 0
-        assert level4_services[0]['id'] == service_level4_id
+        # Test get product by media id
+        product_by_media = test_db.get_product_by_media_id(media_id)
+        assert product_by_media is not None, "Failed to get product by media id"
+        assert product_by_media["id"] == product_id, "Product id doesn't match"
         
-        # Level 4 should be a leaf node
-        level5_services = test_db.get_categories(parent_id=service_level4_id, cat_type='service')
-        assert len(level5_services) == 0
-
-    def test_search_functionality(self, test_db):
-        """Test search functionality to ensure it properly filters by category hierarchy"""
-        # Create a test category hierarchy
-        parent_cat_id = test_db.add_category(name="دسته‌بندی جستجو", cat_type='product')
-        child_cat_id = test_db.add_category(name="زیردسته جستجو", parent_id=parent_cat_id, cat_type='product')
+        # Test delete product media
+        deleted = test_db.delete_product_media(media_id)
+        assert deleted, "Failed to delete product media"
         
-        # Add products to test with
-        product1_id = test_db.add_product(
-            name="محصول تست جستجو ۱",
-            price=1000000,
-            description="محصول برای تست جستجو",
-            category_id=parent_cat_id,
-            tags="تست,جستجو"
+        # Verify the media was deleted
+        media = test_db.get_product_media(product_id)
+        assert not any(m["id"] == media_id for m in media), "Media wasn't deleted"
+        
+        # Test get products by category
+        products = test_db.get_products_by_category(category_id)
+        assert len(products) > 0, "Failed to get products by category"
+        assert any(p["id"] == product_id for p in products), "Product not found in category"
+        
+        # Test search products
+        search_results = test_db.search_products(query="Test", cat_type="product")
+        assert len(search_results) > 0, "Failed to search products"
+        assert any(p["id"] == product_id for p in search_results), "Product not found in search results"
+        
+        # Test filter products
+        filter_results = test_db.search_products(brand="Test Brand")
+        assert len(filter_results) > 0, "Failed to filter products"
+        assert any(p["id"] == product_id for p in filter_results), "Product not found in filter results"
+        
+        # Test delete product
+        deleted = test_db.delete_product(product_id)
+        assert deleted, "Failed to delete product"
+        
+        # Verify the product was deleted
+        product = test_db.get_product(product_id)
+        assert product is None, "Product wasn't deleted"
+        
+        # Clean up
+        test_db.delete_category(category_id)
+    
+    def test_service_operations(self, test_db):
+        """Test CRUD operations for services"""
+        # Create a test category for services
+        category_name = "Test Service Category"
+        category_id = test_db.add_category(category_name, parent_id=None, cat_type="service")
+        
+        # Test add service
+        service_name = "Test Service"
+        service_price = 500000
+        service_description = "This is a test service"
+        
+        service_id = test_db.add_service(
+            name=service_name,
+            price=service_price,
+            description=service_description,
+            category_id=category_id,
+            photo_url=None,
+            featured=True,
+            tags="test,service"
         )
+        assert service_id > 0, "Failed to add service"
         
-        product2_id = test_db.add_product(
-            name="محصول تست جستجو ۲",
-            price=2000000,
-            description="محصول دیگر برای تست جستجو",
-            category_id=child_cat_id,
-            tags="تست,جستجو,ویژه"
-        )
+        # Test get service
+        service = test_db.get_service(service_id)
+        assert service is not None, "Failed to get service"
+        assert service["name"] == service_name, "Service name doesn't match"
+        assert service["price"] == service_price, "Service price doesn't match"
         
-        # Search for products with "جستجو" in their name or description
-        search_results = test_db.search_products(query="جستجو")
-        assert len(search_results) == 2
+        # Test delete service
+        deleted = test_db.delete_service(service_id)
+        assert deleted, "Failed to delete service"
         
-        # Filter by category
-        category_results = test_db.search_products(category_id=child_cat_id)
-        assert len(category_results) == 1
-        assert category_results[0]['id'] == product2_id
+        # Verify the service was deleted
+        service = test_db.get_service(service_id)
+        assert service is None, "Service wasn't deleted"
         
-        # Filter by price range
-        price_results = test_db.search_products(min_price=1500000)
-        assert len(price_results) == 1
-        assert price_results[0]['id'] == product2_id
-        
-        # Filter by tags
-        tag_results = test_db.search_products(tags="ویژه")
-        assert len(tag_results) == 1
-        assert tag_results[0]['id'] == product2_id
-
-    def test_update_category(self, test_db):
-        """Test updating category information"""
-        # Create a test category
-        category_id = test_db.add_category(name="دسته‌بندی قبل از بروزرسانی", cat_type='product')
-        
-        # Update the category
-        new_name = "دسته‌بندی بعد از بروزرسانی"
-        success = test_db.update_category(category_id, name=new_name)
-        
-        # Verify the update was successful
-        assert success, "Category update failed"
-        
-        # Verify the changes were saved
-        updated_category = test_db.get_category(category_id)
-        assert updated_category['name'] == new_name
-
-    def test_delete_category_cascade(self, test_db):
-        """Test deleting a category cascades to its subcategories and products"""
-        # Create a category hierarchy
-        parent_id = test_db.add_category(name="دسته‌بندی حذف", cat_type='product')
-        child_id = test_db.add_category(name="زیردسته حذف", parent_id=parent_id, cat_type='product')
-        
-        # Add a product to the child category
+        # Clean up
+        test_db.delete_category(category_id)
+    
+    def test_inquiry_operations(self, test_db):
+        """Test CRUD operations for inquiries"""
+        # Create test category and product for inquiry
+        category_id = test_db.add_category("Test Inquiry Category", cat_type="product")
         product_id = test_db.add_product(
-            name="محصول تست حذف",
+            name="Test Inquiry Product",
             price=1000000,
-            description="محصول برای تست حذف",
-            category_id=child_id
+            description="Product for inquiry test",
+            category_id=category_id
         )
         
-        # Verify everything was created
-        assert test_db.get_category(parent_id) is not None
-        assert test_db.get_category(child_id) is not None
-        assert test_db.get_product(product_id) is not None
+        # Test add inquiry
+        user_id = 123456789
+        name = "Test User"
+        phone = "09123456789"
+        description = "This is a test inquiry"
         
-        # Delete the parent category
-        success = test_db.delete_category(parent_id)
-        assert success, "Category deletion failed"
+        inquiry_id = test_db.add_inquiry(
+            user_id=user_id,
+            name=name,
+            phone=phone,
+            description=description,
+            product_id=product_id
+        )
+        assert inquiry_id > 0, "Failed to add inquiry"
         
-        # Verify the parent category was deleted
-        assert test_db.get_category(parent_id) is None
+        # Test get inquiry
+        inquiry = test_db.get_inquiry(inquiry_id)
+        assert inquiry is not None, "Failed to get inquiry"
+        assert inquiry["name"] == name, "Inquiry name doesn't match"
+        assert inquiry["phone"] == phone, "Inquiry phone doesn't match"
         
-        # Verify the child category was also deleted (cascade)
-        assert test_db.get_category(child_id) is None
+        # Test get inquiries
+        inquiries = test_db.get_inquiries(product_id=product_id)
+        assert len(inquiries) > 0, "Failed to get inquiries"
+        assert any(i["id"] == inquiry_id for i in inquiries), "Inquiry not found"
         
-        # Verify the product was also deleted (cascade)
-        assert test_db.get_product(product_id) is None
+        # Test delete inquiry
+        deleted = test_db.delete_inquiry(inquiry_id)
+        assert deleted, "Failed to delete inquiry"
+        
+        # Verify the inquiry was deleted
+        inquiry = test_db.get_inquiry(inquiry_id)
+        assert inquiry is None, "Inquiry wasn't deleted"
+        
+        # Clean up
+        test_db.delete_product(product_id)
+        test_db.delete_category(category_id)
+    
+    def test_educational_content_operations(self, test_db):
+        """Test CRUD operations for educational content"""
+        # Test add educational content
+        title = "Test Educational Content"
+        content = "This is a test educational content"
+        category = "Test Category"
+        content_type = "article"
+        
+        content_id = test_db.add_educational_content(
+            title=title,
+            content=content,
+            category=category,
+            content_type=content_type
+        )
+        assert content_id > 0, "Failed to add educational content"
+        
+        # Test get educational content
+        edu_content = test_db.get_educational_content(content_id)
+        assert edu_content is not None, "Failed to get educational content"
+        assert edu_content["title"] == title, "Educational content title doesn't match"
+        assert edu_content["content"] == content, "Educational content doesn't match"
+        
+        # Test get all educational content
+        all_content = test_db.get_all_educational_content()
+        assert len(all_content) > 0, "Failed to get all educational content"
+        assert any(c["id"] == content_id for c in all_content), "Educational content not found"
+        
+        # Test get educational content by category
+        category_content = test_db.get_all_educational_content(category=category)
+        assert len(category_content) > 0, "Failed to get educational content by category"
+        assert any(c["id"] == content_id for c in category_content), "Educational content not found in category"
+        
+        # Test get educational categories
+        categories = test_db.get_educational_categories()
+        assert len(categories) > 0, "Failed to get educational categories"
+        assert category in categories, "Category not found"
+        
+        # Test update educational content
+        new_title = "Updated Test Educational Content"
+        updated = test_db.update_educational_content(content_id, title=new_title)
+        assert updated, "Failed to update educational content"
+        
+        # Verify the update
+        updated_content = test_db.get_educational_content(content_id)
+        assert updated_content["title"] == new_title, "Educational content title wasn't updated"
+        
+        # Test delete educational content
+        deleted = test_db.delete_educational_content(content_id)
+        assert deleted, "Failed to delete educational content"
+        
+        # Verify the educational content was deleted
+        edu_content = test_db.get_educational_content(content_id)
+        assert edu_content is None, "Educational content wasn't deleted"
+    
+    def test_static_content_operations(self, test_db):
+        """Test CRUD operations for static content"""
+        # Test update static content
+        content_type = "test_static"
+        content = "This is a test static content"
+        
+        updated = test_db.update_static_content(content_type, content)
+        assert updated, "Failed to update static content"
+        
+        # Test get static content
+        static_content = test_db.get_static_content(content_type)
+        assert static_content == content, "Static content doesn't match"
