@@ -15,13 +15,36 @@ def main_menu_keyboard() -> ReplyKeyboardMarkup:
     Returns:
         ReplyKeyboardMarkup for the main menu
     """
-    keyboard = [
-        [KeyboardButton(text=PRODUCTS_BTN), KeyboardButton(text=SERVICES_BTN)],
-        [KeyboardButton(text=INQUIRY_BTN), KeyboardButton(text=EDUCATION_BTN)],
-        [KeyboardButton(text=CONTACT_BTN), KeyboardButton(text=ABOUT_BTN)],
-        [KeyboardButton(text=SEARCH_BTN)]
-    ]
-    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+    # Use a more direct approach to create the keyboard
+    from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
+    
+    # Create keyboard with specific layout
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            # First row
+            [
+                KeyboardButton(text=PRODUCTS_BTN),
+                KeyboardButton(text=SERVICES_BTN)
+            ],
+            # Second row
+            [
+                KeyboardButton(text=INQUIRY_BTN),
+                KeyboardButton(text=EDUCATION_BTN)
+            ],
+            # Third row
+            [
+                KeyboardButton(text=CONTACT_BTN),
+                KeyboardButton(text=ABOUT_BTN)
+            ],
+            # Fourth row
+            [
+                KeyboardButton(text=SEARCH_BTN)
+            ]
+        ],
+        resize_keyboard=True,  # Make the keyboard smaller
+        is_persistent=True,    # Show keyboard permanently
+        input_field_placeholder="انتخاب از منو..."  # Placeholder text for the input field
+    )
 
 def admin_keyboard() -> ReplyKeyboardMarkup:
     """
