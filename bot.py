@@ -48,6 +48,7 @@ async def register_handlers():
     """Register all handlers for the bot"""
     # Include the router from handlers module
     dp.include_router(handlers.router)
+    logger.info("Handlers registered successfully from handlers module")
 
 async def setup_webhook(app, webhook_path, webhook_host):
     """Set up webhook handling for the bot with aiohttp app"""
@@ -73,12 +74,6 @@ async def start_polling():
     """Start the bot in polling mode (for testing)"""
     logger.info("Starting bot in polling mode")
     
-    # Set commands
-    await set_commands()
-    
-    # Register all handlers
-    await register_handlers()
-    
     # Delete any existing webhook before starting polling
     webhook_info = await bot.get_webhook_info()
     if webhook_info.url:
@@ -87,6 +82,15 @@ async def start_polling():
         logger.info("Deleted existing webhook")
     else:
         logger.info("No webhook is currently set")
+    
+    # Set commands
+    await set_commands()
+    
+    # Register all handlers
+    await register_handlers()
+    
+    # Log information about the router for debugging
+    logger.info("Handlers have been registered and router is included in dispatcher")
     
     # Start polling
     try:
