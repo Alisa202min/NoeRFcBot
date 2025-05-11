@@ -777,25 +777,50 @@ class Database:
 
     def get_static_content(self, content_type: str) -> str:
         """Get static content (contact/about)"""
-        with self.conn.cursor() as cursor:
-            cursor.execute(
-                'SELECT content FROM static_content WHERE type = %s',
-                (content_type,)
-            )
-            row = cursor.fetchone()
-            return row[0] if row else (CONTACT_DEFAULT if content_type == 'contact' else ABOUT_DEFAULT)
+        try:
+            # Ensure connection is active before proceeding
+            self.ensure_connection()
+            
+            with self.conn.cursor() as cursor:
+                cursor.execute(
+                    'SELECT content FROM static_content WHERE type = %s',
+                    (content_type,)
+                )
+                row = cursor.fetchone()
+                return row[0] if row else (CONTACT_DEFAULT if content_type == 'contact' else ABOUT_DEFAULT)
+        except Exception as e:
+            logging.error(f"Error getting static content '{content_type}': {str(e)}")
+            # Return defaults if database operation fails
+            return CONTACT_DEFAULT if content_type == 'contact' else ABOUT_DEFAULT
 
     def update_static_content(self, content_type: str, content: str) -> bool:
         """Update static content (contact/about)"""
         if content_type not in ['contact', 'about']:
+            logging.warning(f"Invalid static content type: {content_type}")
             return False
-
-        with self.conn.cursor() as cursor:
-            cursor.execute(
-                'UPDATE static_content SET content = %s WHERE type = %s',
-                (content, content_type)
-            )
-            return cursor.rowcount > 0
+            
+        try:
+            # Ensure connection is active before proceeding
+            self.ensure_connection()
+            
+            with self.conn.cursor() as cursor:
+                cursor.execute(
+                    'UPDATE static_content SET content = %s WHERE type = %s',
+                    (content, content_type)
+                )
+                
+                if cursor.rowcount == 0:
+                    # If no rows were updated, insert a new record
+                    cursor.execute(
+                        'INSERT INTO static_content (type, content) VALUES (%s, %s)',
+                        (content_type, content)
+                    )
+                
+                logging.info(f"Static content '{content_type}' updated successfully")
+                return True
+        except Exception as e:
+            logging.error(f"Error updating static content '{content_type}': {str(e)}")
+            return False
 
     def export_to_csv(self, entity_type: str, filepath: str) -> bool:
         """Export data to CSV"""
