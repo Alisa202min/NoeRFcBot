@@ -32,8 +32,15 @@ if not bot_token:
     logger.error("BOT_TOKEN not set in environment variables")
     exit(1)
 
+logger.info(f"Using bot token starting with: {bot_token[:5]}...")
+
 # Create bot instance
-bot = Bot(token=bot_token)
+try:
+    bot = Bot(token=bot_token)
+    logger.info("Bot instance created successfully")
+except Exception as e:
+    logger.error(f"Error creating bot instance: {e}")
+    raise
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
