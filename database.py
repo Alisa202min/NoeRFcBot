@@ -354,17 +354,31 @@ class Database:
             )
             return cursor.fetchone() or None or None
 
-    def get_products_by_category(self, category_id: int) -> List[Dict]:
-        """Get all products/services in a category"""
+    def get_products_by_category(self, category_id: int, cat_type: Optional[str] = None) -> List[Dict]:
+        """Get all products/services in a category
+        
+        Args:
+            category_id: The ID of the category
+            cat_type: Optional type filter ('product' or 'service')
+            
+        Returns:
+            List of products/services in the category
+        """
         category = self.get_category(category_id)
         if not category:
             return []
 
         with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            cursor.execute(
-                'SELECT id, name, price, description, photo_url, category_id FROM products WHERE category_id = %s ORDER BY name',
-                (category_id,)
-            )
+            if cat_type:
+                cursor.execute(
+                    'SELECT id, name, price, description, photo_url, category_id FROM products WHERE category_id = %s AND product_type = %s ORDER BY name',
+                    (category_id, cat_type)
+                )
+            else:
+                cursor.execute(
+                    'SELECT id, name, price, description, photo_url, category_id FROM products WHERE category_id = %s ORDER BY name',
+                    (category_id,)
+                )
             return cursor.fetchall()
 
     def search_products(self, query: str = None, cat_type: str = None, 
