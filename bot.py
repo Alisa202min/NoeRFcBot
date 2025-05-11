@@ -1,25 +1,30 @@
 import os
+import sys
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommand
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.enums import ParseMode
 from dotenv import load_dotenv
 from aiohttp import web
 
-# Import handlers
-import handlers
+# Configure logging first
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler("bot.log")
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
 
-# Configure logging
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO,
-    filename='bot.log'
-)
-logger = logging.getLogger(__name__)
+# Note: We already configured logging at the top of the file, so we don't need to do it again
+# Just use the existing logger
 
 # Initialize bot and dispatcher
 bot_token = os.environ.get('BOT_TOKEN')

@@ -43,29 +43,36 @@ class UserStates(StatesGroup):
     inquiry_description = State()
     waiting_for_confirmation = State()
 
-# Start command handler
+# Start command handler - add a debug message to see if it's being called
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext):
     """Handle /start command - initial entry point"""
-    await state.clear()
-    
-    # Welcome message
-    welcome_text = (
-        f"🎉 سلام {message.from_user.first_name}!\n\n"
-        "به ربات فروشگاه محصولات و خدمات ارتباطی خوش آمدید.\n"
-        "از منوی زیر گزینه مورد نظر خود را انتخاب کنید:"
-    )
-    
-    # Create keyboard
-    kb = InlineKeyboardBuilder()
-    kb.button(text="🛒 محصولات", callback_data="products")
-    kb.button(text="🛠️ خدمات", callback_data="services") 
-    kb.button(text="📚 محتوای آموزشی", callback_data="educational")
-    kb.button(text="📞 تماس با ما", callback_data="contact")
-    kb.button(text="ℹ️ درباره ما", callback_data="about")
-    kb.adjust(2, 2, 1)
-    
-    await message.answer(welcome_text, reply_markup=kb.as_markup())
+    try:
+        logging.info(f"Start command received from user: {message.from_user.id}")
+        await state.clear()
+        
+        # Welcome message
+        welcome_text = (
+            f"🎉 سلام {message.from_user.first_name}!\n\n"
+            "به ربات فروشگاه محصولات و خدمات ارتباطی خوش آمدید.\n"
+            "از منوی زیر گزینه مورد نظر خود را انتخاب کنید:"
+        )
+        
+        # Create keyboard
+        kb = InlineKeyboardBuilder()
+        kb.button(text="🛒 محصولات", callback_data="products")
+        kb.button(text="🛠️ خدمات", callback_data="services") 
+        kb.button(text="📚 محتوای آموزشی", callback_data="educational")
+        kb.button(text="📞 تماس با ما", callback_data="contact")
+        kb.button(text="ℹ️ درباره ما", callback_data="about")
+        kb.adjust(2, 2, 1)
+        
+        await message.answer(welcome_text, reply_markup=kb.as_markup())
+        logging.info("Start command response sent successfully")
+    except Exception as e:
+        logging.error(f"Error in start command handler: {e}")
+        logging.error(traceback.format_exc())
+        await message.answer("متأسفانه خطایی رخ داد. لطفاً مجدداً تلاش کنید.")
 
 # Help command handler
 @router.message(Command("help"))
