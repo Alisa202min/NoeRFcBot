@@ -1,435 +1,245 @@
-import os
 import pytest
+import os
 import asyncio
-import psycopg2
-from psycopg2.extras import RealDictCursor
-from dotenv import load_dotenv
+from unittest.mock import AsyncMock, MagicMock, patch
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
-from unittest.mock import AsyncMock
+from aiogram.types import User, Chat, Message, CallbackQuery, Update
+from database import Database
 
-# Import for web app testing
-from src.web.app import app as flask_app
-from src.web.app import db as flask_db
-import models
-
-# Load environment variables
-load_dotenv()
-
-# Test database constants
-TEST_DB_NAME = "rfcbot_test"
-TEST_DB_USER = os.environ.get("PGUSER", "postgres")
-TEST_DB_PASSWORD = os.environ.get("PGPASSWORD", "postgres")
-TEST_DB_HOST = os.environ.get("PGHOST", "localhost")
-TEST_DB_PORT = os.environ.get("PGPORT", "5432")
-TEST_DB_URL = f"postgresql://{TEST_DB_USER}:{TEST_DB_PASSWORD}@{TEST_DB_HOST}:{TEST_DB_PORT}/{TEST_DB_NAME}"
-
-# Test bot token - prefer a special test bot token for testing
-TEST_BOT_TOKEN = os.environ.get("TEST_BOT_TOKEN", os.environ.get("BOT_TOKEN"))
-
+# Setup the testing environment
+@pytest.fixture(scope="session")
+def event_loop():
+    """Create an instance of the default event loop for the test session."""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
 
 @pytest.fixture(scope="session")
-def test_db_url():
-    """Return the test database URL"""
-    return TEST_DB_URL
+def test_db():
+    """Initialize test database with sample data"""
+    DATABASE_URL = os.environ.get("DATABASE_URL")
+    if not DATABASE_URL:
+        pytest.fail("DATABASE_URL environment variable not set")
+    
+    # Create a database instance for testing
+    db = Database()
+    
+    # Create test data and clean up after tests
+    try:
+        setup_test_db(db)
+        yield db
+    finally:
+        cleanup_test_db(db)
 
-
-@pytest.fixture(scope="session")
-def db_setup():
-    """Set up a test database for the test session"""
-    # Connection to default postgres database to create test database
-    conn = psycopg2.connect(
-        dbname="postgres",
-        user=TEST_DB_USER,
-        password=TEST_DB_PASSWORD,
-        host=TEST_DB_HOST,
-        port=TEST_DB_PORT
+def setup_test_db(db):
+    """Set up the test database with sample data"""
+    # Create the test categories hierarchy (4 levels)
+    # Level 1 - Main categories
+    radio_cat_id = db.add_category("تجهیزات رادیویی", cat_type='product')
+    network_cat_id = db.add_category("تجهیزات شبکه", cat_type='product')
+    services_cat_id = db.add_category("خدمات فنی", cat_type='service')
+    
+    # Level 2 - Subcategories
+    radio_receivers_id = db.add_category("گیرنده‌های رادیویی", parent_id=radio_cat_id, cat_type='product')
+    radio_transmitters_id = db.add_category("فرستنده‌های رادیویی", parent_id=radio_cat_id, cat_type='product')
+    network_switches_id = db.add_category("سوئیچ‌های شبکه", parent_id=network_cat_id, cat_type='product')
+    network_routers_id = db.add_category("روترها", parent_id=network_cat_id, cat_type='product')
+    service_installation_id = db.add_category("نصب و راه‌اندازی", parent_id=services_cat_id, cat_type='service')
+    
+    # Level 3 - Specific types
+    uhf_receivers_id = db.add_category("گیرنده‌های UHF", parent_id=radio_receivers_id, cat_type='product')
+    vhf_receivers_id = db.add_category("گیرنده‌های VHF", parent_id=radio_receivers_id, cat_type='product')
+    enterprise_switches_id = db.add_category("سوئیچ‌های سازمانی", parent_id=network_switches_id, cat_type='product')
+    radio_installation_id = db.add_category("نصب تجهیزات رادیویی", parent_id=service_installation_id, cat_type='service')
+    
+    # Level 4 - Specific models/brands
+    motorola_uhf_id = db.add_category("گیرنده‌های موتورولا UHF", parent_id=uhf_receivers_id, cat_type='product')
+    cisco_switches_id = db.add_category("سوئیچ‌های سیسکو", parent_id=enterprise_switches_id, cat_type='product')
+    antenna_installation_id = db.add_category("نصب آنتن", parent_id=radio_installation_id, cat_type='service')
+    
+    # Add products to level 4 categories
+    db.add_product(
+        name="گیرنده موتورولا XPR 5550",
+        price=850000,
+        description="گیرنده دیجیتال UHF موتورولا با محدوده فرکانسی 403-470 MHz",
+        category_id=motorola_uhf_id,
+        photo_url=None,
+        brand="Motorola",
+        model="XPR 5550",
+        in_stock=True,
+        tags="UHF,Radio,Digital",
+        featured=True
     )
-    conn.autocommit = True
     
+    db.add_product(
+        name="گیرنده موتورولا XPR 7550",
+        price=1250000,
+        description="گیرنده دیجیتال UHF موتورولا با محدوده فرکانسی وسیع و قابلیت اتصال به شبکه",
+        category_id=motorola_uhf_id,
+        photo_url=None,
+        brand="Motorola",
+        model="XPR 7550",
+        in_stock=True,
+        tags="UHF,Radio,Digital,Network",
+        featured=True
+    )
+    
+    db.add_product(
+        name="سوئیچ سیسکو Catalyst 2960",
+        price=1800000,
+        description="سوئیچ لایه 2 سیسکو با 24 پورت گیگابیت اترنت",
+        category_id=cisco_switches_id,
+        photo_url=None,
+        brand="Cisco",
+        model="Catalyst 2960",
+        in_stock=True,
+        tags="Switch,Ethernet,Gigabit,Managed",
+        featured=True
+    )
+    
+    # Add service to level 4 category
+    db.add_service(
+        name="نصب آنتن رادیویی",
+        price=350000,
+        description="نصب و تنظیم آنتن‌های رادیویی با تضمین کیفیت سیگنال",
+        category_id=antenna_installation_id,
+        photo_url=None,
+        featured=True,
+        tags="Antenna,Installation,Radio"
+    )
+    
+    # Add educational content
+    db.add_educational_content(
+        title="راهنمای انتخاب فرکانس مناسب",
+        content="در این مقاله به بررسی نحوه انتخاب فرکانس مناسب برای تجهیزات رادیویی می‌پردازیم...",
+        category="آموزش رادیو",
+        content_type="article"
+    )
+    
+    db.add_educational_content(
+        title="نحوه عیب‌یابی اختلالات سیگنال",
+        content="در این ویدیو آموزشی، روش‌های تشخیص و رفع اختلالات سیگنال را مشاهده می‌کنید...",
+        category="عیب‌یابی",
+        content_type="video"
+    )
+    
+    # Add static content
+    db.update_static_content("contact", "برای تماس با ما از طریق زیر اقدام کنید:\n\nتلفن: 021-12345678\nایمیل: info@rfcatalog.com")
+    db.update_static_content("about", "فروشگاه تخصصی تجهیزات رادیویی و فرکانسی با بیش از 15 سال سابقه ارائه خدمات...")
+    
+    # Add inquiries
+    db.add_inquiry(
+        user_id=123456789,
+        name="علی محمدی",
+        phone="09123456789",
+        description="درخواست قیمت برای خرید 5 دستگاه گیرنده موتورولا",
+        product_id=1
+    )
+    
+    db.add_inquiry(
+        user_id=987654321,
+        name="سارا احمدی",
+        phone="09187654321",
+        description="استعلام هزینه نصب آنتن رادیویی برای 3 سایت",
+        service_id=1
+    )
+
+def cleanup_test_db(db):
+    """Clean up the test database after tests"""
     try:
-        with conn.cursor() as cursor:
-            # Check if test database exists and drop it if it does
-            cursor.execute("SELECT 1 FROM pg_database WHERE datname = %s", (TEST_DB_NAME,))
-            if cursor.fetchone():
-                cursor.execute(f"DROP DATABASE {TEST_DB_NAME}")
-            
-            # Create test database
-            cursor.execute(f"CREATE DATABASE {TEST_DB_NAME}")
+        # In a real implementation, you might want to drop the test tables
+        # or delete the test data created during setup
+        pass
     except Exception as e:
-        print(f"Error setting up test database: {e}")
-        raise
-    finally:
-        conn.close()
-    
-    # Connect to the new test database and set up schema
-    test_conn = psycopg2.connect(TEST_DB_URL)
-    test_conn.autocommit = True
-    
-    try:
-        with test_conn.cursor() as cursor:
-            # Create necessary tables
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS categories (
-                    id SERIAL PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    parent_id INTEGER NULL,
-                    cat_type TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE CASCADE
-                )
-            ''')
-            
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS products (
-                    id SERIAL PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    price INTEGER NOT NULL,
-                    description TEXT,
-                    photo_url TEXT,
-                    category_id INTEGER NOT NULL,
-                    product_type TEXT NOT NULL DEFAULT 'product',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    tags TEXT,
-                    brand TEXT,
-                    model_number TEXT,
-                    manufacturer TEXT,
-                    provider TEXT,
-                    service_code TEXT,
-                    duration TEXT,
-                    in_stock BOOLEAN DEFAULT TRUE,
-                    featured BOOLEAN DEFAULT FALSE,
-                    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
-                )
-            ''')
-            
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS product_media (
-                    id SERIAL PRIMARY KEY,
-                    product_id INTEGER NOT NULL,
-                    file_id TEXT NOT NULL,
-                    file_type TEXT NOT NULL,
-                    local_path TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
-                )
-            ''')
-            
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS inquiries (
-                    id SERIAL PRIMARY KEY,
-                    user_id INTEGER NOT NULL,
-                    name TEXT NOT NULL,
-                    phone TEXT NOT NULL,
-                    description TEXT NOT NULL,
-                    product_id INTEGER,
-                    product_type TEXT,
-                    date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    status TEXT DEFAULT 'pending',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS educational_content (
-                    id SERIAL PRIMARY KEY,
-                    title TEXT NOT NULL,
-                    content TEXT NOT NULL,
-                    category TEXT NOT NULL,
-                    content_type TEXT DEFAULT 'text',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS static_content (
-                    id SERIAL PRIMARY KEY,
-                    content TEXT NOT NULL,
-                    content_type TEXT NOT NULL UNIQUE,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
-                    username TEXT NOT NULL UNIQUE,
-                    email TEXT,
-                    password_hash TEXT,
-                    is_admin BOOLEAN DEFAULT FALSE,
-                    telegram_id BIGINT UNIQUE,
-                    telegram_username TEXT,
-                    first_name TEXT,
-                    last_name TEXT,
-                    last_seen TIMESTAMP,
-                    phone TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            
-            # Insert sample data for testing
-            # Set up a 4-level category hierarchy for testing
-            # Level 1 Categories (Root)
-            cursor.execute(
-                "INSERT INTO categories (name, parent_id, cat_type) VALUES (%s, NULL, %s) RETURNING id",
-                ("محصولات فرکانس پایین", None, "product")
-            )
-            cat_level1_1_id = cursor.fetchone()[0]
-            
-            cursor.execute(
-                "INSERT INTO categories (name, parent_id, cat_type) VALUES (%s, NULL, %s) RETURNING id",
-                ("محصولات فرکانس بالا", None, "product")
-            )
-            cat_level1_2_id = cursor.fetchone()[0]
-            
-            # Level 2 Categories
-            cursor.execute(
-                "INSERT INTO categories (name, parent_id, cat_type) VALUES (%s, %s, %s) RETURNING id",
-                ("آنتن‌ها", cat_level1_1_id, "product")
-            )
-            cat_level2_1_id = cursor.fetchone()[0]
-            
-            cursor.execute(
-                "INSERT INTO categories (name, parent_id, cat_type) VALUES (%s, %s, %s) RETURNING id",
-                ("ماژول‌ها", cat_level1_1_id, "product")
-            )
-            cat_level2_2_id = cursor.fetchone()[0]
-            
-            cursor.execute(
-                "INSERT INTO categories (name, parent_id, cat_type) VALUES (%s, %s, %s) RETURNING id",
-                ("تجهیزات تست", cat_level1_2_id, "product")
-            )
-            cat_level2_3_id = cursor.fetchone()[0]
-            
-            # Level 3 Categories
-            cursor.execute(
-                "INSERT INTO categories (name, parent_id, cat_type) VALUES (%s, %s, %s) RETURNING id",
-                ("آنتن‌های یکطرفه", cat_level2_1_id, "product")
-            )
-            cat_level3_1_id = cursor.fetchone()[0]
-            
-            cursor.execute(
-                "INSERT INTO categories (name, parent_id, cat_type) VALUES (%s, %s, %s) RETURNING id",
-                ("آنتن‌های دوطرفه", cat_level2_1_id, "product")
-            )
-            cat_level3_2_id = cursor.fetchone()[0]
-            
-            # Level 4 Categories (Leaf nodes)
-            cursor.execute(
-                "INSERT INTO categories (name, parent_id, cat_type) VALUES (%s, %s, %s) RETURNING id",
-                ("آنتن‌های یکطرفه موج کوتاه", cat_level3_1_id, "product")
-            )
-            cat_level4_1_id = cursor.fetchone()[0]
-            
-            # Add sample service categories with 4-level hierarchy
-            cursor.execute(
-                "INSERT INTO categories (name, parent_id, cat_type) VALUES (%s, NULL, %s) RETURNING id",
-                ("خدمات نصب", None, "service")
-            )
-            service_cat_level1_id = cursor.fetchone()[0]
-            
-            cursor.execute(
-                "INSERT INTO categories (name, parent_id, cat_type) VALUES (%s, %s, %s) RETURNING id",
-                ("نصب آنتن", service_cat_level1_id, "service")
-            )
-            service_cat_level2_id = cursor.fetchone()[0]
-            
-            cursor.execute(
-                "INSERT INTO categories (name, parent_id, cat_type) VALUES (%s, %s, %s) RETURNING id",
-                ("نصب آنتن‌های خارجی", service_cat_level2_id, "service")
-            )
-            service_cat_level3_id = cursor.fetchone()[0]
-            
-            cursor.execute(
-                "INSERT INTO categories (name, parent_id, cat_type) VALUES (%s, %s, %s) RETURNING id",
-                ("نصب آنتن‌های خارجی فرکانس پایین", service_cat_level3_id, "service")
-            )
-            service_cat_level4_id = cursor.fetchone()[0]
-            
-            # Add sample products
-            cursor.execute(
-                """
-                INSERT INTO products 
-                (name, price, description, category_id, product_type, brand, tags, in_stock, featured) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
-                """,
-                (
-                    "آنتن یکطرفه XYZ",
-                    1500000,
-                    "آنتن یکطرفه با فرکانس پایین",
-                    cat_level3_1_id,
-                    "product",
-                    "XYZ",
-                    "آنتن,فرکانس پایین,یکطرفه",
-                    True,
-                    True
-                )
-            )
-            product_id = cursor.fetchone()[0]
-            
-            # Add sample service
-            cursor.execute(
-                """
-                INSERT INTO products 
-                (name, price, description, category_id, product_type, provider, tags, in_stock, featured) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
-                """,
-                (
-                    "نصب آنتن خارجی",
-                    500000,
-                    "خدمات نصب آنتن خارجی به همراه تنظیمات",
-                    service_cat_level3_id,
-                    "service",
-                    "شرکت خدمات RF",
-                    "نصب,آنتن,خارجی",
-                    True,
-                    False
-                )
-            )
-            service_id = cursor.fetchone()[0]
-            
-            # Add sample educational content
-            cursor.execute(
-                """
-                INSERT INTO educational_content 
-                (title, content, category, content_type) 
-                VALUES (%s, %s, %s, %s)
-                """,
-                (
-                    "راهنمای نصب آنتن",
-                    "این راهنما به شما کمک می‌کند تا آنتن را به درستی نصب کنید...",
-                    "آموزش نصب",
-                    "text"
-                )
-            )
-            
-            # Add sample static content
-            cursor.execute(
-                """
-                INSERT INTO static_content 
-                (content, content_type) 
-                VALUES (%s, %s)
-                """,
-                (
-                    "اطلاعات تماس با ما: تلفن: 021-12345678",
-                    "contact"
-                )
-            )
-            
-            cursor.execute(
-                """
-                INSERT INTO static_content 
-                (content, content_type) 
-                VALUES (%s, %s)
-                """,
-                (
-                    "درباره ما: شرکت ما در زمینه فناوری RF فعالیت می‌کند...",
-                    "about"
-                )
-            )
-            
-            # Add test admin user
-            cursor.execute(
-                """
-                INSERT INTO users 
-                (username, email, password_hash, is_admin) 
-                VALUES (%s, %s, %s, %s)
-                """,
-                (
-                    "admin_test",
-                    "admin_test@example.com",
-                    "pbkdf2:sha256:150000$wvf7VfY9$7d36aca90e08cdc1fe1cb8f7f3aae59c9ccf23048f72d0cc4d0f04f72494db53",  # password: test123
-                    True
-                )
-            )
-            
-    except Exception as e:
-        print(f"Error initializing test database: {e}")
-        raise
-    finally:
-        test_conn.close()
-    
-    # Return the test database URL for use in tests
-    return TEST_DB_URL
-
-
-@pytest.fixture(scope="session")
-def test_db_connection(db_setup):
-    """Create a connection to the test database that can be used by tests"""
-    conn = psycopg2.connect(db_setup)
-    conn.autocommit = True
-    
-    try:
-        yield conn
-    finally:
-        conn.close()
-
-
-@pytest.fixture(scope="function")
-def test_db_cursor(test_db_connection):
-    """Create a cursor for the test database"""
-    with test_db_connection.cursor(cursor_factory=RealDictCursor) as cursor:
-        yield cursor
-
+        print(f"Error during test database cleanup: {e}")
 
 @pytest.fixture
 def mock_bot():
-    """Create a mock Bot instance for testing"""
+    """Create a mock bot instance for testing."""
     bot = AsyncMock(spec=Bot)
-    bot.send_message = AsyncMock()
-    bot.edit_message_text = AsyncMock()
-    bot.send_photo = AsyncMock()
-    bot.set_webhook = AsyncMock()
-    bot.delete_webhook = AsyncMock()
-    bot.get_webhook_info = AsyncMock()
-    
-    bot.get_webhook_info.return_value = AsyncMock(url="")
-    
+    bot.send_message = AsyncMock(return_value=MagicMock(message_id=42))
+    bot.send_photo = AsyncMock(return_value=MagicMock(message_id=43))
+    bot.edit_message_text = AsyncMock(return_value=MagicMock())
+    bot.edit_message_reply_markup = AsyncMock(return_value=MagicMock())
+    bot.delete_message = AsyncMock(return_value=True)
     return bot
 
-
 @pytest.fixture
-def bot_dispatcher():
-    """Create a real Dispatcher with memory storage for testing"""
+def mock_dp():
+    """Create a mock dispatcher instance for testing."""
     storage = MemoryStorage()
     dp = Dispatcher(storage=storage)
-    
-    try:
-        yield dp
-    finally:
-        # Cleanup if needed
-        pass
-
+    return dp
 
 @pytest.fixture
-def flask_test_client():
-    """Create a Flask test client"""
-    # Configure Flask for testing
-    flask_app.config['TESTING'] = True
-    flask_app.config['SQLALCHEMY_DATABASE_URI'] = TEST_DB_URL
-    flask_app.config['WTF_CSRF_ENABLED'] = False  # Disable CSRF for testing
-    
-    # Create all tables
-    with flask_app.app_context():
-        flask_db.create_all()
-    
-    # Return a test client
-    with flask_app.test_client() as client:
-        yield client
-    
-    # Clean up after tests
-    with flask_app.app_context():
-        flask_db.session.remove()
-        flask_db.drop_all()
-
+def test_user():
+    """Create a test user for testing."""
+    return User(id=12345, is_bot=False, first_name="Test", last_name="User", username="testuser", language_code="fa")
 
 @pytest.fixture
-def auth_flask_test_client(flask_test_client):
-    """Create an authenticated Flask test client"""
-    # Log in the test admin user
-    flask_test_client.post('/login', data={
-        'username': 'admin_test',
-        'password': 'test123'
-    }, follow_redirects=True)
-    
-    return flask_test_client
+def test_admin_user():
+    """Create a test admin user for testing."""
+    admin_id = int(os.environ.get('ADMIN_ID', 67890))
+    return User(id=admin_id, is_bot=False, first_name="Admin", last_name="User", username="adminuser", language_code="fa")
+
+@pytest.fixture
+def test_chat():
+    """Create a test chat for testing."""
+    return Chat(id=12345, type="private", title=None, username="testuser", first_name="Test", last_name="User")
+
+@pytest.fixture
+def test_admin_chat():
+    """Create a test admin chat for testing."""
+    admin_id = int(os.environ.get('ADMIN_ID', 67890))
+    return Chat(id=admin_id, type="private", title=None, username="adminuser", first_name="Admin", last_name="User")
+
+@pytest.fixture
+def test_message(test_user, test_chat):
+    """Create a test message for testing."""
+    message = AsyncMock(spec=Message)
+    message.from_user = test_user
+    message.chat = test_chat
+    message.message_id = 1
+    message.text = "/start"
+    message.reply = AsyncMock(return_value=MagicMock(message_id=2))
+    message.answer = AsyncMock(return_value=MagicMock(message_id=3))
+    message.reply_photo = AsyncMock(return_value=MagicMock(message_id=4))
+    return message
+
+@pytest.fixture
+def test_admin_message(test_admin_user, test_admin_chat):
+    """Create a test message from admin for testing."""
+    message = AsyncMock(spec=Message)
+    message.from_user = test_admin_user
+    message.chat = test_admin_chat
+    message.message_id = 1
+    message.text = "/admin"
+    message.reply = AsyncMock(return_value=MagicMock(message_id=2))
+    message.answer = AsyncMock(return_value=MagicMock(message_id=3))
+    message.reply_photo = AsyncMock(return_value=MagicMock(message_id=4))
+    return message
+
+@pytest.fixture
+def test_callback_query(test_user, test_chat):
+    """Create a test callback query for testing."""
+    callback_query = AsyncMock(spec=CallbackQuery)
+    callback_query.from_user = test_user
+    callback_query.message = AsyncMock(spec=Message)
+    callback_query.message.chat = test_chat
+    callback_query.message.message_id = 5
+    callback_query.message.reply = AsyncMock(return_value=MagicMock(message_id=6))
+    callback_query.message.answer = AsyncMock(return_value=MagicMock(message_id=7))
+    callback_query.message.edit_text = AsyncMock()
+    callback_query.message.edit_reply_markup = AsyncMock()
+    callback_query.data = "category_1"  # Default callback data
+    callback_query.answer = AsyncMock()
+    return callback_query
+
+@pytest.fixture
+def test_update(test_message):
+    """Create a test update for testing."""
+    update = AsyncMock(spec=Update)
+    update.message = test_message
+    update.callback_query = None
+    return update
