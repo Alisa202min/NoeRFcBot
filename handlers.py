@@ -9,6 +9,10 @@ import os
 import traceback
 from datetime import datetime
 from database import Database
+from configuration import (
+    PRODUCTS_BTN, SERVICES_BTN, INQUIRY_BTN, EDUCATION_BTN, 
+    CONTACT_BTN, ABOUT_BTN, SEARCH_BTN
+)
 
 # Initialize router and database - use name to better identify it in logs
 router = Router(name="main_router")
@@ -58,40 +62,11 @@ async def cmd_start(message: Message, state: FSMContext):
             "از منوی زیر گزینه مورد نظر خود را انتخاب کنید:"
         )
         
-        # Import the necessary keyboard types
-        from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+        # Import the keyboard function from keyboards.py
+        from keyboards import main_menu_keyboard
         
-        # Use the configured button text from configuration.py
-        from configuration import PRODUCTS_BTN, SERVICES_BTN, INQUIRY_BTN, EDUCATION_BTN
-        from configuration import CONTACT_BTN, ABOUT_BTN, SEARCH_BTN
-        
-        # Create a ReplyKeyboardMarkup with solid buttons that stay fixed at the bottom
-        keyboard = ReplyKeyboardMarkup(
-            keyboard=[
-                # First row - 2 buttons
-                [
-                    KeyboardButton(text=PRODUCTS_BTN),
-                    KeyboardButton(text=SERVICES_BTN)
-                ],
-                # Second row - 2 buttons
-                [
-                    KeyboardButton(text=INQUIRY_BTN),
-                    KeyboardButton(text=EDUCATION_BTN)
-                ],
-                # Third row - 2 buttons
-                [
-                    KeyboardButton(text=CONTACT_BTN),
-                    KeyboardButton(text=ABOUT_BTN)
-                ],
-                # Fourth row - 1 button
-                [
-                    KeyboardButton(text=SEARCH_BTN)
-                ]
-            ],
-            resize_keyboard=True,  # Make the keyboard smaller to fit better
-            is_persistent=True,    # Keep the keyboard visible all the time
-            input_field_placeholder="انتخاب از منو..."  # Placeholder text for the input field
-        )
+        # Get the main menu keyboard
+        keyboard = main_menu_keyboard()
         
         # Log that we're about to send the message with buttons
         logging.info("Sending welcome message with keyboard buttons")
@@ -118,6 +93,8 @@ async def cmd_help(message: Message):
     )
     await message.answer(help_text)
 
+# This import is now at the top of the file
+
 # Products command handler
 @router.message(Command("products"))
 @router.message(lambda message: message.text == PRODUCTS_BTN)
@@ -134,17 +111,45 @@ async def cmd_services(message: Message, state: FSMContext):
 
 # Contact command handler
 @router.message(Command("contact"))
+@router.message(lambda message: message.text == CONTACT_BTN)
 async def cmd_contact(message: Message):
-    """Handle /contact command"""
+    """Handle /contact command or Contact button"""
     contact_text = db.get_static_content('contact')
     await message.answer(contact_text)
 
 # About command handler
 @router.message(Command("about"))
+@router.message(lambda message: message.text == ABOUT_BTN)
 async def cmd_about(message: Message):
-    """Handle /about command"""
+    """Handle /about command or About button"""
     about_text = db.get_static_content('about')
     await message.answer(about_text)
+
+# Education button handler
+@router.message(lambda message: message.text == EDUCATION_BTN)
+async def cmd_education(message: Message):
+    """Handle Education button"""
+    categories = db.get_educational_categories()
+    if not categories:
+        await message.answer("محتوای آموزشی در حال حاضر در دسترس نیست. لطفا بعدا تلاش کنید.")
+        return
+    
+    from keyboards import education_categories_keyboard
+    keyboard = education_categories_keyboard(categories)
+    await message.answer("لطفا یک دسته‌بندی آموزشی را انتخاب کنید:", reply_markup=keyboard)
+
+# Inquiry button handler
+@router.message(lambda message: message.text == INQUIRY_BTN)
+async def cmd_inquiry(message: Message, state: FSMContext):
+    """Handle Inquiry button"""
+    await message.answer("لطفا نام خود را وارد کنید:")
+    await state.set_state(UserStates.inquiry_name)
+
+# Search button handler
+@router.message(lambda message: message.text == SEARCH_BTN)
+async def cmd_search(message: Message):
+    """Handle Search button"""
+    await message.answer("این قابلیت در حال حاضر در دسترس نیست. لطفا بعدا تلاش کنید.")
 
 # Button callbacks
 @router.callback_query(F.data == "products")
