@@ -605,16 +605,35 @@ async def callback_confirm_inquiry(callback: CallbackQuery, state: FSMContext):
         
         # Safely add the inquiry
         try:
-            db.add_inquiry(user_id, name, phone, description, product_id, service_id)
+            # تبدیل user_id به int برای اطمینان از سازگاری
+            user_id_int = int(user_id)
+            # تبدیل product_id و service_id به int در صورت لزوم
+            product_id_int = int(product_id) if product_id else None
+            service_id_int = int(service_id) if service_id else None
+            
+            # ثبت درخواست
+            db.add_inquiry(user_id_int, name, phone, description, product_id_int, service_id_int)
+            
+            # ارسال پیام موفقیت
+            await callback.message.answer(
+                "✅ درخواست شما با موفقیت ثبت شد.\n"
+                "کارشناسان ما در اسرع وقت با شما تماس خواهند گرفت."
+            )
+            logger.info(f"Inquiry successfully added for user: {user_id_int}")
+        except ValueError as e:
+            # خطای تبدیل نوع داده
+            logger.error(f"Value conversion error in inquiry: {e}")
+            await callback.message.answer(
+                "❌ خطا در ثبت درخواست. لطفاً مجدداً تلاش کنید.\n"
+                "دلیل: مقادیر نامعتبر"
+            )
         except Exception as e:
+            # سایر خطاها
             logger.error(f"Database error adding inquiry: {e}")
-            raise
-        
-        # Send success message to user
-        await callback.message.answer(
-            "✅ درخواست شما با موفقیت ثبت شد.\n"
-            "کارشناسان ما در اسرع وقت با شما تماس خواهند گرفت."
-        )
+            logger.error(traceback.format_exc())
+            await callback.message.answer(
+                "❌ خطا در ثبت درخواست. لطفاً مجدداً تلاش کنید."
+            )
         
         # Notify admin if ADMIN_ID is set
         if ADMIN_ID:
