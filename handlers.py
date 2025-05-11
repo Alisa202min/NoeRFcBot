@@ -58,16 +58,32 @@ async def cmd_start(message: Message, state: FSMContext):
             "از منوی زیر گزینه مورد نظر خود را انتخاب کنید:"
         )
         
-        # Create keyboard
-        kb = InlineKeyboardBuilder()
-        kb.button(text="🛒 محصولات", callback_data="products")
-        kb.button(text="🛠️ خدمات", callback_data="services") 
-        kb.button(text="📚 محتوای آموزشی", callback_data="educational")
-        kb.button(text="📞 تماس با ما", callback_data="contact")
-        kb.button(text="ℹ️ درباره ما", callback_data="about")
-        kb.adjust(2, 2, 1)
+        # Create keyboard - use more explicit approach
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
         
-        await message.answer(welcome_text, reply_markup=kb.as_markup())
+        # Create button rows directly
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            # First row - 2 buttons
+            [
+                InlineKeyboardButton(text="🛒 محصولات", callback_data="products"),
+                InlineKeyboardButton(text="🛠️ خدمات", callback_data="services")
+            ],
+            # Second row - 2 buttons
+            [
+                InlineKeyboardButton(text="📚 محتوای آموزشی", callback_data="educational"),
+                InlineKeyboardButton(text="📞 تماس با ما", callback_data="contact")
+            ],
+            # Third row - 1 button
+            [
+                InlineKeyboardButton(text="ℹ️ درباره ما", callback_data="about")
+            ]
+        ])
+        
+        # Log that we're about to send the message with buttons
+        logging.info("Sending welcome message with keyboard buttons")
+        
+        # Send the message with the markup
+        await message.answer(welcome_text, reply_markup=keyboard)
         logging.info("Start command response sent successfully")
     except Exception as e:
         logging.error(f"Error in start command handler: {e}")
