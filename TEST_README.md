@@ -1,124 +1,128 @@
-# مجموعه تست‌های RFCBot
+# RFCBot Testing Documentation
 
-این مجموعه شامل تست‌های خودکار برای بات تلگرام RFCBot است. تمرکز اصلی این تست‌ها بر روی اطمینان از صحت نمایش ساختار سلسله مراتبی دسته‌بندی‌ها در بات و مطابقت آن با ساختار پایگاه داده است.
+## Overview
+This repository contains comprehensive test suites for the RFCBot application, covering both the Telegram bot and web admin panel functionality. The tests are organized into several modules to ensure proper coverage of all application components.
 
-## مشخصات
+## Test Structure
 
-- **زبان برنامه‌نویسی**: Python
-- **فریم‌ورک تست**: pytest
-- **فریم‌ورک بات**: aiogram 3.7.0+
-- **پایگاه داده**: PostgreSQL
-- **تست استرس**: Locust
+### Basic Tests
+- **test_simple.py**: Simple database connectivity and basic operations tests
+  - `test_database_connection`: Validates database connection
+  - `test_simple_category_creation`: Tests category creation, retrieval, and deletion
 
-## ویژگی‌های تست شده
+### Database Tests
+- **test_db.py**: Comprehensive tests for all database operations
+  - Tests for categories (add, get, update, delete)
+  - Tests for products and services
+  - Tests for media handling
+  - Tests for educational content
+  - Tests for inquiries
+  - Tests for static content
 
-1. **دستورات بات**:
-   - `/start`: پیام خوشامدگویی و نمایش کیبورد اصلی
-   - `/products`: نمایش دسته‌بندی‌های محصولات
-   - `/services`: نمایش دسته‌بندی‌های خدمات
-   - `/contact`: اطلاعات تماس
-   - `/about`: درباره ما
-   - و سایر دستورات...
+### Bot Tests
+- **test_bot.py**: Tests for Telegram bot command handlers
+  - Command handling tests
+  - Message handlers
+  - Callback query handling
+  - Bot initialization and setup
 
-2. **جریان‌های مکالمه**:
-   - مرور دسته‌بندی‌ها (محصولات، خدمات، محتوای آموزشی)
-   - انتخاب دسته‌بندی و مشاهده زیردسته‌ها
-   - انتخاب محصول/خدمت و مشاهده جزئیات
-   - ارسال استعلام قیمت
-   - حرکت رو به عقب در ساختار سلسله مراتبی
+### Flow Tests
+- **test_flows.py**: Tests for conversation flows and user interactions
+  - Product browsing flow
+  - Category navigation
+  - Product search and filtering
+  - Price inquiry flow
+  - Educational content browsing
 
-3. **ساختار سلسله مراتبی دسته‌بندی‌ها**:
-   - بررسی نمایش صحیح سلسله مراتب 4 سطحی دسته‌بندی‌ها
-   - تأیید مطابقت ساختار درختی نمایش داده شده با ساختار پایگاه داده
-   - بررسی عدم وجود فرزند برای گره‌های سطح 4 (گره‌های برگ)
+### Admin Tests
+- **test_admin.py**: Tests for admin panel functionality
+  - Admin command access control
+  - Category management
+  - Product management
+  - Media management
+  - Educational content management
+  - Static content management
+  - Inquiry management
+  - Data export/import
 
-4. **تعامل با پایگاه داده**:
-   - افزودن، بروزرسانی و حذف دسته‌بندی‌ها
-   - عملیات CRUD روی محصولات، خدمات و محتوای آموزشی
-   - بررسی cascade حذف دسته‌بندی‌ها
+## Test Fixtures
 
-5. **پنل مدیریت**:
-   - تست عملیات CRUD در رابط کاربری پنل مدیریت
-   - بررسی انعکاس فوری تغییرات پنل مدیریت در بات
-   - مدیریت چهار سطح دسته‌بندی‌ها
+The tests use pytest fixtures to provide common test objects and data:
 
-6. **تست استرس**:
-   - شبیه‌سازی کاربران متعدد با استفاده از Locust
-   - تست عملکرد کلی سیستم تحت بار
+- **test_db**: Provides a database instance
+- **test_message**: Provides a mock message for testing
+- **test_admin_message**: Provides a mock admin message
+- **test_callback_query**: Provides a mock callback query
+- **test_user**: Provides a mock user for testing
 
-## ساختار فایل‌ها
+## Running Tests
 
+### Individual Test Files
+
+Run specific test files using:
+
+```bash
+# Run database tests
+pytest tests/test_db.py -v
+
+# Run bot command tests
+pytest tests/test_bot.py -v
+
+# Run conversation flow tests
+pytest tests/test_flows.py -v
+
+# Run admin panel tests
+pytest tests/test_admin.py -v
+
+# Run simple tests (these are faster and more reliable)
+pytest tests/test_simple.py -v
 ```
-/
-├── tests/
-│   ├── conftest.py          # فیکسچرهای مشترک
-│   ├── test_bot.py          # تست‌های دستورات بات
-│   ├── test_flows.py        # تست‌های جریان مکالمه و ساختار سلسله مراتبی
-│   ├── test_db.py           # تست‌های تعامل با پایگاه داده
-│   ├── test_admin.py        # تست‌های پنل مدیریت
-│   └── README.md            # مستندات تست‌ها
-├── locustfile.py            # تست استرس با Locust
-├── run_tests.py             # اسکریپت اجرای همه تست‌ها
-└── TEST_README.md           # این فایل
+
+### Automated Test Runner
+
+An automated test runner is provided to execute the tests with proper handling of timeouts and reporting:
+
+```bash
+# Run automated tests
+python run_tests.py
 ```
 
-## نحوه اجرا
+The test runner will:
+1. Check database connectivity
+2. Run the simpler tests
+3. Generate a detailed report of test results
+4. Log the results to test_results.log and the console
 
-### پیش‌نیازها
+## Test Tips
 
-1. نصب وابستگی‌ها:
+1. **Database-Dependent Tests**: Some tests require a working database connection. Ensure the DATABASE_URL environment variable is set.
+
+2. **Bot Token**: For tests that involve actual bot API calls, ensure the BOT_TOKEN environment variable is set.
+
+3. **Mocking**: Most tests use mocking to simulate Telegram API calls and user interactions.
+
+4. **Timeouts**: Some tests may timeout in complex scenarios. Use the `-k` flag to run specific test functions if needed:
    ```bash
-   pip install pytest pytest-asyncio pytest-flask locust
+   # Run a specific test function
+   pytest tests/test_flows.py::TestConversationFlows::test_product_browsing -v
    ```
 
-2. تنظیم متغیرهای محیطی:
+5. **Debugging**: For detailed debugging information, set the log level to DEBUG:
    ```bash
-   export DATABASE_URL=postgresql://username:password@localhost:5432/rfcbot_test
-   export TEST_BOT_TOKEN=your_test_bot_token
+   # Set debug level for more verbose output
+   PYTEST_LOG_LEVEL=DEBUG pytest tests/test_bot.py -v
    ```
 
-### اجرای تست‌ها
+## Known Issues
 
-1. **اجرای تمام تست‌ها**:
+1. **Test Dependencies**: Some tests may depend on the state created by other tests. To ensure isolation, use the `-xvs` flags to stop on the first failure and show output:
    ```bash
-   python run_tests.py
+   pytest tests/test_flows.py -xvs
    ```
 
-2. **اجرای تست‌های خاص**:
+2. **Resource Cleanup**: Tests should clean up created resources, but in case of test failures, some test data might remain in the database.
+
+3. **Timeouts**: Complex tests might timeout. Consider running them individually with increased timeout values:
    ```bash
-   pytest -v tests/test_bot.py
-   pytest -v tests/test_flows.py
-   pytest -v tests/test_db.py
-   pytest -v tests/test_admin.py
+   PYTEST_TIMEOUT=60 pytest tests/test_flows.py::TestConversationFlows::test_product_search -v
    ```
-
-3. **اجرای تست استرس**:
-   ```bash
-   locust -f locustfile.py --host=http://localhost:5000
-   ```
-
-## نکات مهم
-
-1. **پایگاه داده تست**:
-   - تست‌ها از یک پایگاه داده جداگانه استفاده می‌کنند تا روی داده‌های واقعی تأثیر نگذارند.
-   - اسکیما و داده‌های تست به طور خودکار در `conftest.py` ایجاد می‌شوند.
-
-2. **شبیه‌سازی API تلگرام**:
-   - تست‌ها API تلگرام را شبیه‌سازی می‌کنند تا از ارسال درخواست‌های واقعی جلوگیری شود.
-   - از `AsyncMock` برای شبیه‌سازی پاسخ‌های تلگرام استفاده می‌شود.
-
-3. **محیط CI/CD**:
-   - تست‌ها می‌توانند در محیط CI/CD اجرا شوند.
-   - برای GitHub Actions، می‌توانید از سرویس PostgreSQL در workflow استفاده کنید.
-
-4. **تست در محیط توسعه**:
-   - برای دیباگ آسان‌تر، تست‌ها را در محیط توسعه با verbose mode اجرا کنید:
-     ```bash
-     pytest -vv tests/test_bot.py
-     ```
-
-## هدف تست‌ها
-
-هدف اصلی این تست‌ها، اطمینان از این است که ساختار سلسله مراتبی دسته‌بندی‌ها که توسط بات نمایش داده می‌شود، دقیقاً با ساختار چهار سطحی ذخیره شده در پایگاه داده مطابقت دارد. این به‌معنای این است که اگر کاربر در پنل مدیریت دسته‌بندی‌ها را اضافه، ویرایش یا حذف کند، این تغییرات باید بلافاصله در پاسخ‌های بات نیز منعکس شود.
-
-همچنین، این تست‌ها تأیید می‌کنند که گره‌های سطح 4 (آخرین سطح)، گره‌های برگ هستند و فرزندی ندارند، و محصولات/خدمات فقط به گره‌های برگ پیوند داده می‌شوند.
