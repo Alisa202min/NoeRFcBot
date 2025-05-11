@@ -46,9 +46,17 @@ async def set_commands():
 
 async def register_handlers():
     """Register all handlers for the bot"""
+    # Import all necessary handlers to ensure they are initialized
+    from handlers import router, cmd_start, cmd_help, cmd_products, cmd_services
+    from handlers import cmd_contact, cmd_about, callback_products, callback_services
+    from handlers import callback_contact, callback_about, callback_educational
+    
     # Include the router from handlers module
-    dp.include_router(handlers.router)
-    logger.info("Handlers registered successfully from handlers module")
+    dp.include_router(router)
+    
+    # Verify handlers are registered by checking some key ones
+    handlers_count = len(router.message.handlers) + len(router.callback_query.handlers)
+    logger.info(f"Handlers registered successfully: {handlers_count} handlers in router")
 
 async def setup_webhook(app, webhook_path, webhook_host):
     """Set up webhook handling for the bot with aiohttp app"""

@@ -10,8 +10,8 @@ import traceback
 from datetime import datetime
 from database import Database
 
-# Initialize router and database
-router = Router()
+# Initialize router and database - use name to better identify it in logs
+router = Router(name="main_router")
 db = Database()
 
 # Initialize logging
