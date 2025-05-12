@@ -137,7 +137,7 @@ function previewImage(input) {
 }
 
 function simulateProgress() {
-    // این تابع صرفاً برای نمایش نوار پیشرفت است
+    // نمایش اولیه نوار پیشرفت تا قبل از شروع آپلود واقعی
     const progress = document.getElementById('uploadProgress');
     const status = document.getElementById('uploadStatus');
     let width = 0;
@@ -159,12 +159,19 @@ const form = document.querySelector('form');
 form.addEventListener('submit', function(e) {
     const fileInput = document.getElementById('photo');
     if (fileInput.files && fileInput.files[0]) {
+        // نمایش پیام آپلود در حال انجام
         const progress = document.getElementById('uploadProgress');
         const status = document.getElementById('uploadStatus');
         
-        // نمایش وضعیت نهایی
+        // نمایش وضعیت آپلود واقعی
+        progress.className = 'progress-bar progress-bar-striped progress-bar-animated bg-info';
         progress.style.width = '100%';
         status.textContent = 'در حال آپلود و ذخیره اطلاعات...';
+        
+        // غیرفعال کردن دکمه ذخیره برای جلوگیری از کلیک مجدد
+        const submitBtn = document.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="bi bi-hourglass"></i> در حال آپلود و ذخیره...';
     }
 });
 </script>

@@ -65,7 +65,7 @@
                     </div>
                     
                     <h6>رسانه‌های اضافی</h6>
-                    <form method="post" action="{{ url_for('admin_products', action='upload_media') }}" enctype="multipart/form-data">
+                    <form id="mediaUploadForm" enctype="multipart/form-data">
                         <input type="hidden" name="product_id" value="{{ product.id }}">
                         <div class="row mb-3">
                             <div class="col-md-6">
@@ -95,12 +95,17 @@
                                 </div>
                             </div>
                             <div class="col-md-3 d-flex align-items-end">
-                                <button type="submit" class="btn btn-primary w-100">
+                                <button type="button" class="btn btn-primary w-100" id="uploadBtn" onclick="uploadMedia()">
                                     <i class="bi bi-upload"></i> آپلود فایل
                                 </button>
                             </div>
                         </div>
                     </form>
+                    
+                    <!-- نوتیفیکیشن پیام موفقیت -->
+                    <div class="alert alert-success" id="uploadSuccessAlert" style="display: none;" role="alert">
+                        <i class="bi bi-check-circle-fill me-2"></i> فایل با موفقیت آپلود شد.
+                    </div>
                     
                     <div class="row">
                         {% if media|length > 0 %}
@@ -208,7 +213,7 @@ function previewMediaFile(input) {
 }
 
 function simulateMediaProgress() {
-    // این تابع صرفاً برای نمایش نوار پیشرفت است
+    // نمایش اولیه نوار پیشرفت تا قبل از شروع آپلود واقعی
     const progress = document.getElementById('mediaUploadProgress');
     const status = document.getElementById('mediaUploadStatus');
     let width = 0;
@@ -216,7 +221,7 @@ function simulateMediaProgress() {
     const interval = setInterval(() => {
         if (width >= 100) {
             clearInterval(interval);
-            status.textContent = 'فایل آماده آپلود است. برای ذخیره دکمه «آپلود فایل» را بزنید.';
+            status.textContent = 'فایل آماده آپلود است. برای شروع آپلود دکمه «آپلود فایل» را بزنید.';
         } else {
             width += 5;
             progress.style.width = width + '%';
@@ -233,19 +238,80 @@ document.getElementById('file_type').addEventListener('change', function() {
     }
 });
 
-// اضافه کردن هشدار برای نمایش نوار پیشرفت در هنگام آپلود
-const form = document.querySelector('form');
-form.addEventListener('submit', function(e) {
+// آپلود فایل با استفاده از AJAX
+function uploadMedia() {
+    const form = document.getElementById('mediaUploadForm');
+    const formData = new FormData(form);
     const fileInput = document.getElementById('file');
-    if (fileInput.files && fileInput.files[0]) {
-        const progress = document.getElementById('mediaUploadProgress');
-        const status = document.getElementById('mediaUploadStatus');
-        
-        // نمایش وضعیت نهایی
-        progress.style.width = '100%';
-        status.textContent = 'در حال آپلود و ذخیره فایل...';
+    const progress = document.getElementById('mediaUploadProgress');
+    const status = document.getElementById('mediaUploadStatus');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const successAlert = document.getElementById('uploadSuccessAlert');
+    
+    // بررسی اینکه فایل انتخاب شده باشد
+    if (!fileInput.files || fileInput.files.length === 0) {
+        alert('لطفاً یک فایل انتخاب کنید.');
+        return false;
     }
-});
+    
+    // غیرفعال کردن دکمه آپلود در طول فرایند
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = '<i class="bi bi-hourglass"></i> در حال آپلود...';
+    
+    // ساخت یک درخواست AJAX
+    const xhr = new XMLHttpRequest();
+    
+    // تنظیم event listener برای پیشرفت آپلود
+    xhr.upload.addEventListener('progress', function(e) {
+        if (e.lengthComputable) {
+            const percentComplete = Math.round((e.loaded / e.total) * 100);
+            progress.style.width = percentComplete + '%';
+            status.textContent = 'در حال آپلود فایل... ' + percentComplete + '%';
+        }
+    });
+    
+    // گوش دادن به تغییر وضعیت درخواست
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            // فعال کردن مجدد دکمه آپلود
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = '<i class="bi bi-upload"></i> آپلود فایل';
+            
+            if (xhr.status === 200) {
+                // آپلود موفق
+                progress.style.width = '100%';
+                status.textContent = 'فایل با موفقیت آپلود شد.';
+                
+                // نمایش پیام موفقیت
+                successAlert.style.display = 'block';
+                
+                // پاک کردن فرم
+                fileInput.value = '';
+                document.getElementById('mediaPreviewContainer').style.display = 'none';
+                
+                // بعد از 3 ثانیه، صفحه را رفرش می‌کنیم تا مدیای جدید نمایش داده شود
+                setTimeout(function() {
+                    window.location.reload();
+                }, 3000);
+            } else {
+                // خطا در آپلود
+                progress.className = 'progress-bar bg-danger';
+                status.textContent = 'خطا در آپلود فایل. لطفاً دوباره تلاش کنید.';
+            }
+        }
+    };
+    
+    // باز کردن اتصال و ارسال درخواست
+    xhr.open('POST', '{{ url_for("admin_products", action="upload_media") }}', true);
+    xhr.send(formData);
+    
+    // وضعیت آپلود را به‌روز می‌کنیم
+    progress.style.width = '0%';
+    status.textContent = 'در حال شروع آپلود...';
+    progress.className = 'progress-bar bg-success';
+    
+    return false;
+}
 </script>
 {% endblock %}
 
