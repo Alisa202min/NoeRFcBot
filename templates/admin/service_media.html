@@ -65,7 +65,7 @@
                     </div>
                     
                     <h6>رسانه‌های اضافی</h6>
-                    <form method="post" action="{{ url_for('admin_services') }}?action=upload_media" enctype="multipart/form-data">
+                    <form method="post" action="{{ url_for('admin_services', action='upload_media') }}" enctype="multipart/form-data">
                         <input type="hidden" name="service_id" value="{{ service.id }}">
                         <div class="row mb-3">
                             <div class="col-md-6">
