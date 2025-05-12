@@ -182,8 +182,8 @@ function simulateProgress() {
 }
 
 // اضافه کردن هشدار برای نمایش نوار پیشرفت در هنگام آپلود
-const form = document.querySelector('form');
-form.addEventListener('submit', function(e) {
+const productForm = document.querySelector('form');
+productForm.addEventListener('submit', function(e) {
     const fileInput = document.getElementById('photo');
     if (fileInput.files && fileInput.files[0]) {
         // نمایش پیام آپلود در حال انجام
