@@ -417,6 +417,90 @@ def admin_services():
     action = request.args.get('action')
     service_id = request.args.get('id')
     
+    # عملیات POST
+    if request.method == 'POST':
+        # آپلود رسانه جدید
+        if action == 'upload_media':
+            service_id = request.form.get('service_id')
+            if not service_id:
+                flash('شناسه خدمت الزامی است.', 'danger')
+                return redirect(url_for('admin_services'))
+            
+            service = Product.query.filter_by(product_type='service', id=int(service_id)).first_or_404()
+            file = request.files.get('file')
+            file_type = request.form.get('file_type', 'photo')
+            
+            if file and file.filename:
+                try:
+                    # مسیر فایل‌های آپلودی
+                    upload_dir = os.path.join('static', 'uploads', 'services', str(service.id))
+                    
+                    # استفاده از تابع handle_media_upload برای مدیریت آپلود
+                    success, file_path = handle_media_upload(
+                        file=file,
+                        directory=upload_dir,
+                        file_type=file_type,
+                        custom_filename=None  # استفاده از نام اصلی فایل (با تغییر امن)
+                    )
+                    
+                    if success and file_path:
+                        # تبدیل مسیر کامل به مسیر نسبی برای ذخیره در دیتابیس
+                        relative_path = file_path.replace('static/', '', 1) if file_path.startswith('static/') else file_path
+                        
+                        # افزودن به دیتابیس
+                        media = ProductMedia(
+                            product_id=service.id,
+                            file_id=relative_path,
+                            file_type=file_type
+                        )
+                        db.session.add(media)
+                        db.session.commit()
+                        
+                        logger.info(f"Service media uploaded successfully: {file_path}")
+                        flash('رسانه با موفقیت آپلود شد.', 'success')
+                    else:
+                        flash('خطا در آپلود فایل. لطفاً دوباره تلاش کنید.', 'danger')
+                        logger.error(f"Service file upload failed - no file path returned")
+                except Exception as e:
+                    db.session.rollback()
+                    logger.error(f"Error uploading service media: {e}")
+                    logger.error(f"Exception details: {str(e)}")
+                    flash(f'خطا در آپلود رسانه: {str(e)}', 'danger')
+            else:
+                flash('لطفاً یک فایل انتخاب کنید.', 'warning')
+                
+            return redirect(url_for('admin_services', action='media', id=service_id))
+            
+        # حذف رسانه
+        elif action == 'delete_media':
+            media_id = request.form.get('media_id')
+            service_id = request.form.get('service_id')
+            
+            if not media_id or not service_id:
+                flash('شناسه رسانه و شناسه خدمت الزامی هستند.', 'danger')
+                return redirect(url_for('admin_services'))
+            
+            try:
+                media = ProductMedia.query.get(int(media_id))
+                if media:
+                    # اگر فایل روی فایل سیستم ذخیره شده، آن را حذف می‌کنیم
+                    if not media.file_id.startswith('http'):
+                        file_path = os.path.join('static', media.file_id)
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+                    
+                    db.session.delete(media)
+                    db.session.commit()
+                    flash('رسانه با موفقیت حذف شد.', 'success')
+                else:
+                    flash('رسانه مورد نظر یافت نشد.', 'warning')
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Error deleting service media: {e}")
+                flash(f'خطا در حذف رسانه: {str(e)}', 'danger')
+            
+            return redirect(url_for('admin_services', action='media', id=service_id))
+    
     # اگر action برابر با 'add' یا 'edit' باشد، فرم نمایش داده می‌شود
     if action == 'add':
         categories = Category.query.filter_by(cat_type='service').all()
