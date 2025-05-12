@@ -17,11 +17,23 @@ class Database:
         from configuration import config
         self.db_type = config.get('DB_TYPE', 'postgresql').lower()
         self.database_url = os.environ.get('DATABASE_URL')
+        self.test_mode = os.environ.get('TEST_MODE', 'False').lower() == 'true'
         
         if self.db_type == 'postgresql':
             # Use PostgreSQL
             if not self.database_url:
                 raise Exception("DATABASE_URL environment variable is not set")
+            
+            # در حالت تست، آدرس دیتابیس را تغییر می‌دهیم
+            if self.test_mode:
+                # استفاده از دیتابیس تست
+                # برای آزمایش، از همان دیتابیس استفاده می‌کنیم، اما نام آن را تغییر می‌دهیم
+                logging.info("TEST MODE: Using test database")
+                if 'dbname=' in self.database_url:
+                    self.database_url = self.database_url.replace('dbname=', 'dbname=test_')
+                else:
+                    # اگر URL به فرمت استاندارد نباشد، از دیتابیس اصلی استفاده می‌کنیم
+                    logging.warning("TEST MODE: Could not modify database URL for test. Using main database.")
             
             # Connect to PostgreSQL
             self.connect()
