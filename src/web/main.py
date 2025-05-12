@@ -345,6 +345,140 @@ def admin_products():
                 
             return redirect(url_for('admin_products', action='media', id=product_id))
             
+        # ذخیره محصول جدید یا ویرایش محصول موجود
+        elif action == 'save':
+            # دریافت داده‌های فرم
+            product_id = request.form.get('id')
+            name = request.form.get('name')
+            price = request.form.get('price', 0)
+            description = request.form.get('description', '')
+            category_id = request.form.get('category_id')
+            brand = request.form.get('brand', '')
+            model = request.form.get('model', '')
+            in_stock = 'in_stock' in request.form
+            tags = request.form.get('tags', '')
+            featured = 'featured' in request.form
+            model_number = request.form.get('model_number', '')
+            manufacturer = request.form.get('manufacturer', '')
+            
+            # تبدیل داده‌ها به نوع مناسب
+            if price:
+                try:
+                    price = int(price)
+                except ValueError:
+                    price = 0
+                    
+            if category_id:
+                try:
+                    category_id = int(category_id)
+                except ValueError:
+                    category_id = None
+            else:
+                category_id = None
+                
+            try:
+                # اگر شناسه محصول وجود داشته باشد، ویرایش می‌کنیم
+                if product_id:
+                    product = Product.query.get_or_404(int(product_id))
+                    product.name = name
+                    product.price = price
+                    product.description = description
+                    product.category_id = category_id
+                    product.brand = brand
+                    product.model = model
+                    product.in_stock = in_stock
+                    product.tags = tags
+                    product.featured = featured
+                    product.model_number = model_number
+                    product.manufacturer = manufacturer
+                    
+                    logger.info(f"Updating product ID: {product_id}, Name: {name}")
+                    flash('محصول با موفقیت به‌روزرسانی شد.', 'success')
+                else:
+                    # ایجاد محصول جدید
+                    product = Product(
+                        name=name,
+                        price=price,
+                        description=description,
+                        category_id=category_id,
+                        product_type='product',
+                        brand=brand,
+                        model=model,
+                        in_stock=in_stock,
+                        tags=tags,
+                        featured=featured,
+                        model_number=model_number,
+                        manufacturer=manufacturer
+                    )
+                    db.session.add(product)
+                    logger.info(f"Creating new product, Name: {name}")
+                    flash('محصول جدید با موفقیت ثبت شد.', 'success')
+                
+                # آپلود تصویر اصلی محصول
+                photo = request.files.get('photo')
+                if photo and photo.filename:
+                    # مسیر فایل‌های آپلودی
+                    upload_dir = os.path.join('static', 'uploads', 'products', 'main')
+                    os.makedirs(upload_dir, exist_ok=True)
+                    
+                    # استفاده از تابع handle_media_upload برای مدیریت آپلود
+                    success, file_path = handle_media_upload(
+                        file=photo,
+                        directory=upload_dir,
+                        file_type='photo',
+                        custom_filename=None  # استفاده از نام اصلی فایل (با تغییر امن)
+                    )
+                    
+                    if success and file_path:
+                        # تبدیل مسیر کامل به مسیر نسبی برای ذخیره در دیتابیس
+                        relative_path = file_path.replace('static/', '', 1) if file_path.startswith('static/') else file_path
+                        
+                        # ذخیره مسیر در محصول
+                        product.photo_url = relative_path
+                        logger.info(f"Uploaded main photo for product, path: {relative_path}")
+                
+                db.session.commit()
+                
+                if not product_id:
+                    # اگر محصول جدید بود، حالا ID آن مشخص شده، مسیر تصویر اصلی را به‌روزرسانی می‌کنیم
+                    if photo and photo.filename and success and file_path:
+                        # ایجاد دایرکتوری اختصاصی محصول
+                        product_upload_dir = os.path.join('static', 'uploads', 'products', str(product.id))
+                        os.makedirs(product_upload_dir, exist_ok=True)
+                        
+                        # انتقال فایل به دایرکتوری اختصاصی محصول
+                        new_file_path = os.path.join(product_upload_dir, os.path.basename(file_path))
+                        import shutil
+                        shutil.move(file_path, new_file_path)
+                        
+                        # به‌روزرسانی مسیر در دیتابیس
+                        new_relative_path = new_file_path.replace('static/', '', 1) if new_file_path.startswith('static/') else new_file_path
+                        product.photo_url = new_relative_path
+                        db.session.commit()
+                        
+                        logger.info(f"Moved product photo to dedicated directory: {new_file_path}")
+                
+                return redirect(url_for('admin_products'))
+                
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Error saving product: {str(e)}")
+                flash(f'خطا در ذخیره محصول: {str(e)}', 'danger')
+                categories = Category.query.filter_by(cat_type='product').all()
+                
+                if product_id:
+                    # در صورت خطا در ویرایش، به فرم ویرایش برمی‌گردیم
+                    product = Product.query.get(int(product_id))
+                    return render_template('admin/product_form.html',
+                                          title="ویرایش محصول",
+                                          product=product,
+                                          categories=categories)
+                else:
+                    # در صورت خطا در افزودن، به فرم افزودن برمی‌گردیم
+                    return render_template('admin/product_form.html',
+                                          title="افزودن محصول جدید",
+                                          categories=categories)
+        
         # حذف رسانه
         elif action == 'delete_media':
             media_id = request.form.get('media_id')
