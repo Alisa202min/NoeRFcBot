@@ -71,7 +71,18 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="file" class="form-label">افزودن فایل جدید</label>
-                                    <input type="file" class="form-control" id="file" name="file" required>
+                                    <input type="file" class="form-control" id="file" name="file" required onchange="previewMediaFile(this)">
+                                </div>
+                                
+                                <!-- پیش نمایش فایل انتخاب شده -->
+                                <div id="mediaPreviewContainer" class="mt-2" style="display: none;">
+                                    <div class="card p-2">
+                                        <img id="mediaPreview" src="#" alt="پیش نمایش فایل" class="img-thumbnail" style="max-height: 150px;">
+                                        <div class="progress mt-2" style="height: 5px;">
+                                            <div id="mediaUploadProgress" class="progress-bar bg-success" role="progressbar" style="width: 0%"></div>
+                                        </div>
+                                        <small id="mediaUploadStatus" class="text-muted mt-1">فایل آماده آپلود است</small>
+                                    </div>
                                 </div>
                             </div>
                             <div class="col-md-3">
