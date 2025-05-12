@@ -14,6 +14,11 @@ from functools import wraps
 # تنظیم فرمت لاگ
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(funcName)s - %(message)s"
 DEBUG_LOG_FILE = "debug.log"
+RFCBOT_LOG_FILE = "logs/rfcbot.log"
+
+# اطمینان از وجود دایرکتوری لاگ
+if not os.path.exists("logs"):
+    os.makedirs("logs")
 
 # تنظیم لاگر اصلی
 logging.basicConfig(
@@ -21,6 +26,7 @@ logging.basicConfig(
     format=LOG_FORMAT,
     handlers=[
         logging.FileHandler(DEBUG_LOG_FILE, 'a', 'utf-8'),
+        logging.FileHandler(RFCBOT_LOG_FILE, 'a', 'utf-8'),
         logging.StreamHandler(sys.stdout)
     ]
 )
