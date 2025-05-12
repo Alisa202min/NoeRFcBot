@@ -124,7 +124,7 @@
                                     </p>
                                 </div>
                                 <div class="card-footer">
-                                    <form method="post" action="{{ url_for('admin_products') }}?action=delete_media">
+                                    <form method="post" action="{{ url_for('admin_products', action='delete_media') }}">
                                         <input type="hidden" name="media_id" value="{{ item.id }}">
                                         <input type="hidden" name="product_id" value="{{ product.id }}">
                                         <button type="submit" class="btn btn-sm btn-danger w-100">

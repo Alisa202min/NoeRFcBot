@@ -149,3 +149,103 @@
     </div>
 </div>
 {% endblock %}
+
+{% block scripts %}
+<script>
+function previewMediaFile(input) {
+    // نمایش پیش‌نمایش فایل انتخاب شده
+    const container = document.getElementById('mediaPreviewContainer');
+    const preview = document.getElementById('mediaPreview');
+    const progress = document.getElementById('mediaUploadProgress');
+    const status = document.getElementById('mediaUploadStatus');
+    
+    // پنهان کردن پیش‌نمایش اگر فایلی انتخاب نشده باشد
+    if (!input.files || input.files.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+    
+    const file = input.files[0];
+    
+    // بررسی نوع فایل
+    const fileType = document.getElementById('file_type').value;
+    
+    // پیش‌نمایش بر اساس نوع فایل
+    if (fileType === 'photo' && file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            // نمایش تصویر
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+            container.style.display = 'block';
+            
+            // نمایش نام فایل و سایز آن
+            const fileSize = (file.size / 1024).toFixed(2) + ' KB';
+            status.textContent = `فایل: ${file.name} (${fileSize})`;
+            
+            // شبیه‌سازی نوار پیشرفت
+            simulateMediaProgress();
+        };
+        
+        reader.readAsDataURL(file);
+    } 
+    else if (fileType === 'video' && file.type.startsWith('video/')) {
+        // برای ویدیو، فقط اطلاعات فایل را نمایش می‌دهیم (بدون پیش‌نمایش)
+        preview.style.display = 'none';
+        container.style.display = 'block';
+        
+        const fileSize = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+        status.textContent = `ویدیو: ${file.name} (${fileSize})`;
+        
+        // شبیه‌سازی نوار پیشرفت
+        simulateMediaProgress();
+    }
+    else {
+        // نوع فایل با نوع انتخاب شده مطابقت ندارد
+        container.style.display = 'none';
+        alert('لطفاً فایل متناسب با نوع انتخاب شده (تصویر یا ویدیو) را انتخاب کنید.');
+    }
+}
+
+function simulateMediaProgress() {
+    // این تابع صرفاً برای نمایش نوار پیشرفت است
+    const progress = document.getElementById('mediaUploadProgress');
+    const status = document.getElementById('mediaUploadStatus');
+    let width = 0;
+    
+    const interval = setInterval(() => {
+        if (width >= 100) {
+            clearInterval(interval);
+            status.textContent = 'فایل آماده آپلود است. برای ذخیره دکمه «آپلود فایل» را بزنید.';
+        } else {
+            width += 5;
+            progress.style.width = width + '%';
+            status.textContent = 'در حال آماده‌سازی فایل... ' + width + '%';
+        }
+    }, 100);
+}
+
+// اضافه کردن یک listener برای تغییر نوع فایل
+document.getElementById('file_type').addEventListener('change', function() {
+    const fileInput = document.getElementById('file');
+    if (fileInput.files && fileInput.files.length > 0) {
+        previewMediaFile(fileInput);
+    }
+});
+
+// اضافه کردن هشدار برای نمایش نوار پیشرفت در هنگام آپلود
+const form = document.querySelector('form');
+form.addEventListener('submit', function(e) {
+    const fileInput = document.getElementById('file');
+    if (fileInput.files && fileInput.files[0]) {
+        const progress = document.getElementById('mediaUploadProgress');
+        const status = document.getElementById('mediaUploadStatus');
+        
+        // نمایش وضعیت نهایی
+        progress.style.width = '100%';
+        status.textContent = 'در حال آپلود و ذخیره فایل...';
+    }
+});
+</script>
+{% endblock %}
