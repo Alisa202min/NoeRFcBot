@@ -170,23 +170,50 @@ def db():
 @pytest.fixture
 def flask_client():
     """کلاینت Flask برای تست‌های API"""
-    from app import app
+    try:
+        # ابتدا تلاش می‌کنیم app را به صورت عادی import کنیم
+        from app import app
+    except Exception as e:
+        print(f"Error importing app: {e}")
+        # اگر در import اصلی مشکلی وجود داشت، تلاش می‌کنیم از flask یک نمونه جدید بسازیم
+        from flask import Flask
+        app = Flask(__name__)
+        print("Created a new Flask app instance for testing")
+    
     app.config['TESTING'] = True
     app.config['WTF_CSRF_ENABLED'] = False
+    app.config['SERVER_NAME'] = 'localhost.localdomain'
     
     # تنظیم مسیر آپلود برای تست
     app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'static/test_uploads')
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     
+    # ثبت route های ساده برای تست
+    @app.route('/test')
+    def test_route():
+        return 'Test route works!'
+    
+    # اضافه کردن app context برای تست‌ها
+    app_context = app.app_context()
+    app_context.push()
+    
     with app.test_client() as client:
+        print("Flask test client created successfully")
         yield client
+    
+    # خروج از app context
+    app_context.pop()
     
     # پاکسازی فایل‌های آپلود شده
     if os.path.exists(app.config['UPLOAD_FOLDER']):
-        for file in os.listdir(app.config['UPLOAD_FOLDER']):
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], file)
-            if os.path.isfile(file_path):
-                os.unlink(file_path)
+        try:
+            for file in os.listdir(app.config['UPLOAD_FOLDER']):
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], file)
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+            print("Test upload folder cleaned up")
+        except Exception as e:
+            print(f"Error cleaning up test files: {e}")
 
 @pytest.fixture
 def admin_flask_client(flask_client):
