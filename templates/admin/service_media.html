@@ -241,8 +241,8 @@ document.getElementById('file_type').addEventListener('change', function() {
 
 // آپلود فایل با استفاده از AJAX
 function uploadMedia() {
-    const form = document.getElementById('mediaUploadForm');
-    const formData = new FormData(form);
+    const uploadForm = document.getElementById('mediaUploadForm');
+    const formData = new FormData(uploadForm);
     const fileInput = document.getElementById('file');
     const progress = document.getElementById('mediaUploadProgress');
     const status = document.getElementById('mediaUploadStatus');
