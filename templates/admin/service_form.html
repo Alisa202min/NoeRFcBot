@@ -74,8 +74,19 @@
                                 <img src="{{ url_for('static', filename=service.photo_url) }}" alt="{{ service.name }}" class="img-thumbnail" style="max-height: 150px;">
                             </div>
                             {% endif %}
-                            <input type="file" class="form-control" id="photo" name="photo" accept="image/*">
+                            <input type="file" class="form-control" id="photo" name="photo" accept="image/*" onchange="previewImage(this)">
                             <div class="form-text">فرمت‌های مجاز: JPG، PNG، GIF (حداکثر 2MB)</div>
+                            
+                            <!-- پیش نمایش تصویر انتخاب شده -->
+                            <div id="imagePreviewContainer" class="mt-2" style="display: none;">
+                                <div class="card p-2">
+                                    <img id="imagePreview" src="#" alt="پیش نمایش تصویر" class="img-thumbnail" style="max-height: 150px;">
+                                    <div class="progress mt-2" style="height: 5px;">
+                                        <div id="uploadProgress" class="progress-bar bg-success" role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                    <small id="uploadStatus" class="text-muted mt-1">تصویر آماده آپلود است</small>
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="d-flex justify-content-between">
@@ -92,4 +103,71 @@
         </div>
     </div>
 </div>
+
+{% block scripts %}
+<script>
+function previewImage(input) {
+    // نمایش پیش‌نمایش تصویر انتخاب شده
+    const container = document.getElementById('imagePreviewContainer');
+    const preview = document.getElementById('imagePreview');
+    const progress = document.getElementById('uploadProgress');
+    const status = document.getElementById('uploadStatus');
+    
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            // نمایش تصویر
+            preview.src = e.target.result;
+            container.style.display = 'block';
+            
+            // نمایش نام فایل و سایز آن
+            const file = input.files[0];
+            const fileSize = (file.size / 1024).toFixed(2) + ' KB';
+            status.textContent = `فایل: ${file.name} (${fileSize})`;
+            
+            // شبیه‌سازی نوار پیشرفت
+            simulateProgress();
+        };
+        
+        reader.readAsDataURL(input.files[0]);
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+function simulateProgress() {
+    // این تابع صرفاً برای نمایش نوار پیشرفت است
+    const progress = document.getElementById('uploadProgress');
+    const status = document.getElementById('uploadStatus');
+    let width = 0;
+    
+    const interval = setInterval(() => {
+        if (width >= 100) {
+            clearInterval(interval);
+            status.textContent = 'تصویر آماده آپلود است. برای ذخیره دکمه «ذخیره خدمت» را بزنید.';
+        } else {
+            width += 5;
+            progress.style.width = width + '%';
+            status.textContent = 'در حال بارگذاری تصویر... ' + width + '%';
+        }
+    }, 100);
+}
+
+// اضافه کردن هشدار برای نمایش نوار پیشرفت در هنگام آپلود
+const form = document.querySelector('form');
+form.addEventListener('submit', function(e) {
+    const fileInput = document.getElementById('photo');
+    if (fileInput.files && fileInput.files[0]) {
+        const progress = document.getElementById('uploadProgress');
+        const status = document.getElementById('uploadStatus');
+        
+        // نمایش وضعیت نهایی
+        progress.style.width = '100%';
+        status.textContent = 'در حال آپلود و ذخیره اطلاعات...';
+    }
+});
+</script>
+{% endblock %}
+
 {% endblock %}
