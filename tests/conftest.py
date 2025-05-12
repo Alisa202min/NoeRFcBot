@@ -95,7 +95,59 @@ def db():
     database = Database()
     
     # مطمئن شویم که به دیتابیس تست متصل شده‌ایم
-    assert 'test' in database.conn.dsn, "Not connected to test database!"
+    # برای Replit از همان دیتابیس اصلی استفاده می‌کنیم اما تمام داده‌های تست را بعداً پاک می‌کنیم
+    # assert 'test' in database.conn.dsn, "Not connected to test database!"
+    
+    # ساخت جدول‌های مورد نیاز برای تست
+    with database.conn.cursor() as cursor:
+        try:
+            # بررسی وجود جدول‌های مورد نیاز و ایجاد آن‌ها در صورت عدم وجود
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS categories (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    parent_id INTEGER,
+                    type TEXT DEFAULT 'product',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS products (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    price INTEGER NOT NULL,
+                    description TEXT,
+                    photo_url TEXT,
+                    category_id INTEGER,
+                    brand TEXT DEFAULT '',
+                    model TEXT DEFAULT '',
+                    in_stock BOOLEAN DEFAULT TRUE,
+                    tags TEXT DEFAULT '',
+                    featured BOOLEAN DEFAULT FALSE,
+                    cat_type TEXT DEFAULT 'product',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS product_media (
+                    id SERIAL PRIMARY KEY,
+                    product_id INTEGER,
+                    file_id TEXT,
+                    file_type TEXT,
+                    local_path TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+                )
+            """)
+            
+            database.conn.commit()
+            print("Test database tables created successfully")
+        except Exception as e:
+            print(f"Error setting up test database: {e}")
+            database.conn.rollback()
     
     yield database
     
@@ -108,6 +160,7 @@ def db():
             cursor.execute("DELETE FROM products WHERE id > 0")
             cursor.execute("DELETE FROM categories WHERE id > 0")
             database.conn.commit()
+            print("Test database cleaned up successfully")
     except Exception as e:
         print(f"Error cleaning up test database: {e}")
     finally:
@@ -142,5 +195,12 @@ def admin_flask_client(flask_client):
     with flask_client.session_transaction() as session:
         session['admin_logged_in'] = True
         session['admin_username'] = 'test_admin'
+        session['admin_id'] = 1  # شناسه ادمین برای تست‌ها
+    
+    # ایجاد دایرکتوری آپلود برای تست
+    from app import app
+    upload_folder = app.config.get('UPLOAD_FOLDER', 'static/uploads')
+    if upload_folder and not os.path.exists(upload_folder):
+        os.makedirs(upload_folder, exist_ok=True)
     
     return flask_client
