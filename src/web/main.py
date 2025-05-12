@@ -308,26 +308,37 @@ def admin_products():
                 try:
                     # مسیر فایل‌های آپلودی
                     upload_dir = os.path.join('static', 'uploads', 'products', str(product.id))
-                    os.makedirs(upload_dir, exist_ok=True)
                     
-                    # ذخیره فایل
-                    filename = secure_filename(file.filename)
-                    file_path = os.path.join(upload_dir, filename)
-                    file.save(file_path)
-                    
-                    # افزودن به دیتابیس
-                    media = ProductMedia(
-                        product_id=product.id,
-                        file_id=os.path.join('uploads', 'products', str(product.id), filename),
-                        file_type=file_type
+                    # استفاده از تابع handle_media_upload برای مدیریت آپلود
+                    success, file_path = handle_media_upload(
+                        file=file,
+                        directory=upload_dir,
+                        file_type=file_type,
+                        custom_filename=None  # استفاده از نام اصلی فایل (با تغییر امن)
                     )
-                    db.session.add(media)
-                    db.session.commit()
                     
-                    flash('رسانه با موفقیت آپلود شد.', 'success')
+                    if success and file_path:
+                        # تبدیل مسیر کامل به مسیر نسبی برای ذخیره در دیتابیس
+                        relative_path = file_path.replace('static/', '', 1) if file_path.startswith('static/') else file_path
+                        
+                        # افزودن به دیتابیس
+                        media = ProductMedia(
+                            product_id=product.id,
+                            file_id=relative_path,
+                            file_type=file_type
+                        )
+                        db.session.add(media)
+                        db.session.commit()
+                        
+                        logger.info(f"Media uploaded successfully: {file_path}")
+                        flash('رسانه با موفقیت آپلود شد.', 'success')
+                    else:
+                        flash('خطا در آپلود فایل. لطفاً دوباره تلاش کنید.', 'danger')
+                        logger.error(f"File upload failed - no file path returned")
                 except Exception as e:
                     db.session.rollback()
                     logger.error(f"Error uploading media: {e}")
+                    logger.error(f"Exception details: {str(e)}")
                     flash(f'خطا در آپلود رسانه: {str(e)}', 'danger')
             else:
                 flash('لطفاً یک فایل انتخاب کنید.', 'warning')
