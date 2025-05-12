@@ -530,6 +530,19 @@ async def send_product_media(chat_id, media_files):
         
     logging.info(f"Attempting to send {len(media_files)} media files to chat_id {chat_id}")
     
+    # Define possible paths to check
+    media_paths = [
+        './', 
+        './static/', 
+        './static/images/', 
+        './static/photos/',
+        './static/uploads/',
+        './static/media/',
+        './static/products/',
+        './attached_assets/',
+        './data/',
+    ]
+    
     for media in media_files:
         try:
             file_id = media.get('file_id', '')
@@ -542,7 +555,14 @@ async def send_product_media(chat_id, media_files):
             if not file_id:
                 logging.warning(f"Empty file_id for media: {media}")
                 continue
-                
+            
+            # Try a few sample files from attached_assets (this is temporary for testing)
+            if file_id == 'show.jpg' and not os.path.isfile(file_id):
+                test_file = './attached_assets/show.jpg'
+                if os.path.isfile(test_file):
+                    file_id = test_file
+                    logging.info(f"Found test file at {test_file}")
+                    
             # Handle different file location scenarios
             if isinstance(file_id, str) and file_id.startswith('http'):
                 # It's a URL, use URLInputFile
@@ -557,7 +577,7 @@ async def send_product_media(chat_id, media_files):
                     logging.info(f"Sent video from URL: {file_id}")
                     
             elif file_id and os.path.isfile(file_id):
-                # It's a local file that exists
+                # It's a local file that exists at the given path
                 logging.info(f"File is a local path that exists: {file_id}")
                 
                 if file_type == 'photo':
@@ -568,31 +588,46 @@ async def send_product_media(chat_id, media_files):
                     video_file = FSInputFile(file_id)
                     await bot.send_video(chat_id=chat_id, video=video_file, caption=file_name)
                     logging.info(f"Sent video from local file: {file_id}")
-                        
-            elif file_id and os.path.isfile(f"./static/{file_id}"):
-                # Try looking in the static directory
-                full_path = f"./static/{file_id}"
-                logging.info(f"File found in static directory: {full_path}")
-                
-                if file_type == 'photo':
-                    photo_file = FSInputFile(full_path)
-                    await bot.send_photo(chat_id=chat_id, photo=photo_file, caption=file_name)
-                    logging.info(f"Sent photo from static directory: {full_path}")
-                elif file_type == 'video':
-                    video_file = FSInputFile(full_path)
-                    await bot.send_video(chat_id=chat_id, video=video_file, caption=file_name)
-                    logging.info(f"Sent video from static directory: {full_path}")
-                        
             else:
-                # Assume it's a Telegram file_id and try to use it directly
-                logging.info(f"Assuming file_id is a Telegram file_id: {file_id}")
+                # Try to find the file in various directories
+                file_found = False
                 
-                if file_type == 'photo':
-                    await bot.send_photo(chat_id=chat_id, photo=file_id, caption=file_name)
-                    logging.info(f"Sent photo using file_id: {file_id}")
-                elif file_type == 'video':
-                    await bot.send_video(chat_id=chat_id, video=file_id, caption=file_name)
-                    logging.info(f"Sent video using file_id: {file_id}")
+                # If only the filename is stored (common case), try in multiple folders
+                if '/' not in file_id:
+                    for path in media_paths:
+                        full_path = f"{path}{file_id}"
+                        if os.path.isfile(full_path):
+                            logging.info(f"Found file at {full_path}")
+                            file_found = True
+                            
+                            if file_type == 'photo':
+                                photo_file = FSInputFile(full_path)
+                                await bot.send_photo(chat_id=chat_id, photo=photo_file, caption=file_name)
+                                logging.info(f"Sent photo from path: {full_path}")
+                            elif file_type == 'video':
+                                video_file = FSInputFile(full_path)
+                                await bot.send_video(chat_id=chat_id, video=video_file, caption=file_name)
+                                logging.info(f"Sent video from path: {full_path}")
+                                
+                            break
+                
+                # If file wasn't found in any of our directories, assume it's a Telegram file_id
+                if not file_found:
+                    logging.info(f"Assuming file_id is a Telegram file_id: {file_id}")
+                    
+                    try:
+                        if file_type == 'photo':
+                            await bot.send_photo(chat_id=chat_id, photo=file_id, caption=file_name)
+                            logging.info(f"Sent photo using file_id: {file_id}")
+                        elif file_type == 'video':
+                            await bot.send_video(chat_id=chat_id, video=file_id, caption=file_name)
+                            logging.info(f"Sent video using file_id: {file_id}")
+                    except Exception as e:
+                        logging.error(f"Failed to send using file_id, sending error message: {str(e)}")
+                        await bot.send_message(
+                            chat_id=chat_id, 
+                            text=f"⚠️ تصویر یا ویدیوی مورد نظر موجود نیست: {file_name}"
+                        )
                     
         except Exception as e:
             logging.error(f"Error sending product media: {str(e)}")
@@ -605,87 +640,11 @@ async def send_product_media(chat_id, media_files):
 
 async def send_service_media(chat_id, media_files):
     """Send service media files to user"""
-    from bot import bot  # Import bot here to avoid circular imports
+    # This function is now just a wrapper around send_product_media for consistency
+    # since both products and services use the same underlying mechanism
     
-    # Check if we have any media files
-    if not media_files:
-        logging.warning(f"No media files provided to send_service_media for chat_id {chat_id}")
-        return
-        
-    logging.info(f"Attempting to send {len(media_files)} service media files to chat_id {chat_id}")
-    
-    for media in media_files:
-        try:
-            file_id = media.get('file_id', '')
-            file_type = media.get('file_type', 'photo')
-            file_name = media.get('file_name', 'unknown')
-            
-            # Log the full media info for debugging
-            logging.info(f"Processing service media: file_id={file_id}, file_type={file_type}, file_name={file_name}")
-            
-            if not file_id:
-                logging.warning(f"Empty file_id for service media: {media}")
-                continue
-                
-            # Handle different file location scenarios
-            if isinstance(file_id, str) and file_id.startswith('http'):
-                # It's a URL, use URLInputFile
-                logging.info(f"Service file is a URL: {file_id}")
-                file = URLInputFile(file_id)
-                
-                if file_type == 'photo':
-                    await bot.send_photo(chat_id=chat_id, photo=file, caption=file_name)
-                    logging.info(f"Sent service photo from URL: {file_id}")
-                elif file_type == 'video':
-                    await bot.send_video(chat_id=chat_id, video=file, caption=file_name)
-                    logging.info(f"Sent service video from URL: {file_id}")
-                    
-            elif file_id and os.path.isfile(file_id):
-                # It's a local file that exists
-                logging.info(f"Service file is a local path that exists: {file_id}")
-                
-                if file_type == 'photo':
-                    with open(file_id, 'rb') as photo:
-                        await bot.send_photo(chat_id=chat_id, photo=photo, caption=file_name)
-                        logging.info(f"Sent service photo from local file: {file_id}")
-                elif file_type == 'video':
-                    with open(file_id, 'rb') as video:
-                        await bot.send_video(chat_id=chat_id, video=video, caption=file_name)
-                        logging.info(f"Sent service video from local file: {file_id}")
-                        
-            elif file_id and os.path.isfile(f"./static/{file_id}"):
-                # Try looking in the static directory
-                full_path = f"./static/{file_id}"
-                logging.info(f"Service file found in static directory: {full_path}")
-                
-                if file_type == 'photo':
-                    with open(full_path, 'rb') as photo:
-                        await bot.send_photo(chat_id=chat_id, photo=photo, caption=file_name)
-                        logging.info(f"Sent service photo from static directory: {full_path}")
-                elif file_type == 'video':
-                    with open(full_path, 'rb') as video:
-                        await bot.send_video(chat_id=chat_id, video=video, caption=file_name)
-                        logging.info(f"Sent service video from static directory: {full_path}")
-                        
-            else:
-                # Assume it's a Telegram file_id and try to use it directly
-                logging.info(f"Assuming service file_id is a Telegram file_id: {file_id}")
-                
-                if file_type == 'photo':
-                    await bot.send_photo(chat_id=chat_id, photo=file_id, caption=file_name)
-                    logging.info(f"Sent service photo using file_id: {file_id}")
-                elif file_type == 'video':
-                    await bot.send_video(chat_id=chat_id, video=file_id, caption=file_name)
-                    logging.info(f"Sent service video using file_id: {file_id}")
-                    
-        except Exception as e:
-            logging.error(f"Error sending service media: {str(e)}")
-            logging.error(f"Full error details: {traceback.format_exc()}")
-            # Try sending a notification about the failed media
-            try:
-                await bot.send_message(chat_id=chat_id, text=f"⚠️ خطا در نمایش فایل سرویس: {file_name}")
-            except:
-                pass
+    logging.info(f"send_service_media called, redirecting to send_product_media with {len(media_files) if media_files else 0} files")
+    await send_product_media(chat_id, media_files)
 
 # Inquiry process handlers
 @router.callback_query(F.data.startswith("inquiry:"))
