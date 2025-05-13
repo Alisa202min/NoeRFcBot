@@ -222,7 +222,6 @@ class Service(db.Model):
     # Relationships
     category = db.relationship('Category', backref='services')
     media_files = db.relationship('ServiceMedia', backref='service', lazy=True, cascade="all, delete-orphan")
-    inquiries = db.relationship('ServiceInquiry', backref='service', lazy=True)
     
     def __repr__(self):
         return f'<Service {self.name}>'
@@ -320,7 +319,7 @@ class ServiceMedia(db.Model):
 
 
 class Inquiry(db.Model):
-    """Customer price inquiries for products"""
+    """Customer price inquiries for products and services"""
     __tablename__ = 'inquiries'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -329,30 +328,22 @@ class Inquiry(db.Model):
     phone = db.Column(db.String(20), nullable=False)
     description = db.Column(db.Text, nullable=True)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=True)
-    date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)  # Required in database
-    status = db.Column(db.String(20), nullable=False, default='new')  # 'new', 'in_progress', 'completed'
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    def __repr__(self):
-        return f'<Inquiry {self.id} - {self.name}>'
-
-
-class ServiceInquiry(db.Model):
-    """Customer price inquiries for services"""
-    __tablename__ = 'service_inquiries'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.BigInteger, nullable=False)  # Telegram user_id
-    name = db.Column(db.String(100), nullable=False)
-    phone = db.Column(db.String(20), nullable=False)
-    description = db.Column(db.Text, nullable=True)
     service_id = db.Column(db.Integer, db.ForeignKey('services.id'), nullable=True)
     date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)  # Required in database
     status = db.Column(db.String(20), nullable=False, default='new')  # 'new', 'in_progress', 'completed'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
+    # Relationships
+    product = db.relationship('Product', backref='inquiries', foreign_keys=[product_id])
+    service = db.relationship('Service', backref='inquiries', foreign_keys=[service_id])
+    
     def __repr__(self):
-        return f'<ServiceInquiry {self.id} - {self.name}>'
+        if self.product_id:
+            return f'<ProductInquiry {self.id} - {self.name}>'
+        elif self.service_id:
+            return f'<ServiceInquiry {self.id} - {self.name}>'
+        else:
+            return f'<Inquiry {self.id} - {self.name}>'
 
 
 class EducationalContent(db.Model):
