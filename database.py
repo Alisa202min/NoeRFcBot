@@ -728,29 +728,26 @@ class Database:
             service_id: ID of the service (if this is a service inquiry)
             
         Note:
-            For services, service_id is stored in the product_id column, with product_type='service'
+            The inquiry can reference either a product OR a service, not both.
         """
-        # Determine the type and ID to store
-        is_service = service_id is not None
-        item_id = service_id if is_service else product_id
-        
         with self.conn.cursor() as cursor:
             cursor.execute(
-                'INSERT INTO inquiries (user_id, name, phone, description, product_id, product_type, date) VALUES (%s, %s, %s, %s, %s, %s, NOW()) RETURNING id',
-                (user_id, name, phone, description, item_id, 'service' if is_service else 'product')
+                'INSERT INTO inquiries (user_id, name, phone, description, product_id, service_id, date) VALUES (%s, %s, %s, %s, %s, %s, NOW()) RETURNING id',
+                (user_id, name, phone, description, product_id, service_id)
             )
             inquiry_id = cursor.fetchone()[0]
             return inquiry_id
 
     def get_inquiries(self, start_date: Optional[str] = None, end_date: Optional[str] = None,
-                     product_id: Optional[int] = None, product_type: Optional[str] = None) -> List[Dict]:
+                     product_id: Optional[int] = None, service_id: Optional[int] = None) -> List[Dict]:
         """Get inquiries with optional filtering"""
         query = '''SELECT i.id, i.user_id, i.name, i.phone, i.description, 
-                          i.product_id, i.product_type, i.date,
-                          CASE WHEN i.product_type = 'service' THEN s.name ELSE p.name END as product_name
+                          i.product_id, i.service_id, i.date,
+                          CASE WHEN i.service_id IS NOT NULL THEN s.name ELSE p.name END as item_name,
+                          CASE WHEN i.service_id IS NOT NULL THEN 'service' ELSE 'product' END as item_type
                    FROM inquiries i 
-                   LEFT JOIN products p ON i.product_id = p.id AND i.product_type = 'product'
-                   LEFT JOIN services s ON i.product_id = s.id AND i.product_type = 'service'
+                   LEFT JOIN products p ON i.product_id = p.id
+                   LEFT JOIN services s ON i.service_id = s.id
                    WHERE 1=1 '''
         params = []
 
@@ -766,9 +763,9 @@ class Database:
             query += 'AND i.product_id = %s '
             params.append(product_id)
             
-        if product_type:
-            query += 'AND i.product_type = %s '
-            params.append(product_type)
+        if service_id:
+            query += 'AND i.service_id = %s '
+            params.append(service_id)
 
         query += 'ORDER BY i.date DESC'
 
