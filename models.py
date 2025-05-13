@@ -334,8 +334,8 @@ class Inquiry(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
-    product = db.relationship('Product', backref='inquiries', foreign_keys=[product_id])
-    service = db.relationship('Service', backref='inquiries', foreign_keys=[service_id])
+    related_product = db.relationship('Product', foreign_keys=[product_id])
+    related_service = db.relationship('Service', foreign_keys=[service_id])
     
     def __repr__(self):
         if self.product_id:
