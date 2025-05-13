@@ -126,7 +126,7 @@
         
         // Function to fetch logs
         function fetchLogs() {
-            fetch('{{ url_for("logs") }}', {
+            fetch('{{ url_for("get_logs_json") }}', {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
