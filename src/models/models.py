@@ -214,6 +214,23 @@ class Inquiry(db.Model):
         return self.service
 
 
+class EducationalCategory(db.Model):
+    """Category model for educational content"""
+    __tablename__ = 'educational_categories'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.Text, nullable=False)
+    parent_id = db.Column(db.Integer, db.ForeignKey('educational_categories.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    children = db.relationship('EducationalCategory', backref=db.backref('parent', remote_side=[id]))
+    contents = db.relationship('EducationalContent', backref='educational_category', lazy='dynamic')
+    
+    def __repr__(self):
+        return f'<EducationalCategory {self.name}>'
+
+
 class EducationalContent(db.Model):
     """Educational content for the bot"""
     __tablename__ = 'educational_content'
@@ -221,7 +238,9 @@ class EducationalContent(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(128), nullable=False)
     content = db.Column(db.Text, nullable=False)
+    # نگه داشتن فیلد category برای حفظ سازگاری با کد قبلی
     category = db.Column(db.Text, nullable=False)
+    category_id = db.Column(db.Integer, db.ForeignKey('educational_categories.id'), nullable=True)
     content_type = db.Column(db.String(20), default='text')  # text, video, link, etc.
     type = db.Column(db.Text)  # Duplicate of content_type for backward compatibility
     
@@ -229,8 +248,25 @@ class EducationalContent(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     # Note: updated_at is removed as it doesn't exist in the database schema
     
+    # Relationships
+    media = db.relationship('EducationalContentMedia', backref='educational_content', lazy='dynamic', cascade='all, delete-orphan')
+    
     def __repr__(self):
         return f'<EducationalContent {self.title}>'
+
+
+class EducationalContentMedia(db.Model):
+    """Media files for educational content"""
+    __tablename__ = 'educational_content_media'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    educational_content_id = db.Column(db.Integer, db.ForeignKey('educational_content.id', ondelete='CASCADE'), nullable=False)
+    file_id = db.Column(db.Text, nullable=False)  # Telegram file_id
+    file_type = db.Column(db.String(10), default='photo')  # photo, video, etc.
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<EducationalContentMedia {self.id} for EducationalContent {self.educational_content_id}>'
 
 
 class StaticContent(db.Model):
