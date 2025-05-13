@@ -13,7 +13,8 @@ class TestDatabase:
         """Test database connection"""
         db = Database()
         assert db is not None
-        assert db._conn is not None
+        # بررسی اتصال به دیتابیس
+        assert db.conn is not None
 
     def test_category_operations(self, test_db):
         """Test category CRUD operations"""
