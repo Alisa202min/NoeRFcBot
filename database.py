@@ -334,8 +334,13 @@ class Database:
             return cursor.fetchone() or None or None
 
     def get_service(self, service_id: int) -> Optional[Dict]:
-        """Get a service by ID - same as get_product since we use the same table"""
-        return self.get_product(service_id)
+        """Get a service by ID from the services table"""
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                'SELECT id, name, price, description, photo_url, category_id, tags, featured FROM services WHERE id = %s',
+                (service_id,)
+            )
+            return cursor.fetchone() or None
         
     def get_service_media(self, service_id: int) -> List[Dict]:
         """Get all media files for a service
@@ -619,9 +624,9 @@ class Database:
         try:
             with self.conn.cursor() as cursor:
                 # First delete all media files associated with this service
-                cursor.execute('DELETE FROM product_media WHERE product_id = %s', (service_id,))
+                cursor.execute('DELETE FROM service_media WHERE service_id = %s', (service_id,))
                 # Then delete the service itself
-                cursor.execute('DELETE FROM products WHERE id = %s AND product_type = %s', (service_id, 'service'))
+                cursor.execute('DELETE FROM services WHERE id = %s', (service_id,))
                 return cursor.rowcount > 0
         except Exception as e:
             logging.error(f"Error deleting service: {e}")
