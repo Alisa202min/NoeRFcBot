@@ -1034,15 +1034,218 @@ class Database:
             return cursor.rowcount > 0
 
     def delete_educational_content(self, content_id: int) -> bool:
-        """Delete educational content"""
+        """Delete educational content and its media files"""
         try:
             with self.conn.cursor() as cursor:
+                # Media files will be automatically deleted due to ON DELETE CASCADE constraint
                 cursor.execute('DELETE FROM educational_content WHERE id = %s', (content_id,))
                 return cursor.rowcount > 0
         except Exception as e:
             logging.error(f"Error deleting educational content: {e}")
             return False
+            
+    def add_educational_category(self, name: str, parent_id: Optional[int] = None) -> int:
+        """
+        Add a new educational category
+        
+        Args:
+            name: Category name
+            parent_id: Parent category ID for hierarchical structure (optional)
+            
+        Returns:
+            ID of the newly created category
+        """
+        try:
+            with self.conn.cursor() as cursor:
+                if parent_id:
+                    # Verify parent exists
+                    cursor.execute('SELECT id FROM educational_categories WHERE id = %s', (parent_id,))
+                    if not cursor.fetchone():
+                        raise ValueError(f"Parent category with ID {parent_id} does not exist")
+                        
+                cursor.execute(
+                    'INSERT INTO educational_categories (name, parent_id) VALUES (%s, %s) RETURNING id',
+                    (name, parent_id)
+                )
+                category_id = cursor.fetchone()[0]
+                return category_id
+        except Exception as e:
+            logging.error(f"Error adding educational category: {e}")
+            raise
+            
+    def update_educational_category(self, category_id: int, name: Optional[str] = None, 
+                                   parent_id: Optional[int] = None) -> bool:
+        """
+        Update an educational category
+        
+        Args:
+            category_id: ID of category to update
+            name: New category name (optional)
+            parent_id: New parent category ID (optional, None means no parent)
+            
+        Returns:
+            True if update was successful
+        """
+        try:
+            # Get current values
+            category = self.get_educational_category_by_id(category_id)
+            if not category:
+                return False
+                
+            # Prevent creation of circular dependencies in parent-child relationship
+            if parent_id and parent_id == category_id:
+                raise ValueError("Category cannot be its own parent")
+                
+            # Check if making this update would create a circular dependency
+            if parent_id:
+                # Check if the proposed parent is actually a child of this category
+                def is_child_of(check_id, target_id):
+                    """Recursively check if check_id is a child of target_id"""
+                    with self.conn.cursor() as cursor:
+                        cursor.execute('SELECT id FROM educational_categories WHERE parent_id = %s', (target_id,))
+                        for child in cursor.fetchall():
+                            child_id = child[0]
+                            if child_id == check_id or is_child_of(check_id, child_id):
+                                return True
+                    return False
+                    
+                if is_child_of(parent_id, category_id):
+                    raise ValueError("This would create a circular dependency in the category hierarchy")
+                
+            # Prepare values
+            new_name = name if name is not None else category['name']
+            # Special handling for parent_id - None is a valid value meaning "no parent"
+            update_parent = parent_id != category['parent_id']
+            
+            with self.conn.cursor() as cursor:
+                if update_parent:
+                    cursor.execute(
+                        'UPDATE educational_categories SET name = %s, parent_id = %s WHERE id = %s',
+                        (new_name, parent_id, category_id)
+                    )
+                else:
+                    cursor.execute(
+                        'UPDATE educational_categories SET name = %s WHERE id = %s',
+                        (new_name, category_id)
+                    )
+                return cursor.rowcount > 0
+        except Exception as e:
+            logging.error(f"Error updating educational category: {e}")
+            raise
+            
+    def delete_educational_category(self, category_id: int, reassign_children: bool = False, 
+                                    reassign_parent_id: Optional[int] = None) -> bool:
+        """
+        Delete an educational category
+        
+        Args:
+            category_id: ID of category to delete
+            reassign_children: If True, reassign children to a new parent instead of deleting them
+            reassign_parent_id: New parent ID for children (if reassign_children is True)
+            
+        Returns:
+            True if deletion was successful
+        """
+        try:
+            # Check if category exists
+            category = self.get_educational_category_by_id(category_id)
+            if not category:
+                return False
+                
+            with self.conn.cursor() as cursor:
+                # Handle children categories
+                if reassign_children:
+                    if reassign_parent_id and reassign_parent_id == category_id:
+                        raise ValueError("Cannot reassign to the category being deleted")
+                        
+                    # Reassign children to new parent
+                    cursor.execute(
+                        'UPDATE educational_categories SET parent_id = %s WHERE parent_id = %s',
+                        (reassign_parent_id, category_id)
+                    )
+                    
+                # Update content items to remove category_id reference
+                cursor.execute(
+                    'UPDATE educational_content SET category_id = NULL WHERE category_id = %s',
+                    (category_id,)
+                )
+                
+                # Delete the category
+                cursor.execute('DELETE FROM educational_categories WHERE id = %s', (category_id,))
+                return cursor.rowcount > 0
+        except Exception as e:
+            logging.error(f"Error deleting educational category: {e}")
+            raise
 
+    def get_educational_content_media(self, content_id: int) -> List[Dict]:
+        """
+        Get all media files for an educational content
+        
+        Args:
+            content_id: ID of the educational content
+            
+        Returns:
+            List of media file objects with id, file_id, file_type
+        """
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                '''SELECT id, file_id, file_type, created_at
+                   FROM educational_content_media
+                   WHERE educational_content_id = %s
+                   ORDER BY file_type, id''',
+                (content_id,)
+            )
+            return cursor.fetchall()
+            
+    def add_educational_content_media(self, content_id: int, file_id: str, file_type: str = 'photo') -> int:
+        """
+        Add a media file to educational content
+        
+        Args:
+            content_id: ID of the educational content
+            file_id: Telegram file_id of the media
+            file_type: Type of media ('photo', 'video', etc.)
+            
+        Returns:
+            ID of the newly created media record
+        """
+        try:
+            # Verify content exists
+            content = self.get_educational_content(content_id)
+            if not content:
+                raise ValueError(f"Educational content with ID {content_id} does not exist")
+                
+            with self.conn.cursor() as cursor:
+                cursor.execute(
+                    '''INSERT INTO educational_content_media 
+                       (educational_content_id, file_id, file_type) 
+                       VALUES (%s, %s, %s) RETURNING id''',
+                    (content_id, file_id, file_type)
+                )
+                media_id = cursor.fetchone()[0]
+                return media_id
+        except Exception as e:
+            logging.error(f"Error adding educational content media: {e}")
+            raise
+            
+    def delete_educational_content_media(self, media_id: int) -> bool:
+        """
+        Delete a media file from educational content
+        
+        Args:
+            media_id: ID of the media record to delete
+            
+        Returns:
+            True if deletion was successful
+        """
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute('DELETE FROM educational_content_media WHERE id = %s', (media_id,))
+                return cursor.rowcount > 0
+        except Exception as e:
+            logging.error(f"Error deleting educational content media: {e}")
+            raise
+    
     def delete_inquiry(self, inquiry_id: int) -> bool:
         """Delete an inquiry"""
         try:
