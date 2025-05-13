@@ -164,25 +164,24 @@ class Inquiry(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.BigInteger, nullable=False)  # Telegram user_id
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=True)
+    service_id = db.Column(db.Integer, db.ForeignKey('services.id'), nullable=True)
     name = db.Column(db.String(100), nullable=False)
     phone = db.Column(db.String(20), nullable=False)
     description = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(20), nullable=False, default='new')  # 'new', 'in_progress', 'completed'
     
-    # The product_type field indicates whether product_id refers to a product or service
-    product_type = db.Column(db.Text, nullable=True)  # 'product' or 'service'
-    
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationship
-    product = db.relationship('Product', foreign_keys=[product_id], backref='product_inquiries')
+    # Relationships
+    product = db.relationship('Product', foreign_keys=[product_id], backref='inquiries')
+    service = db.relationship('Service', foreign_keys=[service_id], backref='inquiries')
     
     def __repr__(self):
-        if self.product_type == 'product':
+        if self.product_id:
             return f'<ProductInquiry {self.id} - {self.name}>'
-        elif self.product_type == 'service':
+        elif self.service_id:
             return f'<ServiceInquiry {self.id} - {self.name}>'
         else:
             return f'<Inquiry {self.id} from {self.name}>'
@@ -190,17 +189,12 @@ class Inquiry(db.Model):
     @property
     def related_product(self):
         """For backward compatibility"""
-        if self.product_type == 'product':
-            return self.product
-        return None
+        return self.product
         
     @property
     def related_service(self):
         """For backward compatibility"""
-        if self.product_type == 'service':
-            # In this case, product_id actually refers to a service id
-            return Service.query.get(self.product_id)
-        return None
+        return self.service
 
 
 class EducationalContent(db.Model):
