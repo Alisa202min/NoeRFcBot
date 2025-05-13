@@ -113,11 +113,11 @@
                         <div class="col-md-3 mb-4">
                             <div class="card h-100">
                                 {% if item.file_type == 'photo' %}
-                                <img src="{{ url_for('telegram_file', file_id=item.file_id) }}" class="card-img-top service-img-preview" alt="تصویر خدمت">
+                                <img src="{{ url_for('static', filename=item.file_id) }}" class="card-img-top service-img-preview" alt="تصویر خدمت">
                                 {% elif item.file_type == 'video' %}
                                 <div class="ratio ratio-16x9">
                                     <video controls>
-                                        <source src="{{ url_for('telegram_file', file_id=item.file_id) }}" type="video/mp4">
+                                        <source src="{{ url_for('static', filename=item.file_id) }}" type="video/mp4">
                                         مرورگر شما از پخش ویدیو پشتیبانی نمی‌کند.
                                     </video>
                                 </div>
