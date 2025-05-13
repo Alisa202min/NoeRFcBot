@@ -160,7 +160,10 @@
     document.addEventListener('DOMContentLoaded', function() {
         // برای تمام دکمه‌های استعلام قیمت
         document.querySelectorAll('.inquiry-btn').forEach(button => {
-            button.addEventListener('click', function() {
+            button.addEventListener('click', function(e) {
+                // جلوگیری از انتقال کلیک به کارت پدر
+                e.stopPropagation();
+                
                 const productId = this.getAttribute('data-product-id');
                 const productName = this.getAttribute('data-product-name');
                 
@@ -175,6 +178,14 @@
         // ارسال فرم استعلام
         document.getElementById('submitInquiry').addEventListener('click', function() {
             document.getElementById('inquiryForm').submit();
+        });
+        
+        // کلیک روی کارت‌های محصولات برای مشاهده جزئیات
+        document.querySelectorAll('.product-card').forEach(card => {
+            card.addEventListener('click', function() {
+                const url = this.getAttribute('onclick').match(/'([^']+)'/)[1];
+                window.location.href = url;
+            });
         });
     });
 </script>
