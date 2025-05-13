@@ -1,0 +1,212 @@
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+at t.value (https://77530503-f260-4790-b0e5-fbd9db416b7d-00-krpe22f1r7hr.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://77530503-f260-4790-b0e5-fbd9db416b7d-00-krpe22f1r7hr.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://77530503-f260-4790-b0e5-fbd9db416b7d-00-krpe22f1r7hr.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://77530503-f260-4790-b0e5-fbd9db416b7d-00-krpe22f1r7hr.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
+Error fetching logs: 
+Error {}
+
+at t.value (https://77530503-f260-4790-b0e5-fbd9db416b7d-00-krpe22f1r7hr.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://77530503-f260-4790-b0e5-fbd9db416b7d-00-krpe22f1r7hr.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://77530503-f260-4790-b0e5-fbd9db416b7d-00-krpe22f1r7hr.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://77530503-f260-4790-b0e5-fbd9db416b7d-00-krpe22f1r7hr.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+at t.value (https://77530503-f260-4790-b0e5-fbd9db416b7d-00-krpe22f1r7hr.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://77530503-f260-4790-b0e5-fbd9db416b7d-00-krpe22f1r7hr.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://77530503-f260-4790-b0e5-fbd9db416b7d-00-krpe22f1r7hr.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://77530503-f260-4790-b0e5-fbd9db416b7d-00-krpe22f1r7hr.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
+Error fetching logs: 
+TypeError {}
+
+Failed to fetch
+at window.fetch (https://77530503-f260-4790-b0e5-fbd9db416b7d-00-krpe22f1r7hr.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:218642)
+at fetchLogs (https://77530503-f260-4790-b0e5-fbd9db416b7d-00-krpe22f1r7hr.kirk.replit.dev/:293:13)
+Error fetching logs: 
+TypeError {}
+
+Failed to fetch
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+at t.value (https://77530503-f260-4790-b0e5-fbd9db416b7d-00-krpe22f1r7hr.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://77530503-f260-4790-b0e5-fbd9db416b7d-00-krpe22f1r7hr.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://77530503-f260-4790-b0e5-fbd9db416b7d-00-krpe22f1r7hr.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://77530503-f260-4790-b0e5-fbd9db416b7d-00-krpe22f1r7hr.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
+Error fetching logs: 
+Error {}
+
+at t.value (https://77530503-f260-4790-b0e5-fbd9db416b7d-00-krpe22f1r7hr.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://77530503-f260-4790-b0e5-fbd9db416b7d-00-krpe22f1r7hr.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://77530503-f260-4790-b0e5-fbd9db416b7d-00-krpe22f1r7hr.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://77530503-f260-4790-b0e5-fbd9db416b7d-00-krpe22f1r7hr.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
+
+Error fetching logs: 
+Error {}
