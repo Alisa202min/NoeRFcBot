@@ -1315,25 +1315,21 @@ def telegram_file(file_id):
     try:
         logger.info(f"Requested file_id: {file_id}")
         
+        # راه حل اول: استفاده از مسیر کامل برای سرو فایل
+        
         # بررسی اگر file_id یک مسیر محلی است
         if '/' in file_id and file_id.startswith('uploads/'):
-            logger.info(f"Path looks like a local file path: {file_id}")
             # مسیر کامل فایل را می‌سازیم
-            full_path = os.path.join('static', file_id)
-            logger.info(f"Full path constructed: {full_path}")
+            file_path = os.path.join('static', file_id)
+            logger.info(f"Path looks like a local file path, full path: {file_path}")
             
             # بررسی وجود فایل
-            if os.path.exists(full_path):
-                logger.info(f"File exists at: {full_path}")
-                directory = os.path.dirname(full_path)
-                filename = os.path.basename(full_path)
-                try:
-                    return send_from_directory(directory, filename)
-                except Exception as e:
-                    logger.error(f"Error serving file from directory '{directory}', filename '{filename}': {str(e)}")
-                    return jsonify({'error': f"Error serving file: {str(e)}"}), 500
+            if os.path.exists(file_path):
+                logger.info(f"File exists at: {file_path}")
+                # مستقیماً از مسیر url_for استفاده می‌کنیم
+                return redirect(url_for('static', filename=file_id))
             else:
-                logger.warning(f"File does NOT exist at: {full_path}")
+                logger.warning(f"File does NOT exist at: {file_path}")
         
         # جستجوی فایل در جدول ProductMedia
         try:
@@ -1357,13 +1353,7 @@ def telegram_file(file_id):
             potential_path = os.path.join('static', file_id)
             if os.path.exists(potential_path):
                 logger.info(f"Found file as a direct path: {potential_path}")
-                directory = os.path.dirname(potential_path)
-                filename = os.path.basename(potential_path)
-                try:
-                    return send_from_directory(directory, filename)
-                except Exception as e:
-                    logger.error(f"Error serving file from potential path '{potential_path}': {str(e)}")
-                    return jsonify({'error': f"Error serving file: {str(e)}"}), 500
+                return redirect(url_for('static', filename=file_id))
             
             # اگر هیچ چیزی پیدا نشد
             return jsonify({'error': 'فایل پیدا نشد'}), 404
@@ -1371,36 +1361,22 @@ def telegram_file(file_id):
         try:    
             logger.info(f"Found media record: {media.id}, file_id: {media.file_id}, local_path: {getattr(media, 'local_path', 'N/A')}")
                 
-            # بررسی اگر local_path وجود دارد
-            if hasattr(media, 'local_path') and media.local_path:
-                # فایل را از مسیر محلی سرو می‌کنیم
-                full_path = media.local_path
-                logger.info(f"Using local_path: {full_path}")
-                if os.path.exists(full_path):
-                    directory = os.path.dirname(full_path)
-                    filename = os.path.basename(full_path)
-                else:
-                    logger.warning(f"local_path doesn't exist on disk: {full_path}")
-                    # سعی می‌کنیم از file_id به عنوان پشتیبان استفاده کنیم
-                    full_path = os.path.join('static', media.file_id)
-                    if os.path.exists(full_path):
-                        directory = os.path.dirname(full_path)
-                        filename = os.path.basename(full_path)
-                    else:
-                        return jsonify({'error': 'فایل در سرور وجود ندارد'}), 404
-            else:
-                # اگر file_id خودش یک مسیر فایل است
-                full_path = os.path.join('static', media.file_id)
-                logger.info(f"Using file_id as path: {full_path}")
-                if os.path.exists(full_path):
-                    directory = os.path.dirname(full_path)
-                    filename = os.path.basename(full_path)
-                else:
-                    logger.warning(f"Path constructed from file_id doesn't exist: {full_path}")
-                    return jsonify({'error': 'فایل در سرور وجود ندارد'}), 404
+            # بررسی اگر local_path وجود دارد و می‌توانیم بر اساس آن فایل را سرو کنیم
+            if hasattr(media, 'local_path') and media.local_path and os.path.exists(media.local_path):
+                # اگر local_path با static شروع می‌شود، آن را به صورت مستقیم سرو می‌کنیم
+                if media.local_path.startswith('static/'):
+                    relative_path = media.local_path.replace('static/', '', 1)
+                    logger.info(f"Serving local file with static route: {relative_path}")
+                    return redirect(url_for('static', filename=relative_path))
             
-            logger.info(f"Serving file from directory: {directory}, filename: {filename}")
-            return send_from_directory(directory, filename)
+            # اگر file_id خودش یک مسیر فایل است، آن را سرو می‌کنیم
+            if '/' in media.file_id and os.path.exists(os.path.join('static', media.file_id)):
+                logger.info(f"Serving media file_id with static route: {media.file_id}")
+                return redirect(url_for('static', filename=media.file_id))
+            
+            # نهایتاً اگر همه روش‌ها شکست خورد، خطا برمی‌گردانیم
+            logger.warning(f"Could not find a valid path for file_id: {file_id}")
+            return jsonify({'error': 'فایل در سرور وجود ندارد'}), 404
         except Exception as e:
             logger.error(f"Error processing media record {media.id}: {str(e)}")
             return jsonify({'error': f"Error processing media: {str(e)}"}), 500
