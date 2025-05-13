@@ -53,7 +53,7 @@
                             </thead>
                             <tbody>
                                 {% for service in services.items %}
-                                <tr>
+                                <tr class="service-row" data-service-url="{{ url_for('service_detail', service_id=service.id) }}" style="cursor: pointer;">
                                     <td>{{ service.id }}</td>
                                     <td>
                                         {% if service.photo_url %}
@@ -176,4 +176,20 @@
         </div>
     </div>
 </div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // فعال‌سازی کلیک بر روی سطر خدمت
+        document.querySelectorAll('.service-row').forEach(function(row) {
+            row.addEventListener('click', function(e) {
+                // بررسی می‌کنیم که کلیک روی دکمه‌ها یا لینک‌ها نباشد
+                if (!e.target.closest('a') && !e.target.closest('button') && !e.target.closest('form')) {
+                    window.open(this.dataset.serviceUrl, '_blank');
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}
 {% endblock %}
