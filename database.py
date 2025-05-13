@@ -776,16 +776,17 @@ class Database:
     def get_inquiry(self, inquiry_id: int) -> Optional[Dict]:
         """Get an inquiry by ID"""
         query = '''SELECT i.id, i.user_id, i.name, i.phone, i.description, 
-                          i.product_id, i.product_type, i.date,
-                          CASE WHEN i.product_type = 'service' THEN s.name ELSE p.name END as product_name
+                          i.product_id, i.service_id, i.date,
+                          CASE WHEN i.service_id IS NOT NULL THEN s.name ELSE p.name END as item_name,
+                          CASE WHEN i.service_id IS NOT NULL THEN 'service' ELSE 'product' END as item_type
                    FROM inquiries i 
-                   LEFT JOIN products p ON i.product_id = p.id AND i.product_type = 'product'
-                   LEFT JOIN services s ON i.product_id = s.id AND i.product_type = 'service'
+                   LEFT JOIN products p ON i.product_id = p.id
+                   LEFT JOIN services s ON i.service_id = s.id
                    WHERE i.id = %s'''
 
         with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
             cursor.execute(query, (inquiry_id,))
-            return cursor.fetchone() or None or None
+            return cursor.fetchone() or None
 
     def get_educational_content(self, content_id: int) -> Optional[Dict]:
         """Get educational content by ID"""
