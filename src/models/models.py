@@ -169,6 +169,9 @@ class Inquiry(db.Model):
     description = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(20), nullable=False, default='new')  # 'new', 'in_progress', 'completed'
     
+    # Date field that exists in the database but was missing in the model
+    date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
