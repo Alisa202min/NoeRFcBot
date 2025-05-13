@@ -453,14 +453,24 @@ class Database:
         Returns:
             List of matching products/services
         """
+        # Determine which table to search based on cat_type
+        if cat_type == 'service':
+            return self._search_services(query, category_id, min_price, max_price, 
+                                       tags, featured, sort_by, sort_order)
+        else:
+            # Default to searching products if cat_type is None or 'product'
+            return self._search_products(query, category_id, min_price, max_price, 
+                                       tags, brand, in_stock, featured, sort_by, sort_order)
+            
+    def _search_products(self, query: str = None, category_id: int = None, 
+                        min_price: int = None, max_price: int = None, tags: str = None, 
+                        brand: str = None, in_stock: bool = None, featured: bool = None, 
+                        sort_by: str = 'name', sort_order: str = 'asc') -> List[Dict]:
+        """Internal method to search products"""
         conditions = []
         params = []
         
         # Build the query conditions
-        if cat_type:
-            conditions.append("p.product_type = %s")
-            params.append(cat_type)
-            
         if query:
             conditions.append("(LOWER(p.name) LIKE %s OR LOWER(p.description) LIKE %s OR LOWER(p.tags) LIKE %s)")
             search_term = f'%{query.lower()}%'
@@ -505,6 +515,82 @@ class Database:
             order_clause = f"p.created_at DESC"
         else:  # Default to name
             order_clause = f"p.name {sort_order}"
+            
+        try:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                query = f"""
+                    SELECT p.id, p.name, p.price, p.description, p.photo_url, p.category_id,
+                           p.tags, p.brand, p.model_number, p.manufacturer,
+                           p.in_stock, p.featured, p.created_at, 'product' as item_type
+                    FROM products p
+                    WHERE {where_clause}
+                    ORDER BY {order_clause}
+                """
+                cursor.execute(query, tuple(params))
+                return cursor.fetchall()
+        except Exception as e:
+            logging.error(f"Error searching products: {e}")
+            return []
+            
+    def _search_services(self, query: str = None, category_id: int = None, 
+                        min_price: int = None, max_price: int = None, tags: str = None,
+                        featured: bool = None, sort_by: str = 'name', sort_order: str = 'asc') -> List[Dict]:
+        """Internal method to search services"""
+        conditions = []
+        params = []
+        
+        # Build the query conditions
+        if query:
+            conditions.append("(LOWER(s.name) LIKE %s OR LOWER(s.description) LIKE %s OR LOWER(s.tags) LIKE %s)")
+            search_term = f'%{query.lower()}%'
+            params.extend([search_term, search_term, search_term])
+            
+        if category_id:
+            conditions.append("s.category_id = %s")
+            params.append(category_id)
+            
+        if min_price is not None:
+            conditions.append("s.price >= %s")
+            params.append(min_price)
+            
+        if max_price is not None:
+            conditions.append("s.price <= %s")
+            params.append(max_price)
+            
+        if tags:
+            conditions.append("LOWER(s.tags) LIKE %s")
+            params.append(f'%{tags.lower()}%')
+            
+        if featured is not None:
+            conditions.append("s.featured = %s")
+            params.append(featured)
+            
+        # Combine all conditions
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+        
+        # Determine sort order
+        order_clause = ""
+        if sort_by == 'price':
+            order_clause = f"s.price {sort_order}"
+        elif sort_by == 'newest':
+            order_clause = f"s.created_at DESC"
+        else:  # Default to name
+            order_clause = f"s.name {sort_order}"
+            
+        try:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                query = f"""
+                    SELECT s.id, s.name, s.price, s.description, s.photo_url, s.category_id,
+                           s.tags, s.featured, s.created_at, 'service' as item_type
+                    FROM services s
+                    WHERE {where_clause}
+                    ORDER BY {order_clause}
+                """
+                cursor.execute(query, tuple(params))
+                return cursor.fetchall()
+        except Exception as e:
+            logging.error(f"Error searching services: {e}")
+            return []
         
         try:
             with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
