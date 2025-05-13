@@ -284,6 +284,18 @@ def admin_add_category():
 # ... Routes for products, services, inquiries, etc. ...
 
 # روت‌های مربوط به محصولات
+@app.route('/product/<int:product_id>')
+def product_detail(product_id):
+    """صفحه جزئیات محصول"""
+    product = Product.query.get_or_404(product_id)
+    related_products = Product.query.filter_by(category_id=product.category_id, product_type='product').filter(Product.id != product.id).limit(4).all()
+    media = ProductMedia.query.filter_by(product_id=product.id).all()
+    
+    return render_template('product_detail.html', 
+                          product=product, 
+                          related_products=related_products,
+                          media=media)
+
 @app.route('/admin/products', methods=['GET', 'POST'])
 @login_required
 def admin_products():

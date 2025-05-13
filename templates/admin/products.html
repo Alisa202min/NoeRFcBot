@@ -82,6 +82,35 @@
                                             <a href="{{ url_for('admin_products') }}?action=media&id={{ product.id }}" class="btn btn-sm btn-outline-info">
                                                 <i class="bi bi-images"></i> رسانه‌ها
                                             </a>
+                                            <a href="{{ url_for('product_detail', product_id=product.id) }}" target="_blank" class="btn btn-sm btn-outline-success">
+                                                <i class="bi bi-eye"></i> مشاهده
+                                            </a>
+                                            <!-- دکمه حذف با مودال تأیید -->
+                                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteProductModal{{ product.id }}">
+                                                <i class="bi bi-trash"></i> حذف
+                                            </button>
+                                        </div>
+                                        
+                                        <!-- مودال تأیید حذف -->
+                                        <div class="modal fade" id="deleteProductModal{{ product.id }}" tabindex="-1" aria-labelledby="deleteProductModalLabel{{ product.id }}" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title" id="deleteProductModalLabel{{ product.id }}">تأیید حذف محصول</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        آیا از حذف محصول "{{ product.name }}" اطمینان دارید؟ این عملیات غیرقابل بازگشت است.
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
+                                                        <form method="post" action="{{ url_for('admin_products', action='delete') }}">
+                                                            <input type="hidden" name="product_id" value="{{ product.id }}">
+                                                            <button type="submit" class="btn btn-danger">حذف</button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </td>
                                 </tr>
