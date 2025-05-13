@@ -94,40 +94,41 @@ def reset_to_default():
     shutil.copy(DEFAULT_CONFIG_PATH, CONFIG_PATH)
 
 config = load_config()
-BOT_TOKEN = config["BOT_TOKEN"]
-ADMIN_ID = int(config["ADMIN_ID"])
-DB_TYPE = config["DB_TYPE"]
-DATA_DIR = config["DATA_DIR"]
-DB_PATH = config["DB_PATH"]
-CSV_PATH = config["CSV_PATH"]
-PRODUCT_PREFIX = config["PRODUCT_PREFIX"]
-SERVICE_PREFIX = config["SERVICE_PREFIX"]
-CATEGORY_PREFIX = config["CATEGORY_PREFIX"]
-BACK_PREFIX = config["BACK_PREFIX"]
-INQUIRY_PREFIX = config["INQUIRY_PREFIX"]
-EDUCATION_PREFIX = config["EDUCATION_PREFIX"]
-ADMIN_PREFIX = config["ADMIN_PREFIX"]
-PRODUCTS_BTN = config["PRODUCTS_BTN"]
-SERVICES_BTN = config["SERVICES_BTN"]
-INQUIRY_BTN = config["INQUIRY_BTN"]
-EDUCATION_BTN = config["EDUCATION_BTN"]
-CONTACT_BTN = config["CONTACT_BTN"]
-ABOUT_BTN = config["ABOUT_BTN"]
-BACK_BTN = config["BACK_BTN"]
-SEARCH_BTN = config["SEARCH_BTN"]
-ADMIN_BTN = config["ADMIN_BTN"]
-START_TEXT = config["START_TEXT"]
-NOT_FOUND_TEXT = config["NOT_FOUND_TEXT"]
-CONTACT_DEFAULT = config["CONTACT_DEFAULT"]
-ABOUT_DEFAULT = config["ABOUT_DEFAULT"]
-INQUIRY_START = config["INQUIRY_START"]
-INQUIRY_PHONE = config["INQUIRY_PHONE"]
-INQUIRY_DESC = config["INQUIRY_DESC"]
-INQUIRY_COMPLETE = config["INQUIRY_COMPLETE"]
-ADMIN_WELCOME = config["ADMIN_WELCOME"]
-ADMIN_ACCESS_DENIED = config["ADMIN_ACCESS_DENIED"]
-SEARCH_PROMPT = config["SEARCH_PROMPT"]
-ERROR_MESSAGE = config["ERROR_MESSAGE"]
+# Use get() to provide default values if keys don't exist
+BOT_TOKEN = config.get("BOT_TOKEN", os.environ.get("BOT_TOKEN", ""))
+ADMIN_ID = int(config.get("ADMIN_ID", "0"))
+DB_TYPE = config.get("DB_TYPE", "postgresql")
+DATA_DIR = config.get("DATA_DIR", "data")
+DB_PATH = config.get("DB_PATH", os.path.join("data", "database.db"))
+CSV_PATH = config.get("CSV_PATH", os.path.join("data", "initial_data.csv"))
+PRODUCT_PREFIX = config.get("PRODUCT_PREFIX", "product_")
+SERVICE_PREFIX = config.get("SERVICE_PREFIX", "service_")
+CATEGORY_PREFIX = config.get("CATEGORY_PREFIX", "category_")
+BACK_PREFIX = config.get("BACK_PREFIX", "back_")
+INQUIRY_PREFIX = config.get("INQUIRY_PREFIX", "inquiry_")
+EDUCATION_PREFIX = config.get("EDUCATION_PREFIX", "edu_")
+ADMIN_PREFIX = config.get("ADMIN_PREFIX", "admin_")
+PRODUCTS_BTN = config.get("PRODUCTS_BTN", "محصولات 🛍")
+SERVICES_BTN = config.get("SERVICES_BTN", "خدمات 🔧")
+INQUIRY_BTN = config.get("INQUIRY_BTN", "استعلام قیمت 💰")
+EDUCATION_BTN = config.get("EDUCATION_BTN", "محتوای آموزشی 📚")
+CONTACT_BTN = config.get("CONTACT_BTN", "تماس با ما ☎️")
+ABOUT_BTN = config.get("ABOUT_BTN", "درباره ما ℹ️")
+BACK_BTN = config.get("BACK_BTN", "بازگشت به منوی اصلی 🏠")
+SEARCH_BTN = config.get("SEARCH_BTN", "جستجو 🔍")
+ADMIN_BTN = config.get("ADMIN_BTN", "پنل مدیریت 👨‍💼")
+START_TEXT = config.get("START_TEXT", "به ربات خوش آمدید!")
+NOT_FOUND_TEXT = config.get("NOT_FOUND_TEXT", "موردی یافت نشد.")
+CONTACT_DEFAULT = config.get("CONTACT_DEFAULT", "با ما از طریق شماره تماس در تماس باشید.")
+ABOUT_DEFAULT = config.get("ABOUT_DEFAULT", "ربات محصولات و خدمات")
+INQUIRY_START = config.get("INQUIRY_START", "لطفاً نام خود را وارد کنید:")
+INQUIRY_PHONE = config.get("INQUIRY_PHONE", "لطفاً شماره تماس خود را وارد کنید:")
+INQUIRY_DESC = config.get("INQUIRY_DESC", "لطفاً توضیحات بیشتر را وارد کنید:")
+INQUIRY_COMPLETE = config.get("INQUIRY_COMPLETE", "استعلام شما با موفقیت ثبت شد.")
+ADMIN_WELCOME = config.get("ADMIN_WELCOME", "به پنل مدیریت خوش آمدید.")
+ADMIN_ACCESS_DENIED = config.get("ADMIN_ACCESS_DENIED", "شما دسترسی به پنل مدیریت ندارید.")
+SEARCH_PROMPT = config.get("SEARCH_PROMPT", "لطفاً عبارت جستجو را وارد کنید:")
+ERROR_MESSAGE = config.get("ERROR_MESSAGE", "خطایی رخ داد. لطفاً دوباره تلاش کنید.")
 
 # Configure logging
 logging.basicConfig(
