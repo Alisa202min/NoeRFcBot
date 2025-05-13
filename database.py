@@ -619,9 +619,9 @@ class Database:
         try:
             with self.conn.cursor() as cursor:
                 # First delete all media files associated with this service
-                cursor.execute('DELETE FROM service_media WHERE service_id = %s', (service_id,))
+                cursor.execute('DELETE FROM product_media WHERE product_id = %s', (service_id,))
                 # Then delete the service itself
-                cursor.execute('DELETE FROM services WHERE id = %s', (service_id,))
+                cursor.execute('DELETE FROM products WHERE id = %s AND product_type = %s', (service_id, 'service'))
                 return cursor.rowcount > 0
         except Exception as e:
             logging.error(f"Error deleting service: {e}")
