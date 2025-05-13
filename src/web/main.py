@@ -553,8 +553,127 @@ def admin_services():
     
     # عملیات POST
     if request.method == 'POST':
+        # ذخیره خدمت جدید یا ویرایش خدمت موجود
+        if action == 'save':
+            # دریافت داده‌های فرم
+            service_id = request.form.get('id')
+            name = request.form.get('name')
+            price = request.form.get('price', 0)
+            description = request.form.get('description', '')
+            category_id = request.form.get('category_id')
+            tags = request.form.get('tags', '')
+            featured = 'featured' in request.form
+            
+            # تبدیل داده‌ها به نوع مناسب
+            if price:
+                try:
+                    price = int(price)
+                except ValueError:
+                    price = 0
+                    
+            if category_id:
+                try:
+                    category_id = int(category_id)
+                except ValueError:
+                    category_id = None
+            else:
+                category_id = None
+                
+            try:
+                # اگر شناسه خدمت وجود داشته باشد، ویرایش می‌کنیم
+                if service_id:
+                    service = Product.query.filter_by(product_type='service', id=int(service_id)).first_or_404()
+                    service.name = name
+                    service.price = price
+                    service.description = description
+                    service.category_id = category_id
+                    service.tags = tags
+                    service.featured = featured
+                    
+                    logger.info(f"Updating service ID: {service_id}, Name: {name}")
+                    flash('خدمت با موفقیت به‌روزرسانی شد.', 'success')
+                else:
+                    # ایجاد خدمت جدید
+                    service = Product(
+                        name=name,
+                        price=price,
+                        description=description,
+                        category_id=category_id,
+                        product_type='service',
+                        tags=tags,
+                        featured=featured
+                    )
+                    db.session.add(service)
+                    logger.info(f"Creating new service, Name: {name}")
+                    flash('خدمت جدید با موفقیت ثبت شد.', 'success')
+                
+                # آپلود تصویر اصلی خدمت
+                photo = request.files.get('photo')
+                if photo and photo.filename:
+                    # مسیر فایل‌های آپلودی
+                    upload_dir = os.path.join('static', 'uploads', 'services', 'main')
+                    os.makedirs(upload_dir, exist_ok=True)
+                    
+                    # استفاده از تابع handle_media_upload برای مدیریت آپلود
+                    success, file_path = handle_media_upload(
+                        file=photo,
+                        directory=upload_dir,
+                        file_type='photo',
+                        custom_filename=None  # استفاده از نام اصلی فایل (با تغییر امن)
+                    )
+                    
+                    if success and file_path:
+                        # تبدیل مسیر کامل به مسیر نسبی برای ذخیره در دیتابیس
+                        relative_path = file_path.replace('static/', '', 1) if file_path.startswith('static/') else file_path
+                        
+                        # ذخیره مسیر در خدمت
+                        service.photo_url = relative_path
+                        logger.info(f"Uploaded main photo for service, path: {relative_path}")
+                
+                db.session.commit()
+                
+                if not service_id:
+                    # اگر خدمت جدید بود، حالا ID آن مشخص شده، مسیر تصویر اصلی را به‌روزرسانی می‌کنیم
+                    if photo and photo.filename and success and file_path:
+                        # ایجاد دایرکتوری اختصاصی خدمت
+                        service_upload_dir = os.path.join('static', 'uploads', 'services', str(service.id))
+                        os.makedirs(service_upload_dir, exist_ok=True)
+                        
+                        # انتقال فایل به دایرکتوری اختصاصی خدمت
+                        new_file_path = os.path.join(service_upload_dir, os.path.basename(file_path))
+                        import shutil
+                        shutil.move(file_path, new_file_path)
+                        
+                        # به‌روزرسانی مسیر در دیتابیس
+                        new_relative_path = new_file_path.replace('static/', '', 1) if new_file_path.startswith('static/') else new_file_path
+                        service.photo_url = new_relative_path
+                        db.session.commit()
+                        
+                        logger.info(f"Moved service photo to dedicated directory: {new_file_path}")
+                
+                return redirect(url_for('admin_services'))
+                
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Error saving service: {str(e)}")
+                flash(f'خطا در ذخیره خدمت: {str(e)}', 'danger')
+                categories = Category.query.filter_by(cat_type='service').all()
+                
+                if service_id:
+                    # در صورت خطا در ویرایش، به فرم ویرایش برمی‌گردیم
+                    service = Product.query.filter_by(product_type='service', id=int(service_id)).first_or_404()
+                    return render_template('admin/service_form.html',
+                                          title="ویرایش خدمت",
+                                          service=service,
+                                          categories=categories)
+                else:
+                    # در صورت خطا در افزودن، به فرم افزودن برمی‌گردیم
+                    return render_template('admin/service_form.html',
+                                          title="افزودن خدمت جدید",
+                                          categories=categories)
+
         # آپلود رسانه جدید
-        if action == 'upload_media':
+        elif action == 'upload_media':
             service_id = request.form.get('service_id')
             if not service_id:
                 flash('شناسه خدمت الزامی است.', 'danger')
