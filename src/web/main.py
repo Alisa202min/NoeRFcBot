@@ -1612,8 +1612,7 @@ def search():
             filters['query'] = query_text
         if category_id is not None:
             filters['category_id'] = category_id
-        if product_type:
-            filters['product_type'] = product_type
+        # در مدل جدید، نوع محصول یا خدمت با استفاده از جداول مختلف مشخص می‌شود
         if min_price is not None:
             filters['min_price'] = min_price
         if max_price is not None:
@@ -1636,8 +1635,7 @@ def search():
         if category_id:
             base_query = base_query.filter(Product.category_id == category_id)
         
-        if product_type:
-            base_query = base_query.filter(Product.product_type == product_type)
+        # در مدل جدید، محصولات و خدمات در جداول مختلف هستند و نیازی به فیلتر product_type نیست
         
         if min_price:
             base_query = base_query.filter(Product.price >= min_price)
@@ -1874,8 +1872,8 @@ def export_entity(entity_type):
     
     # مپ کردن نوع داده به مدل
     entity_map = {
-        'products': Product.query.filter_by(product_type='product'),
-        'services': Product.query.filter_by(product_type='service'),
+        'products': Product.query,
+        'services': Service.query,
         'categories': Category.query,
         'inquiries': Inquiry.query,
         'educational': EducationalContent.query,
