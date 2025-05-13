@@ -580,6 +580,22 @@ def admin_services():
                 category_id = None
                 
             try:
+                # قبل از ذخیره در دیتابیس، مطمئن شویم که category_id معتبر است
+                # اگر category_id خالی است، بررسی می‌کنیم آیا دسته‌بندی پیش‌فرضی وجود دارد یا نه
+                if category_id is None:
+                    # سعی می‌کنیم دسته‌بندی پیش‌فرض برای خدمات پیدا کنیم
+                    default_category = Category.query.filter_by(cat_type='service').first()
+                    if default_category:
+                        category_id = default_category.id
+                        logger.info(f"Using default service category ID: {category_id}")
+                    else:
+                        # اگر هیچ دسته‌بندی وجود ندارد، یک دسته‌بندی پیش‌فرض ایجاد می‌کنیم
+                        new_category = Category(name="دسته‌بندی پیش‌فرض", cat_type='service')
+                        db.session.add(new_category)
+                        db.session.flush()  # برای دریافت ID
+                        category_id = new_category.id
+                        logger.info(f"Created new default service category ID: {category_id}")
+                
                 # اگر شناسه خدمت وجود داشته باشد، ویرایش می‌کنیم
                 if service_id:
                     service = Product.query.filter_by(product_type='service', id=int(service_id)).first_or_404()
@@ -590,7 +606,7 @@ def admin_services():
                     service.tags = tags
                     service.featured = featured
                     
-                    logger.info(f"Updating service ID: {service_id}, Name: {name}")
+                    logger.info(f"Updating service ID: {service_id}, Name: {name}, Category: {category_id}")
                     flash('خدمت با موفقیت به‌روزرسانی شد.', 'success')
                 else:
                     # ایجاد خدمت جدید
@@ -598,7 +614,7 @@ def admin_services():
                         name=name,
                         price=price,
                         description=description,
-                        category_id=category_id,
+                        category_id=category_id,  # اکنون مطمئن هستیم که این مقدار NULL نیست
                         product_type='service',
                         tags=tags,
                         featured=featured
