@@ -25,7 +25,7 @@ def index():
     try:
         # محصولات و خدمات حالا از جداول جداگانه دریافت می‌شوند
         products = Product.query.filter_by(featured=True).limit(6).all()
-        services = Service.query.filter_by(available=True).limit(6).all()
+        services = Service.query.filter_by(featured=True).limit(6).all()
         
         # برای اطمینان، اگر محتوا وجود نداشت از یک لیست خالی استفاده می‌کنیم
         if not products:

@@ -116,6 +116,10 @@ class Service(db.Model):
     video_url = db.Column(db.Text, nullable=True)
     video_file_id = db.Column(db.Text, nullable=True)
     
+    # Service status columns
+    featured = db.Column(db.Boolean, default=False)  # برای نمایش در صفحه اصلی
+    available = db.Column(db.Boolean, default=True)  # وضعیت در دسترس بودن
+    
     # Relationships
     media = db.relationship('ServiceMedia', backref='service', lazy='dynamic', cascade='all, delete-orphan')
     
