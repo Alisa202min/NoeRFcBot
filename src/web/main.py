@@ -109,6 +109,27 @@ def index():
         except Exception as template_error:
             logger.error(f"Error rendering error template: {template_error}")
             return "Internal Server Error", 500
+            
+@app.route('/api/logs')
+def get_logs_json():
+    """دریافت لاگ‌های ربات برای درخواست‌های AJAX"""
+    try:
+        log_file = 'bot.log'
+        if os.path.exists(log_file):
+            with open(log_file, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                # فقط آخرین ۵۰ خط را برمی‌گردانیم تا حجم داده زیاد نباشد
+                bot_logs = lines[-50:] if len(lines) > 50 else lines
+                # تبدیل آرایه خطوط به یک رشته با جداکننده خط جدید
+                logs_text = ''.join(bot_logs)
+        else:
+            logs_text = 'فایل لاگ موجود نیست.'
+        
+        # برگرداندن پاسخ JSON برای درخواست‌های AJAX
+        return jsonify({'logs': logs_text})
+    except Exception as e:
+        logger.error(f"Error fetching logs: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/configuration')
 @login_required
