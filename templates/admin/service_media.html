@@ -113,7 +113,7 @@
                         <div class="col-md-3 mb-4">
                             <div class="card h-100">
                                 {% if item.file_type == 'photo' %}
-                                <img src="/static/{{ item.file_id }}" class="card-img-top service-img-preview" alt="تصویر خدمت" onerror="console.error('Error loading image:', this.src);">
+                                <img src="/static/{{ item.file_id }}" class="card-img-top service-img-preview" alt="تصویر خدمت">
                                 {% elif item.file_type == 'video' %}
                                 <div class="ratio ratio-16x9">
                                     <video controls>
@@ -122,11 +122,9 @@
                                     </video>
                                 </div>
                                 {% endif %}
-                                <script>console.log("File ID: {{ item.file_id }}");</script>
                                 <div class="card-body">
-                                    <p class="card-text">
-                                        <small class="text-muted">نوع: {{ item.file_type }}</small><br>
-                                        <small class="text-muted">شناسه فایل: {{ item.file_id[:10] }}...</small>
+                                    <p class="card-text text-center">
+                                        <span class="badge bg-secondary">{{ item.file_type }}</span>
                                     </p>
                                 </div>
                                 <div class="card-footer">

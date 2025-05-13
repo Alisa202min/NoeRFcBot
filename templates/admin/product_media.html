@@ -114,7 +114,6 @@
                             <div class="card h-100">
                                 {% if item.file_type == 'photo' %}
                                 <img src="{{ url_for('telegram_file', file_id=item.file_id) }}" class="card-img-top product-img-preview" alt="تصویر محصول">
-                                <div class="mt-1 small text-muted">مسیر فایل: {{ item.file_id }}</div>
                                 {% elif item.file_type == 'video' %}
                                 <div class="ratio ratio-16x9">
                                     <video controls>
@@ -122,12 +121,10 @@
                                         مرورگر شما از پخش ویدیو پشتیبانی نمی‌کند.
                                     </video>
                                 </div>
-                                <div class="mt-1 small text-muted">مسیر فایل: {{ item.file_id }}</div>
                                 {% endif %}
                                 <div class="card-body">
-                                    <p class="card-text">
-                                        <small class="text-muted">نوع: {{ item.file_type }}</small><br>
-                                        <small class="text-muted">شناسه فایل: {{ item.file_id[:10] }}...</small>
+                                    <p class="card-text text-center">
+                                        <span class="badge bg-secondary">{{ item.file_type }}</span>
                                     </p>
                                 </div>
                                 <div class="card-footer">
