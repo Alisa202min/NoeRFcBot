@@ -733,12 +733,14 @@ def admin_services():
                     if success and file_path:
                         # تبدیل مسیر کامل به مسیر نسبی برای ذخیره در دیتابیس
                         relative_path = file_path.replace('static/', '', 1) if file_path.startswith('static/') else file_path
+                        logger.info(f"Service media relative path: {relative_path}")
                         
                         # افزودن به دیتابیس
                         media = ProductMedia(
                             product_id=service.id,
                             file_id=relative_path,
-                            file_type=file_type
+                            file_type=file_type,
+                            local_path=file_path  # ذخیره مسیر کامل برای استفاده بعدی
                         )
                         db.session.add(media)
                         db.session.commit()
@@ -1325,21 +1327,29 @@ def telegram_file(file_id):
                 logger.info(f"File exists at: {full_path}")
                 directory = os.path.dirname(full_path)
                 filename = os.path.basename(full_path)
-                return send_from_directory(directory, filename)
+                try:
+                    return send_from_directory(directory, filename)
+                except Exception as e:
+                    logger.error(f"Error serving file from directory '{directory}', filename '{filename}': {str(e)}")
+                    return jsonify({'error': f"Error serving file: {str(e)}"}), 500
             else:
                 logger.warning(f"File does NOT exist at: {full_path}")
         
         # جستجوی فایل در جدول ProductMedia
-        media = ProductMedia.query.filter_by(file_id=file_id).first()
-        logger.info(f"Direct database lookup result: {media}")
+        try:
+            media = ProductMedia.query.filter_by(file_id=file_id).first()
+            logger.info(f"Direct database lookup result: {media}")
         
-        if not media:
-            # جستجو در جدول ProductMedia برای هر دو نوع محصول و خدمات
-            logger.info("Trying broader search...")
-            media = ProductMedia.query.filter(
-                ProductMedia.file_id.like(f"%{file_id}%")
-            ).first()
-            logger.info(f"Broader search result: {media}")
+            if not media:
+                # جستجو در جدول ProductMedia برای هر دو نوع محصول و خدمات
+                logger.info("Trying broader search...")
+                media = ProductMedia.query.filter(
+                    ProductMedia.file_id.like(f"%{file_id}%")
+                ).first()
+                logger.info(f"Broader search result: {media}")
+        except Exception as e:
+            logger.error(f"Database error when searching for file_id '{file_id}': {str(e)}")
+            return jsonify({'error': f"Database error: {str(e)}"}), 500
             
         if not media:
             logger.warning(f"No media record found for file_id: {file_id}")
@@ -1349,35 +1359,53 @@ def telegram_file(file_id):
                 logger.info(f"Found file as a direct path: {potential_path}")
                 directory = os.path.dirname(potential_path)
                 filename = os.path.basename(potential_path)
-                return send_from_directory(directory, filename)
+                try:
+                    return send_from_directory(directory, filename)
+                except Exception as e:
+                    logger.error(f"Error serving file from potential path '{potential_path}': {str(e)}")
+                    return jsonify({'error': f"Error serving file: {str(e)}"}), 500
             
             # اگر هیچ چیزی پیدا نشد
             return jsonify({'error': 'فایل پیدا نشد'}), 404
-            
-        logger.info(f"Found media record: {media.id}, file_id: {media.file_id}, local_path: {getattr(media, 'local_path', 'N/A')}")
-            
-        # بررسی اگر local_path وجود دارد
-        if hasattr(media, 'local_path') and media.local_path:
-            # فایل را از مسیر محلی سرو می‌کنیم
-            full_path = media.local_path
-            logger.info(f"Using local_path: {full_path}")
-            directory = os.path.dirname(full_path)
-            filename = os.path.basename(full_path)
-        else:
-            # اگر file_id خودش یک مسیر فایل است
-            full_path = os.path.join('static', media.file_id)
-            logger.info(f"Using file_id as path: {full_path}")
-            directory = os.path.dirname(full_path)
-            filename = os.path.basename(full_path)
         
-        # بررسی نهایی وجود فایل
-        if not os.path.exists(os.path.join(directory, filename)):
-            logger.warning(f"Final file check failed - file does not exist at: {os.path.join(directory, filename)}")
-            return jsonify({'error': 'فایل در سرور وجود ندارد'}), 404
+        try:    
+            logger.info(f"Found media record: {media.id}, file_id: {media.file_id}, local_path: {getattr(media, 'local_path', 'N/A')}")
+                
+            # بررسی اگر local_path وجود دارد
+            if hasattr(media, 'local_path') and media.local_path:
+                # فایل را از مسیر محلی سرو می‌کنیم
+                full_path = media.local_path
+                logger.info(f"Using local_path: {full_path}")
+                if os.path.exists(full_path):
+                    directory = os.path.dirname(full_path)
+                    filename = os.path.basename(full_path)
+                else:
+                    logger.warning(f"local_path doesn't exist on disk: {full_path}")
+                    # سعی می‌کنیم از file_id به عنوان پشتیبان استفاده کنیم
+                    full_path = os.path.join('static', media.file_id)
+                    if os.path.exists(full_path):
+                        directory = os.path.dirname(full_path)
+                        filename = os.path.basename(full_path)
+                    else:
+                        return jsonify({'error': 'فایل در سرور وجود ندارد'}), 404
+            else:
+                # اگر file_id خودش یک مسیر فایل است
+                full_path = os.path.join('static', media.file_id)
+                logger.info(f"Using file_id as path: {full_path}")
+                if os.path.exists(full_path):
+                    directory = os.path.dirname(full_path)
+                    filename = os.path.basename(full_path)
+                else:
+                    logger.warning(f"Path constructed from file_id doesn't exist: {full_path}")
+                    return jsonify({'error': 'فایل در سرور وجود ندارد'}), 404
             
-        logger.info(f"Serving file from directory: {directory}, filename: {filename}")
-        return send_from_directory(directory, filename)
+            logger.info(f"Serving file from directory: {directory}, filename: {filename}")
+            return send_from_directory(directory, filename)
+        except Exception as e:
+            logger.error(f"Error processing media record {media.id}: {str(e)}")
+            return jsonify({'error': f"Error processing media: {str(e)}"}), 500
     except Exception as e:
+        logger.error(f"Unhandled exception in telegram_file: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # ----- Additional Web Routes -----
