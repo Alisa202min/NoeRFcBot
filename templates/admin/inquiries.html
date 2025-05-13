@@ -68,9 +68,9 @@
                                     <td>{{ inquiry.name }}</td>
                                     <td>{{ inquiry.phone }}</td>
                                     <td>
-                                        {% if inquiry.product_id and inquiry.product_type == 'product' %}
+                                        {% if inquiry.product_id %}
                                             <span class="badge bg-primary">محصول</span>
-                                        {% elif inquiry.product_id and inquiry.product_type == 'service' %}
+                                        {% elif inquiry.service_id %}
                                             <span class="badge bg-success">خدمت</span>
                                         {% else %}
                                             <span class="badge bg-secondary">عمومی</span>
