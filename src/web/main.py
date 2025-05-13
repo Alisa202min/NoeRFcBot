@@ -189,8 +189,8 @@ def admin_index():
     """پنل مدیریت - داشبورد"""
     try:
         # آمار سیستم
-        product_count = Product.query.filter_by(product_type='product').count()
-        service_count = Product.query.filter_by(product_type='service').count()
+        product_count = Product.query.count()
+        service_count = Service.query.count()
         category_count = Category.query.count()
         inquiry_count = Inquiry.query.count()
         pending_count = Inquiry.query.filter_by(status='pending').count()
