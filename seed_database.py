@@ -308,7 +308,8 @@ def seed_database():
                     title=ec_data['title'],
                     content=ec_data['content'],
                     category=ec_data['category'],
-                    content_type=ec_data['content_type']
+                    content_type=ec_data['content_type'],
+                    type=ec_data['content_type']  # type is a duplicate of content_type for backward compatibility
                 )
                 db.session.add(ec)
                 logger.info(f"محتوای آموزشی '{ec_data['title']}' ایجاد شد")
