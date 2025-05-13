@@ -11,7 +11,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 
 from src.web.app import app, db, media_files
-from src.models.models import User, Category, Product, ProductMedia, Inquiry, EducationalContent, StaticContent
+from src.models.models import User, Category, Product, ProductMedia, Service, ServiceMedia, Inquiry, ServiceInquiry, EducationalContent, StaticContent
 from src.utils.utils import allowed_file, save_uploaded_file, create_directory
 from src.utils.utils_upload import handle_media_upload, remove_file, serve_file
 
@@ -1530,14 +1530,14 @@ def services():
     try:
         category_id = request.args.get('category', type=int)
         
-        # دریافت خدمات (در واقع محصولات با نوع service)
-        query = Product.query.filter_by(product_type='service')
+        # دریافت خدمات از جدول خدمات
+        query = Service.query
         if category_id:
             query = query.filter_by(category_id=category_id)
         services_list = query.all()
         
         # دریافت دسته‌بندی‌ها
-        categories = Category.query.filter_by(cat_type='service', parent_id=None).all()
+        categories = Category.query.filter(Category.services.any()).filter_by(parent_id=None).all()
         
         return render_template('services.html', 
                               services=services_list,
