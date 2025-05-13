@@ -399,7 +399,7 @@ def admin_products():
                     product.name = name
                     product.price = price
                     product.description = description
-                    product.category_id = category_id
+                    product.category_id = category_id # اکنون مطمئن هستیم که این مقدار NULL نیست
                     product.brand = brand
                     product.model = model
                     product.in_stock = in_stock
@@ -416,7 +416,7 @@ def admin_products():
                         name=name,
                         price=price,
                         description=description,
-                        category_id=category_id,
+                        category_id=category_id,  # اکنون مطمئن هستیم که این مقدار NULL نیست
                         product_type='product',
                         brand=brand,
                         model=model,
