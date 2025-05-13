@@ -305,8 +305,43 @@ def admin_products():
     
     # عملیات POST
     if request.method == 'POST':
+        # حذف محصول
+        if action == 'delete':
+            product_id = request.form.get('product_id')
+            if not product_id:
+                flash('شناسه محصول الزامی است.', 'danger')
+                return redirect(url_for('admin_products'))
+                
+            try:
+                product = Product.query.get_or_404(int(product_id))
+                
+                # حذف تمام رسانه‌های مرتبط با محصول و فایل‌ها از دیسک
+                media_files = ProductMedia.query.filter_by(product_id=product.id).all()
+                for media in media_files:
+                    # حذف فایل از دیسک اگر محلی باشد
+                    if media.file_id and not media.file_id.startswith('http'):
+                        file_path = os.path.join('static', media.file_id)
+                        if os.path.exists(file_path):
+                            try:
+                                os.remove(file_path)
+                                logger.info(f"Removed file from disk: {file_path}")
+                            except Exception as e:
+                                logger.warning(f"Could not remove file {file_path}: {e}")
+                
+                # حذف محصول از دیتابیس (رسانه‌ها به دلیل CASCADE خودکار حذف می‌شوند)
+                db.session.delete(product)
+                db.session.commit()
+                
+                flash(f'محصول "{product.name}" با موفقیت حذف شد.', 'success')
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Error deleting product: {e}")
+                flash(f'خطا در حذف محصول: {str(e)}', 'danger')
+                
+            return redirect(url_for('admin_products'))
+            
         # آپلود رسانه جدید
-        if action == 'upload_media':
+        elif action == 'upload_media':
             product_id = request.form.get('product_id')
             if not product_id:
                 flash('شناسه محصول الزامی است.', 'danger')
@@ -574,6 +609,18 @@ def admin_products():
                           categories=categories)
 
 # روت‌های مربوط به خدمات
+@app.route('/service/<int:service_id>')
+def service_detail(service_id):
+    """صفحه جزئیات خدمت"""
+    service = Product.query.filter_by(id=service_id, product_type='service').first_or_404()
+    related_services = Product.query.filter_by(category_id=service.category_id, product_type='service').filter(Product.id != service.id).limit(4).all()
+    media = ProductMedia.query.filter_by(product_id=service.id).all()
+    
+    return render_template('service_detail.html', 
+                          service=service, 
+                          related_services=related_services,
+                          media=media)
+
 @app.route('/admin/services', methods=['GET', 'POST'])
 @login_required
 def admin_services():
@@ -583,8 +630,43 @@ def admin_services():
     
     # عملیات POST
     if request.method == 'POST':
+        # حذف خدمت
+        if action == 'delete':
+            service_id = request.form.get('service_id')
+            if not service_id:
+                flash('شناسه خدمت الزامی است.', 'danger')
+                return redirect(url_for('admin_services'))
+                
+            try:
+                service = Product.query.filter_by(id=int(service_id), product_type='service').first_or_404()
+                
+                # حذف تمام رسانه‌های مرتبط با خدمت و فایل‌ها از دیسک
+                media_files = ProductMedia.query.filter_by(product_id=service.id).all()
+                for media in media_files:
+                    # حذف فایل از دیسک اگر محلی باشد
+                    if media.file_id and not media.file_id.startswith('http'):
+                        file_path = os.path.join('static', media.file_id)
+                        if os.path.exists(file_path):
+                            try:
+                                os.remove(file_path)
+                                logger.info(f"Removed file from disk: {file_path}")
+                            except Exception as e:
+                                logger.warning(f"Could not remove file {file_path}: {e}")
+                
+                # حذف خدمت از دیتابیس (رسانه‌ها به دلیل CASCADE خودکار حذف می‌شوند)
+                db.session.delete(service)
+                db.session.commit()
+                
+                flash(f'خدمت "{service.name}" با موفقیت حذف شد.', 'success')
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Error deleting service: {e}")
+                flash(f'خطا در حذف خدمت: {str(e)}', 'danger')
+                
+            return redirect(url_for('admin_services'))
+            
         # ذخیره خدمت جدید یا ویرایش خدمت موجود
-        if action == 'save':
+        elif action == 'save':
             # دریافت داده‌های فرم
             service_id = request.form.get('id')
             name = request.form.get('name')
