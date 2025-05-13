@@ -184,7 +184,7 @@ class Product(db.Model):
 
 
 class ProductMedia(db.Model):
-    """Media files (photos/videos) for products and services"""
+    """Media files (photos/videos) for products"""
     __tablename__ = 'product_media'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -198,8 +198,129 @@ class ProductMedia(db.Model):
         return f'<ProductMedia {self.id} - {self.file_type}>'
 
 
+class Service(db.Model):
+    """Service model"""
+    __tablename__ = 'services'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    price = db.Column(db.Integer, nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    photo_url = db.Column(db.String(255), nullable=True)
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # Additional fields for search/filtering
+    tags = db.Column(db.String(255), nullable=True)  # Comma-separated tags
+    # Service-specific fields
+    provider = db.Column(db.String(100), nullable=True)
+    service_code = db.Column(db.String(100), nullable=True)
+    duration = db.Column(db.String(100), nullable=True)
+    # Common fields
+    available = db.Column(db.Boolean, default=True)
+    featured = db.Column(db.Boolean, default=False)
+    
+    # Relationships
+    category = db.relationship('Category', backref='services')
+    media_files = db.relationship('ServiceMedia', backref='service', lazy=True, cascade="all, delete-orphan")
+    inquiries = db.relationship('ServiceInquiry', backref='service', lazy=True)
+    
+    def __repr__(self):
+        return f'<Service {self.name}>'
+        
+    @classmethod
+    def search(cls, query, category_id=None, min_price=None, max_price=None, 
+               tags=None, provider=None, service_code=None, duration=None,
+               available=None, featured=None):
+        """
+        Advanced search method for services
+        
+        Args:
+            query (str): Search text for name and description
+            category_id (int): Category ID to filter by
+            min_price (int): Minimum price
+            max_price (int): Maximum price
+            tags (str): Comma-separated tags to search for
+            provider (str): Service provider to filter by
+            service_code (str): Service code to filter by
+            duration (str): Duration to filter by
+            available (bool): Filter by availability status
+            featured (bool): Filter by featured status
+            
+        Returns:
+            Query object with filters applied
+        """
+        search_query = cls.query
+        
+        # Text search in name and description
+        if query:
+            search_terms = "%" + query.lower() + "%"
+            search_conditions = [
+                db.func.lower(cls.name).like(search_terms),
+                db.func.lower(cls.description).like(search_terms)
+            ]
+            
+            # Include tags and service-specific fields in search
+            if cls.tags is not None:
+                search_conditions.append(db.func.lower(cls.tags).like(search_terms))
+            if cls.provider is not None:
+                search_conditions.append(db.func.lower(cls.provider).like(search_terms))
+            if cls.service_code is not None:
+                search_conditions.append(db.func.lower(cls.service_code).like(search_terms))
+                
+            search_query = search_query.filter(db.or_(*search_conditions))
+        
+        # Filter by category
+        if category_id:
+            search_query = search_query.filter(cls.category_id == category_id)
+        
+        # Price range filters
+        if min_price is not None:
+            search_query = search_query.filter(cls.price >= min_price)
+        if max_price is not None:
+            search_query = search_query.filter(cls.price <= max_price)
+        
+        # Tag filtering
+        if tags:
+            # For each tag, check if it exists in the comma-separated tags field
+            for tag in tags.split(','):
+                search_query = search_query.filter(cls.tags.like(f"%{tag.strip()}%"))
+        
+        # Service-specific filters
+        if provider:
+            search_query = search_query.filter(cls.provider == provider)
+        if service_code:
+            search_query = search_query.filter(cls.service_code == service_code)
+        if duration:
+            search_query = search_query.filter(cls.duration == duration)
+        
+        # Availability status
+        if available is not None:
+            search_query = search_query.filter(cls.available == available)
+        
+        # Featured status
+        if featured is not None:
+            search_query = search_query.filter(cls.featured == featured)
+        
+        return search_query
+
+
+class ServiceMedia(db.Model):
+    """Media files (photos/videos) for services"""
+    __tablename__ = 'service_media'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    service_id = db.Column(db.Integer, db.ForeignKey('services.id'), nullable=False)
+    file_id = db.Column(db.String(255), nullable=False)  # Telegram file_id
+    file_type = db.Column(db.String(10), nullable=False)  # 'photo' or 'video'
+    local_path = db.Column(db.String(255), nullable=True)  # Path to local file if saved
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<ServiceMedia {self.id} - {self.file_type}>'
+
+
 class Inquiry(db.Model):
-    """Customer price inquiries"""
+    """Customer price inquiries for products"""
     __tablename__ = 'inquiries'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -214,6 +335,24 @@ class Inquiry(db.Model):
     
     def __repr__(self):
         return f'<Inquiry {self.id} - {self.name}>'
+
+
+class ServiceInquiry(db.Model):
+    """Customer price inquiries for services"""
+    __tablename__ = 'service_inquiries'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.BigInteger, nullable=False)  # Telegram user_id
+    name = db.Column(db.String(100), nullable=False)
+    phone = db.Column(db.String(20), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    service_id = db.Column(db.Integer, db.ForeignKey('services.id'), nullable=True)
+    date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)  # Required in database
+    status = db.Column(db.String(20), nullable=False, default='new')  # 'new', 'in_progress', 'completed'
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<ServiceInquiry {self.id} - {self.name}>'
 
 
 class EducationalContent(db.Model):
