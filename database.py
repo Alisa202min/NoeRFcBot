@@ -250,9 +250,9 @@ class Database:
         with self.conn.cursor() as cursor:
             cursor.execute(
                 '''INSERT INTO products 
-                   (name, price, description, photo_url, category_id, brand, model, in_stock, tags, featured, product_type) 
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id''',
-                (name, price, description, photo_url, category_id, brand, model, in_stock, tags, featured, 'product')
+                   (name, price, description, photo_url, category_id, brand, model, in_stock, tags, featured) 
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id''',
+                (name, price, description, photo_url, category_id, brand, model, in_stock, tags, featured)
             )
             product_id = cursor.fetchone()[0]
             return product_id
@@ -260,13 +260,13 @@ class Database:
     def add_service(self, name: str, price: int, description: str, 
                    category_id: int, photo_url: Optional[str] = None, 
                    featured: bool = False, tags: str = '') -> int:
-        """Add a new service - now all stored in products table with cat_type determining the type"""
+        """Add a new service to the services table"""
         with self.conn.cursor() as cursor:
             cursor.execute(
-                '''INSERT INTO products 
-                   (name, price, description, photo_url, category_id, featured, tags, product_type) 
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id''',
-                (name, price, description, photo_url, category_id, featured, tags, 'service')
+                '''INSERT INTO services 
+                   (name, price, description, photo_url, category_id, featured, tags) 
+                   VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id''',
+                (name, price, description, photo_url, category_id, featured, tags)
             )
             service_id = cursor.fetchone()[0]
             return service_id
@@ -278,7 +278,7 @@ class Database:
                 'SELECT id, name, price, description, photo_url, category_id FROM products WHERE id = %s',
                 (product_id,)
             )
-            return cursor.fetchone() or None or None
+            return cursor.fetchone() or None
             
     def get_product_media(self, product_id: int) -> List[Dict]:
         """Get all media files for a product
