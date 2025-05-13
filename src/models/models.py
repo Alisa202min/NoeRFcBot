@@ -163,12 +163,15 @@ class Inquiry(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    product_id = db.Column(db.Integer, nullable=True)  # May reference products.id or services.id depending on product_type
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=True)
+    service_id = db.Column(db.Integer, db.ForeignKey('services.id'), nullable=True)
     name = db.Column(db.String(64), nullable=False)
     phone = db.Column(db.String(15), nullable=False)
     description = db.Column(db.Text)
-    product_type = db.Column(db.String(10), default='product')  # 'product' or 'service'
     status = db.Column(db.String(20), default='pending')  # pending, responded, completed
+    
+    # Legacy field maintained for backward compatibility
+    product_type = db.Column(db.String(10), default='product')  # 'product' or 'service'
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -176,9 +179,16 @@ class Inquiry(db.Model):
     
     # Relationships
     user = db.relationship('User', backref='inquiries')
+    related_product = db.relationship('Product', foreign_keys=[product_id])
+    related_service = db.relationship('Service', foreign_keys=[service_id])
     
     def __repr__(self):
-        return f'<Inquiry {self.id} from {self.name}>'
+        if self.product_id:
+            return f'<ProductInquiry {self.id} - {self.name}>'
+        elif self.service_id:
+            return f'<ServiceInquiry {self.id} - {self.name}>'
+        else:
+            return f'<Inquiry {self.id} from {self.name}>'
 
 
 class EducationalContent(db.Model):
