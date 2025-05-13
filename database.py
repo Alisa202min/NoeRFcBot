@@ -789,31 +789,136 @@ class Database:
             return cursor.fetchone() or None
 
     def get_educational_content(self, content_id: int) -> Optional[Dict]:
-        """Get educational content by ID"""
+        """Get educational content by ID with media files"""
         with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            # Get main content data
             cursor.execute(
-                'SELECT id, title, content, category, content_type FROM educational_content WHERE id = %s',
+                '''SELECT ec.id, ec.title, ec.content, ec.category, ec.content_type, ec.type, 
+                   ec.category_id, cat.name as category_name
+                   FROM educational_content ec
+                   LEFT JOIN educational_categories cat ON ec.category_id = cat.id
+                   WHERE ec.id = %s''',
                 (content_id,)
             )
-            return cursor.fetchone() or None
+            content = cursor.fetchone()
+            
+            if not content:
+                return None
+                
+            # Get media files
+            cursor.execute(
+                '''SELECT id, file_id, file_type 
+                   FROM educational_content_media 
+                   WHERE educational_content_id = %s 
+                   ORDER BY file_type, id''',
+                (content_id,)
+            )
+            media_files = cursor.fetchall()
+            
+            # Add media files to content
+            content['media'] = media_files
+            
+            return content
 
-    def get_all_educational_content(self, category: Optional[str] = None) -> List[Dict]:
-        """Get all educational content with optional category filter"""
-        query = 'SELECT id, title, content, category, content_type FROM educational_content'
+    def get_all_educational_content(self, category: Optional[str] = None, category_id: Optional[int] = None) -> List[Dict]:
+        """
+        Get all educational content with optional category filter
+        
+        Args:
+            category (str, optional): Filter by legacy category field
+            category_id (int, optional): Filter by new category_id field
+            
+        Returns:
+            List of educational content with media count
+        """
+        query = '''
+            SELECT ec.id, ec.title, ec.content, ec.category, ec.content_type, ec.type,
+                   ec.category_id, cat.name as category_name,
+                   (SELECT COUNT(*) FROM educational_content_media WHERE educational_content_id = ec.id) as media_count
+            FROM educational_content ec
+            LEFT JOIN educational_categories cat ON ec.category_id = cat.id
+        '''
+        
         params = []
+        where_clauses = []
 
         if category:
-            query += ' WHERE category = %s'
+            where_clauses.append('ec.category = %s')
             params.append(category)
+            
+        if category_id:
+            where_clauses.append('ec.category_id = %s')
+            params.append(category_id)
+            
+        if where_clauses:
+            query += ' WHERE ' + ' AND '.join(where_clauses)
 
-        query += ' ORDER BY category, title'
+        query += ' ORDER BY ec.category, ec.title'
 
         with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
             cursor.execute(query, params)
-            return cursor.fetchall()
+            contents = cursor.fetchall()
+            
+            # Optional: For each content item that has media, we could fetch the actual media files
+            # This is commented out as it might be too much data to fetch at once
+            # for content in contents:
+            #     if content['media_count'] > 0:
+            #         cursor.execute(
+            #             'SELECT id, file_id, file_type FROM educational_content_media WHERE educational_content_id = %s ORDER BY file_type, id',
+            #             (content['id'],)
+            #         )
+            #         content['media'] = cursor.fetchall()
+            #     else:
+            #         content['media'] = []
+                    
+            return contents
 
-    def get_educational_categories(self) -> List[str]:
-        """Get all unique educational content categories"""
+    def get_educational_categories(self) -> List[Dict]:
+        """
+        Get all educational categories with hierarchical structure
+        
+        Returns:
+            List of category objects with id, name, parent_id
+        """
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            # Get all categories with their parent_id
+            cursor.execute('''
+                SELECT c.id, c.name, c.parent_id, p.name as parent_name,
+                       (SELECT COUNT(*) FROM educational_content WHERE category_id = c.id) as content_count,
+                       (SELECT COUNT(*) FROM educational_categories WHERE parent_id = c.id) as children_count
+                FROM educational_categories c
+                LEFT JOIN educational_categories p ON c.parent_id = p.id
+                ORDER BY c.parent_id NULLS FIRST, c.name
+            ''')
+            return cursor.fetchall()
+            
+    def get_educational_category_by_id(self, category_id: int) -> Optional[Dict]:
+        """Get educational category by ID"""
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute('''
+                SELECT c.id, c.name, c.parent_id, p.name as parent_name,
+                       (SELECT COUNT(*) FROM educational_content WHERE category_id = c.id) as content_count
+                FROM educational_categories c
+                LEFT JOIN educational_categories p ON c.parent_id = p.id
+                WHERE c.id = %s
+            ''', (category_id,))
+            return cursor.fetchone()
+            
+    def get_educational_subcategories(self, parent_id: int) -> List[Dict]:
+        """Get subcategories for a parent category"""
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute('''
+                SELECT c.id, c.name, c.parent_id,
+                       (SELECT COUNT(*) FROM educational_content WHERE category_id = c.id) as content_count,
+                       (SELECT COUNT(*) FROM educational_categories WHERE parent_id = c.id) as children_count
+                FROM educational_categories c
+                WHERE c.parent_id = %s
+                ORDER BY c.name
+            ''', (parent_id,))
+            return cursor.fetchall()
+            
+    def get_legacy_educational_categories(self) -> List[str]:
+        """Get all unique educational content categories from legacy category field"""
         with self.conn.cursor() as cursor:
             cursor.execute(
                 'SELECT DISTINCT category FROM educational_content ORDER BY category'
@@ -821,36 +926,111 @@ class Database:
             rows = cursor.fetchall()
             return [row[0] for row in rows]
 
-    def add_educational_content(self, title: str, content: str, category: str, content_type: str) -> int:
-        """Add new educational content"""
+    def add_educational_content(self, title: str, content: str, category: str, content_type: str, 
+                                category_id: Optional[int] = None, media_files: Optional[List[Dict]] = None) -> int:
+        """
+        Add new educational content with optional category_id and media files
+        
+        Args:
+            title: Content title
+            content: Content body text
+            category: Legacy category field (for backwards compatibility)
+            content_type: Content type (article, tutorial, etc.)
+            category_id: New hierarchical category ID (optional)
+            media_files: List of media files in format [{'file_id': '...', 'file_type': 'photo'}, ...] (optional)
+            
+        Returns:
+            ID of the newly created content
+        """
         with self.conn.cursor() as cursor:
+            # Insert main content record
             cursor.execute(
-                'INSERT INTO educational_content (title, content, category, content_type, type) VALUES (%s, %s, %s, %s, %s) RETURNING id',
-                (title, content, category, content_type, content_type)
+                '''INSERT INTO educational_content 
+                   (title, content, category, content_type, type, category_id) 
+                   VALUES (%s, %s, %s, %s, %s, %s) RETURNING id''',
+                (title, content, category, content_type, content_type, category_id)
             )
             content_id = cursor.fetchone()[0]
+            
+            # If media files provided, insert them
+            if media_files:
+                for media in media_files:
+                    file_id = media.get('file_id')
+                    file_type = media.get('file_type', 'photo')
+                    
+                    if file_id:
+                        cursor.execute(
+                            '''INSERT INTO educational_content_media 
+                               (educational_content_id, file_id, file_type) 
+                               VALUES (%s, %s, %s)''',
+                            (content_id, file_id, file_type)
+                        )
+            
             return content_id
 
     def update_educational_content(self, content_id: int, title: Optional[str] = None, 
                                  content: Optional[str] = None, category: Optional[str] = None, 
-                                 content_type: Optional[str] = None) -> bool:
-        """Update educational content"""
+                                 content_type: Optional[str] = None, category_id: Optional[int] = None,
+                                 media_files: Optional[List[Dict]] = None, 
+                                 replace_media: bool = False) -> bool:
+        """
+        Update educational content with optional media management
+        
+        Args:
+            content_id: ID of content to update
+            title: New title (optional)
+            content: New content body (optional)
+            category: New legacy category (optional)
+            content_type: New content type (optional)
+            category_id: New category ID in hierarchical structure (optional)
+            media_files: List of media files to add (optional)
+            replace_media: If True, will delete existing media files before adding new ones
+            
+        Returns:
+            True if update was successful, False otherwise
+        """
         edu_content = self.get_educational_content(content_id)
         if not edu_content:
             return False
 
+        # Prepare values for fields that may be updated
         new_title = title if title is not None else edu_content['title']
         new_content = content if content is not None else edu_content['content']
         new_category = category if category is not None else edu_content['category']
         new_type = content_type if content_type is not None else edu_content['content_type']
+        # We don't update category_id if it's None to avoid overwriting existing value
+        new_category_id = category_id if category_id is not None else edu_content.get('category_id')
 
         with self.conn.cursor() as cursor:
+            # Update main content record
             cursor.execute(
                 '''UPDATE educational_content 
-                   SET title = %s, content = %s, category = %s, content_type = %s, type = %s 
+                   SET title = %s, content = %s, category = %s, content_type = %s, type = %s, category_id = %s
                    WHERE id = %s''',
-                (new_title, new_content, new_category, new_type, new_type, content_id)
+                (new_title, new_content, new_category, new_type, new_type, new_category_id, content_id)
             )
+            
+            # Media management
+            if replace_media and media_files:
+                # Delete existing media
+                cursor.execute(
+                    'DELETE FROM educational_content_media WHERE educational_content_id = %s',
+                    (content_id,)
+                )
+            
+            # Add new media files if provided
+            if media_files:
+                for media in media_files:
+                    file_id = media.get('file_id')
+                    file_type = media.get('file_type', 'photo')
+                    
+                    if file_id:
+                        cursor.execute(
+                            '''INSERT INTO educational_content_media 
+                               (educational_content_id, file_id, file_type) 
+                               VALUES (%s, %s, %s)''',
+                            (content_id, file_id, file_type)
+                        )
             return cursor.rowcount > 0
 
     def delete_educational_content(self, content_id: int) -> bool:
