@@ -113,15 +113,16 @@
                         <div class="col-md-3 mb-4">
                             <div class="card h-100">
                                 {% if item.file_type == 'photo' %}
-                                <img src="/static/{{ item.file_id }}" class="card-img-top service-img-preview" alt="تصویر خدمت">
+                                <img src="{{ url_for('static', filename=item.file_id) }}" class="card-img-top service-img-preview" alt="تصویر خدمت" onerror="console.error('Error loading image:', this.src);">
                                 {% elif item.file_type == 'video' %}
                                 <div class="ratio ratio-16x9">
                                     <video controls>
-                                        <source src="/static/{{ item.file_id }}" type="video/mp4">
+                                        <source src="{{ url_for('static', filename=item.file_id) }}" type="video/mp4">
                                         مرورگر شما از پخش ویدیو پشتیبانی نمی‌کند.
                                     </video>
                                 </div>
                                 {% endif %}
+                                <script>console.log("File ID: {{ item.file_id }}");</script>
                                 <div class="card-body">
                                     <p class="card-text">
                                         <small class="text-muted">نوع: {{ item.file_type }}</small><br>
