@@ -706,14 +706,14 @@ class Database:
         """Get educational content by ID"""
         with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
             cursor.execute(
-                'SELECT id, title, content, category, type FROM educational_content WHERE id = %s',
+                'SELECT id, title, content, category, content_type FROM educational_content WHERE id = %s',
                 (content_id,)
             )
-            return cursor.fetchone() or None or None
+            return cursor.fetchone() or None
 
     def get_all_educational_content(self, category: Optional[str] = None) -> List[Dict]:
         """Get all educational content with optional category filter"""
-        query = 'SELECT id, title, content, category, type FROM educational_content'
+        query = 'SELECT id, title, content, category, content_type FROM educational_content'
         params = []
 
         if category:
