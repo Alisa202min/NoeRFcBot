@@ -54,7 +54,7 @@
                             </thead>
                             <tbody>
                                 {% for product in products %}
-                                <tr>
+                                <tr class="product-row" data-product-url="{{ url_for('product_detail', product_id=product.id) }}" style="cursor: pointer;">
                                     <td>{{ product.id }}</td>
                                     <td>
                                         {% if product.photo_url %}
@@ -127,4 +127,20 @@
         </div>
     </div>
 </div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // فعال‌سازی کلیک بر روی سطر محصول
+        document.querySelectorAll('.product-row').forEach(function(row) {
+            row.addEventListener('click', function(e) {
+                // بررسی می‌کنیم که کلیک روی دکمه‌ها یا لینک‌ها نباشد
+                if (!e.target.closest('a') && !e.target.closest('button') && !e.target.closest('form')) {
+                    window.open(this.dataset.productUrl, '_blank');
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}
 {% endblock %}

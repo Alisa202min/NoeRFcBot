@@ -7,9 +7,37 @@
 <div class="container mt-4">
     <h1 class="mb-4">محصولات</h1>
     
+    <!-- نوار دسته‌بندی برای نمایش در موبایل -->
+    <div class="d-md-none mb-3">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">دسته‌بندی‌ها</h5>
+                <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#mobileCategoryCollapse" aria-expanded="false" aria-controls="mobileCategoryCollapse">
+                    <i class="bi bi-list"></i>
+                </button>
+            </div>
+            <div class="collapse" id="mobileCategoryCollapse">
+                <div class="card-body">
+                    <div class="list-group">
+                        <a href="{{ url_for('products') }}" class="list-group-item list-group-item-action {% if not selected_category %}active{% endif %}">
+                            همه محصولات
+                        </a>
+                        
+                        {% for category in categories %}
+                        <a href="{{ url_for('products', category=category.id) }}" class="list-group-item list-group-item-action {% if selected_category == category.id %}active{% endif %}">
+                            {{ category.name }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card">
+        <!-- دسته‌بندی برای دسکتاپ -->
+        <div class="col-md-3 d-none d-md-block">
+            <div class="card sticky-top" style="top: 1rem; z-index: 999;">
                 <div class="card-header bg-primary text-white">
                     دسته‌بندی‌ها
                 </div>
@@ -33,12 +61,12 @@
             <div class="row">
                 {% if products %}
                     {% for product in products %}
-                    <div class="col-md-4 mb-4">
-                        <div class="card h-100">
+                    <div class="col-lg-4 col-md-6 col-sm-6 mb-4">
+                        <div class="card h-100 product-card" onclick="window.location.href='{{ url_for('product_detail', product_id=product.id) }}';" style="cursor: pointer;">
                             {% if product.photo_url %}
-                            <img src="{{ product.photo_url }}" class="card-img-top product-img" alt="{{ product.name }}">
+                            <img src="{{ product.photo_url }}" class="card-img-top product-img" alt="{{ product.name }}" style="height: 200px; object-fit: cover;">
                             {% else %}
-                            <div class="card-img-top product-img bg-light text-center">
+                            <div class="card-img-top product-img bg-light text-center" style="height: 200px;">
                                 <i class="bi bi-image" style="font-size: 4rem; line-height: 200px;"></i>
                             </div>
                             {% endif %}
@@ -46,18 +74,27 @@
                             <div class="card-body">
                                 <h5 class="card-title">{{ product.name }}</h5>
                                 <p class="card-text text-muted small">{{ product.description|truncate(100) }}</p>
-                                <p class="card-text">
-                                    <span class="badge bg-primary">{{ "{:,}".format(product.price) }} تومان</span>
+                                <p class="card-text mb-0">
+                                    <span class="badge bg-primary fs-6">{{ "{:,}".format(product.price) }} تومان</span>
+                                </p>
+                                <p class="card-text mt-2">
                                     {% if product.in_stock %}
                                     <span class="badge bg-success">موجود</span>
                                     {% else %}
                                     <span class="badge bg-danger">ناموجود</span>
                                     {% endif %}
+                                    
+                                    {% if product.featured %}
+                                    <span class="badge bg-warning text-dark">ویژه</span>
+                                    {% endif %}
                                 </p>
                             </div>
-                            <div class="card-footer">
-                                <button class="btn btn-sm btn-primary inquiry-btn" data-product-id="{{ product.id }}" data-product-name="{{ product.name }}">
-                                    <i class="bi bi-chat-dots"></i> استعلام قیمت
+                            <div class="card-footer d-flex justify-content-between">
+                                <a href="{{ url_for('product_detail', product_id=product.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i> مشاهده جزئیات
+                                </a>
+                                <button class="btn btn-sm btn-primary inquiry-btn" data-product-id="{{ product.id }}" data-product-name="{{ product.name }}" onclick="event.stopPropagation();">
+                                    <i class="bi bi-chat-dots"></i> استعلام
                                 </button>
                             </div>
                         </div>
