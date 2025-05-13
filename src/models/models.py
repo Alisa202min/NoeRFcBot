@@ -162,33 +162,45 @@ class Inquiry(db.Model):
     __tablename__ = 'inquiries'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    user_id = db.Column(db.BigInteger, nullable=False)  # Telegram user_id
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=True)
-    service_id = db.Column(db.Integer, db.ForeignKey('services.id'), nullable=True)
-    name = db.Column(db.String(64), nullable=False)
-    phone = db.Column(db.String(15), nullable=False)
-    description = db.Column(db.Text)
-    status = db.Column(db.String(20), default='pending')  # pending, responded, completed
+    name = db.Column(db.String(100), nullable=False)
+    phone = db.Column(db.String(20), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(20), nullable=False, default='new')  # 'new', 'in_progress', 'completed'
     
-    # Legacy field maintained for backward compatibility
-    product_type = db.Column(db.String(10), default='product')  # 'product' or 'service'
+    # The product_type field indicates whether product_id refers to a product or service
+    product_type = db.Column(db.Text, nullable=True)  # 'product' or 'service'
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationships
-    user = db.relationship('User', backref='inquiries')
-    related_product = db.relationship('Product', foreign_keys=[product_id])
-    related_service = db.relationship('Service', foreign_keys=[service_id])
+    # Relationship
+    product = db.relationship('Product', foreign_keys=[product_id], backref='product_inquiries')
     
     def __repr__(self):
-        if self.product_id:
+        if self.product_type == 'product':
             return f'<ProductInquiry {self.id} - {self.name}>'
-        elif self.service_id:
+        elif self.product_type == 'service':
             return f'<ServiceInquiry {self.id} - {self.name}>'
         else:
             return f'<Inquiry {self.id} from {self.name}>'
+            
+    @property
+    def related_product(self):
+        """For backward compatibility"""
+        if self.product_type == 'product':
+            return self.product
+        return None
+        
+    @property
+    def related_service(self):
+        """For backward compatibility"""
+        if self.product_type == 'service':
+            # In this case, product_id actually refers to a service id
+            return Service.query.get(self.product_id)
+        return None
 
 
 class EducationalContent(db.Model):
