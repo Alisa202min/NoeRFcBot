@@ -91,7 +91,6 @@ class Product(db.Model):
     
     # Relationships
     media = db.relationship('ProductMedia', backref='product', lazy='dynamic', cascade='all, delete-orphan')
-    inquiries = db.relationship('Inquiry', backref='product', lazy='dynamic')
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -155,15 +154,16 @@ class ServiceMedia(db.Model):
 
 
 class Inquiry(db.Model):
-    """Price inquiries from users for products"""
+    """Price inquiries from users for products or services"""
     __tablename__ = 'inquiries'
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=True)
+    product_id = db.Column(db.Integer, nullable=True)  # May reference products.id or services.id depending on product_type
     name = db.Column(db.String(64), nullable=False)
     phone = db.Column(db.String(15), nullable=False)
     description = db.Column(db.Text)
+    product_type = db.Column(db.String(10), default='product')  # 'product' or 'service'
     status = db.Column(db.String(20), default='pending')  # pending, responded, completed
     
     # Timestamps
@@ -175,30 +175,6 @@ class Inquiry(db.Model):
     
     def __repr__(self):
         return f'<Inquiry {self.id} from {self.name}>'
-
-
-class ServiceInquiry(db.Model):
-    """Price inquiries from users for services"""
-    __tablename__ = 'service_inquiries'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    service_id = db.Column(db.Integer, db.ForeignKey('services.id'), nullable=True)
-    name = db.Column(db.String(64), nullable=False)
-    phone = db.Column(db.String(15), nullable=False)
-    description = db.Column(db.Text)
-    status = db.Column(db.String(20), default='pending')  # pending, responded, completed
-    
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    user = db.relationship('User', backref='service_inquiries')
-    service = db.relationship('Service', backref='inquiries')
-    
-    def __repr__(self):
-        return f'<ServiceInquiry {self.id} from {self.name}>'
 
 
 class EducationalContent(db.Model):

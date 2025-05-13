@@ -23,9 +23,9 @@ logger = logging.getLogger(__name__)
 def index():
     """صفحه اصلی"""
     try:
-        # محصولات و خدمات حالا از جداول جداگانه دریافت می‌شوند
-        products = Product.query.filter_by(featured=True).limit(6).all()
-        services = Service.query.filter_by(featured=True).limit(6).all()
+        # محصولات و خدمات در جدول products ذخیره می‌شوند
+        products = Product.query.filter_by(product_type='product', featured=True).limit(6).all()
+        services = Product.query.filter_by(product_type='service').limit(6).all()
         
         # برای اطمینان، اگر محتوا وجود نداشت از یک لیست خالی استفاده می‌کنیم
         if not products:
@@ -40,24 +40,42 @@ def index():
         except Exception as e:
             logger.warning(f"Error loading educational content: {e}")
             educational = []
-            
-        # دریافت محتوای ثابت (درباره ما)
+        
+        # دریافت محتوای استاتیک
         try:
             about_content = StaticContent.query.filter_by(content_type='about').first()
-            if about_content:
-                about = about_content.content
-            else:
-                about = "محتوای درباره ما وجود ندارد"
+            about_text = about_content.content if about_content else ''
         except Exception as e:
             logger.warning(f"Error loading about content: {e}")
-            about = "خطا در بارگذاری محتوای درباره ما"
+            about_text = ''
+        
+        # بررسی وضعیت ربات
+        import subprocess
+        import os
+        import datetime
+        
+        try:
+            # بررسی وضعیت ربات با پیدا کردن پروسس مربوطه
+            result = subprocess.run(['pgrep', '-f', 'python bot.py'], 
+                            capture_output=True, text=True)
+            bot_status = 'running' if result.stdout.strip() else 'stopped'
             
-        return render_template('index.html', products=products, services=services, 
-                            educational=educational, about=about)
-    except Exception as e:
-        logger.error(f"Error in index route: {e}")
-        return render_template('index.html', products=[], services=[], 
-                            educational=[], about="خطا در بارگذاری محتوا")
+            # بررسی وضعیت متغیرهای محیطی
+            env_status = all([
+                os.environ.get('BOT_TOKEN'),
+                os.environ.get('DATABASE_URL')
+            ])
+        except Exception as e:
+            logger.warning(f"Error checking bot status: {e}")
+            bot_status = 'unknown'
+            env_status = False
+        
+        # بررسی تاریخ آخرین اجرا (اگر فایل لاگ وجود داشته باشد)
+        try:
+            last_run = datetime.datetime.now()
+        except Exception as e:
+            logger.warning(f"Error getting last run time: {e}")
+            last_run = None
         
         # آماده‌سازی لاگ‌های اولیه برای نمایش
         try:
