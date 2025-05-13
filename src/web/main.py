@@ -25,7 +25,7 @@ def index():
     try:
         # محصولات و خدمات حالا از جداول جداگانه دریافت می‌شوند
         products = Product.query.filter_by(featured=True).limit(6).all()
-        services = Service.query.filter_by(featured=True).limit(6).all()
+        services = Service.query.filter_by(available=True).limit(6).all()
         
         # برای اطمینان، اگر محتوا وجود نداشت از یک لیست خالی استفاده می‌کنیم
         if not products:
@@ -51,13 +51,26 @@ def index():
         except Exception as e:
             logger.warning(f"Error loading about content: {e}")
             about = "خطا در بارگذاری محتوای درباره ما"
+        
+        # برای نمایش وضعیت متغیرهای محیطی
+        env_status = {
+            'BOT_TOKEN': 'Set' if os.environ.get('BOT_TOKEN') else 'Not Set',
+            'DATABASE_URL': 'Set' if os.environ.get('DATABASE_URL') else 'Not Set',
+            'ADMIN_ID': 'Set' if os.environ.get('ADMIN_ID') else 'Not Set'
+        }
             
         return render_template('index.html', products=products, services=services, 
-                            educational=educational, about=about)
+                            educational=educational, about=about, env_status=env_status)
     except Exception as e:
         logger.error(f"Error in index route: {e}")
+        # برای نمایش وضعیت متغیرهای محیطی
+        env_status = {
+            'BOT_TOKEN': 'Set' if os.environ.get('BOT_TOKEN') else 'Not Set',
+            'DATABASE_URL': 'Set' if os.environ.get('DATABASE_URL') else 'Not Set',
+            'ADMIN_ID': 'Set' if os.environ.get('ADMIN_ID') else 'Not Set'
+        }
         return render_template('index.html', products=[], services=[], 
-                            educational=[], about="خطا در بارگذاری محتوا")
+                            educational=[], about="خطا در بارگذاری محتوا", env_status=env_status)
         
         # آماده‌سازی لاگ‌های اولیه برای نمایش
         try:
