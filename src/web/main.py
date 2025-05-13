@@ -1333,7 +1333,7 @@ def api_services():
         featured = request.args.get('featured', type=bool)
         
         # فیلتر بر اساس پارامترهای ورودی
-        query = Product.query.filter_by(product_type='service')
+        query = Service.query
         
         if category_id:
             query = query.filter_by(category_id=category_id)
