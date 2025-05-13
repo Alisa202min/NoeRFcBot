@@ -407,17 +407,28 @@ class Database:
             return []
 
         with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            if cat_type:
-                cursor.execute(
-                    'SELECT id, name, price, description, photo_url, category_id FROM products WHERE category_id = %s AND product_type = %s ORDER BY name',
-                    (category_id, cat_type)
-                )
-            else:
+            if cat_type == 'product':
                 cursor.execute(
                     'SELECT id, name, price, description, photo_url, category_id FROM products WHERE category_id = %s ORDER BY name',
                     (category_id,)
                 )
-            return cursor.fetchall()
+                return cursor.fetchall()
+            elif cat_type == 'service':
+                cursor.execute(
+                    'SELECT id, name, price, description, photo_url, category_id FROM services WHERE category_id = %s ORDER BY name',
+                    (category_id,)
+                )
+                return cursor.fetchall()
+            else:
+                # If no specific type is requested, fetch both products and services
+                cursor.execute(
+                    'SELECT id, name, price, description, photo_url, category_id, \'product\' as item_type FROM products WHERE category_id = %s ' 
+                    'UNION ALL '
+                    'SELECT id, name, price, description, photo_url, category_id, \'service\' as item_type FROM services WHERE category_id = %s '
+                    'ORDER BY name',
+                    (category_id, category_id)
+                )
+                return cursor.fetchall()
 
     def search_products(self, query: str = None, cat_type: str = None, 
                     category_id: int = None, min_price: int = None, max_price: int = None,
