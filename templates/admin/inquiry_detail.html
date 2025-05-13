@@ -62,9 +62,9 @@
                                 <div class="col-md-6">
                                     <h6 class="fw-bold">نوع استعلام:</h6>
                                     <p>
-                                        {% if inquiry.product_type == 'product' %}
+                                        {% if inquiry.product_id %}
                                             <span class="badge bg-primary">محصول</span>
-                                        {% elif inquiry.product_type == 'service' %}
+                                        {% elif inquiry.service_id %}
                                             <span class="badge bg-success">خدمت</span>
                                         {% else %}
                                             <span class="badge bg-secondary">عمومی</span>

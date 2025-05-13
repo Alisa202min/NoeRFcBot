@@ -338,6 +338,13 @@ class Inquiry(db.Model):
     product = db.relationship('Product', foreign_keys=[product_id], backref='inquiries')
     service = db.relationship('Service', foreign_keys=[service_id], backref='inquiries')
     
+    __table_args__ = (
+        db.CheckConstraint('(product_id IS NOT NULL AND service_id IS NULL) OR '
+                          '(product_id IS NULL AND service_id IS NOT NULL) OR '
+                          '(product_id IS NULL AND service_id IS NULL)',
+                          name='product_or_service_check'),
+    )
+    
     def __repr__(self):
         if self.product_id:
             return f'<ProductInquiry {self.id} - {self.name}>'
@@ -345,6 +352,14 @@ class Inquiry(db.Model):
             return f'<ServiceInquiry {self.id} - {self.name}>'
         else:
             return f'<Inquiry {self.id} - {self.name}>'
+    
+    def is_product_inquiry(self):
+        """Check if this is a product inquiry"""
+        return self.product_id is not None and self.service_id is None
+    
+    def is_service_inquiry(self):
+        """Check if this is a service inquiry"""
+        return self.service_id is not None and self.product_id is None
             
     @property
     def related_product(self):
