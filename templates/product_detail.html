@@ -135,7 +135,7 @@
                 {% for related in related_products %}
                 <div class="col-md-3 mb-4">
                     <div class="card h-100 shadow-sm">
-                        {% set related_media = related.media.first() %}
+                        {% set related_media = related.media_files|first %}
                         {% if related_media %}
                             <img src="{{ url_for('telegram_file', file_id=related_media.file_id) }}" class="card-img-top" alt="{{ related.name }}" style="height: 180px; object-fit: cover;">
                         {% else %}
