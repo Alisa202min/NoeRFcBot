@@ -739,8 +739,8 @@ class Database:
         """Add new educational content"""
         with self.conn.cursor() as cursor:
             cursor.execute(
-                'INSERT INTO educational_content (title, content, category, type) VALUES (%s, %s, %s, %s) RETURNING id',
-                (title, content, category, content_type)
+                'INSERT INTO educational_content (title, content, category, content_type, type) VALUES (%s, %s, %s, %s, %s) RETURNING id',
+                (title, content, category, content_type, content_type)
             )
             content_id = cursor.fetchone()[0]
             return content_id
@@ -756,14 +756,14 @@ class Database:
         new_title = title if title is not None else edu_content['title']
         new_content = content if content is not None else edu_content['content']
         new_category = category if category is not None else edu_content['category']
-        new_type = content_type if content_type is not None else edu_content['type']
+        new_type = content_type if content_type is not None else edu_content['content_type']
 
         with self.conn.cursor() as cursor:
             cursor.execute(
                 '''UPDATE educational_content 
-                   SET title = %s, content = %s, category = %s, type = %s 
+                   SET title = %s, content = %s, category = %s, content_type = %s, type = %s 
                    WHERE id = %s''',
-                (new_title, new_content, new_category, new_type, content_id)
+                (new_title, new_content, new_category, new_type, new_type, content_id)
             )
             return cursor.rowcount > 0
 
