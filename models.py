@@ -99,7 +99,7 @@ class Product(db.Model):
     
     # Relationships
     media_files = db.relationship('ProductMedia', backref='product', lazy=True, cascade="all, delete-orphan")
-    inquiries = db.relationship('Inquiry', backref='product', lazy=True)
+    # inquiry relationship is now defined through the backref='product_inquiries' in Inquiry model
     
     def __repr__(self):
         return f'<Product {self.name}>'
@@ -328,22 +328,37 @@ class Inquiry(db.Model):
     phone = db.Column(db.String(20), nullable=False)
     description = db.Column(db.Text, nullable=True)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=True)
-    service_id = db.Column(db.Integer, db.ForeignKey('services.id'), nullable=True)
+    product_type = db.Column(db.Text, nullable=True)  # 'product' or 'service'
     date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)  # Required in database
     status = db.Column(db.String(20), nullable=False, default='new')  # 'new', 'in_progress', 'completed'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationships
-    related_product = db.relationship('Product', foreign_keys=[product_id])
-    related_service = db.relationship('Service', foreign_keys=[service_id])
+    # Relationship
+    product = db.relationship('Product', foreign_keys=[product_id], backref='product_inquiries')
     
     def __repr__(self):
-        if self.product_id:
+        if self.product_type == 'product':
             return f'<ProductInquiry {self.id} - {self.name}>'
-        elif self.service_id:
+        elif self.product_type == 'service':
             return f'<ServiceInquiry {self.id} - {self.name}>'
         else:
             return f'<Inquiry {self.id} - {self.name}>'
+            
+    @property
+    def related_product(self):
+        """For backward compatibility"""
+        if self.product_type == 'product':
+            return self.product
+        return None
+        
+    @property
+    def related_service(self):
+        """For backward compatibility"""
+        if self.product_type == 'service':
+            # In this case, product_id actually refers to a service id
+            return Service.query.get(self.product_id)
+        return None
 
 
 class EducationalContent(db.Model):
