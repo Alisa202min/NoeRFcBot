@@ -118,11 +118,11 @@
                                         <div class="col-md-8">
                                             <h5>{{ product.name }}</h5>
                                             <p class="text-muted">
-                                                {% if inquiry.product_type == 'product' %}
+                                                {% if inquiry.product_id %}
                                                 <a href="{{ url_for('admin_products') }}?action=edit&id={{ product.id }}" class="text-decoration-none">
                                                     مشاهده محصول
                                                 </a>
-                                                {% else %}
+                                                {% elif inquiry.service_id %}
                                                 <a href="{{ url_for('admin_services') }}?action=edit&id={{ product.id }}" class="text-decoration-none">
                                                     مشاهده خدمت
                                                 </a>

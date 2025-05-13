@@ -960,8 +960,11 @@ def admin_inquiries():
         # اطلاعات محصول/خدمت مرتبط
         product = None
         if inquiry.product_id:
-            # تمام محصولات و خدمات در جدول Product ذخیره می‌شوند
+            # محصول از جدول Product
             product = Product.query.get(inquiry.product_id)
+        elif inquiry.service_id:
+            # خدمت از جدول Service
+            product = Service.query.get(inquiry.service_id)
         
         return render_template('admin/inquiry_detail.html',
                              inquiry=inquiry,
