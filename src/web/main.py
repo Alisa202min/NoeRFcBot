@@ -1305,11 +1305,19 @@ def api_inquiries():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/telegram_file/<file_id>')
+@app.route('/api/telegram_file/<path:file_id>')
 def telegram_file(file_id):
-    """سرو فایل‌های آپلود شده از تلگرام"""
+    """سرو فایل‌های آپلود شده از تلگرام یا فایل‌های محلی"""
     try:
-        # جستجوی فایل در جدول ProductMedia
+        # بررسی اگر file_id یک مسیر محلی است (برای خدمات)
+        if '/' in file_id and (file_id.startswith('uploads/') or os.path.exists(os.path.join('static', file_id))):
+            # اگر این یک مسیر فایل محلی است، مستقیماً آن را سرو می‌کنیم
+            directory = os.path.join('static', os.path.dirname(file_id))
+            filename = os.path.basename(file_id)
+            logger.info(f"Serving local file: {os.path.join(directory, filename)}")
+            return send_from_directory(directory, filename)
+            
+        # جستجوی فایل در جدول ProductMedia برای تلگرام
         media = ProductMedia.query.filter_by(file_id=file_id).first()
         
         if not media:
@@ -1319,12 +1327,18 @@ def telegram_file(file_id):
                 Product.product_type=='service'
             ).first()
             
-        if not media or not media.local_path:
+        if not media:
             return jsonify({'error': 'فایل پیدا نشد'}), 404
             
-        # فایل را از مسیر محلی سرو می‌کنیم
-        directory = os.path.dirname(media.local_path)
-        filename = os.path.basename(media.local_path)
+        # بررسی اگر local_path وجود دارد
+        if media.local_path:
+            # فایل را از مسیر محلی سرو می‌کنیم
+            directory = os.path.dirname(media.local_path)
+            filename = os.path.basename(media.local_path)
+        else:
+            # اگر file_id خودش یک مسیر فایل است
+            directory = os.path.join('static', os.path.dirname(media.file_id))
+            filename = os.path.basename(media.file_id)
         
         return send_from_directory(directory, filename)
     except Exception as e:
