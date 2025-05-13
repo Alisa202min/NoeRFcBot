@@ -58,19 +58,63 @@ def seed_database():
             ]
         }
         
-        # ایجاد دسته‌بندی‌های محصول
+        # ایجاد دسته‌بندی‌های محصول - ابتدا دسته‌های اصلی را ایجاد می‌کنیم
+        parent_categories = {}
+        
         for cat_name in categories['product']:
             if not Category.query.filter_by(name=cat_name, cat_type='product').first():
                 cat = Category(name=cat_name, cat_type='product')
                 db.session.add(cat)
+                db.session.flush()
+                parent_categories[cat_name] = cat.id
                 logger.info(f"دسته‌بندی محصول '{cat_name}' ایجاد شد")
+        
+        # ایجاد زیردسته‌های محصول
+        product_subcategories = {
+            'تجهیزات رادیویی': ['رادیوهای دیجیتال', 'رادیوهای آنالوگ', 'رادیوهای SDR'],
+            'آنتن‌ها': ['آنتن‌های دو بانده', 'آنتن‌های تک بانده', 'آنتن‌های جهت‌دار']
+        }
+        
+        for parent_name, subcats in product_subcategories.items():
+            parent_id = parent_categories.get(parent_name)
+            if parent_id:
+                for subcat_name in subcats:
+                    if not Category.query.filter_by(name=subcat_name, cat_type='product').first():
+                        subcat = Category(
+                            name=subcat_name, 
+                            cat_type='product',
+                            parent_id=parent_id
+                        )
+                        db.session.add(subcat)
+                        logger.info(f"زیردسته محصول '{subcat_name}' برای دسته '{parent_name}' ایجاد شد")
         
         # ایجاد دسته‌بندی‌های خدمات
         for cat_name in categories['service']:
             if not Category.query.filter_by(name=cat_name, cat_type='service').first():
                 cat = Category(name=cat_name, cat_type='service')
                 db.session.add(cat)
+                db.session.flush()
+                parent_categories[cat_name] = cat.id
                 logger.info(f"دسته‌بندی خدمت '{cat_name}' ایجاد شد")
+                
+        # ایجاد زیردسته‌های خدمات
+        service_subcategories = {
+            'خدمات نصب و راه‌اندازی': ['نصب آنتن', 'نصب رادیو', 'راه‌اندازی شبکه'],
+            'مشاوره فنی': ['مشاوره انتخاب تجهیزات', 'مشاوره طراحی شبکه']
+        }
+        
+        for parent_name, subcats in service_subcategories.items():
+            parent_id = parent_categories.get(parent_name)
+            if parent_id:
+                for subcat_name in subcats:
+                    if not Category.query.filter_by(name=subcat_name, cat_type='service').first():
+                        subcat = Category(
+                            name=subcat_name, 
+                            cat_type='service',
+                            parent_id=parent_id
+                        )
+                        db.session.add(subcat)
+                        logger.info(f"زیردسته خدمت '{subcat_name}' برای دسته '{parent_name}' ایجاد شد")
         
         db.session.commit()
         
@@ -192,7 +236,30 @@ def seed_database():
                     in_stock=p_data['in_stock']
                 )
                 db.session.add(product)
-                logger.info(f"محصول '{p_data['name']}' ایجاد شد")
+                db.session.flush()  # برای گرفتن ID محصول بعد از اضافه کردن
+                
+                # اضافه کردن مدیا برای محصول
+                product_media = [
+                    {
+                        'file_id': f"product_image_{product.id}_1",
+                        'file_type': 'photo'
+                    },
+                    {
+                        'file_id': f"product_image_{product.id}_2",
+                        'file_type': 'photo'
+                    }
+                ]
+                
+                for media_data in product_media:
+                    from src.models.models import ProductMedia
+                    media = ProductMedia(
+                        product_id=product.id,
+                        file_id=media_data['file_id'],
+                        file_type=media_data['file_type']
+                    )
+                    db.session.add(media)
+                
+                logger.info(f"محصول '{p_data['name']}' با مدیا ایجاد شد")
         
         # افزودن خدمات
         for s_data in services:
@@ -205,7 +272,30 @@ def seed_database():
                     featured=s_data['featured'],
                 )
                 db.session.add(service)
-                logger.info(f"خدمت '{s_data['name']}' ایجاد شد")
+                db.session.flush()  # برای گرفتن ID خدمت بعد از اضافه کردن
+                
+                # اضافه کردن مدیا برای خدمت
+                service_media = [
+                    {
+                        'file_id': f"service_image_{service.id}_1",
+                        'file_type': 'photo'
+                    },
+                    {
+                        'file_id': f"service_image_{service.id}_2",
+                        'file_type': 'photo'
+                    }
+                ]
+                
+                for media_data in service_media:
+                    from src.models.models import ServiceMedia
+                    media = ServiceMedia(
+                        service_id=service.id,
+                        file_id=media_data['file_id'],
+                        file_type=media_data['file_type']
+                    )
+                    db.session.add(media)
+                
+                logger.info(f"خدمت '{s_data['name']}' با مدیا ایجاد شد")
         
         db.session.commit()
         
