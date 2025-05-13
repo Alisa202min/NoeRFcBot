@@ -6,9 +6,37 @@
 <div class="container mt-4">
     <h1 class="mb-4">خدمات</h1>
     
+    <!-- نوار دسته‌بندی برای نمایش در موبایل -->
+    <div class="d-md-none mb-3">
+        <div class="card">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">دسته‌بندی‌ها</h5>
+                <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#mobileCategoryCollapse" aria-expanded="false" aria-controls="mobileCategoryCollapse">
+                    <i class="bi bi-list"></i>
+                </button>
+            </div>
+            <div class="collapse" id="mobileCategoryCollapse">
+                <div class="card-body">
+                    <div class="list-group">
+                        <a href="{{ url_for('services') }}" class="list-group-item list-group-item-action {% if not selected_category %}active{% endif %}">
+                            همه خدمات
+                        </a>
+                        
+                        {% for category in categories %}
+                        <a href="{{ url_for('services', category=category.id) }}" class="list-group-item list-group-item-action {% if selected_category == category.id %}active{% endif %}">
+                            {{ category.name }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card">
+        <!-- دسته‌بندی برای دسکتاپ -->
+        <div class="col-md-3 d-none d-md-block">
+            <div class="card sticky-top" style="top: 1rem; z-index: 999;">
                 <div class="card-header bg-success text-white">
                     دسته‌بندی‌ها
                 </div>
@@ -32,12 +60,12 @@
             <div class="row">
                 {% if services %}
                     {% for service in services %}
-                    <div class="col-md-4 mb-4">
-                        <div class="card h-100">
+                    <div class="col-lg-4 col-md-6 col-sm-6 mb-4">
+                        <div class="card h-100 service-card" onclick="window.location.href='{{ url_for('service_detail', service_id=service.id) }}';" style="cursor: pointer;">
                             {% if service.photo_url %}
-                            <img src="{{ service.photo_url }}" class="card-img-top service-img" alt="{{ service.name }}">
+                            <img src="{{ service.photo_url }}" class="card-img-top service-img" alt="{{ service.name }}" style="height: 200px; object-fit: cover;">
                             {% else %}
-                            <div class="card-img-top service-img bg-light text-center">
+                            <div class="card-img-top service-img bg-light text-center" style="height: 200px;">
                                 <i class="bi bi-tools" style="font-size: 4rem; line-height: 200px;"></i>
                             </div>
                             {% endif %}
@@ -45,13 +73,21 @@
                             <div class="card-body">
                                 <h5 class="card-title">{{ service.name }}</h5>
                                 <p class="card-text text-muted small">{{ service.description|truncate(100) }}</p>
-                                <p class="card-text">
-                                    <span class="badge bg-success">{{ "{:,}".format(service.price) }} تومان</span>
+                                <p class="card-text mb-0">
+                                    <span class="badge bg-success fs-6">{{ "{:,}".format(service.price) }} تومان</span>
+                                </p>
+                                <p class="card-text mt-2">
+                                    {% if service.featured %}
+                                    <span class="badge bg-warning text-dark">ویژه</span>
+                                    {% endif %}
                                 </p>
                             </div>
-                            <div class="card-footer">
-                                <button class="btn btn-sm btn-success inquiry-btn" data-service-id="{{ service.id }}" data-service-name="{{ service.name }}">
-                                    <i class="bi bi-chat-dots"></i> استعلام قیمت
+                            <div class="card-footer d-flex justify-content-between">
+                                <a href="{{ url_for('service_detail', service_id=service.id) }}" class="btn btn-sm btn-outline-success">
+                                    <i class="bi bi-eye"></i> مشاهده جزئیات
+                                </a>
+                                <button class="btn btn-sm btn-success inquiry-btn" data-service-id="{{ service.id }}" data-service-name="{{ service.name }}" onclick="event.stopPropagation();">
+                                    <i class="bi bi-chat-dots"></i> استعلام
                                 </button>
                             </div>
                         </div>
@@ -117,7 +153,10 @@
     document.addEventListener('DOMContentLoaded', function() {
         // برای تمام دکمه‌های استعلام قیمت
         document.querySelectorAll('.inquiry-btn').forEach(button => {
-            button.addEventListener('click', function() {
+            button.addEventListener('click', function(e) {
+                // جلوگیری از انتقال کلیک به کارت پدر
+                e.stopPropagation();
+                
                 const serviceId = this.getAttribute('data-service-id');
                 const serviceName = this.getAttribute('data-service-name');
                 
@@ -132,6 +171,14 @@
         // ارسال فرم استعلام
         document.getElementById('submitInquiry').addEventListener('click', function() {
             document.getElementById('inquiryForm').submit();
+        });
+        
+        // کلیک روی کارت‌های خدمات برای مشاهده جزئیات
+        document.querySelectorAll('.service-card').forEach(card => {
+            card.addEventListener('click', function() {
+                const url = this.getAttribute('onclick').match(/'([^']+)'/)[1];
+                window.location.href = url;
+            });
         });
     });
 </script>
