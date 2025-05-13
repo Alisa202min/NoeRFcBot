@@ -67,8 +67,7 @@ class Product(db.Model):
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
     photo_url = db.Column(db.Text, nullable=True)
     
-    # Type field for compatibility with old code
-    product_type = db.Column(db.Text, default='product')
+    # Type field removed in new database structure
     
     # Extended fields for better search
     brand = db.Column(db.Text, nullable=True)
