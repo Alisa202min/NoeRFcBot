@@ -377,6 +377,22 @@ def admin_products():
                 category_id = None
                 
             try:
+                # قبل از ذخیره در دیتابیس، مطمئن شویم که category_id معتبر است
+                # اگر category_id خالی است، بررسی می‌کنیم آیا دسته‌بندی پیش‌فرضی وجود دارد یا نه
+                if category_id is None:
+                    # سعی می‌کنیم دسته‌بندی پیش‌فرض برای محصولات پیدا کنیم
+                    default_category = Category.query.filter_by(cat_type='product').first()
+                    if default_category:
+                        category_id = default_category.id
+                        logger.info(f"Using default product category ID: {category_id}")
+                    else:
+                        # اگر هیچ دسته‌بندی وجود ندارد، یک دسته‌بندی پیش‌فرض ایجاد می‌کنیم
+                        new_category = Category(name="دسته‌بندی پیش‌فرض محصولات", cat_type='product')
+                        db.session.add(new_category)
+                        db.session.flush()  # برای دریافت ID
+                        category_id = new_category.id
+                        logger.info(f"Created new default product category ID: {category_id}")
+                
                 # اگر شناسه محصول وجود داشته باشد، ویرایش می‌کنیم
                 if product_id:
                     product = Product.query.get_or_404(int(product_id))
