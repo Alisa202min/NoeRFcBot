@@ -66,7 +66,6 @@ class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     parent_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=True)
-    cat_type = db.Column(db.String(20), nullable=False)  # 'product' or 'service'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
@@ -78,7 +77,7 @@ class Category(db.Model):
 
 
 class Product(db.Model):
-    """Product/Service model"""
+    """Product model"""
     __tablename__ = 'products'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -87,7 +86,6 @@ class Product(db.Model):
     description = db.Column(db.Text, nullable=True)
     photo_url = db.Column(db.String(255), nullable=True)
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
-    product_type = db.Column(db.String(20), nullable=False, default='product')  # 'product' or 'service'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     # Additional fields for search/filtering
     tags = db.Column(db.String(255), nullable=True)  # Comma-separated tags
@@ -95,12 +93,8 @@ class Product(db.Model):
     brand = db.Column(db.String(100), nullable=True)
     model_number = db.Column(db.String(100), nullable=True)
     manufacturer = db.Column(db.String(100), nullable=True)
-    # Service-specific fields
-    provider = db.Column(db.String(100), nullable=True)
-    service_code = db.Column(db.String(100), nullable=True)
-    duration = db.Column(db.String(100), nullable=True)
     # Common fields
-    in_stock = db.Column(db.Boolean, default=True)  # For services, this means "available"
+    in_stock = db.Column(db.Boolean, default=True)
     featured = db.Column(db.Boolean, default=False)
     
     # Relationships
@@ -111,37 +105,28 @@ class Product(db.Model):
         return f'<Product {self.name}>'
         
     @classmethod
-    def search(cls, query, product_type=None, category_id=None, min_price=None, max_price=None, 
+    def search(cls, query, category_id=None, min_price=None, max_price=None, 
                tags=None, brand=None, manufacturer=None, model_number=None, 
-               provider=None, service_code=None, duration=None,
                in_stock=None, featured=None):
         """
-        Advanced search method for products and services
+        Advanced search method for products
         
         Args:
             query (str): Search text for name and description
-            product_type (str): 'product' or 'service'
             category_id (int): Category ID to filter by
             min_price (int): Minimum price
             max_price (int): Maximum price
             tags (str): Comma-separated tags to search for
-            brand (str): Brand name to filter by (products)
-            manufacturer (str): Manufacturer to filter by (products)
-            model_number (str): Model number to filter by (products)
-            provider (str): Service provider to filter by (services)
-            service_code (str): Service code to filter by (services)
-            duration (str): Service duration to filter by (services)
-            in_stock (bool): Filter by in_stock status (for services, means "available")
+            brand (str): Brand name to filter by
+            manufacturer (str): Manufacturer to filter by
+            model_number (str): Model number to filter by
+            in_stock (bool): Filter by in_stock status
             featured (bool): Filter by featured status
             
         Returns:
             Query object with filters applied
         """
         search_query = cls.query
-        
-        # Filter by product type
-        if product_type:
-            search_query = search_query.filter(cls.product_type == product_type)
         
         # Text search in name and description
         if query:
@@ -160,10 +145,6 @@ class Product(db.Model):
                 search_conditions.append(db.func.lower(cls.manufacturer).like(search_terms))
             if cls.model_number is not None:
                 search_conditions.append(db.func.lower(cls.model_number).like(search_terms))
-            if cls.provider is not None:
-                search_conditions.append(db.func.lower(cls.provider).like(search_terms))
-            if cls.service_code is not None:
-                search_conditions.append(db.func.lower(cls.service_code).like(search_terms))
                 
             search_query = search_query.filter(db.or_(*search_conditions))
         
@@ -190,16 +171,8 @@ class Product(db.Model):
             search_query = search_query.filter(cls.manufacturer == manufacturer)
         if model_number:
             search_query = search_query.filter(cls.model_number == model_number)
-            
-        # Service-specific filters
-        if provider:
-            search_query = search_query.filter(cls.provider == provider)
-        if service_code:
-            search_query = search_query.filter(cls.service_code == service_code)
-        if duration:
-            search_query = search_query.filter(cls.duration == duration)
         
-        # Stock status (available for services)
+        # Stock status
         if in_stock is not None:
             search_query = search_query.filter(cls.in_stock == in_stock)
         
@@ -235,7 +208,6 @@ class Inquiry(db.Model):
     phone = db.Column(db.String(20), nullable=False)
     description = db.Column(db.Text, nullable=True)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=True)
-    product_type = db.Column(db.String(20), nullable=False, default='product')  # 'product' or 'service'
     date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)  # Required in database
     status = db.Column(db.String(20), nullable=False, default='new')  # 'new', 'in_progress', 'completed'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
