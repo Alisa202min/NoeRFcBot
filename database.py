@@ -592,21 +592,7 @@ class Database:
             logging.error(f"Error searching services: {e}")
             return []
         
-        try:
-            with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
-                query = f"""
-                    SELECT p.id, p.name, p.price, p.description, p.photo_url, p.category_id,
-                           p.product_type, p.tags, p.brand, p.model_number, p.manufacturer,
-                           p.in_stock, p.featured, p.created_at
-                    FROM products p
-                    WHERE {where_clause}
-                    ORDER BY {order_clause}
-                """
-                cursor.execute(query, tuple(params))
-                return cursor.fetchall()
-        except Exception as e:
-            logging.error(f"Error searching products: {e}")
-            return []
+
 
     def update_product(self, product_id: int, name: Optional[str] = None, price: Optional[int] = None,
                       description: Optional[str] = None, photo_url: Optional[str] = None,
