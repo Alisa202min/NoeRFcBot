@@ -1626,6 +1626,18 @@ def telegram_file(file_id):
                 if os.path.exists(service_media_path):
                     logger.info(f"Found service media file: {service_media_path}")
                     return redirect(url_for('static', filename=f"media/services/{file_id}.jpg"))
+                    
+            # برای محتوای آموزشی
+            elif file_id.startswith('educational_content_image_'):
+                edu_media_path = os.path.join('static', 'media', 'educational', f"{file_id}.jpg")
+                if os.path.exists(edu_media_path):
+                    logger.info(f"Found educational content media file: {edu_media_path}")
+                    return redirect(url_for('static', filename=f"media/educational/{file_id}.jpg"))
+            elif file_id.startswith('educational_content_video_'):
+                edu_media_path = os.path.join('static', 'media', 'educational', f"{file_id}.mp4")
+                if os.path.exists(edu_media_path):
+                    logger.info(f"Found educational content video file: {edu_media_path}")
+                    return redirect(url_for('static', filename=f"media/educational/{file_id}.mp4"))
             
             # تلاش نهایی - بررسی اینکه آیا این یک مسیر فایل است
             potential_path = os.path.join('static', file_id)
