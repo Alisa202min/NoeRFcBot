@@ -12,7 +12,7 @@ from werkzeug.utils import secure_filename
 
 from src.web.app import app, db, media_files
 from src.models.models import (
-    User, Category, Product, ProductMedia, Service, ServiceMedia, Inquiry,
+    User, Product, ProductMedia, Service, ServiceMedia, Inquiry,
     EducationalContent, StaticContent, EducationalCategory, EducationalContentMedia,
     ProductCategory, ServiceCategory
 )
