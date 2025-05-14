@@ -1654,12 +1654,21 @@ def telegram_file(file_id):
             logger.info(f"Found media record: {media.id}, file_id: {media.file_id}, local_path: {getattr(media, 'local_path', 'N/A')}")
                 
             # بررسی اگر local_path وجود دارد و می‌توانیم بر اساس آن فایل را سرو کنیم
-            if hasattr(media, 'local_path') and media.local_path and os.path.exists(media.local_path):
-                # اگر local_path با static شروع می‌شود، آن را به صورت مستقیم سرو می‌کنیم
+            if hasattr(media, 'local_path') and media.local_path:
+                logger.info(f"Checking local_path: {media.local_path}")
+                
+                # فایل‌های رسانه در مسیر نسبی static/media/services/ هستند
                 if media.local_path.startswith('static/'):
-                    relative_path = media.local_path.replace('static/', '', 1)
-                    logger.info(f"Serving local file with static route: {relative_path}")
-                    return redirect(url_for('static', filename=relative_path))
+                    if os.path.exists(media.local_path):
+                        # اگر فایل مستقیماً وجود دارد و local_path کامل است
+                        relative_path = media.local_path.replace('static/', '', 1)
+                        logger.info(f"Serving local file with static route: {relative_path}")
+                        return redirect(url_for('static', filename=relative_path))
+                    else:
+                        # اگر فایل در مسیر نسبی وجود دارد، از آن استفاده می‌کنیم
+                        relative_path = media.local_path.replace('static/', '', 1)
+                        logger.info(f"File not found at {media.local_path}, trying static route: {relative_path}")
+                        return redirect(url_for('static', filename=relative_path))
             
             # اگر file_id خودش یک مسیر فایل است، آن را سرو می‌کنیم
             if '/' in media.file_id and os.path.exists(os.path.join('static', media.file_id)):
