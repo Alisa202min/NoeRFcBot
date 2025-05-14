@@ -63,8 +63,8 @@
                     {% for product in products %}
                     <div class="col-lg-4 col-md-6 col-sm-6 mb-4">
                         <div class="card h-100 product-card" onclick="window.location.href='{{ url_for('product_detail', product_id=product.id) }}';" style="cursor: pointer;">
-                            {% if product.photo_url %}
-                            <img src="{{ url_for('static', filename=product.photo_url) }}" class="card-img-top product-img" alt="{{ product.name }}" style="height: 200px; object-fit: cover;">
+                            {% if product.formatted_photo_url %}
+                            <img src="{{ url_for('static', filename=product.formatted_photo_url) }}" class="card-img-top product-img" alt="{{ product.name }}" style="height: 200px; object-fit: cover;">
                             {% else %}
                             <div class="card-img-top product-img bg-light text-center" style="height: 200px;">
                                 <i class="bi bi-image" style="font-size: 4rem; line-height: 200px;"></i>
