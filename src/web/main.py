@@ -684,7 +684,8 @@ def admin_products():
 @app.route('/service/<int:service_id>')
 def service_detail(service_id):
     """صفحه جزئیات خدمت"""
-    service = Product.query.filter_by(id=service_id, product_type='service').first_or_404()
+    # استفاده از مدل Service به جای فیلتر بر روی محصول
+    service = Service.query.filter_by(id=service_id).first_or_404()
     related_services = Product.query.filter_by(category_id=service.category_id, product_type='service').filter(Product.id != service.id).limit(4).all()
     media = ProductMedia.query.filter_by(product_id=service.id).all()
     
@@ -958,29 +959,37 @@ def admin_services():
     
     # اگر action برابر با 'add' یا 'edit' باشد، فرم نمایش داده می‌شود
     if action == 'add':
-        categories = Category.query.filter_by(cat_type='service').all()
+        # استفاده از ServiceCategory به جای Category با فیلتر cat_type
+        categories = ServiceCategory.query.all()
         return render_template('admin/service_form.html',
                               title="افزودن خدمت جدید",
                               categories=categories)
     elif action == 'edit' and service_id:
-        service = Product.query.filter_by(product_type='service', id=int(service_id)).first_or_404()
-        categories = Category.query.filter_by(cat_type='service').all()
+        # استفاده از جدول Service به جای Product با فیلتر product_type
+        service = Service.query.filter_by(id=int(service_id)).first_or_404()
+        categories = ServiceCategory.query.all()
         return render_template('admin/service_form.html',
                               title="ویرایش خدمت",
                               service=service,
                               categories=categories)
     elif action == 'media' and service_id:
-        service = Product.query.filter_by(product_type='service', id=int(service_id)).first_or_404()
-        media = ProductMedia.query.filter_by(product_id=service.id).all()
+        # استفاده از جدول Service به جای Product با فیلتر product_type
+        service = Service.query.filter_by(id=int(service_id)).first_or_404()
+        # استفاده از ServiceMedia به جای ProductMedia
+        media = ServiceMedia.query.filter_by(service_id=service.id).all()
         return render_template('admin/service_media.html',
                               service=service,
                               media=media)
     
     # نمایش لیست خدمات
     page = request.args.get('page', 1, type=int)
-    pagination = Product.query.filter_by(product_type='service').paginate(
+    
+    # استفاده از جدول Service به جای Product
+    pagination = Service.query.paginate(
         page=page, per_page=10, error_out=False)
-    categories = Category.query.all()
+    
+    # دریافت دسته‌بندی‌های خدمات
+    categories = ServiceCategory.query.all()
     
     return render_template('admin/services.html', 
                           services=pagination,
