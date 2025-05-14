@@ -1650,25 +1650,68 @@ def telegram_file(file_id):
             else:
                 return jsonify({'error': 'فایل پیدا نشد'}), 404
         
-        try:    
-            logger.info(f"Found media record: {media.id}, file_id: {media.file_id}, local_path: {getattr(media, 'local_path', 'N/A')}")
+        try:
+            # بررسی نوع آبجکت media برای کمک به عیب‌یابی
+            logger.info(f"Media record type: {type(media).__name__}")
+            
+            # نمایش همه اطلاعات موجود در آبجکت media
+            media_info = {
+                'id': media.id, 
+                'file_id': media.file_id,
+                'attr_names': [attr for attr in dir(media) if not attr.startswith('_')]
+            }
+            
+            # بررسی اگر local_path یکی از ویژگی‌های مدل است
+            if hasattr(media, 'local_path'):
+                media_info['local_path'] = media.local_path
+            
+            logger.info(f"Media record details: {media_info}")
+            
+            # بررسی نوع فایل و اقدام متناسب
+            if isinstance(media, ServiceMedia):
+                # برای فایل‌های خدمات
+                logger.info("This is a ServiceMedia record")
                 
-            # بررسی اگر local_path وجود دارد و می‌توانیم بر اساس آن فایل را سرو کنیم
-            if hasattr(media, 'local_path') and media.local_path:
-                logger.info(f"Checking local_path: {media.local_path}")
+                # اگر ServiceMedia دارای local_path است، از آن استفاده می‌کنیم
+                if media.local_path:
+                    media_path = media.local_path
+                    logger.info(f"Using ServiceMedia local_path: {media_path}")
+                    
+                    # اگر local_path با static شروع می‌شود
+                    if media_path.startswith('static/'):
+                        relative_path = media_path.replace('static/', '', 1)
+                        logger.info(f"Serving service media with static route: {relative_path}")
+                        return redirect(url_for('static', filename=relative_path))
+                else:
+                    # اگر local_path وجود ندارد، از file_id استفاده می‌کنیم
+                    # بررسی اگر این فایل سرویس در مسیر media/services وجود دارد
+                    service_path = f"media/services/{media.file_id}.jpg"
+                    logger.info(f"ServiceMedia without local_path, trying standard path: {service_path}")
+                    return redirect(url_for('static', filename=service_path))
+                    
+            elif isinstance(media, ProductMedia):
+                # برای فایل‌های محصولات
+                logger.info("This is a ProductMedia record")
                 
-                # فایل‌های رسانه در مسیر نسبی static/media/services/ هستند
-                if media.local_path.startswith('static/'):
-                    if os.path.exists(media.local_path):
-                        # اگر فایل مستقیماً وجود دارد و local_path کامل است
-                        relative_path = media.local_path.replace('static/', '', 1)
-                        logger.info(f"Serving local file with static route: {relative_path}")
+                # اگر ProductMedia دارای local_path است، از آن استفاده می‌کنیم
+                if hasattr(media, 'local_path') and media.local_path:
+                    media_path = media.local_path
+                    logger.info(f"Using ProductMedia local_path: {media_path}")
+                    
+                    # اگر local_path با static شروع می‌شود
+                    if media_path.startswith('static/'):
+                        relative_path = media_path.replace('static/', '', 1)
+                        logger.info(f"Serving product media with static route: {relative_path}")
                         return redirect(url_for('static', filename=relative_path))
-                    else:
-                        # اگر فایل در مسیر نسبی وجود دارد، از آن استفاده می‌کنیم
-                        relative_path = media.local_path.replace('static/', '', 1)
-                        logger.info(f"File not found at {media.local_path}, trying static route: {relative_path}")
-                        return redirect(url_for('static', filename=relative_path))
+                else:
+                    # اگر local_path وجود ندارد، از file_id استفاده می‌کنیم
+                    # بررسی اگر این فایل محصول در مسیر media/products وجود دارد
+                    product_path = f"media/products/{media.file_id}.jpg"
+                    logger.info(f"ProductMedia without local_path, trying standard path: {product_path}")
+                    return redirect(url_for('static', filename=product_path))
+            else:
+                # برای انواع دیگر فایل‌ها (احتمالاً غیرممکن)
+                logger.warning(f"Unknown media type: {type(media).__name__}")
             
             # اگر file_id خودش یک مسیر فایل است، آن را سرو می‌کنیم
             if '/' in media.file_id and os.path.exists(os.path.join('static', media.file_id)):
