@@ -1238,6 +1238,24 @@ def admin_education():
                     # اگر فایل جدید آپلود شده، از آن استفاده می‌کنیم
                     if file_path and (content_type in ['image', 'video', 'file']):
                         content.content = file_path
+                        
+                        # اضافه کردن فایل به EducationalContentMedia
+                        media_file_id = f"educational_content_image_{content.id}_{int(time.time())}"
+                        file_type = 'photo'
+                        if content_type == 'video':
+                            file_type = 'video'
+                            media_file_id = f"educational_content_video_{content.id}_{int(time.time())}"
+                        elif content_type == 'file':
+                            file_type = 'file'
+                            
+                        # ساخت رکورد جدید فایل
+                        media = EducationalContentMedia(
+                            educational_content_id=content.id,
+                            file_id=media_file_id,
+                            file_type=file_type,
+                            local_path=file_path
+                        )
+                        db.session.add(media)
                     # در غیر این صورت، فقط اگر نوع محتوا متن باشد، متن را به‌روزرسانی می‌کنیم
                     elif content_type == 'text':
                         content.content = content_text
@@ -2070,7 +2088,8 @@ def admin_database_fix(table):
                     media = EducationalContentMedia(
                         educational_content_id=content.id,
                         file_id=f"educational_content_image_{content.id}_1",
-                        file_type=content.content_type
+                        file_type=content.content_type,
+                        local_path=None  # Will be set when a real file is uploaded
                     )
                     db.session.add(media)
                     fixed_count += 1
