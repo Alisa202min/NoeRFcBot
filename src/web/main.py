@@ -195,7 +195,10 @@ def admin_index():
         # آمار سیستم
         product_count = Product.query.count()
         service_count = Service.query.count()
-        category_count = Category.query.count()
+        product_category_count = ProductCategory.query.count()
+        service_category_count = ServiceCategory.query.count()
+        educational_category_count = EducationalCategory.query.count()
+        category_count = product_category_count + service_category_count + educational_category_count
         inquiry_count = Inquiry.query.count()
         pending_count = Inquiry.query.filter_by(status='pending').count()
         
@@ -496,13 +499,13 @@ def admin_products():
                 # اگر category_id خالی است، بررسی می‌کنیم آیا دسته‌بندی پیش‌فرضی وجود دارد یا نه
                 if category_id is None:
                     # سعی می‌کنیم دسته‌بندی پیش‌فرض برای محصولات پیدا کنیم
-                    default_category = Category.query.filter_by(cat_type='product').first()
+                    default_category = ProductCategory.query.first()
                     if default_category:
                         category_id = default_category.id
                         logger.info(f"Using default product category ID: {category_id}")
                     else:
                         # اگر هیچ دسته‌بندی وجود ندارد، یک دسته‌بندی پیش‌فرض ایجاد می‌کنیم
-                        new_category = Category(name="دسته‌بندی پیش‌فرض محصولات", cat_type='product')
+                        new_category = ProductCategory(name="دسته‌بندی پیش‌فرض محصولات")
                         db.session.add(new_category)
                         db.session.flush()  # برای دریافت ID
                         category_id = new_category.id
@@ -594,7 +597,7 @@ def admin_products():
                 db.session.rollback()
                 logger.error(f"Error saving product: {str(e)}")
                 flash(f'خطا در ذخیره محصول: {str(e)}', 'danger')
-                categories = Category.query.filter_by(cat_type='product').all()
+                categories = ProductCategory.query.all()
                 
                 if product_id:
                     # در صورت خطا در ویرایش، به فرم ویرایش برمی‌گردیم
@@ -642,13 +645,13 @@ def admin_products():
     
     # اگر action برابر با 'add' یا 'edit' باشد، فرم نمایش داده می‌شود
     if action == 'add':
-        categories = Category.query.filter_by(cat_type='product').all()
+        categories = ProductCategory.query.all()
         return render_template('admin/product_form.html',
                               title="افزودن محصول جدید",
                               categories=categories)
     elif action == 'edit' and product_id:
         product = Product.query.get_or_404(int(product_id))
-        categories = Category.query.filter_by(cat_type='product').all()
+        categories = ProductCategory.query.all()
         return render_template('admin/product_form.html',
                               title="ویرایش محصول",
                               product=product,
@@ -668,7 +671,7 @@ def admin_products():
     
     # نمایش لیست محصولات
     products = Product.query.all()
-    categories = Category.query.all()
+    categories = ProductCategory.query.all()
     
     return render_template('admin/products.html', 
                           products=products,
