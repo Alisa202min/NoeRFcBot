@@ -351,6 +351,23 @@ def admin_add_category():
 
 # ... Routes for products, services, inquiries, etc. ...
 
+# تابع کمکی برای تبدیل مسیر فایل تصویر
+def get_photo_url(photo_url):
+    """
+    تبدیل مسیر photo_url به مسیر قابل استفاده در url_for
+    
+    اگر photo_url با static/ شروع شود، مسیر بدون static/ برگردانده می‌شود
+    اگر photo_url با uploads/ شروع شود، مسیر همان‌طور برگردانده می‌شود
+    اگر photo_url خالی یا None باشد، None برگردانده می‌شود
+    """
+    if not photo_url:
+        return None
+    
+    if photo_url.startswith('static/'):
+        return photo_url[7:]  # حذف 'static/' از ابتدای مسیر
+    
+    return photo_url
+
 # روت‌های مربوط به محصولات
 @app.route('/product/<int:product_id>')
 def product_detail(product_id):
@@ -360,8 +377,16 @@ def product_detail(product_id):
     related_products = Product.query.filter_by(category_id=product.category_id).filter(Product.id != product.id).limit(4).all()
     media = ProductMedia.query.filter_by(product_id=product.id).all()
     
+    # تبدیل مسیر photo_url برای استفاده در url_for
+    photo_url = get_photo_url(product.photo_url)
+    
+    # تبدیل مسیر photo_url برای محصولات مرتبط
+    for related in related_products:
+        related.formatted_photo_url = get_photo_url(related.photo_url)
+    
     return render_template('product_detail.html', 
-                          product=product, 
+                          product=product,
+                          photo_url=photo_url,
                           related_products=related_products,
                           media=media)
 
@@ -1992,6 +2017,10 @@ def products():
         
         # دریافت دسته‌بندی‌های محصول
         categories = ProductCategory.query.filter_by(parent_id=None).all()
+        
+        # تبدیل مسیر photo_url برای استفاده در url_for
+        for product in products_list:
+            product.formatted_photo_url = get_photo_url(product.photo_url)
         
         return render_template('products.html', 
                               products=products_list,
