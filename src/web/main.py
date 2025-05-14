@@ -1578,53 +1578,213 @@ def admin_view_table(table):
         logger.error(f"Error in admin_view_table: {e}")
         return render_template('error.html', error=str(e))
 
-@app.route('/admin/database/service_media_fix', methods=['POST'])
+@app.route('/admin/database/fix/<table>', methods=['POST'])
 @login_required
-def admin_service_media_fix():
-    """اصلاح جدول service_media برای اطمینان از صحت اطلاعات"""
+def admin_database_fix(table):
+    """اصلاح جداول دیتابیس برای اطمینان از صحت اطلاعات"""
     try:
-        # دریافت همه رکوردهای service_media
-        service_media = ServiceMedia.query.all()
-        
         fixed_count = 0
-        for media in service_media:
-            # بررسی وجود service_id معتبر
-            service = Service.query.get(media.service_id)
-            if not service:
-                # حذف رکورد اگر service_id معتبر نیست
-                db.session.delete(media)
-                fixed_count += 1
-                continue
         
-        # ذخیره تغییرات
-        db.session.commit()
-        
-        # ایجاد رکوردهای media برای سرویس‌هایی که رسانه ندارند
-        services = Service.query.all()
-        for service in services:
-            count = ServiceMedia.query.filter_by(service_id=service.id).count()
-            if count == 0:
-                # ایجاد دو رکورد پیش‌فرض
-                for i in range(1, 3):
-                    media = ServiceMedia(
-                        service_id=service.id,
-                        file_id=f"service_image_{service.id}_{i}",
-                        file_type="photo"
-                    )
-                    db.session.add(media)
+        # بر اساس جدول، عملیات اصلاح مناسب را انجام می‌دهیم
+        if table == 'service_media':
+            # دریافت همه رکوردهای service_media
+            service_media = ServiceMedia.query.all()
+            
+            for media in service_media:
+                # بررسی وجود service_id معتبر
+                service = Service.query.get(media.service_id)
+                if not service:
+                    # حذف رکورد اگر service_id معتبر نیست
+                    db.session.delete(media)
                     fixed_count += 1
+                    continue
+            
+            # ذخیره تغییرات
+            db.session.commit()
+            
+            # ایجاد رکوردهای media برای سرویس‌هایی که رسانه ندارند
+            services = Service.query.all()
+            for service in services:
+                count = ServiceMedia.query.filter_by(service_id=service.id).count()
+                if count == 0:
+                    # ایجاد دو رکورد پیش‌فرض
+                    for i in range(1, 3):
+                        media = ServiceMedia(
+                            service_id=service.id,
+                            file_id=f"service_image_{service.id}_{i}",
+                            file_type="photo"
+                        )
+                        db.session.add(media)
+                        fixed_count += 1
+            
+            # ذخیره تغییرات
+            db.session.commit()
         
-        # ذخیره تغییرات
-        db.session.commit()
+        elif table == 'product_media':
+            # دریافت همه رکوردهای product_media
+            product_media = ProductMedia.query.all()
+            
+            for media in product_media:
+                # بررسی وجود product_id معتبر
+                product = Product.query.get(media.product_id)
+                if not product:
+                    # حذف رکورد اگر product_id معتبر نیست
+                    db.session.delete(media)
+                    fixed_count += 1
+                    continue
+            
+            # ذخیره تغییرات
+            db.session.commit()
+            
+            # ایجاد رکوردهای media برای محصولاتی که رسانه ندارند
+            products = Product.query.all()
+            for product in products:
+                count = ProductMedia.query.filter_by(product_id=product.id).count()
+                if count == 0:
+                    # ایجاد دو رکورد پیش‌فرض
+                    for i in range(1, 3):
+                        media = ProductMedia(
+                            product_id=product.id,
+                            file_id=f"product_image_{product.id}_{i}",
+                            file_type="photo"
+                        )
+                        db.session.add(media)
+                        fixed_count += 1
+            
+            # ذخیره تغییرات
+            db.session.commit()
         
-        flash(f'{fixed_count} رکورد در جدول service_media اصلاح شد.', 'success')
-        return redirect(url_for('admin_view_table', table='service_media'))
+        elif table == 'services':
+            # بررسی و اصلاح خدمات
+            services = Service.query.all()
+            for service in services:
+                modified = False
+                
+                # اطمینان از وجود دسته‌بندی معتبر
+                if service.category_id:
+                    category = Category.query.get(service.category_id)
+                    if not category:
+                        # تنظیم دسته‌بندی پیش‌فرض
+                        default_category = Category.query.filter_by(cat_type='service').first()
+                        if default_category:
+                            service.category_id = default_category.id
+                            modified = True
+                
+                if modified:
+                    fixed_count += 1
+            
+            # ذخیره تغییرات
+            db.session.commit()
+        
+        elif table == 'products':
+            # بررسی و اصلاح محصولات
+            products = Product.query.all()
+            for product in products:
+                modified = False
+                
+                # اطمینان از وجود دسته‌بندی معتبر
+                if product.category_id:
+                    category = Category.query.get(product.category_id)
+                    if not category:
+                        # تنظیم دسته‌بندی پیش‌فرض
+                        default_category = Category.query.filter_by(cat_type='product').first()
+                        if default_category:
+                            product.category_id = default_category.id
+                            modified = True
+                
+                if modified:
+                    fixed_count += 1
+            
+            # ذخیره تغییرات
+            db.session.commit()
+        
+        elif table == 'inquiries':
+            # بررسی و اصلاح استعلام‌ها
+            inquiries = Inquiry.query.all()
+            for inquiry in inquiries:
+                modified = False
+                
+                # بررسی product_id و service_id
+                if inquiry.product_id:
+                    product = Product.query.get(inquiry.product_id)
+                    if not product:
+                        inquiry.product_id = None
+                        modified = True
+                
+                if inquiry.service_id:
+                    service = Service.query.get(inquiry.service_id)
+                    if not service:
+                        inquiry.service_id = None
+                        modified = True
+                
+                if modified:
+                    fixed_count += 1
+            
+            # ذخیره تغییرات
+            db.session.commit()
+        
+        elif table == 'educational_content_media':
+            # بررسی و اصلاح رسانه‌های محتوای آموزشی
+            media_items = EducationalContentMedia.query.all()
+            for media in media_items:
+                # بررسی وجود educational_content_id معتبر
+                content = EducationalContent.query.get(media.educational_content_id)
+                if not content:
+                    # حذف رکورد اگر educational_content_id معتبر نیست
+                    db.session.delete(media)
+                    fixed_count += 1
+            
+            # ذخیره تغییرات
+            db.session.commit()
+        
+        elif table == 'categories':
+            # بررسی و اصلاح دسته‌بندی‌ها
+            categories = Category.query.all()
+            for category in categories:
+                modified = False
+                
+                # بررسی parent_id
+                if category.parent_id:
+                    parent = Category.query.get(category.parent_id)
+                    if not parent:
+                        category.parent_id = None
+                        modified = True
+                
+                # اطمینان از وجود cat_type
+                if not category.cat_type:
+                    category.cat_type = 'product'  # cat_type پیش‌فرض
+                    modified = True
+                
+                if modified:
+                    fixed_count += 1
+            
+            # ذخیره تغییرات
+            db.session.commit()
+        
+        else:
+            # برای سایر جداول، پیام‌رسانی مناسب
+            flash(f'اصلاح برای جدول {table} در حال حاضر پشتیبانی نمی‌شود.', 'warning')
+            return redirect(url_for('admin_view_table', table=table))
+        
+        # پیام‌رسانی موفقیت
+        if fixed_count > 0:
+            flash(f'{fixed_count} رکورد در جدول {table} اصلاح شد.', 'success')
+        else:
+            flash(f'همه رکوردهای جدول {table} سالم هستند.', 'info')
+        
+        return redirect(url_for('admin_view_table', table=table))
     
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error in admin_service_media_fix: {e}")
-        flash(f'خطا در اصلاح جدول service_media: {str(e)}', 'danger')
+        logger.error(f"Error in admin_database_fix for table {table}: {e}")
+        flash(f'خطا در اصلاح جدول {table}: {str(e)}', 'danger')
         return redirect(url_for('admin_database'))
+
+@app.route('/admin/database/service_media_fix', methods=['POST'])
+@login_required
+def admin_service_media_fix():
+    """برای حفظ سازگاری با کد قبلی"""
+    return admin_database_fix('service_media')
 
 # ----- Additional Web Routes -----
 

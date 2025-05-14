@@ -32,13 +32,11 @@
                                             <i class="fas fa-eye"></i> مشاهده
                                         </a>
                                         
-                                        {% if table_name == 'service_media' %}
-                                        <form action="{{ url_for('admin_service_media_fix') }}" method="post" style="display: inline;">
+                                        <form action="{{ url_for('admin_database_fix', table=table_name) }}" method="post" style="display: inline;">
                                             <button type="submit" class="btn btn-warning btn-sm">
                                                 <i class="fas fa-wrench"></i> اصلاح
                                             </button>
                                         </form>
-                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -61,15 +59,42 @@
                         <div class="col-md-6">
                             <div class="card">
                                 <div class="card-header bg-primary text-white">
-                                    مشکل شایع: جدول service_media
+                                    ابزارهای اصلاح جداول
                                 </div>
                                 <div class="card-body">
-                                    <p>اگر با مشکل نمایش تصاویر خدمات مواجه هستید، می‌توانید از ابزار اصلاح استفاده کنید.</p>
-                                    <form action="{{ url_for('admin_service_media_fix') }}" method="post">
-                                        <button type="submit" class="btn btn-warning">
-                                            <i class="fas fa-wrench"></i> اصلاح جدول service_media
-                                        </button>
-                                    </form>
+                                    <p>با استفاده از این ابزارها می‌توانید مشکلات احتمالی در جداول پایگاه داده را برطرف کنید:</p>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <form action="{{ url_for('admin_database_fix', table='service_media') }}" method="post" class="me-1 mb-1">
+                                            <button type="submit" class="btn btn-warning btn-sm">
+                                                <i class="fas fa-wrench"></i> اصلاح service_media
+                                            </button>
+                                        </form>
+                                        <form action="{{ url_for('admin_database_fix', table='product_media') }}" method="post" class="me-1 mb-1">
+                                            <button type="submit" class="btn btn-warning btn-sm">
+                                                <i class="fas fa-wrench"></i> اصلاح product_media
+                                            </button>
+                                        </form>
+                                        <form action="{{ url_for('admin_database_fix', table='services') }}" method="post" class="me-1 mb-1">
+                                            <button type="submit" class="btn btn-warning btn-sm">
+                                                <i class="fas fa-wrench"></i> اصلاح services
+                                            </button>
+                                        </form>
+                                        <form action="{{ url_for('admin_database_fix', table='products') }}" method="post" class="me-1 mb-1">
+                                            <button type="submit" class="btn btn-warning btn-sm">
+                                                <i class="fas fa-wrench"></i> اصلاح products
+                                            </button>
+                                        </form>
+                                        <form action="{{ url_for('admin_database_fix', table='categories') }}" method="post" class="me-1 mb-1">
+                                            <button type="submit" class="btn btn-warning btn-sm">
+                                                <i class="fas fa-wrench"></i> اصلاح categories
+                                            </button>
+                                        </form>
+                                        <form action="{{ url_for('admin_database_fix', table='inquiries') }}" method="post" class="me-1 mb-1">
+                                            <button type="submit" class="btn btn-warning btn-sm">
+                                                <i class="fas fa-wrench"></i> اصلاح inquiries
+                                            </button>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -82,7 +107,13 @@
                                 <div class="card-body">
                                     <ul>
                                         <li><strong>مشاهده</strong>: محتوای جدول را نمایش می‌دهد.</li>
-                                        <li><strong>اصلاح</strong>: مشکلات احتمالی در جدول را برطرف می‌کند.</li>
+                                        <li><strong>اصلاح</strong>: مشکلات احتمالی در جدول را برطرف می‌کند:</li>
+                                        <ul>
+                                            <li><strong>service_media و product_media</strong>: رکوردهای نامعتبر را حذف و برای آیتم‌های بدون مدیا، رکورد پیش‌فرض ایجاد می‌کند.</li>
+                                            <li><strong>services و products</strong>: دسته‌بندی‌های نامعتبر را اصلاح می‌کند.</li>
+                                            <li><strong>categories</strong>: روابط والد-فرزند نامعتبر را اصلاح می‌کند.</li>
+                                            <li><strong>inquiries</strong>: ارتباطات نامعتبر با محصولات و خدمات را اصلاح می‌کند.</li>
+                                        </ul>
                                     </ul>
                                 </div>
                             </div>
