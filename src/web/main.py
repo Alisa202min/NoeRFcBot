@@ -245,12 +245,16 @@ def build_category_tree(categories, parent_id=None):
     for category in categories:
         if category.parent_id == parent_id:
             children = build_category_tree(categories, category.id)
-            tree.append({
+            category_data = {
                 'id': category.id,
                 'name': category.name,
-                'children': children,
-                'cat_type': category.cat_type
-            })
+                'children': children
+            }
+            # افزودن cat_type فقط اگر در مدل موجود باشد (برای سازگاری با مدل قدیمی Category)
+            if hasattr(category, 'cat_type'):
+                category_data['cat_type'] = category.cat_type
+            
+            tree.append(category_data)
     return tree
 
 @app.route('/admin/categories/add', methods=['POST'])
