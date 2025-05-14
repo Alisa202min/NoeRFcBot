@@ -19,303 +19,206 @@ class User(UserMixin, db.Model):
     telegram_username = db.Column(db.String(64), nullable=True)
     first_name = db.Column(db.String(64), nullable=True)
     last_name = db.Column(db.String(64), nullable=True)
-    last_seen = db.Column(db.DateTime, nullable=True)
+    phone = db.Column(db.String(15), nullable=True)
+    language_code = db.Column(db.String(10), nullable=True)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     def set_password(self, password):
+        """Set user password"""
         self.password_hash = generate_password_hash(password)
     
     def check_password(self, password):
-        return self.password_hash and check_password_hash(self.password_hash, password)
+        """Check user password"""
+        return check_password_hash(self.password_hash, password)
+
+
+class ProductCategory(db.Model):
+    """Category model for products"""
+    __tablename__ = 'product_categories'
     
-    @classmethod
-    def get_or_create_telegram_user(cls, telegram_id, username=None, first_name=None, last_name=None):
-        """Get an existing Telegram user or create a new one"""
-        user = cls.query.filter_by(telegram_id=telegram_id).first()
-        
-        if not user:
-            # Create a new user
-            user = cls(
-                username=f"telegram_{telegram_id}",
-                telegram_id=telegram_id,
-                telegram_username=username,
-                first_name=first_name,
-                last_name=last_name,
-                is_admin=False
-            )
-            db.session.add(user)
-            db.session.commit()
-        elif username and (user.telegram_username != username or 
-                          user.first_name != first_name or 
-                          user.last_name != last_name):
-            # Update user information
-            user.telegram_username = username
-            user.first_name = first_name
-            user.last_name = last_name
-            user.last_seen = datetime.utcnow()
-            db.session.commit()
-        
-        return user
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64), nullable=False)
+    parent_id = db.Column(db.Integer, db.ForeignKey('product_categories.id'), nullable=True)
+    
+    # Relationships
+    children = db.relationship('ProductCategory', backref=db.backref('parent', remote_side=[id]))
+    products = db.relationship('Product', backref='category', lazy='dynamic')
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<ProductCategory {self.name}>'
 
 
+class ServiceCategory(db.Model):
+    """Category model for services"""
+    __tablename__ = 'service_categories'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64), nullable=False)
+    parent_id = db.Column(db.Integer, db.ForeignKey('service_categories.id'), nullable=True)
+    
+    # Relationships
+    children = db.relationship('ServiceCategory', backref=db.backref('parent', remote_side=[id]))
+    services = db.relationship('Service', backref='category', lazy='dynamic')
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<ServiceCategory {self.name}>'
+
+
+class EducationalCategory(db.Model):
+    """Category model for educational content"""
+    __tablename__ = 'educational_categories'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.Text, nullable=False)
+    parent_id = db.Column(db.Integer, db.ForeignKey('educational_categories.id'), nullable=True)
+    
+    # Relationships
+    children = db.relationship('EducationalCategory', backref=db.backref('parent', remote_side=[id]))
+    contents = db.relationship('EducationalContent', backref='category', lazy='dynamic')
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<EducationalCategory {self.name}>'
+
+
+# Legacy Category model - kept for backward compatibility during migration
 class Category(db.Model):
-    """Category model for products and services"""
+    """Legacy category model - will be deprecated"""
     __tablename__ = 'categories'
     
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
+    name = db.Column(db.String(64), nullable=False)
     parent_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    cat_type = db.Column(db.String(10), default='product')  # product or service
     
     # Relationships
-    parent = db.relationship('Category', remote_side=[id], backref='subcategories')
-    products = db.relationship('Product', backref='category', lazy=True)
+    children = db.relationship('Category', backref=db.backref('parent', remote_side=[id]))
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):
         return f'<Category {self.name}>'
 
 
 class Product(db.Model):
-    """Product model"""
+    """Product model - now separate from services"""
     __tablename__ = 'products'
     
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    price = db.Column(db.Integer, nullable=False)
-    description = db.Column(db.Text, nullable=True)
-    photo_url = db.Column(db.String(255), nullable=True)
-    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    # Additional fields for search/filtering
-    tags = db.Column(db.String(255), nullable=True)  # Comma-separated tags
-    # Product-specific fields
-    brand = db.Column(db.String(100), nullable=True)
-    model_number = db.Column(db.String(100), nullable=True)
-    manufacturer = db.Column(db.String(100), nullable=True)
-    # Common fields
+    name = db.Column(db.Text, nullable=False)
+    description = db.Column(db.Text)
+    price = db.Column(db.Integer, default=0)
+    category_id = db.Column(db.Integer, db.ForeignKey('product_categories.id'))
+    photo_url = db.Column(db.Text, nullable=True)
+    
+    # Extended fields for better search
+    brand = db.Column(db.Text, nullable=True)
+    model = db.Column(db.String(64), nullable=True)
     in_stock = db.Column(db.Boolean, default=True)
+    tags = db.Column(db.Text, nullable=True)
     featured = db.Column(db.Boolean, default=False)
     
+    # Additional database columns that exist in the schema
+    model_number = db.Column(db.Text, nullable=True)
+    manufacturer = db.Column(db.Text, nullable=True)
+    provider = db.Column(db.String(255), nullable=True)
+    service_code = db.Column(db.String(255), nullable=True)
+    duration = db.Column(db.String(255), nullable=True)
+    
+    # Media-related columns
+    file_id = db.Column(db.Text, nullable=True)  # Main Telegram file_id
+    video_url = db.Column(db.Text, nullable=True)
+    video_file_id = db.Column(db.Text, nullable=True)
+    
     # Relationships
-    media_files = db.relationship('ProductMedia', backref='product', lazy=True, cascade="all, delete-orphan")
-    # inquiry relationship is now defined through the backref='product_inquiries' in Inquiry model
+    media = db.relationship('ProductMedia', backref='product', lazy='dynamic', cascade='all, delete-orphan')
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     def __repr__(self):
         return f'<Product {self.name}>'
-        
-    @classmethod
-    def search(cls, query, category_id=None, min_price=None, max_price=None, 
-               tags=None, brand=None, manufacturer=None, model_number=None, 
-               in_stock=None, featured=None):
-        """
-        Advanced search method for products
-        
-        Args:
-            query (str): Search text for name and description
-            category_id (int): Category ID to filter by
-            min_price (int): Minimum price
-            max_price (int): Maximum price
-            tags (str): Comma-separated tags to search for
-            brand (str): Brand name to filter by
-            manufacturer (str): Manufacturer to filter by
-            model_number (str): Model number to filter by
-            in_stock (bool): Filter by in_stock status
-            featured (bool): Filter by featured status
-            
-        Returns:
-            Query object with filters applied
-        """
-        search_query = cls.query
-        
-        # Text search in name and description
-        if query:
-            search_terms = "%" + query.lower() + "%"
-            search_conditions = [
-                db.func.lower(cls.name).like(search_terms),
-                db.func.lower(cls.description).like(search_terms)
-            ]
-            
-            # Include tags, brand, manufacturer in search if they exist
-            if cls.tags is not None:
-                search_conditions.append(db.func.lower(cls.tags).like(search_terms))
-            if cls.brand is not None:
-                search_conditions.append(db.func.lower(cls.brand).like(search_terms))
-            if cls.manufacturer is not None:
-                search_conditions.append(db.func.lower(cls.manufacturer).like(search_terms))
-            if cls.model_number is not None:
-                search_conditions.append(db.func.lower(cls.model_number).like(search_terms))
-                
-            search_query = search_query.filter(db.or_(*search_conditions))
-        
-        # Filter by category
-        if category_id:
-            search_query = search_query.filter(cls.category_id == category_id)
-        
-        # Price range filters
-        if min_price is not None:
-            search_query = search_query.filter(cls.price >= min_price)
-        if max_price is not None:
-            search_query = search_query.filter(cls.price <= max_price)
-        
-        # Tag filtering
-        if tags:
-            # For each tag, check if it exists in the comma-separated tags field
-            for tag in tags.split(','):
-                search_query = search_query.filter(cls.tags.like(f"%{tag.strip()}%"))
-        
-        # Product-specific filters
-        if brand:
-            search_query = search_query.filter(cls.brand == brand)
-        if manufacturer:
-            search_query = search_query.filter(cls.manufacturer == manufacturer)
-        if model_number:
-            search_query = search_query.filter(cls.model_number == model_number)
-        
-        # Stock status
-        if in_stock is not None:
-            search_query = search_query.filter(cls.in_stock == in_stock)
-        
-        # Featured status
-        if featured is not None:
-            search_query = search_query.filter(cls.featured == featured)
-        
-        return search_query
-
-
-class ProductMedia(db.Model):
-    """Media files (photos/videos) for products"""
-    __tablename__ = 'product_media'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
-    file_id = db.Column(db.String(255), nullable=False)  # Telegram file_id
-    file_type = db.Column(db.String(10), nullable=False)  # 'photo' or 'video'
-    local_path = db.Column(db.String(255), nullable=True)  # Path to local file if saved
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    def __repr__(self):
-        return f'<ProductMedia {self.id} - {self.file_type}>'
 
 
 class Service(db.Model):
-    """Service model"""
+    """Service model - now separate from products"""
     __tablename__ = 'services'
     
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    price = db.Column(db.Integer, nullable=False)
-    description = db.Column(db.Text, nullable=True)
-    photo_url = db.Column(db.String(255), nullable=True)
-    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    # Additional fields for search/filtering
-    tags = db.Column(db.String(255), nullable=True)  # Comma-separated tags
+    name = db.Column(db.Text, nullable=False)
+    description = db.Column(db.Text)
+    price = db.Column(db.Integer, default=0)
+    category_id = db.Column(db.Integer, db.ForeignKey('service_categories.id'))
+    photo_url = db.Column(db.Text, nullable=True)
+    
+    # Media-related columns
+    file_id = db.Column(db.Text, nullable=True)  # Main Telegram file_id
+    video_url = db.Column(db.Text, nullable=True)
+    video_file_id = db.Column(db.Text, nullable=True)
+    
+    # Service status columns
+    featured = db.Column(db.Boolean, default=False)  # برای نمایش در صفحه اصلی
+    available = db.Column(db.Boolean, default=True)  # وضعیت در دسترس بودن
+    
     # Service-specific fields
-    provider = db.Column(db.String(100), nullable=True)
-    service_code = db.Column(db.String(100), nullable=True)
-    duration = db.Column(db.String(100), nullable=True)
-    # Common fields
-    available = db.Column(db.Boolean, default=True)
-    featured = db.Column(db.Boolean, default=False)
+    provider = db.Column(db.String(255), nullable=True)
+    service_code = db.Column(db.String(255), nullable=True)
+    duration = db.Column(db.String(255), nullable=True)
+    tags = db.Column(db.Text, nullable=True)
     
     # Relationships
-    category = db.relationship('Category', backref='services')
-    media_files = db.relationship('ServiceMedia', backref='service', lazy=True, cascade="all, delete-orphan")
+    media = db.relationship('ServiceMedia', backref='service', lazy='dynamic', cascade='all, delete-orphan')
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     def __repr__(self):
         return f'<Service {self.name}>'
-        
-    @classmethod
-    def search(cls, query, category_id=None, min_price=None, max_price=None, 
-               tags=None, provider=None, service_code=None, duration=None,
-               available=None, featured=None):
-        """
-        Advanced search method for services
-        
-        Args:
-            query (str): Search text for name and description
-            category_id (int): Category ID to filter by
-            min_price (int): Minimum price
-            max_price (int): Maximum price
-            tags (str): Comma-separated tags to search for
-            provider (str): Service provider to filter by
-            service_code (str): Service code to filter by
-            duration (str): Duration to filter by
-            available (bool): Filter by availability status
-            featured (bool): Filter by featured status
-            
-        Returns:
-            Query object with filters applied
-        """
-        search_query = cls.query
-        
-        # Text search in name and description
-        if query:
-            search_terms = "%" + query.lower() + "%"
-            search_conditions = [
-                db.func.lower(cls.name).like(search_terms),
-                db.func.lower(cls.description).like(search_terms)
-            ]
-            
-            # Include tags and service-specific fields in search
-            if cls.tags is not None:
-                search_conditions.append(db.func.lower(cls.tags).like(search_terms))
-            if cls.provider is not None:
-                search_conditions.append(db.func.lower(cls.provider).like(search_terms))
-            if cls.service_code is not None:
-                search_conditions.append(db.func.lower(cls.service_code).like(search_terms))
-                
-            search_query = search_query.filter(db.or_(*search_conditions))
-        
-        # Filter by category
-        if category_id:
-            search_query = search_query.filter(cls.category_id == category_id)
-        
-        # Price range filters
-        if min_price is not None:
-            search_query = search_query.filter(cls.price >= min_price)
-        if max_price is not None:
-            search_query = search_query.filter(cls.price <= max_price)
-        
-        # Tag filtering
-        if tags:
-            # For each tag, check if it exists in the comma-separated tags field
-            for tag in tags.split(','):
-                search_query = search_query.filter(cls.tags.like(f"%{tag.strip()}%"))
-        
-        # Service-specific filters
-        if provider:
-            search_query = search_query.filter(cls.provider == provider)
-        if service_code:
-            search_query = search_query.filter(cls.service_code == service_code)
-        if duration:
-            search_query = search_query.filter(cls.duration == duration)
-        
-        # Availability status
-        if available is not None:
-            search_query = search_query.filter(cls.available == available)
-        
-        # Featured status
-        if featured is not None:
-            search_query = search_query.filter(cls.featured == featured)
-        
-        return search_query
 
 
-class ServiceMedia(db.Model):
-    """Media files (photos/videos) for services"""
-    __tablename__ = 'service_media'
+class ProductMedia(db.Model):
+    """Media files for products"""
+    __tablename__ = 'product_media'
     
     id = db.Column(db.Integer, primary_key=True)
-    service_id = db.Column(db.Integer, db.ForeignKey('services.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id', ondelete='CASCADE'))
     file_id = db.Column(db.String(255), nullable=False)  # Telegram file_id
-    file_type = db.Column(db.String(10), nullable=False)  # 'photo' or 'video'
-    local_path = db.Column(db.String(255), nullable=True)  # Path to local file if saved
+    file_type = db.Column(db.String(10), default='photo')  # photo, video, etc.
+    local_path = db.Column(db.String(255), nullable=True)  # Local path to file
+    
+    # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):
-        return f'<ServiceMedia {self.id} - {self.file_type}>'
+        return f'<Media {self.id} for Product {self.product_id}>'
+
+
+class ServiceMedia(db.Model):
+    """Media files for services"""
+    __tablename__ = 'service_media'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    service_id = db.Column(db.Integer, db.ForeignKey('services.id', ondelete='CASCADE'))
+    file_id = db.Column(db.String(255), nullable=False)  # Telegram file_id
+    file_type = db.Column(db.String(10), default='photo')  # photo, video, etc.
+    local_path = db.Column(db.String(255), nullable=True)  # Local path to file
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Media {self.id} for Service {self.service_id}>'
 
 
 class Inquiry(db.Model):
@@ -351,16 +254,16 @@ class Inquiry(db.Model):
         elif self.service_id:
             return f'<ServiceInquiry {self.id} - {self.name}>'
         else:
-            return f'<Inquiry {self.id} - {self.name}>'
+            return f'<GeneralInquiry {self.id} - {self.name}>'
     
     def is_product_inquiry(self):
         """Check if this is a product inquiry"""
-        return self.product_id is not None and self.service_id is None
+        return self.product_id is not None
     
     def is_service_inquiry(self):
         """Check if this is a service inquiry"""
-        return self.service_id is not None and self.product_id is None
-            
+        return self.service_id is not None
+    
     @property
     def related_product(self):
         """For backward compatibility"""
@@ -372,39 +275,24 @@ class Inquiry(db.Model):
         return self.service
 
 
-class EducationalCategory(db.Model):
-    """Category model for educational content"""
-    __tablename__ = 'educational_categories'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.Text, nullable=False)
-    parent_id = db.Column(db.Integer, db.ForeignKey('educational_categories.id'), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    children = db.relationship('EducationalCategory', backref=db.backref('parent', remote_side=[id]))
-    contents = db.relationship('EducationalContent', backref='educational_category', lazy='dynamic')
-    
-    def __repr__(self):
-        return f'<EducationalCategory {self.name}>'
-
-
 class EducationalContent(db.Model):
-    """Educational content model"""
+    """Educational content for the bot"""
     __tablename__ = 'educational_content'
     
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)
+    title = db.Column(db.String(128), nullable=False)
     content = db.Column(db.Text, nullable=False)
     # نگه داشتن فیلد category برای حفظ سازگاری با کد قبلی
-    category = db.Column(db.String(50), nullable=False)
+    category = db.Column(db.Text, nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('educational_categories.id'), nullable=True)
-    type = db.Column(db.String(20), nullable=False, default='general')  # Column required by the database
-    content_type = db.Column(db.String(20), nullable=False)
+    content_type = db.Column(db.String(20), default='text')  # text, video, link, etc.
+    type = db.Column(db.Text)  # Duplicate of content_type for backward compatibility
+    
+    # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
-    media = db.relationship('EducationalContentMedia', backref='educational_content', lazy='dynamic', cascade='all, delete-orphan')
+    media = db.relationship('EducationalContentMedia', backref='content', lazy='dynamic', cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<EducationalContent {self.title}>'
@@ -425,13 +313,15 @@ class EducationalContentMedia(db.Model):
 
 
 class StaticContent(db.Model):
-    """Static content for about/contact pages"""
+    """Static content for About, Contact, etc."""
     __tablename__ = 'static_content'
     
     id = db.Column(db.Integer, primary_key=True)
-    type = db.Column(db.String(20), nullable=False)  # Column required by the database
+    content_type = db.Column(db.String(20), nullable=False, unique=True)  # about, contact, etc.
     content = db.Column(db.Text, nullable=False)
-    content_type = db.Column(db.String(20), nullable=False, unique=True)  # 'about' or 'contact'
+    type = db.Column(db.Text)  # Duplicate of content_type for backward compatibility
+    
+    # Timestamps
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     def __repr__(self):
