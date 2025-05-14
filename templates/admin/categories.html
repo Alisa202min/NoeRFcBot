@@ -462,7 +462,7 @@
     function confirmDelete(id, name, category_type) {
         document.getElementById('deleteCategoryName').textContent = name;
         document.getElementById('deleteCategoryId').value = id;
-        document.getElementById('deleteCategoryType').value = category_type || 'product';
+        document.getElementById('deleteCategoryType').value = category_type;
         
         new bootstrap.Modal(document.getElementById('deleteCategoryModal')).show();
     }
