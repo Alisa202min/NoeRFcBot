@@ -1334,7 +1334,7 @@ def api_categories():
         elif cat_type == 'service':
             model = ServiceCategory
         elif cat_type == 'educational':
-            model = EducationalContentCategory
+            model = EducationalCategory
         else:
             return jsonify({"error": "نوع دسته‌بندی نامعتبر است"}), 400
         
