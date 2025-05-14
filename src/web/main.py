@@ -11,7 +11,11 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 
 from src.web.app import app, db, media_files
-from src.models.models import User, Category, Product, ProductMedia, Service, ServiceMedia, Inquiry, EducationalContent, StaticContent, EducationalCategory, EducationalContentMedia
+from src.models.models import (
+    User, Category, Product, ProductMedia, Service, ServiceMedia, Inquiry,
+    EducationalContent, StaticContent, EducationalCategory, EducationalContentMedia,
+    ProductCategory, ServiceCategory
+)
 from src.utils.utils import allowed_file, save_uploaded_file, create_directory
 from src.utils.utils_upload import handle_media_upload, remove_file, serve_file
 
