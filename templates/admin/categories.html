@@ -48,25 +48,22 @@
                             </button>
                         </div>
                         <div class="card-body">
-                            {% if categories %}
+                            {% if product_categories %}
                             <div class="table-responsive">
                                 <table class="table table-striped">
                                     <thead>
                                         <tr>
                                             <th>شناسه</th>
                                             <th>نام</th>
-                                            <th>نوع</th>
                                             <th>والد</th>
                                             <th>عملیات</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for category in categories %}
-                                        {% if category.cat_type == 'product' %}
+                                        {% for category in product_categories %}
                                         <tr>
                                             <td>{{ category.id }}</td>
                                             <td>{{ category.name }}</td>
-                                            <td>محصول</td>
                                             <td>
                                                 {% if category.parent %}
                                                 {{ category.parent.name }}
@@ -77,17 +74,16 @@
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <button type="button" class="btn btn-sm btn-warning" 
-                                                            onclick="editCategory({{ category.id }}, '{{ category.name }}', '{{ category.cat_type }}', {{ category.parent_id or 'null' }})">
+                                                            onclick="editCategory({{ category.id }}, '{{ category.name }}', 'product', {{ category.parent_id or 'null' }})">
                                                         <i class="bi bi-pencil"></i>
                                                     </button>
                                                     <button type="button" class="btn btn-sm btn-danger" 
-                                                            onclick="confirmDelete({{ category.id }}, '{{ category.name }}')">
+                                                            onclick="confirmDelete({{ category.id }}, '{{ category.name }}', 'product')">
                                                         <i class="bi bi-trash"></i>
                                                     </button>
                                                 </div>
                                             </td>
                                         </tr>
-                                        {% endif %}
                                         {% endfor %}
                                     </tbody>
                                 </table>
@@ -110,25 +106,22 @@
                             </button>
                         </div>
                         <div class="card-body">
-                            {% if categories %}
+                            {% if service_categories %}
                             <div class="table-responsive">
                                 <table class="table table-striped">
                                     <thead>
                                         <tr>
                                             <th>شناسه</th>
                                             <th>نام</th>
-                                            <th>نوع</th>
                                             <th>والد</th>
                                             <th>عملیات</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for category in categories %}
-                                        {% if category.cat_type == 'service' %}
+                                        {% for category in service_categories %}
                                         <tr>
                                             <td>{{ category.id }}</td>
                                             <td>{{ category.name }}</td>
-                                            <td>خدمات</td>
                                             <td>
                                                 {% if category.parent %}
                                                 {{ category.parent.name }}
@@ -139,17 +132,16 @@
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <button type="button" class="btn btn-sm btn-warning" 
-                                                            onclick="editCategory({{ category.id }}, '{{ category.name }}', '{{ category.cat_type }}', {{ category.parent_id or 'null' }})">
+                                                            onclick="editCategory({{ category.id }}, '{{ category.name }}', 'service', {{ category.parent_id or 'null' }})">
                                                         <i class="bi bi-pencil"></i>
                                                     </button>
                                                     <button type="button" class="btn btn-sm btn-danger" 
-                                                            onclick="confirmDelete({{ category.id }}, '{{ category.name }}')">
+                                                            onclick="confirmDelete({{ category.id }}, '{{ category.name }}', 'service')">
                                                         <i class="bi bi-trash"></i>
                                                     </button>
                                                 </div>
                                             </td>
                                         </tr>
-                                        {% endif %}
                                         {% endfor %}
                                     </tbody>
                                 </table>
@@ -172,25 +164,22 @@
                             </button>
                         </div>
                         <div class="card-body">
-                            {% if categories %}
+                            {% if educational_categories %}
                             <div class="table-responsive">
                                 <table class="table table-striped">
                                     <thead>
                                         <tr>
                                             <th>شناسه</th>
                                             <th>نام</th>
-                                            <th>نوع</th>
                                             <th>والد</th>
                                             <th>عملیات</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for category in categories %}
-                                        {% if category.cat_type == 'education' %}
+                                        {% for category in educational_categories %}
                                         <tr>
                                             <td>{{ category.id }}</td>
                                             <td>{{ category.name }}</td>
-                                            <td>محتوای آموزشی</td>
                                             <td>
                                                 {% if category.parent %}
                                                 {{ category.parent.name }}
@@ -201,17 +190,16 @@
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <button type="button" class="btn btn-sm btn-warning" 
-                                                            onclick="editCategory({{ category.id }}, '{{ category.name }}', '{{ category.cat_type }}', {{ category.parent_id or 'null' }})">
+                                                            onclick="editCategory({{ category.id }}, '{{ category.name }}', 'educational', {{ category.parent_id or 'null' }})">
                                                         <i class="bi bi-pencil"></i>
                                                     </button>
                                                     <button type="button" class="btn btn-sm btn-danger" 
-                                                            onclick="confirmDelete({{ category.id }}, '{{ category.name }}')">
+                                                            onclick="confirmDelete({{ category.id }}, '{{ category.name }}', 'educational')">
                                                         <i class="bi bi-trash"></i>
                                                     </button>
                                                 </div>
                                             </td>
                                         </tr>
-                                        {% endif %}
                                         {% endfor %}
                                     </tbody>
                                 </table>
@@ -458,9 +446,10 @@
     }
     
     // تایید حذف دسته‌بندی
-    function confirmDelete(id, name) {
+    function confirmDelete(id, name, category_type) {
         document.getElementById('deleteCategoryName').textContent = name;
         document.getElementById('deleteCategoryId').value = id;
+        document.getElementById('deleteCategoryType').value = category_type || 'product';
         
         new bootstrap.Modal(document.getElementById('deleteCategoryModal')).show();
     }
