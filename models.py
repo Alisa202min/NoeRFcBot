@@ -91,24 +91,7 @@ class EducationalCategory(db.Model):
         return f'<EducationalCategory {self.name}>'
 
 
-# Legacy Category model - kept for backward compatibility during migration
-class Category(db.Model):
-    """Legacy category model - will be deprecated"""
-    __tablename__ = 'categories'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64), nullable=False)
-    parent_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=True)
-    cat_type = db.Column(db.String(10), default='product')  # product or service
-    
-    # Relationships
-    children = db.relationship('Category', backref=db.backref('parent', remote_side=[id]))
-    
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    def __repr__(self):
-        return f'<Category {self.name}>'
+# Legacy Category model has been removed - now using ProductCategory and ServiceCategory instead
 
 
 class Product(db.Model):
