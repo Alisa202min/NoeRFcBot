@@ -35,8 +35,47 @@ class User(UserMixin, db.Model):
         return check_password_hash(self.password_hash, password)
 
 
+class ProductCategory(db.Model):
+    """Category model for products"""
+    __tablename__ = 'product_categories'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64), nullable=False)
+    parent_id = db.Column(db.Integer, db.ForeignKey('product_categories.id'), nullable=True)
+    
+    # Relationships
+    children = db.relationship('ProductCategory', backref=db.backref('parent', remote_side=[id]))
+    products = db.relationship('Product', backref='category', lazy='dynamic')
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<ProductCategory {self.name}>'
+
+
+class ServiceCategory(db.Model):
+    """Category model for services"""
+    __tablename__ = 'service_categories'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64), nullable=False)
+    parent_id = db.Column(db.Integer, db.ForeignKey('service_categories.id'), nullable=True)
+    
+    # Relationships
+    children = db.relationship('ServiceCategory', backref=db.backref('parent', remote_side=[id]))
+    services = db.relationship('Service', backref='category', lazy='dynamic')
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<ServiceCategory {self.name}>'
+
+
+# Legacy Category model - kept for backward compatibility during migration
 class Category(db.Model):
-    """Category model for products and services"""
+    """Legacy category model - will be deprecated"""
     __tablename__ = 'categories'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -46,8 +85,6 @@ class Category(db.Model):
     
     # Relationships
     children = db.relationship('Category', backref=db.backref('parent', remote_side=[id]))
-    products = db.relationship('Product', backref='category', lazy='dynamic')
-    services = db.relationship('Service', backref='category', lazy='dynamic')
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -64,7 +101,7 @@ class Product(db.Model):
     name = db.Column(db.Text, nullable=False)
     description = db.Column(db.Text)
     price = db.Column(db.Integer, default=0)
-    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
+    category_id = db.Column(db.Integer, db.ForeignKey('product_categories.id'))
     photo_url = db.Column(db.Text, nullable=True)
     
     # Type field removed in new database structure
@@ -107,7 +144,7 @@ class Service(db.Model):
     name = db.Column(db.Text, nullable=False)
     description = db.Column(db.Text)
     price = db.Column(db.Integer, default=0)
-    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
+    category_id = db.Column(db.Integer, db.ForeignKey('service_categories.id'))
     photo_url = db.Column(db.Text, nullable=True)
     
     # Media-related columns
@@ -121,6 +158,10 @@ class Service(db.Model):
     
     # Relationships
     media = db.relationship('ServiceMedia', backref='service', lazy='dynamic', cascade='all, delete-orphan')
+    
+    # Timestamps - adding for consistency with other models
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     def __repr__(self):
         return f'<Service {self.name}>'
