@@ -198,7 +198,7 @@ class ServiceMedia(db.Model):
 
 
 class Inquiry(db.Model):
-    """Price inquiries from users for products or services"""
+    """Price inquiries from users for products"""
     __tablename__ = 'inquiries'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -253,6 +253,29 @@ class Inquiry(db.Model):
     def related_service(self):
         """For backward compatibility"""
         return self.service
+
+
+class ServiceInquiry(db.Model):
+    """Price inquiries from users specifically for services"""
+    __tablename__ = 'service_inquiries'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, nullable=True)  # Telegram user_id
+    service_id = db.Column(db.Integer, db.ForeignKey('services.id'), nullable=True)
+    name = db.Column(db.String(100), nullable=False)
+    phone = db.Column(db.String(20), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(20), nullable=True, default='new')  # 'new', 'in_progress', 'completed'
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationship with Service
+    service = db.relationship('Service', backref='service_inquiries')
+    
+    def __repr__(self):
+        return f'<ServiceInquiry {self.id} - {self.name}>'
 
 
 class EducationalCategory(db.Model):
