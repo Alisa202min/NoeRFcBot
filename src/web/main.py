@@ -366,12 +366,6 @@ def get_photo_url(photo_url):
     if photo_url.startswith('static/'):
         return photo_url[7:]  # حذف 'static/' از ابتدای مسیر
     
-    # اگر مسیر با uploads/ شروع می‌شود
-    # برای استفاده در قالب‌ها مسیر را به صورت ../uploads/... برمی‌گردانیم
-    # تا قابل استفاده در url_for('static', filename=...) باشد
-    elif photo_url.startswith('uploads/'):
-        return '../' + photo_url
-    
     return photo_url
 
 # روت‌های مربوط به محصولات
