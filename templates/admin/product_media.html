@@ -41,26 +41,18 @@
                             {% endif %}
                         </div>
                         <div class="col-md-6">
-                            <h6>ویدیوی محصول</h6>
-                            {% if product.video_url %}
+                            <!-- اطلاعات محصول -->
                             <div class="card mb-3">
-                                <div class="ratio ratio-16x9">
-                                    <video controls>
-                                        <source src="{{ url_for('static', filename=product.video_url) }}" type="video/mp4">
-                                        مرورگر شما از پخش ویدیو پشتیبانی نمی‌کند.
-                                    </video>
+                                <div class="card-header">
+                                    <h6 class="mb-0">اطلاعات محصول</h6>
                                 </div>
                                 <div class="card-body">
-                                    <p class="card-text">
-                                        <small class="text-muted">{{ product.video_url }}</small>
-                                    </p>
+                                    <p><strong>نام:</strong> {{ product.name }}</p>
+                                    <p><strong>قیمت:</strong> {{ '{:,}'.format(product.price) }} تومان</p>
+                                    <p><strong>دسته‌بندی:</strong> {{ product.category.name if product.category else 'بدون دسته‌بندی' }}</p>
+                                    <p><strong>تعداد رسانه‌ها:</strong> {{ media|length }}</p>
                                 </div>
                             </div>
-                            {% else %}
-                            <div class="alert alert-info">
-                                ویدیویی تنظیم نشده است.
-                            </div>
-                            {% endif %}
                         </div>
                     </div>
                     
