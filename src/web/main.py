@@ -2129,7 +2129,7 @@ def search():
             base_query = base_query.order_by(Product.name.asc())
         
         # دریافت دسته‌بندی‌ها برای فیلتر
-        categories = Category.query.all()
+        categories = ProductCategory.query.all()
         
         # اجرای کوئری
         products = base_query.all()
