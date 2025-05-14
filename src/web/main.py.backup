@@ -11,7 +11,11 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 
 from src.web.app import app, db, media_files
-from src.models.models import User, Category, Product, ProductMedia, Service, ServiceMedia, Inquiry, EducationalContent, StaticContent
+from src.models.models import (
+    User, Category, Product, ProductMedia, Service, ServiceMedia, Inquiry,
+    EducationalContent, StaticContent, EducationalCategory, EducationalContentMedia,
+    ProductCategory, ServiceCategory
+)
 from src.utils.utils import allowed_file, save_uploaded_file, create_directory
 from src.utils.utils_upload import handle_media_upload, remove_file, serve_file
 
@@ -23,9 +27,9 @@ logger = logging.getLogger(__name__)
 def index():
     """صفحه اصلی"""
     try:
-        # محصولات و خدمات در جدول products ذخیره می‌شوند
-        products = Product.query.filter_by(product_type='product', featured=True).limit(6).all()
-        services = Product.query.filter_by(product_type='service').limit(6).all()
+        # محصولات و خدمات حالا از جداول جداگانه دریافت می‌شوند
+        products = Product.query.filter_by(featured=True).limit(6).all()
+        services = Service.query.filter_by(featured=True).limit(6).all()
         
         # برای اطمینان، اگر محتوا وجود نداشت از یک لیست خالی استفاده می‌کنیم
         if not products:
@@ -40,42 +44,37 @@ def index():
         except Exception as e:
             logger.warning(f"Error loading educational content: {e}")
             educational = []
-        
-        # دریافت محتوای استاتیک
+            
+        # دریافت محتوای ثابت (درباره ما)
         try:
             about_content = StaticContent.query.filter_by(content_type='about').first()
-            about_text = about_content.content if about_content else ''
+            if about_content:
+                about = about_content.content
+            else:
+                about = "محتوای درباره ما وجود ندارد"
         except Exception as e:
             logger.warning(f"Error loading about content: {e}")
-            about_text = ''
+            about = "خطا در بارگذاری محتوای درباره ما"
         
-        # بررسی وضعیت ربات
-        import subprocess
-        import os
-        import datetime
-        
-        try:
-            # بررسی وضعیت ربات با پیدا کردن پروسس مربوطه
-            result = subprocess.run(['pgrep', '-f', 'python bot.py'], 
-                            capture_output=True, text=True)
-            bot_status = 'running' if result.stdout.strip() else 'stopped'
+        # برای نمایش وضعیت متغیرهای محیطی
+        env_status = {
+            'BOT_TOKEN': 'Set' if os.environ.get('BOT_TOKEN') else 'Not Set',
+            'DATABASE_URL': 'Set' if os.environ.get('DATABASE_URL') else 'Not Set',
+            'ADMIN_ID': 'Set' if os.environ.get('ADMIN_ID') else 'Not Set'
+        }
             
-            # بررسی وضعیت متغیرهای محیطی
-            env_status = all([
-                os.environ.get('BOT_TOKEN'),
-                os.environ.get('DATABASE_URL')
-            ])
-        except Exception as e:
-            logger.warning(f"Error checking bot status: {e}")
-            bot_status = 'unknown'
-            env_status = False
-        
-        # بررسی تاریخ آخرین اجرا (اگر فایل لاگ وجود داشته باشد)
-        try:
-            last_run = datetime.datetime.now()
-        except Exception as e:
-            logger.warning(f"Error getting last run time: {e}")
-            last_run = None
+        return render_template('index.html', products=products, services=services, 
+                            educational=educational, about=about, env_status=env_status)
+    except Exception as e:
+        logger.error(f"Error in index route: {e}")
+        # برای نمایش وضعیت متغیرهای محیطی
+        env_status = {
+            'BOT_TOKEN': 'Set' if os.environ.get('BOT_TOKEN') else 'Not Set',
+            'DATABASE_URL': 'Set' if os.environ.get('DATABASE_URL') else 'Not Set',
+            'ADMIN_ID': 'Set' if os.environ.get('ADMIN_ID') else 'Not Set'
+        }
+        return render_template('index.html', products=[], services=[], 
+                            educational=[], about="خطا در بارگذاری محتوا", env_status=env_status)
         
         # آماده‌سازی لاگ‌های اولیه برای نمایش
         try:
@@ -194,8 +193,8 @@ def admin_index():
     """پنل مدیریت - داشبورد"""
     try:
         # آمار سیستم
-        product_count = Product.query.filter_by(product_type='product').count()
-        service_count = Product.query.filter_by(product_type='service').count()
+        product_count = Product.query.count()
+        service_count = Service.query.count()
         category_count = Category.query.count()
         inquiry_count = Inquiry.query.count()
         pending_count = Inquiry.query.filter_by(status='pending').count()
@@ -230,13 +229,30 @@ def admin_index():
 @login_required
 def admin_categories():
     """پنل مدیریت - دسته‌بندی‌ها"""
-    # دریافت تمام دسته‌بندی‌ها
-    categories = Category.query.all()
+    # دریافت دسته‌بندی‌های محصول
+    product_categories = ProductCategory.query.all()
+    product_tree = build_category_tree(product_categories)
     
-    # تبدیل به ساختار درختی
+    # دریافت دسته‌بندی‌های خدمات
+    service_categories = ServiceCategory.query.all()
+    service_tree = build_category_tree(service_categories)
+    
+    # دریافت دسته‌بندی‌های محتوای آموزشی
+    educational_categories = EducationalCategory.query.all()
+    educational_tree = build_category_tree(educational_categories)
+    
+    # دسته‌بندی‌های قدیمی (برای سازگاری با سیستم قدیمی)
+    categories = Category.query.all()
     category_tree = build_category_tree(categories)
     
     return render_template('admin/categories.html', 
+                          product_categories=product_categories,
+                          service_categories=service_categories,
+                          educational_categories=educational_categories,
+                          product_tree=product_tree,
+                          service_tree=service_tree,
+                          educational_tree=educational_tree,
+                          # برای سازگاری با سیستم قدیمی
                           categories=categories,
                           category_tree=category_tree)
 
@@ -246,60 +262,95 @@ def build_category_tree(categories, parent_id=None):
     for category in categories:
         if category.parent_id == parent_id:
             children = build_category_tree(categories, category.id)
-            tree.append({
+            category_data = {
                 'id': category.id,
                 'name': category.name,
-                'children': children,
-                'cat_type': category.cat_type
-            })
+                'children': children
+            }
+            # افزودن cat_type فقط اگر در مدل موجود باشد (برای سازگاری با مدل قدیمی Category)
+            if hasattr(category, 'cat_type'):
+                category_data['cat_type'] = category.cat_type
+            
+            tree.append(category_data)
     return tree
 
 @app.route('/admin/categories/add', methods=['POST'])
 @login_required
 def admin_add_category():
     """اضافه کردن، ویرایش یا حذف دسته‌بندی"""
-    # بررسی نوع عملیات
-    action = request.form.get('_action', 'add')
-    
-    if action == 'delete':
-        # حذف دسته‌بندی
-        category_id = request.form.get('id')
-        if category_id:
-            category = Category.query.get_or_404(int(category_id))
-            name = category.name
-            db.session.delete(category)
-            db.session.commit()
-            flash(f'دسته‌بندی {name} با موفقیت حذف شد.', 'success')
-        return redirect(url_for('admin_categories'))
-    
-    # دریافت پارامترهای مشترک برای اضافه کردن و ویرایش
-    name = request.form.get('name')
-    parent_id = request.form.get('parent_id')
-    cat_type = request.form.get('cat_type', 'product')
-    
-    # تبدیل parent_id به None اگر خالی باشد
-    if parent_id and parent_id != '':
-        parent_id = int(parent_id)
-    else:
-        parent_id = None
-    
-    if action == 'edit':
-        # ویرایش دسته‌بندی موجود
-        category_id = request.form.get('id')
-        if category_id:
-            category = Category.query.get_or_404(int(category_id))
-            category.name = name
-            category.parent_id = parent_id
-            category.cat_type = cat_type
-            db.session.commit()
-            flash(f'دسته‌بندی {name} با موفقیت ویرایش شد.', 'success')
-    else:
-        # اضافه کردن دسته‌بندی جدید
-        category = Category(name=name, parent_id=parent_id, cat_type=cat_type)
-        db.session.add(category)
-        db.session.commit()
-        flash(f'دسته‌بندی {name} با موفقیت اضافه شد.', 'success')
+    try:
+        # بررسی نوع عملیات و نوع دسته‌بندی
+        action = request.form.get('_action', 'add')
+        category_type = request.form.get('category_type')
         
+        # دریافت پارامترهای مشترک برای اضافه کردن و ویرایش
+        name = request.form.get('name')
+        parent_id = request.form.get('parent_id')
+        
+        # تبدیل parent_id به None اگر خالی باشد
+        if parent_id and parent_id != '':
+            parent_id = int(parent_id)
+        else:
+            parent_id = None
+        
+        # تعیین مدل دسته‌بندی بر اساس نوع
+        if category_type == 'product':
+            CategoryModel = ProductCategory
+        elif category_type == 'service':
+            CategoryModel = ServiceCategory
+        elif category_type == 'educational':
+            CategoryModel = EducationalCategory
+        else:
+            # برای سازگاری با سیستم قدیمی
+            CategoryModel = Category
+            cat_type = request.form.get('cat_type', 'product')
+        
+        # عملیات حذف
+        if action == 'delete':
+            category_id = request.form.get('id')
+            if category_id:
+                category = CategoryModel.query.get_or_404(int(category_id))
+                name = category.name
+                db.session.delete(category)
+                db.session.commit()
+                flash(f'دسته‌بندی {name} با موفقیت حذف شد.', 'success')
+        
+        # عملیات ویرایش
+        elif action == 'edit':
+            category_id = request.form.get('id')
+            if category_id and name:
+                category = CategoryModel.query.get_or_404(int(category_id))
+                category.name = name
+                category.parent_id = parent_id
+                
+                # برای سازگاری با مدل قدیمی Category
+                if hasattr(category, 'cat_type'):
+                    category.cat_type = cat_type
+                
+                db.session.commit()
+                flash(f'دسته‌بندی {name} با موفقیت ویرایش شد.', 'success')
+        
+        # عملیات اضافه کردن
+        else:  # action == 'add'
+            if name:
+                if CategoryModel == Category:
+                    # برای سازگاری با مدل قدیمی
+                    category = Category(name=name, parent_id=parent_id, cat_type=cat_type)
+                else:
+                    # برای مدل‌های جدید که فیلد cat_type ندارند
+                    category = CategoryModel()
+                    category.name = name
+                    category.parent_id = parent_id
+                
+                db.session.add(category)
+                db.session.commit()
+                flash(f'دسته‌بندی {name} با موفقیت اضافه شد.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in admin_add_category: {e}")
+        flash(f'خطا در عملیات دسته‌بندی: {str(e)}', 'danger')
+    
     return redirect(url_for('admin_categories'))
 
 # ... Routes for products, services, inquiries, etc. ...
@@ -309,7 +360,8 @@ def admin_add_category():
 def product_detail(product_id):
     """صفحه جزئیات محصول"""
     product = Product.query.get_or_404(product_id)
-    related_products = Product.query.filter_by(category_id=product.category_id, product_type='product').filter(Product.id != product.id).limit(4).all()
+    # محصولات مرتبط که در همان دسته‌بندی هستند اما ID متفاوتی دارند
+    related_products = Product.query.filter_by(category_id=product.category_id).filter(Product.id != product.id).limit(4).all()
     media = ProductMedia.query.filter_by(product_id=product.id).all()
     
     return render_template('product_detail.html', 
@@ -487,7 +539,6 @@ def admin_products():
                         price=price,
                         description=description,
                         category_id=category_id,  # اکنون مطمئن هستیم که این مقدار NULL نیست
-                        product_type='product',
                         brand=brand,
                         model=model,
                         in_stock=in_stock,
@@ -633,9 +684,12 @@ def admin_products():
 @app.route('/service/<int:service_id>')
 def service_detail(service_id):
     """صفحه جزئیات خدمت"""
-    service = Product.query.filter_by(id=service_id, product_type='service').first_or_404()
-    related_services = Product.query.filter_by(category_id=service.category_id, product_type='service').filter(Product.id != service.id).limit(4).all()
-    media = ProductMedia.query.filter_by(product_id=service.id).all()
+    # استفاده از مدل Service به جای فیلتر بر روی محصول
+    service = Service.query.filter_by(id=service_id).first_or_404()
+    # استفاده از جدول Service برای سرویس‌های مرتبط
+    related_services = Service.query.filter_by(category_id=service.category_id).filter(Service.id != service.id).limit(4).all()
+    # استفاده از ServiceMedia به جای ProductMedia
+    media = ServiceMedia.query.filter_by(service_id=service.id).all()
     
     return render_template('service_detail.html', 
                           service=service, 
@@ -806,11 +860,12 @@ def admin_services():
                 db.session.rollback()
                 logger.error(f"Error saving service: {str(e)}")
                 flash(f'خطا در ذخیره خدمت: {str(e)}', 'danger')
-                categories = Category.query.filter_by(cat_type='service').all()
+                # استفاده از ServiceCategory به جای Category با فیلتر cat_type
+                categories = ServiceCategory.query.all()
                 
                 if service_id:
-                    # در صورت خطا در ویرایش، به فرم ویرایش برمی‌گردیم
-                    service = Product.query.filter_by(product_type='service', id=int(service_id)).first_or_404()
+                    # استفاده از جدول Service به جای Product با فیلتر product_type
+                    service = Service.query.filter_by(id=int(service_id)).first_or_404()
                     return render_template('admin/service_form.html',
                                           title="ویرایش خدمت",
                                           service=service,
@@ -828,7 +883,8 @@ def admin_services():
                 flash('شناسه خدمت الزامی است.', 'danger')
                 return redirect(url_for('admin_services'))
             
-            service = Product.query.filter_by(product_type='service', id=int(service_id)).first_or_404()
+            # استفاده از جدول Service به جای Product با فیلتر product_type
+            service = Service.query.filter_by(id=int(service_id)).first_or_404()
             file = request.files.get('file')
             file_type = request.form.get('file_type', 'photo')
             
@@ -850,9 +906,9 @@ def admin_services():
                         relative_path = file_path.replace('static/', '', 1) if file_path.startswith('static/') else file_path
                         logger.info(f"Service media relative path: {relative_path}")
                         
-                        # افزودن به دیتابیس
-                        media = ProductMedia(
-                            product_id=service.id,
+                        # افزودن به دیتابیس - استفاده از ServiceMedia به جای ProductMedia
+                        media = ServiceMedia(
+                            service_id=service.id,
                             file_id=relative_path,
                             file_type=file_type,
                             local_path=file_path  # ذخیره مسیر کامل برای استفاده بعدی
@@ -907,29 +963,37 @@ def admin_services():
     
     # اگر action برابر با 'add' یا 'edit' باشد، فرم نمایش داده می‌شود
     if action == 'add':
-        categories = Category.query.filter_by(cat_type='service').all()
+        # استفاده از ServiceCategory به جای Category با فیلتر cat_type
+        categories = ServiceCategory.query.all()
         return render_template('admin/service_form.html',
                               title="افزودن خدمت جدید",
                               categories=categories)
     elif action == 'edit' and service_id:
-        service = Product.query.filter_by(product_type='service', id=int(service_id)).first_or_404()
-        categories = Category.query.filter_by(cat_type='service').all()
+        # استفاده از جدول Service به جای Product با فیلتر product_type
+        service = Service.query.filter_by(id=int(service_id)).first_or_404()
+        categories = ServiceCategory.query.all()
         return render_template('admin/service_form.html',
                               title="ویرایش خدمت",
                               service=service,
                               categories=categories)
     elif action == 'media' and service_id:
-        service = Product.query.filter_by(product_type='service', id=int(service_id)).first_or_404()
-        media = ProductMedia.query.filter_by(product_id=service.id).all()
+        # استفاده از جدول Service به جای Product با فیلتر product_type
+        service = Service.query.filter_by(id=int(service_id)).first_or_404()
+        # استفاده از ServiceMedia به جای ProductMedia
+        media = ServiceMedia.query.filter_by(service_id=service.id).all()
         return render_template('admin/service_media.html',
                               service=service,
                               media=media)
     
     # نمایش لیست خدمات
     page = request.args.get('page', 1, type=int)
-    pagination = Product.query.filter_by(product_type='service').paginate(
+    
+    # استفاده از جدول Service به جای Product
+    pagination = Service.query.paginate(
         page=page, per_page=10, error_out=False)
-    categories = Category.query.all()
+    
+    # دریافت دسته‌بندی‌های خدمات
+    categories = ServiceCategory.query.all()
     
     return render_template('admin/services.html', 
                           services=pagination,
@@ -965,8 +1029,11 @@ def admin_inquiries():
         # اطلاعات محصول/خدمت مرتبط
         product = None
         if inquiry.product_id:
-            # تمام محصولات و خدمات در جدول Product ذخیره می‌شوند
+            # محصول از جدول Product
             product = Product.query.get(inquiry.product_id)
+        elif inquiry.service_id:
+            # خدمت از جدول Service
+            product = Service.query.get(inquiry.service_id)
         
         return render_template('admin/inquiry_detail.html',
                              inquiry=inquiry,
@@ -1338,7 +1405,7 @@ def api_services():
         featured = request.args.get('featured', type=bool)
         
         # فیلتر بر اساس پارامترهای ورودی
-        query = Product.query.filter_by(product_type='service')
+        query = Service.query
         
         if category_id:
             query = query.filter_by(category_id=category_id)
@@ -1464,14 +1531,49 @@ def telegram_file(file_id):
             
         if not media:
             logger.warning(f"No media record found for file_id: {file_id}")
+            
+            # بررسی فایل در مسیر media
+            # برای محصولات
+            if file_id.startswith('product_image_'):
+                product_media_path = os.path.join('static', 'media', 'products', f"{file_id}.jpg")
+                if os.path.exists(product_media_path):
+                    logger.info(f"Found product media file: {product_media_path}")
+                    return redirect(url_for('static', filename=f"media/products/{file_id}.jpg"))
+            
+            # برای خدمات
+            elif file_id.startswith('service_image_'):
+                service_media_path = os.path.join('static', 'media', 'services', f"{file_id}.jpg")
+                if os.path.exists(service_media_path):
+                    logger.info(f"Found service media file: {service_media_path}")
+                    return redirect(url_for('static', filename=f"media/services/{file_id}.jpg"))
+            
             # تلاش نهایی - بررسی اینکه آیا این یک مسیر فایل است
             potential_path = os.path.join('static', file_id)
             if os.path.exists(potential_path):
                 logger.info(f"Found file as a direct path: {potential_path}")
                 return redirect(url_for('static', filename=file_id))
             
-            # اگر هیچ چیزی پیدا نشد
-            return jsonify({'error': 'فایل پیدا نشد'}), 404
+            # اگر هیچ چیزی پیدا نشد، تصویر پیش‌فرض را نمایش می‌دهیم
+            logger.warning(f"Could not find any file for {file_id}, using default image")
+            
+            # ایجاد دایرکتوری static/images اگر وجود ندارد
+            default_img_dir = os.path.join('static', 'images')
+            os.makedirs(default_img_dir, exist_ok=True)
+            
+            # کپی کردن تصویر پیش‌فرض از attached_assets به static/images اگر وجود ندارد
+            default_img_path = os.path.join(default_img_dir, 'no-image.png')
+            if not os.path.exists(default_img_path):
+                fallback_img = os.path.join('attached_assets', 'show.jpg')
+                if os.path.exists(fallback_img):
+                    import shutil
+                    shutil.copy(fallback_img, default_img_path)
+                    logger.info(f"Created default image at {default_img_path}")
+            
+            # اگر تصویر پیش‌فرض وجود دارد، آن را نمایش می‌دهیم
+            if os.path.exists(default_img_path):
+                return redirect(url_for('static', filename='images/no-image.png'))
+            else:
+                return jsonify({'error': 'فایل پیدا نشد'}), 404
         
         try:    
             logger.info(f"Found media record: {media.id}, file_id: {media.file_id}, local_path: {getattr(media, 'local_path', 'N/A')}")
@@ -1489,17 +1591,388 @@ def telegram_file(file_id):
                 logger.info(f"Serving media file_id with static route: {media.file_id}")
                 return redirect(url_for('static', filename=media.file_id))
             
-            # نهایتاً اگر همه روش‌ها شکست خورد، خطا برمی‌گردانیم
-            logger.warning(f"Could not find a valid path for file_id: {file_id}")
-            return jsonify({'error': 'فایل در سرور وجود ندارد'}), 404
+            # نهایتاً اگر همه روش‌ها شکست خورد، تصویر پیش‌فرض را نمایش می‌دهیم
+            logger.warning(f"Could not find a valid path for file_id: {file_id}, using default image")
+            
+            # ایجاد دایرکتوری static/images اگر وجود ندارد
+            default_img_dir = os.path.join('static', 'images')
+            os.makedirs(default_img_dir, exist_ok=True)
+            
+            # کپی کردن تصویر پیش‌فرض از attached_assets به static/images اگر وجود ندارد
+            default_img_path = os.path.join(default_img_dir, 'no-image.png')
+            if not os.path.exists(default_img_path):
+                fallback_img = os.path.join('attached_assets', 'show.jpg')
+                if os.path.exists(fallback_img):
+                    import shutil
+                    shutil.copy(fallback_img, default_img_path)
+                    logger.info(f"Created default image at {default_img_path}")
+            
+            # اگر تصویر پیش‌فرض وجود دارد، آن را نمایش می‌دهیم
+            if os.path.exists(default_img_path):
+                return redirect(url_for('static', filename='images/no-image.png'))
+            else:
+                return jsonify({'error': 'فایل در سرور وجود ندارد'}), 404
         except Exception as e:
             logger.error(f"Error processing media record {media.id}: {str(e)}")
             return jsonify({'error': f"Error processing media: {str(e)}"}), 500
     except Exception as e:
         logger.error(f"Unhandled exception in telegram_file: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        
+        # در صورت خطا، تلاش برای نمایش تصویر پیش‌فرض
+        try:
+            # ایجاد دایرکتوری static/images اگر وجود ندارد
+            default_img_dir = os.path.join('static', 'images')
+            os.makedirs(default_img_dir, exist_ok=True)
+            
+            # کپی کردن تصویر پیش‌فرض از attached_assets به static/images اگر وجود ندارد
+            default_img_path = os.path.join(default_img_dir, 'no-image.png')
+            if not os.path.exists(default_img_path):
+                fallback_img = os.path.join('attached_assets', 'show.jpg')
+                if os.path.exists(fallback_img):
+                    import shutil
+                    shutil.copy(fallback_img, default_img_path)
+                    logger.info(f"Created default image at {default_img_path} (error fallback)")
+            
+            # اگر تصویر پیش‌فرض وجود دارد، آن را نمایش می‌دهیم
+            if os.path.exists(default_img_path):
+                return redirect(url_for('static', filename='images/no-image.png'))
+            else:
+                return jsonify({'error': str(e)}), 500
+                
+        except Exception as e2:
+            logger.error(f"Error in fallback image logic: {str(e2)}")
+            return jsonify({'error': str(e)}), 500
+
+# ----- Database Management Routes -----
+@app.route('/admin/database')
+@login_required
+def admin_database():
+    """صفحه مدیریت پایگاه داده"""
+    try:
+        # دریافت اطلاعات کلی جداول
+        tables = {
+            'users': db.session.query(User).count(),
+            'products': db.session.query(Product).count(),
+            'services': db.session.query(Service).count(),
+            'product_media': db.session.query(ProductMedia).count(),
+            'service_media': db.session.query(ServiceMedia).count(),
+            'categories': db.session.query(Category).count(),
+            'inquiries': db.session.query(Inquiry).count(),
+            'educational_content': db.session.query(EducationalContent).count(),
+            'educational_categories': db.session.query(EducationalCategory).count(),
+            'educational_content_media': db.session.query(EducationalContentMedia).count(),
+            'static_content': db.session.query(StaticContent).count(),
+        }
+        
+        return render_template('admin/database.html', tables=tables)
+    except Exception as e:
+        logger.error(f"Error in admin_database: {e}")
+        return render_template('error.html', error=str(e))
+
+@app.route('/admin/database/view/<table>')
+@login_required
+def admin_view_table(table):
+    """نمایش محتوای یک جدول"""
+    try:
+        model_map = {
+            'users': User,
+            'products': Product,
+            'services': Service,
+            'product_media': ProductMedia,
+            'service_media': ServiceMedia,
+            'categories': Category,
+            'inquiries': Inquiry,
+            'educational_content': EducationalContent,
+            'educational_categories': EducationalCategory,
+            'educational_content_media': EducationalContentMedia,
+            'static_content': StaticContent,
+        }
+        
+        if table not in model_map:
+            flash(f'جدول {table} یافت نشد.', 'danger')
+            return redirect(url_for('admin_database'))
+        
+        # دریافت محتوای جدول
+        model = model_map[table]
+        data = model.query.all()
+        
+        # دریافت نام ستون‌ها
+        columns = [column.name for column in model.__table__.columns]
+        
+        return render_template('admin/table_view.html', 
+                            data=data, 
+                            columns=columns, 
+                            table_name=table)
+    except Exception as e:
+        logger.error(f"Error in admin_view_table: {e}")
+        return render_template('error.html', error=str(e))
+
+@app.route('/admin/database/fix/<table>', methods=['POST'])
+@login_required
+def admin_database_fix(table):
+    """اصلاح جداول دیتابیس برای اطمینان از صحت اطلاعات"""
+    try:
+        fixed_count = 0
+        
+        # بر اساس جدول، عملیات اصلاح مناسب را انجام می‌دهیم
+        if table == 'service_media':
+            # دریافت همه رکوردهای service_media
+            service_media = ServiceMedia.query.all()
+            
+            for media in service_media:
+                # بررسی وجود service_id معتبر
+                service = Service.query.get(media.service_id)
+                if not service:
+                    # حذف رکورد اگر service_id معتبر نیست
+                    db.session.delete(media)
+                    fixed_count += 1
+                    continue
+            
+            # ذخیره تغییرات
+            db.session.commit()
+            
+            # ایجاد رکوردهای media برای سرویس‌هایی که رسانه ندارند
+            services = Service.query.all()
+            for service in services:
+                count = ServiceMedia.query.filter_by(service_id=service.id).count()
+                if count == 0:
+                    # ایجاد دو رکورد پیش‌فرض
+                    for i in range(1, 3):
+                        media = ServiceMedia(
+                            service_id=service.id,
+                            file_id=f"service_image_{service.id}_{i}",
+                            file_type="photo"
+                        )
+                        db.session.add(media)
+                        fixed_count += 1
+            
+            # ذخیره تغییرات
+            db.session.commit()
+        
+        elif table == 'product_media':
+            # دریافت همه رکوردهای product_media
+            product_media = ProductMedia.query.all()
+            
+            for media in product_media:
+                # بررسی وجود product_id معتبر
+                product = Product.query.get(media.product_id)
+                if not product:
+                    # حذف رکورد اگر product_id معتبر نیست
+                    db.session.delete(media)
+                    fixed_count += 1
+                    continue
+            
+            # ذخیره تغییرات
+            db.session.commit()
+            
+            # ایجاد رکوردهای media برای محصولاتی که رسانه ندارند
+            products = Product.query.all()
+            for product in products:
+                count = ProductMedia.query.filter_by(product_id=product.id).count()
+                if count == 0:
+                    # ایجاد دو رکورد پیش‌فرض
+                    for i in range(1, 3):
+                        media = ProductMedia(
+                            product_id=product.id,
+                            file_id=f"product_image_{product.id}_{i}",
+                            file_type="photo"
+                        )
+                        db.session.add(media)
+                        fixed_count += 1
+            
+            # ذخیره تغییرات
+            db.session.commit()
+        
+        elif table == 'services':
+            # بررسی و اصلاح خدمات
+            services = Service.query.all()
+            for service in services:
+                modified = False
+                
+                # اطمینان از وجود دسته‌بندی معتبر
+                if service.category_id:
+                    category = Category.query.get(service.category_id)
+                    if not category:
+                        # تنظیم دسته‌بندی پیش‌فرض
+                        default_category = Category.query.filter_by(cat_type='service').first()
+                        if default_category:
+                            service.category_id = default_category.id
+                            modified = True
+                
+                if modified:
+                    fixed_count += 1
+            
+            # ذخیره تغییرات
+            db.session.commit()
+        
+        elif table == 'products':
+            # بررسی و اصلاح محصولات
+            products = Product.query.all()
+            for product in products:
+                modified = False
+                
+                # اطمینان از وجود دسته‌بندی معتبر
+                if product.category_id:
+                    category = Category.query.get(product.category_id)
+                    if not category:
+                        # تنظیم دسته‌بندی پیش‌فرض
+                        default_category = Category.query.filter_by(cat_type='product').first()
+                        if default_category:
+                            product.category_id = default_category.id
+                            modified = True
+                
+                if modified:
+                    fixed_count += 1
+            
+            # ذخیره تغییرات
+            db.session.commit()
+        
+        elif table == 'inquiries':
+            # بررسی و اصلاح استعلام‌ها
+            inquiries = Inquiry.query.all()
+            for inquiry in inquiries:
+                modified = False
+                
+                # بررسی product_id و service_id
+                if inquiry.product_id:
+                    product = Product.query.get(inquiry.product_id)
+                    if not product:
+                        inquiry.product_id = None
+                        modified = True
+                
+                if inquiry.service_id:
+                    service = Service.query.get(inquiry.service_id)
+                    if not service:
+                        inquiry.service_id = None
+                        modified = True
+                
+                if modified:
+                    fixed_count += 1
+            
+            # ذخیره تغییرات
+            db.session.commit()
+        
+        elif table == 'educational_content':
+            # بررسی و اصلاح محتوای آموزشی
+            contents = EducationalContent.query.all()
+            for content in contents:
+                modified = False
+                
+                # اطمینان از وجود category_id معتبر
+                if content.category_id:
+                    category = EducationalCategory.query.get(content.category_id)
+                    if not category:
+                        # تنظیم دسته‌بندی پیش‌فرض یا خالی
+                        default_category = EducationalCategory.query.first()
+                        if default_category:
+                            content.category_id = default_category.id
+                        else:
+                            content.category_id = None
+                        modified = True
+                
+                # اطمینان از همخوانی فیلد category با category_id
+                if content.category_id and content.category:
+                    category = EducationalCategory.query.get(content.category_id)
+                    if category and category.name != content.category:
+                        content.category = category.name
+                        modified = True
+                
+                # اطمینان از همخوانی فیلد type با content_type
+                if content.content_type and content.type != content.content_type:
+                    content.type = content.content_type
+                    modified = True
+                elif content.type and not content.content_type:
+                    content.content_type = content.type
+                    modified = True
+                
+                if modified:
+                    fixed_count += 1
+            
+            # ذخیره تغییرات
+            db.session.commit()
+            
+            # ایجاد رکوردهای media برای محتوای آموزشی که رسانه ندارند
+            for content in contents:
+                count = EducationalContentMedia.query.filter_by(educational_content_id=content.id).count()
+                if count == 0 and content.content_type in ['photo', 'video', 'file']:
+                    # ایجاد یک رکورد پیش‌فرض
+                    media = EducationalContentMedia(
+                        educational_content_id=content.id,
+                        file_id=f"educational_content_image_{content.id}_1",
+                        file_type=content.content_type
+                    )
+                    db.session.add(media)
+                    fixed_count += 1
+            
+            # ذخیره تغییرات
+            db.session.commit()
+        
+        elif table == 'educational_content_media':
+            # بررسی و اصلاح رسانه‌های محتوای آموزشی
+            media_items = EducationalContentMedia.query.all()
+            for media in media_items:
+                # بررسی وجود educational_content_id معتبر
+                content = EducationalContent.query.get(media.educational_content_id)
+                if not content:
+                    # حذف رکورد اگر educational_content_id معتبر نیست
+                    db.session.delete(media)
+                    fixed_count += 1
+            
+            # ذخیره تغییرات
+            db.session.commit()
+        
+        elif table == 'categories':
+            # بررسی و اصلاح دسته‌بندی‌ها
+            categories = Category.query.all()
+            for category in categories:
+                modified = False
+                
+                # بررسی parent_id
+                if category.parent_id:
+                    parent = Category.query.get(category.parent_id)
+                    if not parent:
+                        category.parent_id = None
+                        modified = True
+                
+                # اطمینان از وجود cat_type
+                if not category.cat_type:
+                    category.cat_type = 'product'  # cat_type پیش‌فرض
+                    modified = True
+                
+                if modified:
+                    fixed_count += 1
+            
+            # ذخیره تغییرات
+            db.session.commit()
+        
+        else:
+            # برای سایر جداول، پیام‌رسانی مناسب
+            flash(f'اصلاح برای جدول {table} در حال حاضر پشتیبانی نمی‌شود.', 'warning')
+            return redirect(url_for('admin_view_table', table=table))
+        
+        # پیام‌رسانی موفقیت
+        if fixed_count > 0:
+            flash(f'{fixed_count} رکورد در جدول {table} اصلاح شد.', 'success')
+        else:
+            flash(f'همه رکوردهای جدول {table} سالم هستند.', 'info')
+        
+        return redirect(url_for('admin_view_table', table=table))
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in admin_database_fix for table {table}: {e}")
+        flash(f'خطا در اصلاح جدول {table}: {str(e)}', 'danger')
+        return redirect(url_for('admin_database'))
+
+@app.route('/admin/database/service_media_fix', methods=['POST'])
+@login_required
+def admin_service_media_fix():
+    """برای حفظ سازگاری با کد قبلی"""
+    return admin_database_fix('service_media')
 
 # ----- Additional Web Routes -----
+
+
 
 @app.route('/products')
 def products():
@@ -1617,8 +2090,7 @@ def search():
             filters['query'] = query_text
         if category_id is not None:
             filters['category_id'] = category_id
-        if product_type:
-            filters['product_type'] = product_type
+        # در مدل جدید، نوع محصول یا خدمت با استفاده از جداول مختلف مشخص می‌شود
         if min_price is not None:
             filters['min_price'] = min_price
         if max_price is not None:
@@ -1641,8 +2113,7 @@ def search():
         if category_id:
             base_query = base_query.filter(Product.category_id == category_id)
         
-        if product_type:
-            base_query = base_query.filter(Product.product_type == product_type)
+        # در مدل جدید، محصولات و خدمات در جداول مختلف هستند و نیازی به فیلتر product_type نیست
         
         if min_price:
             base_query = base_query.filter(Product.price >= min_price)
@@ -1879,8 +2350,8 @@ def export_entity(entity_type):
     
     # مپ کردن نوع داده به مدل
     entity_map = {
-        'products': Product.query.filter_by(product_type='product'),
-        'services': Product.query.filter_by(product_type='service'),
+        'products': Product.query,
+        'services': Service.query,
         'categories': Category.query,
         'inquiries': Inquiry.query,
         'educational': EducationalContent.query,
@@ -1962,7 +2433,6 @@ def import_entity():
                     price=int(row.get('price', 0)),
                     description=row.get('description', ''),
                     category_id=int(row.get('category_id', 0)),
-                    product_type='product',
                     photo_url=row.get('photo_url', None)
                 )
                 db.session.add(item)

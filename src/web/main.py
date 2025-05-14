@@ -626,7 +626,8 @@ def admin_products():
                 return redirect(url_for('admin_products'))
             
             try:
-                media = ProductMedia.query.get(int(media_id))
+                # استفاده از ServiceMedia به جای ProductMedia
+                media = ServiceMedia.query.get(int(media_id))
                 if media:
                     # اگر فایل روی فایل سیستم ذخیره شده، آن را حذف می‌کنیم
                     if not media.file_id.startswith('http'):
@@ -941,7 +942,8 @@ def admin_services():
                 return redirect(url_for('admin_services'))
             
             try:
-                media = ProductMedia.query.get(int(media_id))
+                # استفاده از ServiceMedia به جای ProductMedia
+                media = ServiceMedia.query.get(int(media_id))
                 if media:
                     # اگر فایل روی فایل سیستم ذخیره شده، آن را حذف می‌کنیم
                     if not media.file_id.startswith('http'):
