@@ -74,7 +74,7 @@
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <button type="button" class="btn btn-sm btn-warning" 
-                                                            onclick="editCategory({{ category.id }}, '{{ category.name }}', 'product', {{ category.parent_id or 'null' }})">
+                                                            onclick="editCategory({{ category.id }}, '{{ category.name }}', 'product', {% if category.parent_id %}{{ category.parent_id }}{% else %}null{% endif %})">
                                                         <i class="bi bi-pencil"></i>
                                                     </button>
                                                     <button type="button" class="btn btn-sm btn-danger" 
@@ -132,7 +132,7 @@
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <button type="button" class="btn btn-sm btn-warning" 
-                                                            onclick="editCategory({{ category.id }}, '{{ category.name }}', 'service', {{ category.parent_id or 'null' }})">
+                                                            onclick="editCategory({{ category.id }}, '{{ category.name }}', 'service', {% if category.parent_id %}{{ category.parent_id }}{% else %}null{% endif %})">
                                                         <i class="bi bi-pencil"></i>
                                                     </button>
                                                     <button type="button" class="btn btn-sm btn-danger" 
@@ -190,7 +190,7 @@
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <button type="button" class="btn btn-sm btn-warning" 
-                                                            onclick="editCategory({{ category.id }}, '{{ category.name }}', 'educational', {{ category.parent_id or 'null' }})">
+                                                            onclick="editCategory({{ category.id }}, '{{ category.name }}', 'educational', {% if category.parent_id %}{{ category.parent_id }}{% else %}null{% endif %})">
                                                         <i class="bi bi-pencil"></i>
                                                     </button>
                                                     <button type="button" class="btn btn-sm btn-danger" 
@@ -392,7 +392,7 @@
                     <input type="hidden" id="deleteCategoryId" name="id">
                     <input type="hidden" id="deleteCategoryType" name="category_type" value="product">
                     <input type="hidden" name="_action" value="delete">
-                    <button type="submit" class="btn btn-danger">حذف</button>
+                    <button type="button" class="btn btn-danger" onclick="submitDeleteForm()">حذف</button>
                 </form>
             </div>
         </div>
@@ -467,9 +467,60 @@
         new bootstrap.Modal(document.getElementById('deleteCategoryModal')).show();
     }
     
-    // ارسال فرم دسته‌بندی
+    // ارسال فرم دسته‌بندی و بستن مودال
     function submitCategoryForm() {
-        document.getElementById('categoryForm').submit();
+        // اضافه کردن یک event listener برای فرم
+        const form = document.getElementById('categoryForm');
+        const modalElement = document.getElementById('addCategoryModal');
+        const modal = bootstrap.Modal.getInstance(modalElement);
+        
+        form.addEventListener('submit', function(event) {
+            // از ذخیره‌سازی پیش‌فرض جلوگیری می‌کنیم
+            event.preventDefault();
+            
+            // ارسال فرم با AJAX
+            fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form)
+            })
+            .then(response => {
+                // بستن مودال بعد از ارسال موفق
+                modal.hide();
+                
+                // بارگذاری مجدد صفحه برای نمایش تغییرات
+                window.location.reload();
+            })
+            .catch(error => {
+                console.error('خطا در ارسال فرم:', error);
+            });
+        });
+        
+        // ارسال فرم
+        form.requestSubmit();
+    }
+    
+    // ارسال فرم حذف دسته‌بندی و بستن مودال
+    function submitDeleteForm() {
+        // دریافت فرم و مودال
+        const form = document.getElementById('deleteCategoryForm');
+        const modalElement = document.getElementById('deleteCategoryModal');
+        const modal = bootstrap.Modal.getInstance(modalElement);
+        
+        // ارسال فرم با AJAX
+        fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form)
+        })
+        .then(response => {
+            // بستن مودال بعد از ارسال موفق
+            modal.hide();
+            
+            // بارگذاری مجدد صفحه برای نمایش تغییرات
+            window.location.reload();
+        })
+        .catch(error => {
+            console.error('خطا در حذف دسته‌بندی:', error);
+        });
     }
     
     // اجرای به‌روزرسانی گزینه‌های والد در هنگام بارگیری صفحه
