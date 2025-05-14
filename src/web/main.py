@@ -786,7 +786,7 @@ def admin_services():
                 
                 # اگر شناسه خدمت وجود داشته باشد، ویرایش می‌کنیم
                 if service_id:
-                    service = Product.query.filter_by(product_type='service', id=int(service_id)).first_or_404()
+                    service = Service.query.get_or_404(int(service_id))
                     service.name = name
                     service.price = price
                     service.description = description
@@ -798,12 +798,11 @@ def admin_services():
                     flash('خدمت با موفقیت به‌روزرسانی شد.', 'success')
                 else:
                     # ایجاد خدمت جدید
-                    service = Product(
+                    service = Service(
                         name=name,
                         price=price,
                         description=description,
                         category_id=category_id,  # اکنون مطمئن هستیم که این مقدار NULL نیست
-                        product_type='service',
                         tags=tags,
                         featured=featured
                     )
