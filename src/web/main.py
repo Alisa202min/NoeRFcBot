@@ -1325,14 +1325,21 @@ def telegram_webhook():
 def api_categories():
     """API دریافت دسته‌بندی‌ها"""
     try:
-        cat_type = request.args.get('type', None)
+        cat_type = request.args.get('type', 'product')
         parent_id = request.args.get('parent_id', type=int)
         
-        # فیلتر بر اساس پارامترهای ورودی
-        query = Category.query
+        # انتخاب مدل مناسب بر اساس نوع دسته‌بندی
+        if cat_type == 'product':
+            model = ProductCategory
+        elif cat_type == 'service':
+            model = ServiceCategory
+        elif cat_type == 'educational':
+            model = EducationalContentCategory
+        else:
+            return jsonify({"error": "نوع دسته‌بندی نامعتبر است"}), 400
         
-        if cat_type:
-            query = query.filter_by(cat_type=cat_type)
+        # فیلتر بر اساس پارامترهای ورودی
+        query = model.query
         
         if parent_id is not None:
             query = query.filter_by(parent_id=parent_id)
@@ -1348,7 +1355,7 @@ def api_categories():
             result.append({
                 'id': category.id,
                 'name': category.name,
-                'type': category.cat_type,
+                'type': cat_type,  # نوع دسته‌بندی را از پارامتر ورودی می‌گیریم
                 'parent_id': category.parent_id
             })
             
