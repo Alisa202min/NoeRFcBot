@@ -366,6 +366,12 @@ def get_photo_url(photo_url):
     if photo_url.startswith('static/'):
         return photo_url[7:]  # حذف 'static/' از ابتدای مسیر
     
+    # اگر مسیر با uploads/ شروع می‌شود
+    # برای استفاده در قالب‌ها مسیر را به صورت ../uploads/... برمی‌گردانیم
+    # تا قابل استفاده در url_for('static', filename=...) باشد
+    elif photo_url.startswith('uploads/'):
+        return '../' + photo_url
+    
     return photo_url
 
 # روت‌های مربوط به محصولات
@@ -1015,6 +1021,10 @@ def admin_services():
         service = Service.query.filter_by(id=int(service_id)).first_or_404()
         # استفاده از ServiceMedia به جای ProductMedia
         media = ServiceMedia.query.filter_by(service_id=service.id).all()
+        
+        # تبدیل مسیر photo_url برای استفاده در url_for
+        service.formatted_photo_url = get_photo_url(service.photo_url)
+        
         return render_template('admin/service_media.html',
                               service=service,
                               media=media)
