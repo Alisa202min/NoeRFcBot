@@ -301,9 +301,8 @@ def admin_add_category():
         elif category_type == 'educational':
             CategoryModel = EducationalCategory
         else:
-            # برای سازگاری با سیستم قدیمی
-            CategoryModel = Category
-            cat_type = request.form.get('cat_type', 'product')
+            # اگر نوع نامشخص باشد، محصول در نظر گرفته می‌شود
+            CategoryModel = ProductCategory
         
         # عملیات حذف
         if action == 'delete':
@@ -323,9 +322,7 @@ def admin_add_category():
                 category.name = name
                 category.parent_id = parent_id
                 
-                # برای سازگاری با مدل قدیمی Category
-                if hasattr(category, 'cat_type'):
-                    category.cat_type = cat_type
+                # فیلد cat_type دیگر استفاده نمی‌شود
                 
                 db.session.commit()
                 flash(f'دسته‌بندی {name} با موفقیت ویرایش شد.', 'success')
@@ -333,14 +330,10 @@ def admin_add_category():
         # عملیات اضافه کردن
         else:  # action == 'add'
             if name:
-                if CategoryModel == Category:
-                    # برای سازگاری با مدل قدیمی
-                    category = Category(name=name, parent_id=parent_id, cat_type=cat_type)
-                else:
-                    # برای مدل‌های جدید که فیلد cat_type ندارند
-                    category = CategoryModel()
-                    category.name = name
-                    category.parent_id = parent_id
+                # ایجاد دسته‌بندی جدید
+                category = CategoryModel()
+                category.name = name
+                category.parent_id = parent_id
                 
                 db.session.add(category)
                 db.session.commit()
