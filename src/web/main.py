@@ -1019,6 +1019,18 @@ def admin_services():
         # تبدیل مسیر photo_url برای استفاده در url_for
         service.formatted_photo_url = get_photo_url(service.photo_url)
         
+        # برای هر رسانه، file_id را به عنوان formatted_file_id تنظیم می‌کنیم
+        for item in media:
+            # اگر local_path وجود دارد و معتبر است، آن را استفاده می‌کنیم
+            if hasattr(item, 'local_path') and item.local_path:
+                if item.local_path.startswith('static/'):
+                    item.formatted_file_id = item.local_path.replace('static/', '', 1)
+                else:
+                    item.formatted_file_id = item.local_path
+            else:
+                # در غیر این صورت از file_id استفاده می‌کنیم
+                item.formatted_file_id = item.file_id
+        
         return render_template('admin/service_media.html',
                               service=service,
                               media=media)
