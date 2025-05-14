@@ -6,6 +6,7 @@
 import os
 import logging
 import datetime
+import time
 from flask import render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory, Response
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
@@ -1277,6 +1278,26 @@ def admin_education():
                 
                 db.session.add(content)
                 db.session.commit()
+                
+                # اگر فایل آپلود شده باشد، رکورد EducationalContentMedia هم ایجاد می‌کنیم
+                if file_path and (content_type in ['image', 'video', 'file']):
+                    media_file_id = f"educational_content_image_{content.id}_{int(time.time())}"
+                    file_type = 'photo'
+                    if content_type == 'video':
+                        file_type = 'video'
+                        media_file_id = f"educational_content_video_{content.id}_{int(time.time())}"
+                    elif content_type == 'file':
+                        file_type = 'file'
+                        
+                    # ساخت رکورد جدید فایل
+                    media = EducationalContentMedia(
+                        educational_content_id=content.id,
+                        file_id=media_file_id,
+                        file_type=file_type,
+                        local_path=file_path
+                    )
+                    db.session.add(media)
+                    db.session.commit()
                 flash('محتوای آموزشی جدید با موفقیت ایجاد شد.', 'success')
         
         except Exception as e:
