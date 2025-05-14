@@ -338,14 +338,7 @@
                         <input type="text" class="form-control" id="categoryName" name="name" required>
                     </div>
                     
-                    <div class="mb-3">
-                        <label for="categoryType" class="form-label">نوع دسته‌بندی</label>
-                        <select class="form-select" id="categoryType" name="category_type" required>
-                            <option value="product">محصول</option>
-                            <option value="service">خدمات</option>
-                            <option value="educational">محتوای آموزشی</option>
-                        </select>
-                    </div>
+                    <input type="hidden" id="categoryType" name="category_type" value="product">
                     
                     <div class="mb-3">
                         <label for="parentCategory" class="form-label">دسته‌بندی والد (اختیاری)</label>
@@ -353,26 +346,20 @@
                             <option value="">بدون والد</option>
                             <!-- لیست دسته‌بندی‌های محصول -->
                             <optgroup label="دسته‌بندی‌های محصول" id="product-parent-options">
-                                {% for category in categories %}
-                                {% if category.cat_type == 'product' %}
+                                {% for category in product_categories %}
                                 <option value="{{ category.id }}" data-type="product">{{ category.name }}</option>
-                                {% endif %}
                                 {% endfor %}
                             </optgroup>
                             <!-- لیست دسته‌بندی‌های خدمات -->
                             <optgroup label="دسته‌بندی‌های خدمات" id="service-parent-options">
-                                {% for category in categories %}
-                                {% if category.cat_type == 'service' %}
+                                {% for category in service_categories %}
                                 <option value="{{ category.id }}" data-type="service">{{ category.name }}</option>
-                                {% endif %}
                                 {% endfor %}
                             </optgroup>
                             <!-- لیست دسته‌بندی‌های محتوای آموزشی -->
                             <optgroup label="دسته‌بندی‌های محتوای آموزشی" id="education-parent-options">
-                                {% for category in categories %}
-                                {% if category.cat_type == 'education' %}
-                                <option value="{{ category.id }}" data-type="education">{{ category.name }}</option>
-                                {% endif %}
+                                {% for category in educational_categories %}
+                                <option value="{{ category.id }}" data-type="educational">{{ category.name }}</option>
                                 {% endfor %}
                             </optgroup>
                         </select>
