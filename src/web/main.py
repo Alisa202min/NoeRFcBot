@@ -229,13 +229,30 @@ def admin_index():
 @login_required
 def admin_categories():
     """پنل مدیریت - دسته‌بندی‌ها"""
-    # دریافت تمام دسته‌بندی‌ها
-    categories = Category.query.all()
+    # دریافت دسته‌بندی‌های محصول
+    product_categories = ProductCategory.query.all()
+    product_tree = build_category_tree(product_categories)
     
-    # تبدیل به ساختار درختی
+    # دریافت دسته‌بندی‌های خدمات
+    service_categories = ServiceCategory.query.all()
+    service_tree = build_category_tree(service_categories)
+    
+    # دریافت دسته‌بندی‌های محتوای آموزشی
+    educational_categories = EducationalCategory.query.all()
+    educational_tree = build_category_tree(educational_categories)
+    
+    # دسته‌بندی‌های قدیمی (برای سازگاری با سیستم قدیمی)
+    categories = Category.query.all()
     category_tree = build_category_tree(categories)
     
     return render_template('admin/categories.html', 
+                          product_categories=product_categories,
+                          service_categories=service_categories,
+                          educational_categories=educational_categories,
+                          product_tree=product_tree,
+                          service_tree=service_tree,
+                          educational_tree=educational_tree,
+                          # برای سازگاری با سیستم قدیمی
                           categories=categories,
                           category_tree=category_tree)
 
@@ -261,48 +278,79 @@ def build_category_tree(categories, parent_id=None):
 @login_required
 def admin_add_category():
     """اضافه کردن، ویرایش یا حذف دسته‌بندی"""
-    # بررسی نوع عملیات
-    action = request.form.get('_action', 'add')
-    
-    if action == 'delete':
-        # حذف دسته‌بندی
-        category_id = request.form.get('id')
-        if category_id:
-            category = Category.query.get_or_404(int(category_id))
-            name = category.name
-            db.session.delete(category)
-            db.session.commit()
-            flash(f'دسته‌بندی {name} با موفقیت حذف شد.', 'success')
-        return redirect(url_for('admin_categories'))
-    
-    # دریافت پارامترهای مشترک برای اضافه کردن و ویرایش
-    name = request.form.get('name')
-    parent_id = request.form.get('parent_id')
-    cat_type = request.form.get('cat_type', 'product')
-    
-    # تبدیل parent_id به None اگر خالی باشد
-    if parent_id and parent_id != '':
-        parent_id = int(parent_id)
-    else:
-        parent_id = None
-    
-    if action == 'edit':
-        # ویرایش دسته‌بندی موجود
-        category_id = request.form.get('id')
-        if category_id:
-            category = Category.query.get_or_404(int(category_id))
-            category.name = name
-            category.parent_id = parent_id
-            category.cat_type = cat_type
-            db.session.commit()
-            flash(f'دسته‌بندی {name} با موفقیت ویرایش شد.', 'success')
-    else:
-        # اضافه کردن دسته‌بندی جدید
-        category = Category(name=name, parent_id=parent_id, cat_type=cat_type)
-        db.session.add(category)
-        db.session.commit()
-        flash(f'دسته‌بندی {name} با موفقیت اضافه شد.', 'success')
+    try:
+        # بررسی نوع عملیات و نوع دسته‌بندی
+        action = request.form.get('_action', 'add')
+        category_type = request.form.get('category_type')
         
+        # دریافت پارامترهای مشترک برای اضافه کردن و ویرایش
+        name = request.form.get('name')
+        parent_id = request.form.get('parent_id')
+        
+        # تبدیل parent_id به None اگر خالی باشد
+        if parent_id and parent_id != '':
+            parent_id = int(parent_id)
+        else:
+            parent_id = None
+        
+        # تعیین مدل دسته‌بندی بر اساس نوع
+        if category_type == 'product':
+            CategoryModel = ProductCategory
+        elif category_type == 'service':
+            CategoryModel = ServiceCategory
+        elif category_type == 'educational':
+            CategoryModel = EducationalCategory
+        else:
+            # برای سازگاری با سیستم قدیمی
+            CategoryModel = Category
+            cat_type = request.form.get('cat_type', 'product')
+        
+        # عملیات حذف
+        if action == 'delete':
+            category_id = request.form.get('id')
+            if category_id:
+                category = CategoryModel.query.get_or_404(int(category_id))
+                name = category.name
+                db.session.delete(category)
+                db.session.commit()
+                flash(f'دسته‌بندی {name} با موفقیت حذف شد.', 'success')
+        
+        # عملیات ویرایش
+        elif action == 'edit':
+            category_id = request.form.get('id')
+            if category_id and name:
+                category = CategoryModel.query.get_or_404(int(category_id))
+                category.name = name
+                category.parent_id = parent_id
+                
+                # برای سازگاری با مدل قدیمی Category
+                if hasattr(category, 'cat_type'):
+                    category.cat_type = cat_type
+                
+                db.session.commit()
+                flash(f'دسته‌بندی {name} با موفقیت ویرایش شد.', 'success')
+        
+        # عملیات اضافه کردن
+        else:  # action == 'add'
+            if name:
+                if CategoryModel == Category:
+                    # برای سازگاری با مدل قدیمی
+                    category = Category(name=name, parent_id=parent_id, cat_type=cat_type)
+                else:
+                    # برای مدل‌های جدید که فیلد cat_type ندارند
+                    category = CategoryModel()
+                    category.name = name
+                    category.parent_id = parent_id
+                
+                db.session.add(category)
+                db.session.commit()
+                flash(f'دسته‌بندی {name} با موفقیت اضافه شد.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in admin_add_category: {e}")
+        flash(f'خطا در عملیات دسته‌بندی: {str(e)}', 'danger')
+    
     return redirect(url_for('admin_categories'))
 
 # ... Routes for products, services, inquiries, etc. ...
