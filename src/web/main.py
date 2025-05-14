@@ -241,9 +241,9 @@ def admin_categories():
     educational_categories = EducationalCategory.query.all()
     educational_tree = build_category_tree(educational_categories)
     
-    # دسته‌بندی‌های قدیمی (برای سازگاری با سیستم قدیمی)
-    categories = Category.query.all()
-    category_tree = build_category_tree(categories)
+    # دسته‌بندی‌های قدیمی دیگر استفاده نمی‌شوند
+    categories = []
+    category_tree = []
     
     return render_template('admin/categories.html', 
                           product_categories=product_categories,
