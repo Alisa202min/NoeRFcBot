@@ -224,10 +224,8 @@
                 <div class="card-body">
                     <h6>دسته‌بندی محصولات:</h6>
                     <ul class="list-group mb-4">
-                        {% set has_product_categories = false %}
-                        {% for item in category_tree %}
-                        {% if item.cat_type == 'product' %}
-                        {% set has_product_categories = true %}
+                        {% if product_tree %}
+                        {% for item in product_tree %}
                         <li class="list-group-item">
                             <i class="bi bi-folder"></i> {{ item.name }}
                             {% if item.children %}
@@ -249,19 +247,16 @@
                             </ul>
                             {% endif %}
                         </li>
-                        {% endif %}
                         {% endfor %}
-                        {% if not has_product_categories %}
+                        {% else %}
                         <li class="list-group-item text-muted">هیچ دسته‌بندی محصولی یافت نشد.</li>
                         {% endif %}
                     </ul>
                     
                     <h6>دسته‌بندی خدمات:</h6>
-                    <ul class="list-group">
-                        {% set has_service_categories = false %}
-                        {% for item in category_tree %}
-                        {% if item.cat_type == 'service' %}
-                        {% set has_service_categories = true %}
+                    <ul class="list-group mb-4">
+                        {% if service_tree %}
+                        {% for item in service_tree %}
                         <li class="list-group-item">
                             <i class="bi bi-folder"></i> {{ item.name }}
                             {% if item.children %}
@@ -283,10 +278,40 @@
                             </ul>
                             {% endif %}
                         </li>
-                        {% endif %}
                         {% endfor %}
-                        {% if not has_service_categories %}
+                        {% else %}
                         <li class="list-group-item text-muted">هیچ دسته‌بندی خدماتی یافت نشد.</li>
+                        {% endif %}
+                    </ul>
+                    
+                    <h6>دسته‌بندی محتوای آموزشی:</h6>
+                    <ul class="list-group mb-4">
+                        {% if educational_tree %}
+                        {% for item in educational_tree %}
+                        <li class="list-group-item">
+                            <i class="bi bi-folder"></i> {{ item.name }}
+                            {% if item.children %}
+                            <ul class="list-group mt-2">
+                                {% for child in item.children %}
+                                <li class="list-group-item">
+                                    <i class="bi bi-file"></i> {{ child.name }}
+                                    {% if child.children %}
+                                    <ul class="list-group mt-2">
+                                        {% for grandchild in child.children %}
+                                        <li class="list-group-item">
+                                            <i class="bi bi-file"></i> {{ grandchild.name }}
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                    {% endif %}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                        {% else %}
+                        <li class="list-group-item text-muted">هیچ دسته‌بندی محتوای آموزشی یافت نشد.</li>
                         {% endif %}
                     </ul>
                 </div>
@@ -378,6 +403,7 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
                 <form id="deleteCategoryForm" action="{{ url_for('admin_add_category') }}" method="post">
                     <input type="hidden" id="deleteCategoryId" name="id">
+                    <input type="hidden" id="deleteCategoryType" name="category_type" value="product">
                     <input type="hidden" name="_action" value="delete">
                     <button type="submit" class="btn btn-danger">حذف</button>
                 </form>
