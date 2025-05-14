@@ -1562,17 +1562,31 @@ def telegram_file(file_id):
             else:
                 logger.warning(f"File does NOT exist at: {file_path}")
         
-        # جستجوی فایل در جدول ProductMedia
+        # جستجوی فایل در جدول ProductMedia و ServiceMedia
         try:
+            # ابتدا در جدول ProductMedia جستجو می‌کنیم
             media = ProductMedia.query.filter_by(file_id=file_id).first()
             logger.info(f"Direct database lookup result: {media}")
         
+            # اگر در ProductMedia پیدا نشد، در ServiceMedia جستجو می‌کنیم
             if not media:
-                # جستجو در جدول ProductMedia برای هر دو نوع محصول و خدمات
+                media = ServiceMedia.query.filter_by(file_id=file_id).first()
+                logger.info(f"ServiceMedia lookup result: {media}")
+            
+            # اگر هنوز پیدا نشد، در هر دو جدول با جستجوی وسیع‌تر تلاش می‌کنیم
+            if not media:
+                # جستجو در جدول ProductMedia با الگوی وسیع‌تر
                 logger.info("Trying broader search...")
                 media = ProductMedia.query.filter(
                     ProductMedia.file_id.like(f"%{file_id}%")
                 ).first()
+                
+                # اگر در ProductMedia پیدا نشد، در ServiceMedia با الگوی وسیع‌تر جستجو می‌کنیم
+                if not media:
+                    media = ServiceMedia.query.filter(
+                        ServiceMedia.file_id.like(f"%{file_id}%")
+                    ).first()
+                
                 logger.info(f"Broader search result: {media}")
         except Exception as e:
             logger.error(f"Database error when searching for file_id '{file_id}': {str(e)}")
