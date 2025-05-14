@@ -943,9 +943,14 @@ def admin_services():
                         media = ServiceMedia(
                             service_id=service.id,
                             file_id=relative_path,
-                            file_type=file_type,
-                            local_path=file_path  # ذخیره مسیر کامل برای استفاده بعدی
+                            file_type=file_type
                         )
+                        
+                        # بعد از ایجاد رکورد، تلاش می‌کنیم local_path را تنظیم کنیم
+                        try:
+                            media.local_path = file_path  # ذخیره مسیر کامل برای استفاده بعدی
+                        except Exception as ex:
+                            logger.warning(f"Could not set local_path attribute: {ex}")
                         db.session.add(media)
                         db.session.commit()
                         
@@ -1672,22 +1677,20 @@ def telegram_file(file_id):
                 # برای فایل‌های خدمات
                 logger.info("This is a ServiceMedia record")
                 
-                # اگر ServiceMedia دارای local_path است، از آن استفاده می‌کنیم
-                if media.local_path:
-                    media_path = media.local_path
-                    logger.info(f"Using ServiceMedia local_path: {media_path}")
-                    
-                    # اگر local_path با static شروع می‌شود
-                    if media_path.startswith('static/'):
-                        relative_path = media_path.replace('static/', '', 1)
-                        logger.info(f"Serving service media with static route: {relative_path}")
-                        return redirect(url_for('static', filename=relative_path))
-                else:
-                    # اگر local_path وجود ندارد، از file_id استفاده می‌کنیم
-                    # بررسی اگر این فایل سرویس در مسیر media/services وجود دارد
+                # ساخت مسیر استاندارد برای فایل‌های خدمات
+                if media.file_id.startswith('service_image_'):
                     service_path = f"media/services/{media.file_id}.jpg"
-                    logger.info(f"ServiceMedia without local_path, trying standard path: {service_path}")
+                    logger.info(f"Using standard service media path: {service_path}")
                     return redirect(url_for('static', filename=service_path))
+                elif '/' in media.file_id and (media.file_id.startswith('uploads/') or media.file_id.startswith('services/')):
+                    # اگر file_id خودش مسیر فایل است
+                    logger.info(f"Service media file_id is a path itself: {media.file_id}")
+                    return redirect(url_for('static', filename=media.file_id))
+                else:
+                    # اگر file_id شکل غیرمعمول دارد
+                    logger.warning(f"Unusual service media file_id format: {media.file_id}")
+                    # سعی می‌کنیم با فرض یک مسیر استاندارد فایل را پیدا کنیم
+                    return redirect(url_for('static', filename=f"media/services/{media.file_id}.jpg"))
                     
             elif isinstance(media, ProductMedia):
                 # برای فایل‌های محصولات
