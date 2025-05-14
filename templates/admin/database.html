@@ -1,109 +1,109 @@
-{% extends "admin_layout.html" %}
+{% extends 'admin/layout.html' %}
 
-{% block title %}مدیریت دیتابیس{% endblock %}
+{% block title %}مدیریت پایگاه داده{% endblock %}
 
 {% block content %}
-<div class="container-fluid px-4">
-    <h1 class="mt-4 mb-4">مدیریت دیتابیس</h1>
-    
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <i class="bi bi-database"></i> پشتیبان‌گیری دیتابیس
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">مدیریت پایگاه داده</h1>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">جداول پایگاه داده</h6>
                 </div>
                 <div class="card-body">
-                    <form method="post" action="{{ url_for('database_management') }}">
-                        <input type="hidden" name="action" value="backup">
-                        <p>ایجاد یک نسخه پشتیبان از تمام داده‌های سیستم در قالب CSV.</p>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-download"></i> دانلود نسخه پشتیبان
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <i class="bi bi-arrow-repeat"></i> بازیابی دیتابیس
-                </div>
-                <div class="card-body">
-                    <form method="post" action="{{ url_for('database_management') }}" enctype="multipart/form-data">
-                        <input type="hidden" name="action" value="restore">
-                        <p>بازگرداندن داده‌ها از یک فایل پشتیبان CSV. توجه: این کار ممکن است باعث جایگزینی داده‌های موجود شود.</p>
-                        <div class="mb-3">
-                            <label for="backupFile" class="form-label">انتخاب فایل پشتیبان</label>
-                            <input class="form-control" type="file" id="backupFile" name="backup_file" accept=".csv,.zip">
-                        </div>
-                        <button type="submit" class="btn btn-warning">
-                            <i class="bi bi-upload"></i> بازیابی از پشتیبان
-                        </button>
-                    </form>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered" id="dataTable" width="100%" cellspacing="0">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>نام جدول</th>
+                                    <th>تعداد رکوردها</th>
+                                    <th>عملیات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for table_name, count in tables.items() %}
+                                <tr>
+                                    <td>{{ table_name }}</td>
+                                    <td>{{ count }}</td>
+                                    <td>
+                                        <a href="{{ url_for('admin_view_table', table=table_name) }}" class="btn btn-info btn-sm">
+                                            <i class="fas fa-eye"></i> مشاهده
+                                        </a>
+                                        
+                                        {% if table_name == 'service_media' %}
+                                        <form action="{{ url_for('admin_service_media_fix') }}" method="post" style="display: inline;">
+                                            <button type="submit" class="btn btn-warning btn-sm">
+                                                <i class="fas fa-wrench"></i> اصلاح
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <div class="row">
-        <div class="col-md-6">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <i class="bi bi-table"></i> صدور داده
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">ابزارهای پایگاه داده</h6>
                 </div>
                 <div class="card-body">
-                    <form method="post" action="{{ url_for('database_management') }}">
-                        <input type="hidden" name="action" value="export">
-                        <div class="mb-3">
-                            <label for="exportType" class="form-label">نوع داده برای صدور</label>
-                            <select class="form-select" id="exportType" name="export_type">
-                                <option value="products">محصولات</option>
-                                <option value="services">خدمات</option>
-                                <option value="categories">دسته‌بندی‌ها</option>
-                                <option value="inquiries">استعلام‌ها</option>
-                                <option value="educational">محتوای آموزشی</option>
-                            </select>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-primary text-white">
+                                    مشکل شایع: جدول service_media
+                                </div>
+                                <div class="card-body">
+                                    <p>اگر با مشکل نمایش تصاویر خدمات مواجه هستید، می‌توانید از ابزار اصلاح استفاده کنید.</p>
+                                    <form action="{{ url_for('admin_service_media_fix') }}" method="post">
+                                        <button type="submit" class="btn btn-warning">
+                                            <i class="fas fa-wrench"></i> اصلاح جدول service_media
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
                         </div>
-                        <button type="submit" class="btn btn-info">
-                            <i class="bi bi-file-earmark-spreadsheet"></i> صدور به CSV
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-6">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <i class="bi bi-tools"></i> ابزارهای نگهداری
-                </div>
-                <div class="card-body">
-                    <div class="d-grid gap-2">
-                        <form method="post" action="{{ url_for('database_management') }}">
-                            <input type="hidden" name="action" value="vacuum">
-                            <button type="submit" class="btn btn-secondary w-100 mb-2">
-                                <i class="bi bi-speedometer"></i> بهینه‌سازی دیتابیس
-                            </button>
-                        </form>
                         
-                        <form method="post" action="{{ url_for('database_management') }}">
-                            <input type="hidden" name="action" value="check">
-                            <button type="submit" class="btn btn-secondary w-100 mb-2">
-                                <i class="bi bi-check-circle"></i> بررسی سلامت دیتابیس
-                            </button>
-                        </form>
-                        
-                        <form method="post" action="{{ url_for('database_management') }}" onsubmit="return confirm('آیا از این کار مطمئن هستید؟ این عملیات نمی‌تواند برگردانده شود.')">
-                            <input type="hidden" name="action" value="truncate">
-                            <button type="submit" class="btn btn-danger w-100">
-                                <i class="bi bi-trash"></i> پاک کردن کامل داده‌ها
-                            </button>
-                        </form>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-info text-white">
+                                    راهنمای استفاده
+                                </div>
+                                <div class="card-body">
+                                    <ul>
+                                        <li><strong>مشاهده</strong>: محتوای جدول را نمایش می‌دهد.</li>
+                                        <li><strong>اصلاح</strong>: مشکلات احتمالی در جدول را برطرف می‌کند.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    $('#dataTable').DataTable({
+        "order": [[0, "asc"]],
+        "language": {
+            "url": "//cdn.datatables.net/plug-ins/1.10.21/i18n/Persian.json"
+        }
+    });
+});
+</script>
 {% endblock %}

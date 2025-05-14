@@ -11,7 +11,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 
 from src.web.app import app, db, media_files
-from src.models.models import User, Category, Product, ProductMedia, Service, ServiceMedia, Inquiry, EducationalContent, StaticContent
+from src.models.models import User, Category, Product, ProductMedia, Service, ServiceMedia, Inquiry, EducationalContent, StaticContent, EducationalCategory, EducationalContentMedia
 from src.utils.utils import allowed_file, save_uploaded_file, create_directory
 from src.utils.utils_upload import handle_media_upload, remove_file, serve_file
 
@@ -1513,6 +1513,118 @@ def telegram_file(file_id):
     except Exception as e:
         logger.error(f"Unhandled exception in telegram_file: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+# ----- Database Management Routes -----
+@app.route('/admin/database')
+@login_required
+def admin_database():
+    """صفحه مدیریت پایگاه داده"""
+    try:
+        # دریافت اطلاعات کلی جداول
+        tables = {
+            'users': db.session.query(User).count(),
+            'products': db.session.query(Product).count(),
+            'services': db.session.query(Service).count(),
+            'product_media': db.session.query(ProductMedia).count(),
+            'service_media': db.session.query(ServiceMedia).count(),
+            'categories': db.session.query(Category).count(),
+            'inquiries': db.session.query(Inquiry).count(),
+            'educational_content': db.session.query(EducationalContent).count(),
+            'educational_categories': db.session.query(EducationalCategory).count(),
+            'educational_content_media': db.session.query(EducationalContentMedia).count(),
+            'static_content': db.session.query(StaticContent).count(),
+        }
+        
+        return render_template('admin/database.html', tables=tables)
+    except Exception as e:
+        logger.error(f"Error in admin_database: {e}")
+        return render_template('error.html', error=str(e))
+
+@app.route('/admin/database/view/<table>')
+@login_required
+def admin_view_table(table):
+    """نمایش محتوای یک جدول"""
+    try:
+        model_map = {
+            'users': User,
+            'products': Product,
+            'services': Service,
+            'product_media': ProductMedia,
+            'service_media': ServiceMedia,
+            'categories': Category,
+            'inquiries': Inquiry,
+            'educational_content': EducationalContent,
+            'educational_categories': EducationalCategory,
+            'educational_content_media': EducationalContentMedia,
+            'static_content': StaticContent,
+        }
+        
+        if table not in model_map:
+            flash(f'جدول {table} یافت نشد.', 'danger')
+            return redirect(url_for('admin_database'))
+        
+        # دریافت محتوای جدول
+        model = model_map[table]
+        data = model.query.all()
+        
+        # دریافت نام ستون‌ها
+        columns = [column.name for column in model.__table__.columns]
+        
+        return render_template('admin/table_view.html', 
+                            data=data, 
+                            columns=columns, 
+                            table_name=table)
+    except Exception as e:
+        logger.error(f"Error in admin_view_table: {e}")
+        return render_template('error.html', error=str(e))
+
+@app.route('/admin/database/service_media_fix', methods=['POST'])
+@login_required
+def admin_service_media_fix():
+    """اصلاح جدول service_media برای اطمینان از صحت اطلاعات"""
+    try:
+        # دریافت همه رکوردهای service_media
+        service_media = ServiceMedia.query.all()
+        
+        fixed_count = 0
+        for media in service_media:
+            # بررسی وجود service_id معتبر
+            service = Service.query.get(media.service_id)
+            if not service:
+                # حذف رکورد اگر service_id معتبر نیست
+                db.session.delete(media)
+                fixed_count += 1
+                continue
+        
+        # ذخیره تغییرات
+        db.session.commit()
+        
+        # ایجاد رکوردهای media برای سرویس‌هایی که رسانه ندارند
+        services = Service.query.all()
+        for service in services:
+            count = ServiceMedia.query.filter_by(service_id=service.id).count()
+            if count == 0:
+                # ایجاد دو رکورد پیش‌فرض
+                for i in range(1, 3):
+                    media = ServiceMedia(
+                        service_id=service.id,
+                        file_id=f"service_image_{service.id}_{i}",
+                        file_type="photo"
+                    )
+                    db.session.add(media)
+                    fixed_count += 1
+        
+        # ذخیره تغییرات
+        db.session.commit()
+        
+        flash(f'{fixed_count} رکورد در جدول service_media اصلاح شد.', 'success')
+        return redirect(url_for('admin_view_table', table='service_media'))
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in admin_service_media_fix: {e}")
+        flash(f'خطا در اصلاح جدول service_media: {str(e)}', 'danger')
+        return redirect(url_for('admin_database'))
 
 # ----- Additional Web Routes -----
 
