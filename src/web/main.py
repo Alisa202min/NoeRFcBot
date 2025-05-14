@@ -714,10 +714,10 @@ def admin_services():
                 return redirect(url_for('admin_services'))
                 
             try:
-                service = Product.query.filter_by(id=int(service_id), product_type='service').first_or_404()
+                service = Service.query.get_or_404(int(service_id))
                 
                 # حذف تمام رسانه‌های مرتبط با خدمت و فایل‌ها از دیسک
-                media_files = ProductMedia.query.filter_by(product_id=service.id).all()
+                media_files = ServiceMedia.query.filter_by(service_id=service.id).all()
                 for media in media_files:
                     # حذف فایل از دیسک اگر محلی باشد
                     if media.file_id and not media.file_id.startswith('http'):
@@ -772,13 +772,13 @@ def admin_services():
                 # اگر category_id خالی است، بررسی می‌کنیم آیا دسته‌بندی پیش‌فرضی وجود دارد یا نه
                 if category_id is None:
                     # سعی می‌کنیم دسته‌بندی پیش‌فرض برای خدمات پیدا کنیم
-                    default_category = Category.query.filter_by(cat_type='service').first()
+                    default_category = ServiceCategory.query.first()
                     if default_category:
                         category_id = default_category.id
                         logger.info(f"Using default service category ID: {category_id}")
                     else:
                         # اگر هیچ دسته‌بندی وجود ندارد، یک دسته‌بندی پیش‌فرض ایجاد می‌کنیم
-                        new_category = Category(name="دسته‌بندی پیش‌فرض", cat_type='service')
+                        new_category = ServiceCategory(name="دسته‌بندی پیش‌فرض")
                         db.session.add(new_category)
                         db.session.flush()  # برای دریافت ID
                         category_id = new_category.id
