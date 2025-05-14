@@ -14,11 +14,16 @@
                     <h5 class="mb-0">تصاویر و فایل‌ها</h5>
                 </div>
                 <div class="card-body">
-                    {% if media %}
+                    {% if product.photo_url or media %}
                         <div id="product-media-carousel" class="carousel slide" data-bs-ride="carousel">
                             <div class="carousel-inner">
+                                {% if product.photo_url %}
+                                    <div class="carousel-item active">
+                                        <img src="{{ url_for('static', filename=product.photo_url) }}" class="d-block w-100 img-fluid rounded" alt="{{ product.name }}" style="max-height: 300px; object-fit: contain;">
+                                    </div>
+                                {% endif %}
                                 {% for item in media %}
-                                    <div class="carousel-item {% if loop.first %}active{% endif %}">
+                                    <div class="carousel-item {% if not product.photo_url and loop.first %}active{% endif %}">
                                         {% if item.file_type == 'photo' %}
                                             <img src="{{ url_for('telegram_file', file_id=item.file_id) }}" class="d-block w-100 img-fluid rounded" alt="{{ product.name }}" style="max-height: 300px; object-fit: contain;">
                                         {% elif item.file_type == 'video' %}
@@ -30,7 +35,7 @@
                                     </div>
                                 {% endfor %}
                             </div>
-                            {% if media|length > 1 %}
+                            {% if (product.photo_url and media) or media|length > 1 %}
                                 <button class="carousel-control-prev" type="button" data-bs-target="#product-media-carousel" data-bs-slide="prev">
                                     <span class="carousel-control-prev-icon" aria-hidden="true"></span>
                                     <span class="visually-hidden">قبلی</span>
@@ -140,8 +145,10 @@
                 {% for related in related_products %}
                 <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
                     <div class="card h-100 shadow-sm product-card" onclick="window.location.href='{{ url_for('product_detail', product_id=related.id) }}';" style="cursor: pointer;">
-                        {% set related_media = related.media_files|first %}
-                        {% if related_media %}
+                        {% if related.photo_url %}
+                            <img src="{{ url_for('static', filename=related.photo_url) }}" class="card-img-top" alt="{{ related.name }}" style="height: 180px; object-fit: cover;">
+                        {% elif related.media_files|length > 0 %}
+                            {% set related_media = related.media_files|first %}
                             <img src="{{ url_for('telegram_file', file_id=related_media.file_id) }}" class="card-img-top" alt="{{ related.name }}" style="height: 180px; object-fit: cover;">
                         {% else %}
                             <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 180px;">
