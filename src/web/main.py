@@ -1723,6 +1723,61 @@ def admin_database_fix(table):
             # ذخیره تغییرات
             db.session.commit()
         
+        elif table == 'educational_content':
+            # بررسی و اصلاح محتوای آموزشی
+            contents = EducationalContent.query.all()
+            for content in contents:
+                modified = False
+                
+                # اطمینان از وجود category_id معتبر
+                if content.category_id:
+                    category = EducationalCategory.query.get(content.category_id)
+                    if not category:
+                        # تنظیم دسته‌بندی پیش‌فرض یا خالی
+                        default_category = EducationalCategory.query.first()
+                        if default_category:
+                            content.category_id = default_category.id
+                        else:
+                            content.category_id = None
+                        modified = True
+                
+                # اطمینان از همخوانی فیلد category با category_id
+                if content.category_id and content.category:
+                    category = EducationalCategory.query.get(content.category_id)
+                    if category and category.name != content.category:
+                        content.category = category.name
+                        modified = True
+                
+                # اطمینان از همخوانی فیلد type با content_type
+                if content.content_type and content.type != content.content_type:
+                    content.type = content.content_type
+                    modified = True
+                elif content.type and not content.content_type:
+                    content.content_type = content.type
+                    modified = True
+                
+                if modified:
+                    fixed_count += 1
+            
+            # ذخیره تغییرات
+            db.session.commit()
+            
+            # ایجاد رکوردهای media برای محتوای آموزشی که رسانه ندارند
+            for content in contents:
+                count = EducationalContentMedia.query.filter_by(educational_content_id=content.id).count()
+                if count == 0 and content.content_type in ['photo', 'video', 'file']:
+                    # ایجاد یک رکورد پیش‌فرض
+                    media = EducationalContentMedia(
+                        educational_content_id=content.id,
+                        file_id=f"educational_content_image_{content.id}_1",
+                        file_type=content.content_type
+                    )
+                    db.session.add(media)
+                    fixed_count += 1
+            
+            # ذخیره تغییرات
+            db.session.commit()
+        
         elif table == 'educational_content_media':
             # بررسی و اصلاح رسانه‌های محتوای آموزشی
             media_items = EducationalContentMedia.query.all()

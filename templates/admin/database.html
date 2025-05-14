@@ -94,6 +94,16 @@
                                                 <i class="fas fa-wrench"></i> اصلاح inquiries
                                             </button>
                                         </form>
+                                        <form action="{{ url_for('admin_database_fix', table='educational_content') }}" method="post" class="me-1 mb-1">
+                                            <button type="submit" class="btn btn-warning btn-sm">
+                                                <i class="fas fa-wrench"></i> اصلاح educational_content
+                                            </button>
+                                        </form>
+                                        <form action="{{ url_for('admin_database_fix', table='educational_content_media') }}" method="post" class="me-1 mb-1">
+                                            <button type="submit" class="btn btn-warning btn-sm">
+                                                <i class="fas fa-wrench"></i> اصلاح educational_content_media
+                                            </button>
+                                        </form>
                                     </div>
                                 </div>
                             </div>
@@ -113,6 +123,8 @@
                                             <li><strong>services و products</strong>: دسته‌بندی‌های نامعتبر را اصلاح می‌کند.</li>
                                             <li><strong>categories</strong>: روابط والد-فرزند نامعتبر را اصلاح می‌کند.</li>
                                             <li><strong>inquiries</strong>: ارتباطات نامعتبر با محصولات و خدمات را اصلاح می‌کند.</li>
+                                            <li><strong>educational_content</strong>: دسته‌بندی‌های نامعتبر را اصلاح و فیلدهای type و content_type را همگام‌سازی می‌کند.</li>
+                                            <li><strong>educational_content_media</strong>: رکوردهای نامعتبر را حذف می‌کند.</li>
                                         </ul>
                                     </ul>
                                 </div>
