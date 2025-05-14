@@ -1712,6 +1712,35 @@ def telegram_file(file_id):
                     product_path = f"media/products/{media.file_id}.jpg"
                     logger.info(f"ProductMedia without local_path, trying standard path: {product_path}")
                     return redirect(url_for('static', filename=product_path))
+                    
+            elif isinstance(media, EducationalContentMedia):
+                # برای فایل‌های محتوای آموزشی
+                logger.info("This is an EducationalContentMedia record")
+                
+                # ساخت مسیر استاندارد برای فایل‌های محتوای آموزشی
+                if media.file_id.startswith('educational_content_image_'):
+                    # مسیر استاندارد برای عکس‌های محتوای آموزشی
+                    education_path = f"media/educational/{media.file_id}.jpg"
+                    logger.info(f"Using standard educational media path: {education_path}")
+                    return redirect(url_for('static', filename=education_path))
+                elif media.file_id.startswith('educational_content_video_'):
+                    # مسیر استاندارد برای ویدیوهای محتوای آموزشی
+                    education_path = f"media/educational/{media.file_id}.mp4"
+                    logger.info(f"Using standard educational video path: {education_path}")
+                    return redirect(url_for('static', filename=education_path))
+                elif '/' in media.file_id and (media.file_id.startswith('uploads/') or media.file_id.startswith('educational/')):
+                    # اگر file_id خودش مسیر فایل است
+                    logger.info(f"Educational media file_id is a path itself: {media.file_id}")
+                    return redirect(url_for('static', filename=media.file_id))
+                else:
+                    # اگر file_id شکل غیرمعمول دارد
+                    logger.warning(f"Unusual educational media file_id format: {media.file_id}")
+                    # سعی می‌کنیم با فرض یک مسیر استاندارد فایل را پیدا کنیم
+                    if media.file_type == 'video':
+                        return redirect(url_for('static', filename=f"media/educational/{media.file_id}.mp4"))
+                    else:
+                        return redirect(url_for('static', filename=f"media/educational/{media.file_id}.jpg"))
+                        
             else:
                 # برای انواع دیگر فایل‌ها (احتمالاً غیرممکن)
                 logger.warning(f"Unknown media type: {type(media).__name__}")
