@@ -304,7 +304,8 @@ def admin_add_category():
 def product_detail(product_id):
     """صفحه جزئیات محصول"""
     product = Product.query.get_or_404(product_id)
-    related_products = Product.query.filter_by(category_id=product.category_id, product_type='product').filter(Product.id != product.id).limit(4).all()
+    # محصولات مرتبط که در همان دسته‌بندی هستند اما ID متفاوتی دارند
+    related_products = Product.query.filter_by(category_id=product.category_id).filter(Product.id != product.id).limit(4).all()
     media = ProductMedia.query.filter_by(product_id=product.id).all()
     
     return render_template('product_detail.html', 
@@ -482,7 +483,6 @@ def admin_products():
                         price=price,
                         description=description,
                         category_id=category_id,  # اکنون مطمئن هستیم که این مقدار NULL نیست
-                        product_type='product',
                         brand=brand,
                         model=model,
                         in_stock=in_stock,
@@ -1958,7 +1958,6 @@ def import_entity():
                     price=int(row.get('price', 0)),
                     description=row.get('description', ''),
                     category_id=int(row.get('category_id', 0)),
-                    product_type='product',
                     photo_url=row.get('photo_url', None)
                 )
                 db.session.add(item)
