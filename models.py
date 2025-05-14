@@ -82,7 +82,7 @@ class EducationalCategory(db.Model):
     
     # Relationships
     children = db.relationship('EducationalCategory', backref=db.backref('parent', remote_side=[id]))
-    contents = db.relationship('EducationalContent', backref='category', lazy='dynamic')
+    contents = db.relationship('EducationalContent', backref='educational_category', lazy='dynamic')
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
