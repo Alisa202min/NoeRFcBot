@@ -1540,9 +1540,27 @@ def telegram_file(file_id):
                 logger.info(f"Found file as a direct path: {potential_path}")
                 return redirect(url_for('static', filename=file_id))
             
-            # اگر هیچ چیزی پیدا نشد
-            logger.warning(f"Could not find any file for {file_id}")
-            return jsonify({'error': 'فایل پیدا نشد'}), 404
+            # اگر هیچ چیزی پیدا نشد، تصویر پیش‌فرض را نمایش می‌دهیم
+            logger.warning(f"Could not find any file for {file_id}, using default image")
+            
+            # ایجاد دایرکتوری static/images اگر وجود ندارد
+            default_img_dir = os.path.join('static', 'images')
+            os.makedirs(default_img_dir, exist_ok=True)
+            
+            # کپی کردن تصویر پیش‌فرض از attached_assets به static/images اگر وجود ندارد
+            default_img_path = os.path.join(default_img_dir, 'no-image.png')
+            if not os.path.exists(default_img_path):
+                fallback_img = os.path.join('attached_assets', 'show.jpg')
+                if os.path.exists(fallback_img):
+                    import shutil
+                    shutil.copy(fallback_img, default_img_path)
+                    logger.info(f"Created default image at {default_img_path}")
+            
+            # اگر تصویر پیش‌فرض وجود دارد، آن را نمایش می‌دهیم
+            if os.path.exists(default_img_path):
+                return redirect(url_for('static', filename='images/no-image.png'))
+            else:
+                return jsonify({'error': 'فایل پیدا نشد'}), 404
         
         try:    
             logger.info(f"Found media record: {media.id}, file_id: {media.file_id}, local_path: {getattr(media, 'local_path', 'N/A')}")
@@ -1560,15 +1578,57 @@ def telegram_file(file_id):
                 logger.info(f"Serving media file_id with static route: {media.file_id}")
                 return redirect(url_for('static', filename=media.file_id))
             
-            # نهایتاً اگر همه روش‌ها شکست خورد، خطا برمی‌گردانیم
-            logger.warning(f"Could not find a valid path for file_id: {file_id}")
-            return jsonify({'error': 'فایل در سرور وجود ندارد'}), 404
+            # نهایتاً اگر همه روش‌ها شکست خورد، تصویر پیش‌فرض را نمایش می‌دهیم
+            logger.warning(f"Could not find a valid path for file_id: {file_id}, using default image")
+            
+            # ایجاد دایرکتوری static/images اگر وجود ندارد
+            default_img_dir = os.path.join('static', 'images')
+            os.makedirs(default_img_dir, exist_ok=True)
+            
+            # کپی کردن تصویر پیش‌فرض از attached_assets به static/images اگر وجود ندارد
+            default_img_path = os.path.join(default_img_dir, 'no-image.png')
+            if not os.path.exists(default_img_path):
+                fallback_img = os.path.join('attached_assets', 'show.jpg')
+                if os.path.exists(fallback_img):
+                    import shutil
+                    shutil.copy(fallback_img, default_img_path)
+                    logger.info(f"Created default image at {default_img_path}")
+            
+            # اگر تصویر پیش‌فرض وجود دارد، آن را نمایش می‌دهیم
+            if os.path.exists(default_img_path):
+                return redirect(url_for('static', filename='images/no-image.png'))
+            else:
+                return jsonify({'error': 'فایل در سرور وجود ندارد'}), 404
         except Exception as e:
             logger.error(f"Error processing media record {media.id}: {str(e)}")
             return jsonify({'error': f"Error processing media: {str(e)}"}), 500
     except Exception as e:
         logger.error(f"Unhandled exception in telegram_file: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        
+        # در صورت خطا، تلاش برای نمایش تصویر پیش‌فرض
+        try:
+            # ایجاد دایرکتوری static/images اگر وجود ندارد
+            default_img_dir = os.path.join('static', 'images')
+            os.makedirs(default_img_dir, exist_ok=True)
+            
+            # کپی کردن تصویر پیش‌فرض از attached_assets به static/images اگر وجود ندارد
+            default_img_path = os.path.join(default_img_dir, 'no-image.png')
+            if not os.path.exists(default_img_path):
+                fallback_img = os.path.join('attached_assets', 'show.jpg')
+                if os.path.exists(fallback_img):
+                    import shutil
+                    shutil.copy(fallback_img, default_img_path)
+                    logger.info(f"Created default image at {default_img_path} (error fallback)")
+            
+            # اگر تصویر پیش‌فرض وجود دارد، آن را نمایش می‌دهیم
+            if os.path.exists(default_img_path):
+                return redirect(url_for('static', filename='images/no-image.png'))
+            else:
+                return jsonify({'error': str(e)}), 500
+                
+        except Exception as e2:
+            logger.error(f"Error in fallback image logic: {str(e2)}")
+            return jsonify({'error': str(e)}), 500
 
 # ----- Database Management Routes -----
 @app.route('/admin/database')
