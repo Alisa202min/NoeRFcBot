@@ -47,8 +47,10 @@ def check_database():
         print(f"تعداد کل استعلام‌ها: {len(inquiries)}")
         
         for inq in inquiries[:5]:  # نمایش 5 استعلام اول
+            inquiry_type = "محصول" if inq.is_product_inquiry() else "خدمت" if inq.is_service_inquiry() else "عمومی"
+            related_id = inq.product_id if inq.is_product_inquiry() else inq.service_id if inq.is_service_inquiry() else "N/A"
             print(f"ID: {inq.id}, نام: {inq.name}, تلفن: {inq.phone}, " + 
-                  f"محصول/خدمت: {inq.product_id} (نوع: {inq.product_type})")
+                  f"شناسه: {related_id} (نوع: {inquiry_type})")
         
         print("\n=== بررسی محتوای آموزشی ===")
         contents = EducationalContent.query.all()

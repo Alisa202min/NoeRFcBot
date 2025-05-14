@@ -1983,8 +1983,8 @@ def products():
             query = query.filter_by(category_id=category_id)
         products_list = query.all()
         
-        # دریافت دسته‌بندی‌ها
-        categories = Category.query.filter_by(cat_type='product', parent_id=None).all()
+        # دریافت دسته‌بندی‌های محصول
+        categories = ProductCategory.query.filter_by(parent_id=None).all()
         
         return render_template('products.html', 
                               products=products_list,
@@ -2006,8 +2006,8 @@ def services():
             query = query.filter_by(category_id=category_id)
         services_list = query.all()
         
-        # دریافت دسته‌بندی‌ها
-        categories = Category.query.filter(Category.services.any()).filter_by(parent_id=None).all()
+        # دریافت دسته‌بندی‌های خدمات
+        categories = ServiceCategory.query.filter_by(parent_id=None).all()
         
         return render_template('services.html', 
                               services=services_list,
