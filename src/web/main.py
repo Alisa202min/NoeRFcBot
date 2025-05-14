@@ -1462,6 +1462,22 @@ def telegram_file(file_id):
             
         if not media:
             logger.warning(f"No media record found for file_id: {file_id}")
+            
+            # بررسی فایل در مسیر media
+            # برای محصولات
+            if file_id.startswith('product_image_'):
+                product_media_path = os.path.join('static', 'media', 'products', f"{file_id}.jpg")
+                if os.path.exists(product_media_path):
+                    logger.info(f"Found product media file: {product_media_path}")
+                    return redirect(url_for('static', filename=f"media/products/{file_id}.jpg"))
+            
+            # برای خدمات
+            elif file_id.startswith('service_image_'):
+                service_media_path = os.path.join('static', 'media', 'services', f"{file_id}.jpg")
+                if os.path.exists(service_media_path):
+                    logger.info(f"Found service media file: {service_media_path}")
+                    return redirect(url_for('static', filename=f"media/services/{file_id}.jpg"))
+            
             # تلاش نهایی - بررسی اینکه آیا این یک مسیر فایل است
             potential_path = os.path.join('static', file_id)
             if os.path.exists(potential_path):
@@ -1469,6 +1485,7 @@ def telegram_file(file_id):
                 return redirect(url_for('static', filename=file_id))
             
             # اگر هیچ چیزی پیدا نشد
+            logger.warning(f"Could not find any file for {file_id}")
             return jsonify({'error': 'فایل پیدا نشد'}), 404
         
         try:    
