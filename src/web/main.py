@@ -686,8 +686,10 @@ def service_detail(service_id):
     """صفحه جزئیات خدمت"""
     # استفاده از مدل Service به جای فیلتر بر روی محصول
     service = Service.query.filter_by(id=service_id).first_or_404()
-    related_services = Product.query.filter_by(category_id=service.category_id, product_type='service').filter(Product.id != service.id).limit(4).all()
-    media = ProductMedia.query.filter_by(product_id=service.id).all()
+    # استفاده از جدول Service برای سرویس‌های مرتبط
+    related_services = Service.query.filter_by(category_id=service.category_id).filter(Service.id != service.id).limit(4).all()
+    # استفاده از ServiceMedia به جای ProductMedia
+    media = ServiceMedia.query.filter_by(service_id=service.id).all()
     
     return render_template('service_detail.html', 
                           service=service, 
@@ -858,11 +860,12 @@ def admin_services():
                 db.session.rollback()
                 logger.error(f"Error saving service: {str(e)}")
                 flash(f'خطا در ذخیره خدمت: {str(e)}', 'danger')
-                categories = Category.query.filter_by(cat_type='service').all()
+                # استفاده از ServiceCategory به جای Category با فیلتر cat_type
+                categories = ServiceCategory.query.all()
                 
                 if service_id:
-                    # در صورت خطا در ویرایش، به فرم ویرایش برمی‌گردیم
-                    service = Product.query.filter_by(product_type='service', id=int(service_id)).first_or_404()
+                    # استفاده از جدول Service به جای Product با فیلتر product_type
+                    service = Service.query.filter_by(id=int(service_id)).first_or_404()
                     return render_template('admin/service_form.html',
                                           title="ویرایش خدمت",
                                           service=service,
@@ -880,7 +883,8 @@ def admin_services():
                 flash('شناسه خدمت الزامی است.', 'danger')
                 return redirect(url_for('admin_services'))
             
-            service = Product.query.filter_by(product_type='service', id=int(service_id)).first_or_404()
+            # استفاده از جدول Service به جای Product با فیلتر product_type
+            service = Service.query.filter_by(id=int(service_id)).first_or_404()
             file = request.files.get('file')
             file_type = request.form.get('file_type', 'photo')
             
@@ -902,9 +906,9 @@ def admin_services():
                         relative_path = file_path.replace('static/', '', 1) if file_path.startswith('static/') else file_path
                         logger.info(f"Service media relative path: {relative_path}")
                         
-                        # افزودن به دیتابیس
-                        media = ProductMedia(
-                            product_id=service.id,
+                        # افزودن به دیتابیس - استفاده از ServiceMedia به جای ProductMedia
+                        media = ServiceMedia(
+                            service_id=service.id,
                             file_id=relative_path,
                             file_type=file_type,
                             local_path=file_path  # ذخیره مسیر کامل برای استفاده بعدی
