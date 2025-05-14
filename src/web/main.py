@@ -698,6 +698,10 @@ def admin_products():
     products = Product.query.all()
     categories = ProductCategory.query.all()
     
+    # تبدیل مسیر photo_url برای استفاده در url_for
+    for product in products:
+        product.formatted_photo_url = get_photo_url(product.photo_url)
+    
     return render_template('admin/products.html', 
                           products=products,
                           categories=categories)
@@ -713,8 +717,16 @@ def service_detail(service_id):
     # استفاده از ServiceMedia به جای ProductMedia
     media = ServiceMedia.query.filter_by(service_id=service.id).all()
     
+    # تبدیل مسیر photo_url برای استفاده در url_for
+    photo_url = get_photo_url(service.photo_url)
+    
+    # تبدیل مسیر photo_url برای خدمات مرتبط
+    for related in related_services:
+        related.formatted_photo_url = get_photo_url(related.photo_url)
+    
     return render_template('service_detail.html', 
-                          service=service, 
+                          service=service,
+                          photo_url=photo_url,
                           related_services=related_services,
                           media=media)
 
@@ -1016,6 +1028,10 @@ def admin_services():
     
     # دریافت دسته‌بندی‌های خدمات
     categories = ServiceCategory.query.all()
+    
+    # تبدیل مسیر photo_url برای استفاده در url_for
+    for service in pagination.items:
+        service.formatted_photo_url = get_photo_url(service.photo_url)
     
     return render_template('admin/services.html', 
                           services=pagination,
@@ -2044,6 +2060,10 @@ def services():
         
         # دریافت دسته‌بندی‌های خدمات
         categories = ServiceCategory.query.filter_by(parent_id=None).all()
+        
+        # تبدیل مسیر photo_url برای استفاده در url_for
+        for service in services_list:
+            service.formatted_photo_url = get_photo_url(service.photo_url)
         
         return render_template('services.html', 
                               services=services_list,
