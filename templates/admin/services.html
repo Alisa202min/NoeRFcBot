@@ -56,8 +56,8 @@
                                 <tr class="service-row" data-service-url="{{ url_for('service_detail', service_id=service.id) }}" style="cursor: pointer;">
                                     <td>{{ service.id }}</td>
                                     <td>
-                                        {% if service.photo_url %}
-                                        <img src="{{ url_for('static', filename=service.photo_url) }}" alt="{{ service.name }}" class="img-thumbnail" style="max-height: 50px;">
+                                        {% if service.formatted_photo_url %}
+                                        <img src="{{ url_for('static', filename=service.formatted_photo_url) }}" alt="{{ service.name }}" class="img-thumbnail" style="max-height: 50px;">
                                         {% else %}
                                         <div class="bg-light d-flex align-items-center justify-content-center rounded" style="width: 50px; height: 50px;">
                                             <i class="bi bi-image text-muted"></i>

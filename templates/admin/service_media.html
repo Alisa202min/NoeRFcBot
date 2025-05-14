@@ -27,7 +27,7 @@
                             <h6>تصویر اصلی خدمت</h6>
                             {% if service.photo_url %}
                             <div class="card mb-3">
-                                <img src="{{ url_for('static', filename=service.photo_url) }}" class="card-img-top product-img-preview" alt="{{ service.name }}">
+                                <img src="{{ url_for('static', filename=service.formatted_photo_url) }}" class="card-img-top product-img-preview" alt="{{ service.name }}">
                                 <div class="card-body">
                                     <p class="card-text">
                                         <small class="text-muted">{{ service.photo_url }}</small>
