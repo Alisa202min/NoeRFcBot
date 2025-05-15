@@ -1,16 +1,31 @@
 """
-نقطه ورود اصلی برنامه RFCBot
-این فایل برنامه Flask و بات تلگرام را راه‌اندازی می‌کند.
+Routes and views for the Flask application.
 """
 
-# Import the Flask application directly from the reorganized structure
-from src.web import app
-# Import main routes to ensure they are registered
-from src.web import main
+from flask import render_template, request, redirect, url_for, flash, jsonify
+from .app import app, db
+import logging
 
-# Export the app object for Gunicorn
-app = app
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
 
-if __name__ == "__main__":
-    # Run the Flask application
-    app.run(host="0.0.0.0", port=5000, debug=True)
+# Import any database models you need
+from models import User
+
+@app.route('/')
+def index():
+    """Home page"""
+    return render_template('index.html', title='RFCBot Admin Dashboard')
+
+# Create other routes as needed below
+@app.route('/admin')
+def admin_dashboard():
+    """Admin dashboard"""
+    return render_template('admin/dashboard.html', title='Admin Dashboard')
+
+# Ensure the admin user exists
+try:
+    from .app import create_admin_user
+    create_admin_user()
+except Exception as e:
+    logging.error(f"Error creating admin user: {e}")
