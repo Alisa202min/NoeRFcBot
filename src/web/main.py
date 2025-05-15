@@ -1253,9 +1253,14 @@ def admin_education():
                         media = EducationalContentMedia(
                             educational_content_id=content.id,
                             file_id=media_file_id,
-                            file_type=file_type,
-                            local_path=file_path
+                            file_type=file_type
                         )
+                        # تنظیم local_path بعد از ساخت آبجکت
+                        if hasattr(media, 'local_path'):
+                            media.local_path = file_path
+                        else:
+                            # اگر ویژگی local_path موجود نیست، پیام لاگ بنویسیم
+                            logger.warning(f"EducationalContentMedia does not have local_path attribute. Path not saved: {file_path}")
                         db.session.add(media)
                     # در غیر این صورت، فقط اگر نوع محتوا متن باشد، متن را به‌روزرسانی می‌کنیم
                     elif content_type == 'text':
@@ -1293,9 +1298,14 @@ def admin_education():
                     media = EducationalContentMedia(
                         educational_content_id=content.id,
                         file_id=media_file_id,
-                        file_type=file_type,
-                        local_path=file_path
+                        file_type=file_type
                     )
+                    # تنظیم local_path بعد از ساخت آبجکت
+                    if hasattr(media, 'local_path'):
+                        media.local_path = file_path
+                    else:
+                        # اگر ویژگی local_path موجود نیست، پیام لاگ بنویسیم
+                        logger.warning(f"EducationalContentMedia does not have local_path attribute. Path not saved: {file_path}")
                     db.session.add(media)
                     db.session.commit()
                 flash('محتوای آموزشی جدید با موفقیت ایجاد شد.', 'success')
