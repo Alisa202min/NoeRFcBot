@@ -39,11 +39,64 @@
                                 <span class="badge bg-info">{{ content.category }}</span>
                             </div>
                             <div class="card-body">
-                                {% if content.content_type == 'text' %}
-                                    {{ content.content|safe }}
-                                {% elif content.content_type == 'video' %}
-                                    <div class="ratio ratio-16x9">
+                                <!-- متن محتوا -->
+                                {% if content.content_type == 'text' or content.content %}
+                                    <div class="mb-4">
+                                        {{ content.content|safe }}
+                                    </div>
+                                {% endif %}
+                                
+                                <!-- نمایش فایل اصلی -->
+                                {% if content.content_type == 'video' and content.content and content.content.startswith('http') %}
+                                    <div class="ratio ratio-16x9 mb-4">
                                         <iframe src="{{ content.content }}" title="{{ content.title }}" allowfullscreen></iframe>
+                                    </div>
+                                {% elif content.content_type == 'image' and content.content %}
+                                    <div class="mb-4">
+                                        <img src="{{ content.content }}" alt="{{ content.title }}" class="img-fluid rounded">
+                                    </div>
+                                {% elif content.content_type == 'file' and content.content %}
+                                    <div class="mb-4">
+                                        <a href="{{ content.content }}" class="btn btn-outline-primary" target="_blank">
+                                            <i class="bi bi-download me-2"></i>دانلود فایل
+                                        </a>
+                                    </div>
+                                {% endif %}
+                                
+                                <!-- نمایش مدیا های دیگر -->
+                                {% if content.media and content.media.count() > 0 %}
+                                    <div class="mt-4">
+                                        <h6 class="border-bottom pb-2">فایل‌های ضمیمه:</h6>
+                                        <div class="row row-cols-1 row-cols-md-3 g-3 mt-2">
+                                            {% for media in content.media %}
+                                            <div class="col">
+                                                <div class="card h-100">
+                                                    {% if media.file_type == 'photo' %}
+                                                        <img src="{{ url_for('telegram_file', file_id=media.file_id) }}" 
+                                                             class="card-img-top" alt="تصویر ضمیمه"
+                                                             style="height: 200px; object-fit: cover;">
+                                                    {% elif media.file_type == 'video' %}
+                                                        <div class="ratio ratio-16x9">
+                                                            <video controls>
+                                                                <source src="{{ url_for('telegram_file', file_id=media.file_id) }}" type="video/mp4">
+                                                            </video>
+                                                        </div>
+                                                    {% elif media.file_type == 'file' %}
+                                                        <div class="card-body text-center">
+                                                            <i class="bi bi-file-earmark-text fs-1 text-primary"></i>
+                                                            <p class="mt-2">فایل ضمیمه</p>
+                                                        </div>
+                                                    {% endif %}
+                                                    <div class="card-footer text-center">
+                                                        <a href="{{ url_for('telegram_file', file_id=media.file_id) }}" 
+                                                           class="btn btn-sm btn-primary" target="_blank">
+                                                            <i class="bi bi-download me-1"></i> دانلود
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
                                     </div>
                                 {% endif %}
                             </div>

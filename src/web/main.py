@@ -1658,32 +1658,61 @@ def telegram_file(file_id):
             else:
                 logger.warning(f"File does NOT exist at: {file_path}")
         
-        # جستجوی فایل در جدول ProductMedia و ServiceMedia
+        # جستجوی فایل در جدول ProductMedia, ServiceMedia و EducationalContentMedia
         try:
             # ابتدا در جدول ProductMedia جستجو می‌کنیم
             media = ProductMedia.query.filter_by(file_id=file_id).first()
-            logger.info(f"Direct database lookup result: {media}")
+            logger.info(f"Direct ProductMedia lookup result: {media}")
+            
+            media_source = 'product'
         
             # اگر در ProductMedia پیدا نشد، در ServiceMedia جستجو می‌کنیم
             if not media:
                 media = ServiceMedia.query.filter_by(file_id=file_id).first()
                 logger.info(f"ServiceMedia lookup result: {media}")
+                media_source = 'service'
+                
+            # اگر در ServiceMedia هم پیدا نشد، در EducationalContentMedia جستجو می‌کنیم
+            if not media:
+                media = EducationalContentMedia.query.filter_by(file_id=file_id).first()
+                logger.info(f"EducationalContentMedia lookup result: {media}")
+                media_source = 'educational'
             
-            # اگر هنوز پیدا نشد، در هر دو جدول با جستجوی وسیع‌تر تلاش می‌کنیم
+            # اگر هنوز پیدا نشد، در همه جدول‌ها با جستجوی وسیع‌تر تلاش می‌کنیم
             if not media:
                 # جستجو در جدول ProductMedia با الگوی وسیع‌تر
                 logger.info("Trying broader search...")
                 media = ProductMedia.query.filter(
                     ProductMedia.file_id.like(f"%{file_id}%")
                 ).first()
+                if media:
+                    media_source = 'product'
                 
                 # اگر در ProductMedia پیدا نشد، در ServiceMedia با الگوی وسیع‌تر جستجو می‌کنیم
                 if not media:
                     media = ServiceMedia.query.filter(
                         ServiceMedia.file_id.like(f"%{file_id}%")
                     ).first()
+                    if media:
+                        media_source = 'service'
+                        
+                # اگر در ServiceMedia هم پیدا نشد، در EducationalContentMedia با الگوی وسیع‌تر جستجو می‌کنیم
+                if not media:
+                    media = EducationalContentMedia.query.filter(
+                        EducationalContentMedia.file_id.like(f"%{file_id}%")
+                    ).first()
+                    if media:
+                        media_source = 'educational'
                 
-                logger.info(f"Broader search result: {media}")
+                logger.info(f"Broader search result: {media} (source: {media_source})")
+                
+            # اگر رکورد مدیا پیدا شد و local_path دارد، مستقیماً فایل را سرو می‌کنیم
+            if media and hasattr(media, 'local_path') and media.local_path:
+                if os.path.exists(os.path.join('static', media.local_path)):
+                    logger.info(f"Serving media from local_path: {media.local_path}")
+                    return redirect(url_for('static', filename=media.local_path))
+                else:
+                    logger.warning(f"Media has local_path but file doesn't exist: {media.local_path}")
         except Exception as e:
             logger.error(f"Database error when searching for file_id '{file_id}': {str(e)}")
             return jsonify({'error': f"Database error: {str(e)}"}), 500
