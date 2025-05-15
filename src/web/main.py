@@ -3116,32 +3116,42 @@ def restore_database():
         
         # مدل‌های دیتابیس برای بازیابی - با اولویت‌بندی برای رعایت محدودیت‌های کلید خارجی
         models_map = {
+            # ابتدا کاربران بازیابی می‌شوند
+            'users.csv': User,
+            # سپس دسته‌بندی‌ها
             'product_categories.csv': ProductCategory,
             'service_categories.csv': ServiceCategory,
+            # سپس محتوای ثابت
+            'static_content.csv': StaticContent,
+            # سپس جداول اصلی
             'products.csv': Product,
-            'services.csv': Service,
-            'inquiries.csv': Inquiry,
+            'services.csv': Service, 
             'educational.csv': EducationalContent,
+            'inquiries.csv': Inquiry,
+            # در نهایت رسانه‌ها (که به جداول اصلی وابسته هستند)
             'product_media.csv': ProductMedia,
             'service_media.csv': ServiceMedia,
             'educational_media.csv': EducationalContentMedia,
-            'users.csv': User,
-            'static_content.csv': StaticContent,
         }
         
         # برای اطمینان از پشتیبانی از نسخه‌های قدیمی، نام‌های بدون پسوند را هم پشتیبانی می‌کنیم
         old_format_map = {
+            # ابتدا کاربران بازیابی می‌شوند
+            'users': User,
+            # سپس دسته‌بندی‌ها
+            'product_categories': ProductCategory,
+            'service_categories': ServiceCategory,
+            # سپس محتوای ثابت
+            'static_content': StaticContent,
+            # سپس جداول اصلی
             'products': Product,
             'services': Service,
-            'inquiries': Inquiry,
             'educational': EducationalContent,
+            'inquiries': Inquiry,
+            # در نهایت رسانه‌ها (که به جداول اصلی وابسته هستند)
             'product_media': ProductMedia,
             'service_media': ServiceMedia,
             'educational_media': EducationalContentMedia,
-            'product_categories': ProductCategory,
-            'service_categories': ServiceCategory,
-            'users': User,
-            'static_content': StaticContent,
         }
         
         # ترکیب هر دو مپ
@@ -3241,12 +3251,16 @@ def restore_database():
                                                     pass
                                             # تبدیل مقادیر بولین
                                             elif column == 'is_admin' or column == 'in_stock' or column == 'featured':
-                                                if value in ('True', 'true', '1', 'yes', 'Y', 'بله'):
+                                                if isinstance(value, str) and value.lower() in ('true', '1', 'yes', 'y', 'بله'):
                                                     setattr(item, column, True)
-                                                elif value in ('False', 'false', '0', 'no', 'N', 'خیر'):
+                                                elif isinstance(value, str) and value.lower() in ('false', '0', 'no', 'n', 'خیر'):
+                                                    setattr(item, column, False)
+                                                elif value is None:
                                                     setattr(item, column, False)
                                                 else:
-                                                    setattr(item, column, value)
+                                                    # اگر نمی‌توانیم به طور مطمئن تبدیل کنیم، پیش‌فرض False می‌گذاریم
+                                                    logger.warning(f"مقدار بولین نامعتبر برای {column}: {value} - مقدار False استفاده می‌شود")
+                                                    setattr(item, column, False)
                                 
                                 # افزودن به دیتابیس
                                 db.session.add(item)
@@ -3260,7 +3274,13 @@ def restore_database():
                                     except Exception as commit_error:
                                         db.session.rollback()
                                         logger.error(f"خطا در کامیت {csv_filename}: {str(commit_error)}")
-                                        raise
+                                        # اگر خطای کلید خارجی رخ داد، آیتم را رد می‌کنیم اما ادامه می‌دهیم
+                                        if 'ForeignKeyViolation' in str(commit_error) or 'foreign key constraint' in str(commit_error).lower():
+                                            logger.warning(f"آیتم رد شد به دلیل خطای کلید خارجی - ادامه روند بازیابی")
+                                            error_rows += 1
+                                        else:
+                                            # برای سایر خطاها، کار را متوقف می‌کنیم
+                                            raise
                             except Exception as item_error:
                                 logger.error(f"خطا در افزودن آیتم در {csv_filename}: {str(item_error)}")
                                 continue
@@ -3273,7 +3293,67 @@ def restore_database():
                         except Exception as final_commit_error:
                             db.session.rollback()
                             logger.error(f"خطا در کامیت نهایی {csv_filename}: {str(final_commit_error)}")
-                            error_tables.append(f"{csv_filename} (خطای کامیت نهایی)")
+                            
+                            # اگر خطای کلید خارجی بود، تلاش می‌کنیم تک تک رکوردها را کامیت کنیم
+                            if 'ForeignKeyViolation' in str(final_commit_error) or 'foreign key constraint' in str(final_commit_error).lower():
+                                logger.warning(f"تلاش برای کامیت تک تک رکوردها برای {csv_filename}")
+                                success_count = 0
+                                
+                                # بازگرداندن CSV به ابتدا
+                                csv_file.seek(0)
+                                reader = csv.reader(csv_file)
+                                headers = next(reader, None)  # دوباره هدرها را می‌خوانیم
+                                
+                                for row in reader:
+                                    try:
+                                        # ساخت دیکشنری
+                                        data = {}
+                                        for i, column in enumerate(headers):
+                                            if i < len(row):
+                                                value = row[i]
+                                                if value == "":
+                                                    value = None
+                                                data[column] = value
+                                        
+                                        # ایجاد آیتم جدید
+                                        item = model()
+                                        for column, value in data.items():
+                                            if hasattr(item, column):
+                                                try:
+                                                    # تلاش برای تبدیل داده‌ها
+                                                    if column == 'id' or column.endswith('_id'):
+                                                        try:
+                                                            int_value = int(value) if value else None
+                                                            setattr(item, column, int_value)
+                                                        except:
+                                                            setattr(item, column, value)
+                                                    elif column == 'is_admin' or column == 'in_stock' or column == 'featured':
+                                                        if isinstance(value, str) and value.lower() in ('true', '1', 'yes', 'y', 'بله'):
+                                                            setattr(item, column, True)
+                                                        else:
+                                                            setattr(item, column, False)
+                                                    else:
+                                                        setattr(item, column, value)
+                                                except:
+                                                    pass
+                                        
+                                        # افزودن به دیتابیس و کامیت فوری
+                                        db.session.add(item)
+                                        try:
+                                            db.session.commit()
+                                            success_count += 1
+                                        except:
+                                            db.session.rollback()
+                                    except:
+                                        continue
+                                
+                                if success_count > 0:
+                                    logger.info(f"بازیابی موفق {success_count} رکورد از {csv_filename} در حالت تک رکوردی")
+                                    restored_tables.append(f"{csv_filename} (جزئی: {success_count} رکورد)")
+                                else:
+                                    error_tables.append(f"{csv_filename} (خطای کامیت نهایی)")
+                            else:
+                                error_tables.append(f"{csv_filename} (خطای کامیت نهایی)")
                     
                     except Exception as table_error:
                         db.session.rollback()
