@@ -2714,87 +2714,7 @@ def search():
 
 # ----- Database Management Routes -----
 
-@app.route('/admin/database')
-@login_required
-def database_management():
-    """صفحه مدیریت دیتابیس"""
-    try:
-        import psycopg2
-        
-        # دریافت اطلاعات اتصال به دیتابیس
-        db_url = os.environ.get('DATABASE_URL', '')
-        pg_host = os.environ.get('PGHOST', 'localhost')
-        pg_database = os.environ.get('PGDATABASE', 'postgres')
-        pg_user = os.environ.get('PGUSER', 'postgres')
-        
-        # دریافت نسخه PostgreSQL
-        conn = None
-        try:
-            conn = psycopg2.connect(db_url)
-            cursor = conn.cursor()
-            cursor.execute("SELECT version();")
-            pg_version = cursor.fetchone()[0].split(',')[0]
-            cursor.close()
-        except Exception as e:
-            logger.error(f"Error getting PostgreSQL version: {e}")
-            pg_version = 'نامشخص'
-        finally:
-            if conn:
-                conn.close()
-        
-        # دریافت لیست جداول و تعداد رکوردها
-        table_counts = {}
-        model_classes = [
-            User, Category, Product, ProductMedia, 
-            Inquiry, EducationalContent, StaticContent
-        ]
-        
-        for model in model_classes:
-            table_name = model.__tablename__
-            count = db.session.query(model).count()
-            table_counts[table_name] = count
-        
-        # دریافت ساختار جداول
-        table_structures = {}
-        try:
-            conn = psycopg2.connect(db_url)
-            cursor = conn.cursor()
-            
-            for table_name in table_counts.keys():
-                cursor.execute(f"""
-                    SELECT column_name, data_type, is_nullable, column_default
-                    FROM information_schema.columns
-                    WHERE table_name = '{table_name}'
-                    ORDER BY ordinal_position;
-                """)
-                columns = []
-                for row in cursor.fetchall():
-                    columns.append({
-                        'column_name': row[0],
-                        'data_type': row[1],
-                        'is_nullable': row[2],
-                        'column_default': row[3]
-                    })
-                table_structures[table_name] = columns
-            
-            cursor.close()
-        except Exception as e:
-            logger.error(f"Error getting table structures: {e}")
-        finally:
-            if conn:
-                conn.close()
-        
-        return render_template('database.html', 
-                              pg_version=pg_version,
-                              pg_host=pg_host,
-                              pg_database=pg_database,
-                              pg_user=pg_user,
-                              table_counts=table_counts,
-                              table_structures=table_structures,
-                              active_page='admin')
-    except Exception as e:
-        logger.error(f"Error in database management route: {e}")
-        return render_template('500.html'), 500
+# این route حذف شده و از admin_database استفاده می‌شود
 
 @app.route('/admin/database/table/<table_name>')
 @login_required
@@ -2887,12 +2807,11 @@ def view_table_data(table_name):
             'url_for_page': url_for_page
         }
         
-        return render_template('table_data.html',
+        return render_template('admin/table_data.html',
                               table_name=table_name,
                               columns=columns,
                               rows=rows,
-                              pagination=pagination,
-                              active_page='admin')
+                              pagination=pagination)
     except Exception as e:
         logger.error(f"Error in view table data route: {e}")
         return render_template('500.html'), 500
