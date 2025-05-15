@@ -3244,6 +3244,18 @@ def restore_database():
                                     value = row[i]
                                     if value == "":
                                         value = None
+                                    
+                                    # پیش‌پردازش مقادیر بولین
+                                    if column in ['is_admin', 'in_stock', 'featured', 'available']:
+                                        if isinstance(value, str):
+                                            if value.lower() in ('true', '1', 'yes', 'y', 'بله'):
+                                                value = True
+                                            elif value.lower() in ('false', '0', 'no', 'n', 'خیر'):
+                                                value = False
+                                            else:
+                                                value = False
+                                                logger.warning(f"مقدار نامعتبر برای فیلد بولین {column}: {value} - مقدار False استفاده می‌شود")
+                                                
                                     data[column] = value
                             
                             try:
@@ -3264,7 +3276,7 @@ def restore_database():
                                                 except:
                                                     pass
                                             # تبدیل مقادیر بولین
-                                            elif column == 'is_admin' or column == 'in_stock' or column == 'featured':
+                                            elif column == 'is_admin' or column == 'in_stock' or column == 'featured' or column == 'available':
                                                 # مدیریت ویژه برای User.is_admin
                                                 if is_user_table and column == 'is_admin':
                                                     # برای جدول User، با دقت بیشتری is_admin را تنظیم می‌کنیم
@@ -3378,7 +3390,7 @@ def restore_database():
                                                             setattr(item, column, int_value)
                                                         except:
                                                             setattr(item, column, value)
-                                                    elif column == 'is_admin' or column == 'in_stock' or column == 'featured':
+                                                    elif column == 'is_admin' or column == 'in_stock' or column == 'featured' or column == 'available':
                                                         if isinstance(value, str) and value.lower() in ('true', '1', 'yes', 'y', 'بله'):
                                                             setattr(item, column, True)
                                                         else:
