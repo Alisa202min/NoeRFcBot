@@ -3128,6 +3128,24 @@ def restore_database():
             'static_content.csv': StaticContent,
         }
         
+        # برای اطمینان از پشتیبانی از نسخه‌های قدیمی، نام‌های بدون پسوند را هم پشتیبانی می‌کنیم
+        old_format_map = {
+            'products': Product,
+            'services': Service,
+            'inquiries': Inquiry,
+            'educational': EducationalContent,
+            'product_media': ProductMedia,
+            'service_media': ServiceMedia,
+            'educational_media': EducationalContentMedia,
+            'product_categories': ProductCategory,
+            'service_categories': ServiceCategory,
+            'users': User,
+            'static_content': StaticContent,
+        }
+        
+        # ترکیب هر دو مپ
+        models_map.update(old_format_map)
+        
         # آمار بازیابی
         restored_tables = []
         skipped_tables = []
@@ -3143,10 +3161,15 @@ def restore_database():
                 if 'README.txt' in file_list:
                     file_list.remove('README.txt')
                 
+                # لاگ کردن فایل‌های موجود برای اشکال‌زدایی
+                logger.info(f"فایل‌های موجود در بک‌آپ: {', '.join(file_list)}")
+                logger.info(f"تعریف شده در models_map: {', '.join(models_map.keys())}")
+                
                 # بازیابی هر جدول
                 for csv_filename in file_list:
                     if csv_filename in models_map:
                         model = models_map[csv_filename]
+                        logger.info(f"بازیابی فایل {csv_filename} با مدل {model.__name__}")
                         
                         try:
                             # استخراج فایل CSV
@@ -3195,16 +3218,42 @@ def restore_database():
                                     item = model()
                                     for column, value in data.items():
                                         if hasattr(item, column):
-                                            setattr(item, column, value)
+                                            try:
+                                                setattr(item, column, value)
+                                            except Exception as attr_error:
+                                                logger.error(f"خطا در تنظیم ویژگی {column} با مقدار {value}: {str(attr_error)}")
+                                                # تلاش برای تبدیل نوع داده در صورت ارور
+                                                if column == 'id' or column.endswith('_id'):
+                                                    try:
+                                                        # تبدیل به عدد صحیح
+                                                        int_value = int(value) if value else None
+                                                        setattr(item, column, int_value)
+                                                    except:
+                                                        pass
                                     
                                     # افزودن به دیتابیس
                                     db.session.add(item)
+                                    # برای امنیت بیشتر، هر 100 آیتم یک بار کامیت می‌کنیم
+                                    if restored_rows % 100 == 0:
+                                        try:
+                                            db.session.commit()
+                                            logger.info(f"کامیت موفق {restored_rows} آیتم برای {csv_filename}")
+                                        except Exception as commit_error:
+                                            db.session.rollback()
+                                            logger.error(f"خطا در کامیت {csv_filename}: {str(commit_error)}")
+                                            raise
                                 except Exception as item_error:
-                                    logger.error(f"Error adding item in {csv_filename}: {str(item_error)}")
+                                    logger.error(f"خطا در افزودن آیتم در {csv_filename}: {str(item_error)}")
                                     continue
                             
-                            # ذخیره تغییرات
-                            db.session.commit()
+                            # ذخیره نهایی تغییرات
+                            try:
+                                db.session.commit()
+                                logger.info(f"کامیت نهایی موفق برای {csv_filename}: {restored_rows} آیتم")
+                            except Exception as final_commit_error:
+                                db.session.rollback()
+                                logger.error(f"خطا در کامیت نهایی {csv_filename}: {str(final_commit_error)}")
+                                raise
                             restored_tables.append(csv_filename)
                             
                         except Exception as table_error:
