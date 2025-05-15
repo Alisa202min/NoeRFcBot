@@ -3,87 +3,128 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}ربات مدیریت محصولات و خدمات RFC{% endblock %}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    {% block styles %}{% endblock %}
+    <title>مدیریت ربات تلگرام</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        body {
+            direction: rtl;
+            text-align: right;
+        }
+        .text-left {
+            text-align: left;
+        }
+        .log-box {
+            direction: ltr;
+            text-align: left;
+            font-family: monospace;
+            height: 300px;
+            overflow-y: auto;
+            background-color: var(--bs-dark);
+            color: var(--bs-light);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .code-box {
+            direction: ltr;
+            text-align: left;
+            font-family: monospace;
+            background-color: var(--bs-dark);
+            color: var(--bs-light);
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
 </head>
 <body>
-    <div class="container-fluid">
-        <div class="row">
-            {% block sidebar %}
-            {% if current_user.is_authenticated %}
-            <div class="col-md-3 col-lg-2 d-md-block bg-dark sidebar">
-                <div class="position-sticky pt-3">
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link active" href="{{ url_for('admin') }}">
-                                <i class="bi bi-speedometer2 me-2"></i>
-                                داشبورد
+    <nav class="navbar navbar-expand-lg bg-body-tertiary">
+        <div class="container">
+            <a class="navbar-brand" href="/">RFCBot</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if active_page == 'dashboard' }}" href="/">داشبورد اصلی</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if active_page == 'logs' }}" href="/logs">لاگ‌های ربات</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if active_page == 'configuration' }}" href="/configuration">پیکربندی</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if active_page == 'admin' }}" href="/admin">پنل مدیریت</a>
+                    </li>
+                </ul>
+                <div class="dropdown ms-2">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-palette"></i> تم
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a class="dropdown-item" href="#" onclick="setLightMode(); return false;">
+                                <i class="bi bi-sun"></i> حالت روز
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#">
-                                <i class="bi bi-box me-2"></i>
-                                محصولات
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#">
-                                <i class="bi bi-tools me-2"></i>
-                                خدمات
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#">
-                                <i class="bi bi-tags me-2"></i>
-                                دسته‌بندی‌ها
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#">
-                                <i class="bi bi-question-circle me-2"></i>
-                                درخواست‌های قیمت
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#">
-                                <i class="bi bi-book me-2"></i>
-                                محتوای آموزشی
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('logout') }}">
-                                <i class="bi bi-box-arrow-right me-2"></i>
-                                خروج
+                        <li>
+                            <a class="dropdown-item" href="#" onclick="setDarkMode(); return false;">
+                                <i class="bi bi-moon"></i> حالت شب
                             </a>
                         </li>
                     </ul>
                 </div>
             </div>
-            <div class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-            {% else %}
-            <div class="col-12">
-            {% endif %}
-            {% endblock %}
-                <div class="container mt-4">
-                    {% with messages = get_flashed_messages(with_categories=true) %}
-                        {% if messages %}
-                            {% for category, message in messages %}
-                                <div class="alert alert-{{ category }}">{{ message }}</div>
-                            {% endfor %}
-                        {% endif %}
-                    {% endwith %}
-                    
-                    {% block content %}{% endblock %}
-                </div>
-            </div>
         </div>
+    </nav>
+
+    <div class="container mt-4">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
     </div>
 
+    <footer class="footer mt-5 py-3 bg-body-tertiary border-top">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
+                <span>ربات تلگرام RFC</span>
+                <span>{{ current_year if current_year else '2025' }}</span>
+            </div>
+        </div>
+    </footer>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        // توابع تغییر تم
+        function setDarkMode() {
+            document.documentElement.setAttribute('data-bs-theme', 'dark');
+            localStorage.setItem('theme', 'dark');
+        }
+        
+        function setLightMode() {
+            document.documentElement.setAttribute('data-bs-theme', 'light');
+            localStorage.setItem('theme', 'light');
+        }
+        
+        // بررسی تنظیمات ذخیره شده در هنگام بارگذاری صفحه
+        document.addEventListener('DOMContentLoaded', function() {
+            const storedTheme = localStorage.getItem('theme');
+            if (storedTheme) {
+                document.documentElement.setAttribute('data-bs-theme', storedTheme);
+            } else {
+                // اگر تم ذخیره شده‌ای وجود نداشته باشد، حالت تاریک پیش‌فرض خواهد بود
+                document.documentElement.setAttribute('data-bs-theme', 'dark');
+            }
+        });
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

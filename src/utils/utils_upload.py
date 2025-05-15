@@ -1,325 +1,181 @@
 """
-Flask-Uploads extension modified to work with newer Werkzeug versions.
-This fixes the "ImportError: cannot import name 'secure_filename' from 'werkzeug'" error.
+توابع کمکی برای آپلود، مدیریت و نمایش فایل‌ها
 """
 
 import os
-import posixpath
-from flask import Blueprint, Flask, current_app, request, abort, send_from_directory
+import logging
+from typing import Tuple, List, Dict, Optional
 from werkzeug.utils import secure_filename
-from werkzeug.datastructures import FileStorage
+from flask import current_app, send_from_directory
 
-# This check ensures that the code will work with any versions
-try:
-    from werkzeug import FileStorage  # For compatibility with older Flask-Uploads
-except ImportError:
-    pass  # Already imported from werkzeug.datastructures
+# Define constants for file types
+IMAGES = ('jpg', 'jpe', 'jpeg', 'png', 'gif', 'svg', 'bmp', 'webp')
+VIDEO = ('mp4', 'mov', 'avi', 'webm')
 
-class UploadNotAllowed(Exception):
-    """Exception raised if the upload is not allowed."""
-    pass
+# Allowed media types
+ALLOWED_MEDIA_TYPES = ['photo', 'video']
 
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Simple UploadSet replacement
 class UploadSet:
-    """This represents a set of uploads as defined by the user."""
-    def __init__(self, name, extensions=None, default_dest=None):
+    """A simplified implementation of UploadSet functionality"""
+    
+    def __init__(self, name, extensions=None):
         self.name = name
         self.extensions = extensions
-        self.default_dest = default_dest
-
-    def file_allowed(self, storage, basename=None):
-        """
-        Check if a file is allowed based on extension.
-        """
-        if basename is None:
-            basename = storage.filename
-        return self.extension_allowed(extension(basename))
-
-    def extension_allowed(self, ext):
-        """
-        Check if an extension is allowed.
-        """
-        return (self.extensions is None or
-                ext.lower() in self.extensions)
-
-    def get_basename(self, filename):
-        """
-        Returns the basename for the provided filename.
-        """
-        return secure_filename(filename)
-
+        
     def save(self, storage, folder=None, name=None):
-        """
-        Save a storage to disk.
-        """
-        if not isinstance(storage, FileStorage):
-            raise TypeError("storage must be a werkzeug.FileStorage")
-
-        if not self.file_allowed(storage):
-            raise UploadNotAllowed()
-
-        if name is not None:
-            basename = name
-            if '.' not in basename:
-                basename = '%s.%s' % (basename, extension(storage.filename))
-        else:
-            basename = self.get_basename(storage.filename)
-
-        if not basename:
-            raise ValueError("Invalid filename: %s" % storage.filename)
-
-        target_folder = self.get_path(folder)
-        if not os.path.exists(target_folder):
-            os.makedirs(target_folder)
-
-        target = os.path.join(target_folder, basename)
+        """Save a file."""
+        if not storage:
+            return None
+            
+        filename = secure_filename(storage.filename)
+        if name:
+            filename = secure_filename(name)
+            # Keep the file extension
+            if '.' in storage.filename:
+                ext = storage.filename.rsplit('.', 1)[1]
+                if not filename.endswith('.' + ext):
+                    filename = filename + '.' + ext
+                    
+        path = os.path.join(current_app.config.get('UPLOADS_DEFAULT_DEST', 'uploads'), 
+                           self.name, folder or '')
+        
+        if not os.path.exists(path):
+            os.makedirs(path, exist_ok=True)
+            
+        target = os.path.join(path, filename)
         storage.save(target)
-        return basename
-
-    def get_path(self, folder=None):
-        """
-        Get the absolute path for this upload set.
-        """
-        if folder is None:
-            folder = self.default_dest
+        return filename
         
-        config = current_app.config
+    def path(self, filename, folder=None):
+        """Return absolute path to the file."""
+        base_path = os.path.join(current_app.config.get('UPLOADS_DEFAULT_DEST', 'uploads'), 
+                                self.name, folder or '')
+        return os.path.join(base_path, filename)
         
-        if folder:
-            return os.path.join(config.get('UPLOADS_DEFAULT_DEST'), folder)
-        
-        return config.get('UPLOADS_DEFAULT_DEST')
-
-    def url(self, filename):
-        """
-        Get the URL for a given filename.
-        """
-        folder = self.default_dest
-        if folder is None:
-            raise RuntimeError("No default folder specified for %r" % self)
-        
-        path = posixpath.normpath(posixpath.join(folder, filename))
-        return path
-
-
-# Common extensions
-TEXT = ('txt',)
-DOCUMENTS = tuple('rtf odf ods gnumeric abw doc docx xls xlsx'.split())
-IMAGES = tuple('jpg jpe jpeg png gif svg bmp webp'.split())
-AUDIO = tuple('wav mp3 aac ogg oga flac'.split())
-DATA = tuple('csv ini json plist xml yaml yml'.split())
-SCRIPTS = tuple('js php pl py rb sh'.split())
-ARCHIVES = tuple('gz bz2 zip tar tgz txz 7z'.split())
-EXECUTABLES = tuple('so exe dll'.split())
-VIDEO = tuple('mp4 webm'.split())
-
-# All available extension sets
-DEFAULTS = {
-    'text': TEXT,
-    'documents': DOCUMENTS,
-    'images': IMAGES,
-    'audio': AUDIO,
-    'data': DATA,
-    'scripts': SCRIPTS,
-    'archives': ARCHIVES,
-    'executables': EXECUTABLES,
-    'video': VIDEO
-}
-
-
 def configure_uploads(app, upload_sets):
-    """
-    Configure the upload sets for an application.
-    """
+    """A simplified implementation of configure_uploads functionality"""
+    if not hasattr(app, 'uploads_configured'):
+        app.uploads_configured = True
+        
+    app.config.setdefault('UPLOADS_DEFAULT_DEST', os.path.join(app.instance_path, 'uploads'))
+    
+    # Make sure we have the upload folder
+    os.makedirs(app.config['UPLOADS_DEFAULT_DEST'], exist_ok=True)
+    
+    # Register upload_sets with the app
+    if not hasattr(app, 'upload_sets'):
+        app.upload_sets = {}
+        
     if isinstance(upload_sets, UploadSet):
         upload_sets = (upload_sets,)
-
-    if not hasattr(app, 'upload_set_config'):
-        app.upload_set_config = {}
-    
-    for uset in upload_sets:
-        config_prefix = 'UPLOADED_%s_' % uset.name.upper()
-        dest = os.path.join(app.config.get('UPLOADS_DEFAULT_DEST', 'uploads'),
-                           uset.name)
-        app.config.setdefault(config_prefix + 'DEST', dest)
         
-        try:
-            uset.default_dest = app.config[config_prefix + 'DEST']
-        except KeyError:
-            pass
-    
-    return app
+    for upload_set in upload_sets:
+        app.upload_sets[upload_set.name] = upload_set
 
-
-def extension(filename):
+def handle_media_upload(file, directory: str, file_type: str = 'photo', 
+                       custom_filename: Optional[str] = None) -> Tuple[bool, Optional[str]]:
     """
-    Get the extension of a file.
-    """
-    return filename.rsplit('.', 1)[-1] if '.' in filename else ''
-
-
-def addslash(url):
-    """
-    Add a trailing slash to a URL.
-    """
-    if url.endswith('/'):
-        return url
-    return url + '/'
-
-
-def patch_request_class(app, size=None):
-    """
-    Patch the request class to set the max size (not implemented).
-    """
-    if size is not None:
-        app.config['MAX_CONTENT_LENGTH'] = size
-    return app
-
-
-def is_valid_image(file_storage, max_size=5 * 1024 * 1024):
-    """
-    بررسی اعتبار تصویر آپلودی
+    Handle media file upload (photos/videos)
     
     Args:
-        file_storage: آبجکت FileStorage از werkzeug
-        max_size: حداکثر سایز مجاز به بایت (پیش‌فرض 5MB)
+        file: The uploaded file object
+        directory: Upload directory
+        file_type: Type of media (photo/video)
+        custom_filename: Optional custom filename
         
     Returns:
-        bool: True اگر تصویر معتبر باشد، False در غیر این صورت
+        (success, file_path) tuple
     """
-    from image_logger import log_file_validation
-    
-    if not file_storage:
-        log_file_validation("No file", False, "No file provided")
-        return False
-    
-    # بررسی نوع محتوا
-    content_type = file_storage.content_type.lower()
-    if not content_type.startswith('image/'):
-        log_file_validation(file_storage.filename, False, f"Invalid content type: {content_type}")
-        return False
-    
-    # بررسی سایز فایل
-    file_storage.seek(0, os.SEEK_END)
-    file_size = file_storage.tell()
-    file_storage.seek(0)  # بازگرداندن اشاره‌گر فایل به ابتدا
-    
-    if file_size > max_size:
-        log_file_validation(
-            file_storage.filename, 
-            False, 
-            f"File too large: {file_size/1024/1024:.2f}MB > {max_size/1024/1024:.2f}MB"
-        )
-        return False
-    
-    # بررسی پسوند فایل
-    filename = file_storage.filename
-    ext = extension(filename).lower()
-    
-    if ext not in IMAGES:
-        log_file_validation(file_storage.filename, False, f"Invalid extension: {ext}")
-        return False
-    
-    # بررسی محتوای فایل به عنوان تصویر
     try:
-        from PIL import Image
-        img = Image.open(file_storage.stream)
-        img.verify()  # اعتبارسنجی فرمت تصویر
-        file_storage.seek(0)  # بازگرداندن اشاره‌گر فایل به ابتدا
-        log_file_validation(file_storage.filename, True, "Image passed all validation checks")
-        return True
+        # Check if file exists and is allowed
+        if not file or not allowed_media_type(file, file_type):
+            logger.warning(f"Invalid file or file type: {file}")
+            return False, None
+        
+        # Ensure directory exists
+        os.makedirs(directory, exist_ok=True)
+        
+        # Use custom filename or secure the original
+        if custom_filename:
+            filename = secure_filename(custom_filename)
+            # Make sure extension is preserved
+            if '.' in file.filename:
+                ext = file.filename.rsplit('.', 1)[1].lower()
+                if not filename.endswith(f".{ext}"):
+                    filename = f"{filename}.{ext}"
+        else:
+            filename = secure_filename(file.filename)
+        
+        # Create full file path
+        file_path = os.path.join(directory, filename)
+        
+        # Save the file
+        file.save(file_path)
+        
+        logger.info(f"File uploaded successfully: {file_path}")
+        return True, file_path
     except Exception as e:
-        log_file_validation(file_storage.filename, False, f"Image verification failed: {str(e)}")
-        file_storage.seek(0)  # بازگرداندن اشاره‌گر فایل به ابتدا
+        logger.error(f"Error in file upload: {e}")
+        return False, None
+
+def allowed_media_type(file, file_type: str) -> bool:
+    """
+    Check if file is allowed for the given media type
+    
+    Args:
+        file: The file to check
+        file_type: Type of media (photo/video)
+        
+    Returns:
+        True if file is allowed, False otherwise
+    """
+    if not file or not file.filename or '.' not in file.filename:
         return False
+    
+    extension = file.filename.rsplit('.', 1)[1].lower()
+    
+    if file_type == 'photo':
+        return extension in ['jpg', 'jpeg', 'png', 'gif']
+    elif file_type == 'video':
+        return extension in ['mp4', 'mov', 'avi']
+    
+    return False
 
-
-def save_uploaded_file(file_storage, upload_folder, validate=False, max_size=5 * 1024 * 1024):
+def remove_file(file_path: str) -> bool:
     """
-    ذخیره فایل آپلودی با نام امن
+    Remove a file from the filesystem
     
     Args:
-        file_storage: آبجکت FileStorage از werkzeug
-        upload_folder: مسیر پوشه برای ذخیره فایل
-        validate: اعتبارسنجی فایل به عنوان تصویر (True/False)
-        max_size: حداکثر سایز مجاز به بایت (پیش‌فرض 5MB)
+        file_path: Path to the file to remove
         
     Returns:
-        str: نام فایل ذخیره شده یا None در صورت خطا
+        True if file was removed, False otherwise
     """
-    from image_logger import log_upload_start, log_upload_success, log_upload_error
-    
-    if not file_storage:
-        log_upload_error("No file", "No file provided")
-        return None
-    
-    # اعتبارسنجی فایل در صورت نیاز
-    if validate and not is_valid_image(file_storage, max_size):
-        log_upload_error(file_storage.filename, "File validation failed")
-        return None
-    
     try:
-        # اطمینان از وجود پوشه آپلود
-        if not os.path.exists(upload_folder):
-            os.makedirs(upload_folder, exist_ok=True)
-        
-        # ایجاد نام امن فایل و مسیر نهایی
-        filename = secure_filename(file_storage.filename)
-        if not filename:
-            log_upload_error(file_storage.filename, "Invalid filename")
-            return None
-        
-        # افزودن تایم‌استمپ به نام فایل برای جلوگیری از تداخل
-        import time
-        name, ext = os.path.splitext(filename)
-        unique_filename = f"{name}_{int(time.time())}{ext}"
-        
-        file_path = os.path.join(upload_folder, unique_filename)
-        
-        # ذخیره فایل
-        file_storage.save(file_path)
-        
-        log_upload_success(file_storage.filename, file_path)
-        return unique_filename
-    
-    except Exception as e:
-        log_upload_error(file_storage.filename, str(e))
-        import traceback
-        traceback.print_exc()
-        return None
-
-
-def find_file_in_static_dirs(filename, static_dirs=None):
-    """
-    جستجوی فایل در مسیرهای استاتیک
-    
-    Args:
-        filename: نام فایل برای جستجو
-        static_dirs: لیست مسیرهای استاتیک برای جستجو (پیش‌فرض: ['static', 'static/uploads'])
-        
-    Returns:
-        str: مسیر کامل فایل یا None اگر پیدا نشد
-    """
-    from image_logger import log_file_not_found
-    
-    if not filename:
-        return None
-    
-    if static_dirs is None:
-        static_dirs = ['static', 'static/uploads', 'static/images', 'uploads']
-    
-    # حذف '/' از ابتدای نام فایل
-    if filename.startswith('/'):
-        filename = filename[1:]
-    
-    # حذف 'static/' از ابتدای نام فایل
-    if filename.startswith('static/'):
-        filename = filename[7:]
-    
-    # جستجو در همه مسیرهای استاتیک
-    for static_dir in static_dirs:
-        file_path = os.path.join(static_dir, filename)
         if os.path.exists(file_path):
-            return file_path
+            os.remove(file_path)
+            logger.info(f"File removed: {file_path}")
+            return True
+        else:
+            logger.warning(f"File not found: {file_path}")
+            return False
+    except Exception as e:
+        logger.error(f"Error removing file: {e}")
+        return False
+
+def serve_file(directory: str, filename: str):
+    """
+    Serve a file from a directory
     
-    log_file_not_found(filename)
-    return None
+    Args:
+        directory: Directory containing the file
+        filename: Name of the file to serve
+        
+    Returns:
+        Flask response with the file
+    """
+    return send_from_directory(directory, filename)
