@@ -79,14 +79,57 @@
 
 {% block scripts %}
 <script>
-$(document).ready(function() {
-    $('#dataTable').DataTable({
-        "order": [[0, "asc"]],
-        "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.10.21/i18n/Persian.json"
-        },
-        "scrollX": true
-    });
+document.addEventListener('DOMContentLoaded', function() {
+    // به جای استفاده از DataTable، از JavaScript خالص استفاده می‌کنیم
+    const dataTable = document.getElementById('dataTable');
+    if (dataTable) {
+        // ساخت دکمه‌های مرتب‌سازی
+        const headerCells = dataTable.querySelectorAll('thead th');
+        headerCells.forEach((cell, index) => {
+            cell.style.cursor = 'pointer';
+            cell.setAttribute('data-sort-direction', 'asc');
+            cell.addEventListener('click', function() {
+                sortTable(index, this.getAttribute('data-sort-direction'));
+                
+                // تغییر جهت مرتب‌سازی برای کلیک بعدی
+                const direction = this.getAttribute('data-sort-direction');
+                this.setAttribute('data-sort-direction', direction === 'asc' ? 'desc' : 'asc');
+            });
+        });
+        
+        // مرتب‌سازی پیش‌فرض ستون اول به صورت صعودی
+        sortTable(0, 'asc');
+    }
+    
+    // تابع مرتب‌سازی جدول
+    function sortTable(columnIndex, direction) {
+        const table = document.getElementById('dataTable');
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        
+        // مرتب‌سازی ردیف‌ها
+        rows.sort((a, b) => {
+            const aValue = a.querySelectorAll('td')[columnIndex].textContent.trim();
+            const bValue = b.querySelectorAll('td')[columnIndex].textContent.trim();
+            
+            // مقایسه براساس جهت مرتب‌سازی
+            if (direction === 'asc') {
+                return aValue.localeCompare(bValue, 'fa');
+            } else {
+                return bValue.localeCompare(aValue, 'fa');
+            }
+        });
+        
+        // حذف ردیف‌های فعلی
+        while (tbody.firstChild) {
+            tbody.removeChild(tbody.firstChild);
+        }
+        
+        // اضافه کردن ردیف‌های مرتب شده
+        rows.forEach(row => {
+            tbody.appendChild(row);
+        });
+    }
 });
 </script>
 {% endblock %}
