@@ -1,40 +1,43 @@
+#!/usr/bin/env python
 """
-نقطه ورود اصلی برنامه RFCBot (سیستم تلگرام و وب)
-این فایل مسئول راه‌اندازی هر دو سرویس بات تلگرام و برنامه وب است.
+Main Flask application runner for RFCBot
+This is the entry point for the web application component
 """
 
 import os
+import sys
 import logging
-import threading
-import asyncio
-from src.web import app
-from src.bot.bot import start_polling, register_handlers
+from flask import Flask, render_template, jsonify
 
-# تنظیم لاگینگ
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def run_web_app():
-    """راه‌اندازی برنامه وب Flask"""
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=False)
+# Create Flask application
+app = Flask(__name__)
+app.secret_key = os.environ.get("SESSION_SECRET", "رمز موقت برای ربات RFCBot")
 
-def run_telegram_bot():
-    """راه‌اندازی بات تلگرام در حالت polling"""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    
-    # ثبت هندلرها
-    register_handlers()
-    
-    # راه‌اندازی بات
-    loop.run_until_complete(start_polling())
+# Simple routes for testing
+@app.route('/')
+def index():
+    """Main index page."""
+    return "RFCBot Admin Dashboard - Main App"
 
+@app.route('/api/health')
+def health():
+    """Health check endpoint."""
+    return {
+        "status": "ok", 
+        "message": "The RFCBot admin panel is running",
+        "database": os.environ.get("DATABASE_URL", "").split("@")[1] if "@" in os.environ.get("DATABASE_URL", "") else None
+    }
+
+# Run the application directly when this script is executed
 if __name__ == "__main__":
-    # راه‌اندازی بات تلگرام در یک ترد جداگانه
-    bot_thread = threading.Thread(target=run_telegram_bot)
-    bot_thread.daemon = True
-    bot_thread.start()
-    
-    # راه‌اندازی برنامه وب
-    run_web_app()
+    try:
+        port = int(os.environ.get("PORT", 5000))
+        logger.info(f"Starting Flask app on port {port}...")
+        app.run(host="0.0.0.0", port=port, debug=True)
+    except Exception as e:
+        logger.error(f"Error starting application: {e}")
+        sys.exit(1)
