@@ -42,7 +42,15 @@ class Database:
         """Establish a new database connection"""
         try:
             logging.info("Establishing new database connection")
-            self.conn = psycopg2.connect(self.database_url)
+            self.conn = psycopg2.connect(
+                self.database_url,
+                # تنظیمات اضافی برای بهبود مقاومت ارتباط
+                connect_timeout=10,  # زمان برقراری اتصال - 10 ثانیه
+                keepalives=1,        # فعال کردن keepalive
+                keepalives_idle=30,  # بعد از 30 ثانیه idle، بسته keepalive ارسال شود
+                keepalives_interval=10,  # هر 10 ثانیه بسته keepalive ارسال شود
+                keepalives_count=5   # حداکثر 5 تلاش مجدد قبل از خطا
+            )
             self.conn.autocommit = True
             logging.info("Database connection established successfully")
         except Exception as e:
@@ -52,20 +60,28 @@ class Database:
     def ensure_connection(self):
         """Ensure database connection is active, reconnect if needed"""
         if self.db_type != 'postgresql':
-            return
+            return True
             
         try:
-            # Test if connection is alive
-            cur = self.conn.cursor()
-            cur.execute("SELECT 1")
-            cur.close()
-        except Exception as e:
-            logging.warning(f"Database connection lost: {str(e)}. Attempting to reconnect...")
+            # تلاش برای اجرای یک دستور ساده برای بررسی وضعیت اتصال
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT 1")
+            cursor.close()
+        except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+            # در صورت بروز خطای ارتباطی، اتصال مجدد
+            logging.warning(f"Database connection lost. Reconnecting... Error: {str(e)}")
+            try:
+                self.conn.close()
+            except:
+                pass
             self.connect()
+            return True
+        except Exception as e:
+            # سایر خطاها ممکن است نیاز به رسیدگی خاص داشته باشند
+            logging.error(f"Unknown database error: {str(e)}")
+            return False
             
-        self._init_db()
-
-    def _init_db(self):
+        return True
         """Initialize PostgreSQL database and create necessary tables"""
         with self.conn.cursor() as cursor:
             # Create categories table

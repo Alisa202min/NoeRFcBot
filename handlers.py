@@ -308,6 +308,25 @@ async def callback_educational_category(callback: CallbackQuery):
         logging.error(f"خطا در نمایش محتوای آموزشی دسته‌بندی: {str(e)}")
         await callback.message.answer("⚠️ خطایی در نمایش محتوای آموزشی رخ داد. لطفا مجددا تلاش کنید.")
 
+@router.callback_query(F.data == f"{EDUCATION_PREFIX}categories")
+async def callback_educational_categories(callback: CallbackQuery):
+    """Handle going back to educational categories"""
+    await callback.answer()
+    
+    # Get educational categories
+    categories = db.get_educational_categories()
+    
+    if not categories:
+        await callback.message.answer("در حال حاضر محتوای آموزشی موجود نیست.")
+        return
+    
+    # Create keyboard with educational categories
+    from keyboards import education_categories_keyboard
+    keyboard = education_categories_keyboard(categories)
+    
+    await callback.message.answer("🎓 دسته‌بندی محتوای آموزشی را انتخاب کنید:", 
+                           reply_markup=keyboard)
+
 @router.callback_query(
     lambda c: c.data and c.data.startswith(f"{EDUCATION_PREFIX}") and "cat_" not in c.data and "categories" not in c.data
 )

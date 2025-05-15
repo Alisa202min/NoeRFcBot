@@ -182,7 +182,7 @@ def education_categories_keyboard(categories: List[Dict]) -> InlineKeyboardMarku
         keyboard.append([InlineKeyboardButton(text=display_name, callback_data=callback_data)])
     
     # Add back button
-    keyboard.append([InlineKeyboardButton(text=BACK_BTN, callback_data=f"{BACK_PREFIX}main")])
+    keyboard.append([InlineKeyboardButton(text="🏠 بازگشت به منوی اصلی", callback_data="back_to_main")])
     
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
@@ -207,6 +207,9 @@ def education_content_keyboard(contents: List[Dict], category_id: int) -> Inline
     # Add back button - بازگشت به لیست دسته‌بندی‌ها
     keyboard.append([InlineKeyboardButton(text=BACK_BTN, callback_data=f"{EDUCATION_PREFIX}categories")])
     
+    # اضافه کردن دکمه بازگشت به منوی اصلی
+    keyboard.append([InlineKeyboardButton(text="🏠 بازگشت به منوی اصلی", callback_data="back_to_main")])
+    
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def education_detail_keyboard(category_id: int, category_name: Optional[str] = None) -> InlineKeyboardMarkup:
@@ -220,9 +223,17 @@ def education_detail_keyboard(category_id: int, category_name: Optional[str] = N
     Returns:
         InlineKeyboardMarkup for content detail
     """
-    keyboard = [
-        [InlineKeyboardButton(text=BACK_BTN, callback_data=f"{EDUCATION_PREFIX}cat_{category_id}")]
-    ]
+    keyboard = []
+    
+    # اگر category_id صفر باشد، به صفحه دسته‌بندی‌ها باز می‌گردیم
+    if category_id == 0:
+        keyboard.append([InlineKeyboardButton(text=BACK_BTN, callback_data=f"{EDUCATION_PREFIX}categories")])
+    else:
+        keyboard.append([InlineKeyboardButton(text=BACK_BTN, callback_data=f"{EDUCATION_PREFIX}cat_{category_id}")])
+    
+    # اضافه کردن دکمه بازگشت به منوی اصلی
+    keyboard.append([InlineKeyboardButton(text="🏠 بازگشت به منوی اصلی", callback_data="back_to_main")])
+    
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def admin_categories_keyboard(categories: List[Dict], parent_id: Optional[int] = None, 
