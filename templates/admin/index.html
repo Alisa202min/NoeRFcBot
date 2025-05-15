@@ -1,4 +1,4 @@
-{% extends "admin_layout.html" %}
+{% extends "admin/layout.html" %}
 
 {% block title %}داشبورد مدیریت{% endblock %}
 
@@ -21,7 +21,7 @@
                     </div>
                 </div>
                 <div class="card-footer d-flex align-items-center justify-content-between">
-                    <a class="small text-white stretched-link" href="{{ url_for('admin_products') }}">مشاهده جزئیات</a>
+                    <a class="small text-white stretched-link" href="#">مشاهده جزئیات</a>
                     <div class="small text-white"><i class="bi bi-chevron-left"></i></div>
                 </div>
             </div>
@@ -41,7 +41,7 @@
                     </div>
                 </div>
                 <div class="card-footer d-flex align-items-center justify-content-between">
-                    <a class="small text-white stretched-link" href="{{ url_for('admin_services') }}">مشاهده جزئیات</a>
+                    <a class="small text-white stretched-link" href="#">مشاهده جزئیات</a>
                     <div class="small text-white"><i class="bi bi-chevron-left"></i></div>
                 </div>
             </div>
@@ -61,7 +61,7 @@
                     </div>
                 </div>
                 <div class="card-footer d-flex align-items-center justify-content-between">
-                    <a class="small text-white stretched-link" href="{{ url_for('admin_categories') }}">مشاهده جزئیات</a>
+                    <a class="small text-white stretched-link" href="#">مشاهده جزئیات</a>
                     <div class="small text-white"><i class="bi bi-chevron-left"></i></div>
                 </div>
             </div>
@@ -81,7 +81,7 @@
                     </div>
                 </div>
                 <div class="card-footer d-flex align-items-center justify-content-between">
-                    <a class="small text-white stretched-link" href="{{ url_for('admin_inquiries') }}">مشاهده جزئیات</a>
+                    <a class="small text-white stretched-link" href="#">مشاهده جزئیات</a>
                     <div class="small text-white"><i class="bi bi-chevron-left"></i></div>
                 </div>
             </div>
@@ -128,7 +128,7 @@
                                         </td>
                                         <td>{{ inquiry.created_at.strftime('%Y/%m/%d') if inquiry.created_at else 'نامشخص' }}</td>
                                         <td>
-                                            <a href="{{ url_for('admin_inquiries', action='view', id=inquiry.id) }}" class="btn btn-sm btn-info">
+                                            <a href="#" class="btn btn-sm btn-info">
                                                 <i class="bi bi-eye"></i>
                                             </a>
                                         </td>
@@ -144,7 +144,7 @@
                     </div>
                 </div>
                 <div class="card-footer small text-muted">
-                    <a href="{{ url_for('admin_inquiries') }}" class="btn btn-sm btn-outline-primary">مشاهده همه استعلام‌ها</a>
+                    <a href="#" class="btn btn-sm btn-outline-primary">مشاهده همه استعلام‌ها</a>
                 </div>
             </div>
         </div>
@@ -174,10 +174,10 @@
                     </dl>
                     
                     <div class="d-grid gap-2 mt-3">
-                        <a href="{{ url_for('admin_database') }}" class="btn btn-outline-primary">
+                        <a href="#" class="btn btn-outline-primary">
                             <i class="bi bi-database"></i> مدیریت دیتابیس
                         </a>
-                        <a href="{{ url_for('admin_static_content') }}" class="btn btn-outline-secondary">
+                        <a href="#" class="btn btn-outline-secondary">
                             <i class="bi bi-file-text"></i> محتوای استاتیک
                         </a>
                     </div>

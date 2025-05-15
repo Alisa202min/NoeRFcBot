@@ -131,7 +131,7 @@ class EducationalCategory(db.Model):
     created_at = Column(DateTime, default=datetime.utcnow)
     
     parent = relationship('EducationalCategory', remote_side=[id], backref='children')
-    contents = relationship('EducationalContent', back_populates='category', cascade='all, delete-orphan')
+    contents = relationship('EducationalContent', back_populates='category_rel', cascade='all, delete-orphan')
 
 # Educational content model
 class EducationalContent(db.Model):
@@ -140,7 +140,7 @@ class EducationalContent(db.Model):
     id = Column(Integer, primary_key=True)
     title = Column(String(255), nullable=False)
     content = Column(Text, nullable=False)
-    category = Column(String(100), nullable=True)  # Legacy category field (just a string)
+    category_str = Column(String(100), nullable=True)  # Legacy category field (just a string) - renamed to avoid conflicts
     category_id = Column(Integer, ForeignKey('educational_categories.id', ondelete='SET NULL'), nullable=True)
     content_type = Column(String(50), nullable=False)  # 'article', 'tutorial', 'video', etc.
     created_at = Column(DateTime, default=datetime.utcnow)

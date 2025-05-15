@@ -1,0 +1,22 @@
+{% extends "layout.html" %}
+
+{% block title %}صفحه پیدا نشد - خطای 404{% endblock %}
+
+{% block content %}
+<div class="container text-center py-5">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card border-danger shadow-lg">
+                <div class="card-body p-5">
+                    <h1 class="display-1 text-danger mb-4">404</h1>
+                    <h2 class="mb-4">صفحه مورد نظر یافت نشد</h2>
+                    <p class="lead mb-4">متأسفانه صفحه‌ای که به دنبال آن هستید وجود ندارد یا به آدرس دیگری منتقل شده است.</p>
+                    <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg">
+                        <i class="bi bi-house-door me-2"></i>بازگشت به صفحه اصلی
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

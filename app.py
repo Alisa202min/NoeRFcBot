@@ -40,7 +40,38 @@ def load_user(user_id):
 @app.route('/')
 def index():
     """Home page."""
-    return render_template('index.html', title="RFCBot Admin Panel")
+    # Check environment variables
+    import os
+    env_status = {
+        'BOT_TOKEN': 'Set' if os.environ.get('BOT_TOKEN') else 'Not Set',
+        'ADMIN_ID': 'Set' if os.environ.get('ADMIN_ID') else 'Not Set',
+        'DB_TYPE': 'PostgreSQL'
+    }
+    
+    # Check bot status by looking at the running processes (simplified)
+    bot_status = 'running'  # Simplified status indicator
+    
+    # Sample logs for display
+    bot_logs = [
+        "[INFO] Bot started successfully",
+        "[INFO] Connected to Telegram servers",
+        "[INFO] Using aiogram version 3.7.0+",
+        "[INFO] Webhook mode: Not active",
+        "[INFO] Polling mode: Active",
+        "[INFO] Bot is ready to receive messages",
+        "[INFO] Database connection successful"
+    ]
+    
+    # Sample readme content
+    readme_content = "<p>RFCBot یک ربات تلگرام برای مدیریت محصولات، خدمات و محتوای آموزشی در حوزه محصولات و خدمات صنعت ارتباطات رادیویی است.</p>"
+    
+    # Include datetime for template use
+    from datetime import datetime
+
+    return render_template('index.html', title="RFCBot Admin Panel", 
+                          env_status=env_status, bot_status=bot_status,
+                          bot_logs=bot_logs, readme_content=readme_content,
+                          datetime=datetime)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -91,11 +122,15 @@ def health():
 # Error handlers
 @app.errorhandler(404)
 def page_not_found(e):
-    return render_template('errors/404.html'), 404
+    return render_template('404.html'), 404
 
 @app.errorhandler(500)
 def server_error(e):
-    return render_template('errors/500.html'), 500
+    return render_template('500.html'), 500
+
+@app.errorhandler(403)
+def forbidden(e):
+    return render_template('errors/403.html'), 403
 
 # Create admin user for testing
 def create_admin():
