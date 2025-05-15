@@ -3161,19 +3161,22 @@ def restore_database():
                                 continue
                             
                             # خواندن داده‌ها و افزودن به دیتابیس
-                            # ابتدا محتوای جدول را پاک می‌کنیم تا از تکرار داده‌ها جلوگیری شود
-                            try:
-                                # تعداد رکوردهای موجود را ذخیره می‌کنیم
-                                existing_count = db.session.query(model).count()
-                                # حذف تمام رکوردهای جدول
-                                db.session.query(model).delete()
-                                db.session.commit()
-                                logger.info(f"جدول {csv_filename} با {existing_count} رکورد پاکسازی شد.")
-                            except Exception as clear_error:
-                                db.session.rollback()
-                                logger.error(f"خطا در پاکسازی جدول {csv_filename}: {str(clear_error)}")
-                                skipped_tables.append(f"{csv_filename} (خطای پاکسازی: {str(clear_error)})")
-                                continue
+                            # بررسی اینکه آیا کاربر می‌خواهد جداول پاکسازی شوند یا خیر
+                            should_clear_tables = request.form.get('clear_tables') == 'on'
+                            
+                            if should_clear_tables:
+                                try:
+                                    # تعداد رکوردهای موجود را ذخیره می‌کنیم
+                                    existing_count = db.session.query(model).count()
+                                    # حذف تمام رکوردهای جدول
+                                    db.session.query(model).delete()
+                                    db.session.commit()
+                                    logger.info(f"جدول {csv_filename} با {existing_count} رکورد پاکسازی شد.")
+                                except Exception as clear_error:
+                                    db.session.rollback()
+                                    logger.error(f"خطا در پاکسازی جدول {csv_filename}: {str(clear_error)}")
+                                    skipped_tables.append(f"{csv_filename} (خطای پاکسازی: {str(clear_error)})")
+                                    continue
                             
                             # اکنون داده‌های جدید را اضافه می‌کنیم
                             for row in reader:

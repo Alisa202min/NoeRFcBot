@@ -104,22 +104,46 @@
                         </div>
                         <div class="form-text text-danger" id="restoreWarning">هشدار: با انتخاب این گزینه، تمام داده‌های فعلی پاک شده و با داده‌های پشتیبان جایگزین می‌شوند.</div>
                     </div>
-                    <button type="submit" class="btn btn-warning" onclick="return confirm('آیا از بازیابی پشتیبان اطمینان دارید؟ این عملیات غیرقابل برگشت است.')">
+                    <button type="submit" class="btn btn-warning" id="restoreButton">
                         <i class="bi bi-upload"></i> بازیابی از فایل پشتیبان
                     </button>
                     
                     <script>
                     document.addEventListener('DOMContentLoaded', function() {
+                        const restoreButton = document.getElementById('restoreButton');
                         const clearTablesSwitch = document.getElementById('clearTablesSwitch');
                         const restoreWarning = document.getElementById('restoreWarning');
                         
-                        clearTablesSwitch.addEventListener('change', function() {
-                            if (this.checked) {
+                        // تغییر متن هشدار بر اساس وضعیت سوئیچ
+                        function updateWarningText() {
+                            if (clearTablesSwitch.checked) {
                                 restoreWarning.textContent = 'هشدار: با انتخاب این گزینه، تمام داده‌های فعلی پاک شده و با داده‌های پشتیبان جایگزین می‌شوند.';
                             } else {
                                 restoreWarning.textContent = 'هشدار: بدون پاکسازی، داده‌های پشتیبان به داده‌های موجود اضافه می‌شوند که ممکن است باعث تکراری شدن برخی داده‌ها شود!';
                             }
+                        }
+                        
+                        // تنظیم پیام تأیید بر اساس وضعیت سوئیچ
+                        restoreButton.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            let confirmMessage = '';
+                            
+                            if (clearTablesSwitch.checked) {
+                                confirmMessage = 'آیا از بازیابی پشتیبان اطمینان دارید؟ تمام داده‌های فعلی حذف خواهند شد. این عملیات غیرقابل برگشت است.';
+                            } else {
+                                confirmMessage = 'آیا از بازیابی پشتیبان اطمینان دارید؟ داده‌های پشتیبان به داده‌های موجود اضافه خواهند شد. این عملیات غیرقابل برگشت است.';
+                            }
+                            
+                            if (confirm(confirmMessage)) {
+                                this.closest('form').submit();
+                            }
                         });
+                        
+                        // به‌روزرسانی متن هشدار هنگام تغییر وضعیت سوئیچ
+                        clearTablesSwitch.addEventListener('change', updateWarningText);
+                        
+                        // اجرای اولیه برای تنظیم متن هشدار
+                        updateWarningText();
                     });
                     </script>
                 </form>
