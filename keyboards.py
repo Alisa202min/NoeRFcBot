@@ -155,12 +155,12 @@ def service_detail_keyboard(service_id: int, category_id: int) -> InlineKeyboard
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def education_categories_keyboard(categories: List[str]) -> InlineKeyboardMarkup:
+def education_categories_keyboard(categories: List[Dict]) -> InlineKeyboardMarkup:
     """
     Create a keyboard for educational content categories
     
     Args:
-        categories: List of category names
+        categories: List of category dictionaries with id, name, etc.
         
     Returns:
         InlineKeyboardMarkup for educational categories
@@ -169,21 +169,30 @@ def education_categories_keyboard(categories: List[str]) -> InlineKeyboardMarkup
     
     # Add category buttons
     for category in categories:
-        callback_data = f"{EDUCATION_PREFIX}cat_{category}"
-        keyboard.append([InlineKeyboardButton(text=category, callback_data=callback_data)])
+        # استفاده از نام دسته‌بندی به عنوان متن دکمه و آیدی برای callback_data
+        category_name = category['name']
+        category_id = category['id']
+        callback_data = f"{EDUCATION_PREFIX}cat_{category_id}"
+        
+        # نمایش تعداد محتوا در صورت وجود
+        display_name = category_name
+        if 'content_count' in category and category['content_count'] > 0:
+            display_name = f"{category_name} ({category['content_count']})"
+        
+        keyboard.append([InlineKeyboardButton(text=display_name, callback_data=callback_data)])
     
     # Add back button
     keyboard.append([InlineKeyboardButton(text=BACK_BTN, callback_data=f"{BACK_PREFIX}main")])
     
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def education_content_keyboard(contents: List[Dict], category: str) -> InlineKeyboardMarkup:
+def education_content_keyboard(contents: List[Dict], category_id: int) -> InlineKeyboardMarkup:
     """
     Create a keyboard for educational content listing
     
     Args:
         contents: List of content dictionaries
-        category: Category name (for back button)
+        category_id: Category ID (for back button)
         
     Returns:
         InlineKeyboardMarkup for educational content
@@ -195,23 +204,24 @@ def education_content_keyboard(contents: List[Dict], category: str) -> InlineKey
         callback_data = f"{EDUCATION_PREFIX}{content['id']}"
         keyboard.append([InlineKeyboardButton(text=content['title'], callback_data=callback_data)])
     
-    # Add back button
+    # Add back button - بازگشت به لیست دسته‌بندی‌ها
     keyboard.append([InlineKeyboardButton(text=BACK_BTN, callback_data=f"{EDUCATION_PREFIX}categories")])
     
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def education_detail_keyboard(category: str) -> InlineKeyboardMarkup:
+def education_detail_keyboard(category_id: int, category_name: str = None) -> InlineKeyboardMarkup:
     """
     Create a keyboard for educational content detail
     
     Args:
-        category: Category name
+        category_id: ID of the category
+        category_name: Name of the category (optional, for display purposes)
         
     Returns:
         InlineKeyboardMarkup for content detail
     """
     keyboard = [
-        [InlineKeyboardButton(text=BACK_BTN, callback_data=f"{EDUCATION_PREFIX}cat_{category}")]
+        [InlineKeyboardButton(text=BACK_BTN, callback_data=f"{EDUCATION_PREFIX}cat_{category_id}")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
