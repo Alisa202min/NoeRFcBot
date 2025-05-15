@@ -1372,11 +1372,12 @@ def admin_education():
                         )
                         
                         # تنظیم local_path بعد از ساخت آبجکت
-                        if hasattr(media, 'local_path'):
+                        try:
                             media.local_path = current_file_path
-                        else:
-                            # اگر ویژگی local_path موجود نیست، پیام لاگ بنویسیم
-                            logger.warning(f"EducationalContentMedia does not have local_path attribute. Path not saved: {current_file_path}")
+                            logger.info(f"local_path تنظیم شد: {current_file_path}")
+                        except Exception as e:
+                            # اگر تنظیم local_path با خطا مواجه شد
+                            logger.warning(f"خطا در تنظیم local_path: {e} - path: {current_file_path}")
                         
                         db.session.add(media)
                         logger.info(f"فایل رسانه اضافه شد: {media_file_id} - {current_file_path}")
