@@ -95,8 +95,8 @@
                 <form method="post" action="/admin/restore" enctype="multipart/form-data">
                     <div class="mb-3">
                         <label class="form-label">انتخاب فایل پشتیبان:</label>
-                        <input type="file" name="backup_file" class="form-control" accept=".db" required>
-                        <div class="form-text text-danger">هشدار: این عملیات داده‌های فعلی را با داده‌های فایل پشتیبان جایگزین می‌کند!</div>
+                        <input type="file" name="backup_file" class="form-control" accept=".zip" required>
+                        <div class="form-text text-danger">هشدار: این عملیات داده‌های فایل پشتیبان را به دیتابیس اضافه می‌کند که ممکن است باعث تکراری شدن برخی داده‌ها شود!</div>
                     </div>
                     <button type="submit" class="btn btn-warning" onclick="return confirm('آیا از بازیابی پشتیبان اطمینان دارید؟ این عملیات غیرقابل برگشت است.')">
                         <i class="bi bi-upload"></i> بازیابی از فایل پشتیبان
