@@ -3259,44 +3259,52 @@ def restore_database():
                                     data[column] = value
                             
                             try:
-                                # ایجاد یک نمونه جدید از مدل
-                                item = model()
+                                # ایجاد یک دیکشنری از داده‌های پردازش شده برای ساخت مدل
+                                processed_data = {}
+                                
+                                # پردازش تمام فیلدها قبل از ساخت مدل
                                 for column, value in data.items():
-                                    if hasattr(item, column):
+                                    # تبدیل کلیدها به عدد صحیح
+                                    if column == 'id' or column.endswith('_id'):
                                         try:
-                                            setattr(item, column, value)
-                                        except Exception as attr_error:
-                                            logger.error(f"خطا در تنظیم ویژگی {column} با مقدار {value}: {str(attr_error)}")
-                                            # تلاش برای تبدیل نوع داده در صورت ارور
-                                            if column == 'id' or column.endswith('_id'):
-                                                try:
-                                                    # تبدیل به عدد صحیح
-                                                    int_value = int(value) if value else None
-                                                    setattr(item, column, int_value)
-                                                except:
-                                                    pass
-                                            # تبدیل مقادیر بولین
-                                            elif column == 'is_admin' or column == 'in_stock' or column == 'featured' or column == 'available':
-                                                # مدیریت ویژه برای User.is_admin
-                                                if is_user_table and column == 'is_admin':
-                                                    # برای جدول User، با دقت بیشتری is_admin را تنظیم می‌کنیم
-                                                    if isinstance(value, str) and value.lower() in ('true', '1', 'yes', 'y', 'بله'):
-                                                        setattr(item, column, True)
-                                                    else:
-                                                        setattr(item, column, False)
-                                                    logger.info(f"تنظیم مقدار is_admin برای کاربر {getattr(item, 'id', '?')}: {getattr(item, 'is_admin', '?')}")
-                                                else:
-                                                    # مدیریت عمومی برای سایر فیلدهای بولین
-                                                    if isinstance(value, str) and value.lower() in ('true', '1', 'yes', 'y', 'بله'):
-                                                        setattr(item, column, True)
-                                                    elif isinstance(value, str) and value.lower() in ('false', '0', 'no', 'n', 'خیر'):
-                                                        setattr(item, column, False)
-                                                    elif value is None:
-                                                        setattr(item, column, False)
-                                                    else:
-                                                        # اگر نمی‌توانیم به طور مطمئن تبدیل کنیم، پیش‌فرض False می‌گذاریم
-                                                        logger.warning(f"مقدار بولین نامعتبر برای {column}: {value} - مقدار False استفاده می‌شود")
-                                                        setattr(item, column, False)
+                                            processed_data[column] = int(value) if value else None
+                                        except:
+                                            processed_data[column] = None
+                                    # تبدیل مقادیر بولین به True/False واقعی
+                                    elif column in ['is_admin', 'in_stock', 'featured', 'available']:
+                                        if isinstance(value, str):
+                                            processed_data[column] = value.lower() in ('true', '1', 'yes', 'y', 'بله')
+                                        elif value is None:
+                                            processed_data[column] = False
+                                        else:
+                                            processed_data[column] = bool(value)
+                                        
+                                        # ثبت اطلاعات بیشتر برای مقادیر بولین حساس
+                                        if column == 'is_admin':
+                                            logger.info(f"مقدار فیلد is_admin تنظیم شد: {processed_data[column]}")
+                                    # سایر فیلدها را بدون تغییر استفاده کن
+                                    else:
+                                        processed_data[column] = value
+                                
+                                # ساخت آیتم با مقادیر پردازش شده
+                                try:
+                                    # ساخت مدل با تمام داده‌های پردازش شده در یک مرحله
+                                    item = model(**processed_data)
+                                except Exception as model_error:
+                                    logger.error(f"خطا در ساخت مدل {model.__name__}: {str(model_error)}")
+                                    # روش دوم: ساخت مدل خالی و تنظیم ویژگی‌ها به صورت جداگانه
+                                    item = model()
+                                    for column, value in processed_data.items():
+                                        if hasattr(item, column):
+                                            try:
+                                                setattr(item, column, value)
+                                            except Exception as attr_error:
+                                                logger.error(f"خطا در تنظیم ویژگی {column} با مقدار {value}: {str(attr_error)}")
+                                                # اگر خطا به فیلد بولین مربوط است
+                                                if column in ['is_admin', 'in_stock', 'featured', 'available']:
+                                                    logger.warning(f"تلاش مجدد برای تنظیم فیلد بولین {column}")
+                                                    # تلاش نهایی با تبدیل صریح
+                                                    setattr(item, column, bool(value == 'True' or value == 'true' or value == '1' or value is True))
                                 
                                 # بررسی ویژه برای جداول رسانه و صحت کلید خارجی
                                 if is_media_table and media_foreign_key:
@@ -3378,27 +3386,44 @@ def restore_database():
                                                     value = None
                                                 data[column] = value
                                         
-                                        # ایجاد آیتم جدید
-                                        item = model()
+                                        # پردازش داده‌ها قبل از ساخت آیتم
+                                        processed_data = {}
                                         for column, value in data.items():
-                                            if hasattr(item, column):
+                                            # تبدیل کلیدها به عدد صحیح
+                                            if column == 'id' or column.endswith('_id'):
                                                 try:
-                                                    # تلاش برای تبدیل داده‌ها
-                                                    if column == 'id' or column.endswith('_id'):
-                                                        try:
-                                                            int_value = int(value) if value else None
-                                                            setattr(item, column, int_value)
-                                                        except:
-                                                            setattr(item, column, value)
-                                                    elif column == 'is_admin' or column == 'in_stock' or column == 'featured' or column == 'available':
-                                                        if isinstance(value, str) and value.lower() in ('true', '1', 'yes', 'y', 'بله'):
-                                                            setattr(item, column, True)
-                                                        else:
-                                                            setattr(item, column, False)
-                                                    else:
-                                                        setattr(item, column, value)
+                                                    processed_data[column] = int(value) if value else None
                                                 except:
-                                                    pass
+                                                    processed_data[column] = None
+                                            # تبدیل مقادیر بولین به True/False واقعی
+                                            elif column in ['is_admin', 'in_stock', 'featured', 'available']:
+                                                if isinstance(value, str):
+                                                    processed_data[column] = value.lower() in ('true', '1', 'yes', 'y', 'بله')
+                                                elif value is None:
+                                                    processed_data[column] = False
+                                                else:
+                                                    processed_data[column] = bool(value)
+                                            # سایر فیلدها را بدون تغییر استفاده کن
+                                            else:
+                                                processed_data[column] = value
+                                        
+                                        # تلاش برای ساخت آیتم جدید
+                                        try:
+                                            # روش اول: ساخت مدل با تمام داده‌ها در یک مرحله
+                                            item = model(**processed_data)
+                                        except Exception as model_error:
+                                            # روش دوم: ساخت مدل خالی و تنظیم ویژگی‌ها به صورت جداگانه
+                                            logger.warning(f"خطا در ساخت مدل {model.__name__} با پارامترها: {str(model_error)}")
+                                            
+                                            item = model()
+                                            for column, value in processed_data.items():
+                                                if hasattr(item, column):
+                                                    try:
+                                                        setattr(item, column, value)
+                                                    except Exception as attr_error:
+                                                        if column in ['is_admin', 'in_stock', 'featured', 'available']:
+                                                            # تبدیل صریح به بولین
+                                                            setattr(item, column, bool(value == True or (isinstance(value, str) and value.lower() in ('true', '1', 'yes', 'y', 'بله'))))
                                         
                                         # بررسی کلید خارجی قبل از درج - فقط برای جداول مدیا
                                         foreign_key_valid = True
