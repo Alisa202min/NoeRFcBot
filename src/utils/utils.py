@@ -94,12 +94,21 @@ def save_uploaded_file(file, upload_folder: str, filename: Optional[str] = None)
             else:
                 safe_filename = secure_filename(file.filename)
             
-            # اطمینان از وجود پوشه آپلود
-            create_directory(upload_folder)
+            # تعیین مسیر کامل برای ذخیره‌سازی فایل
+            full_path = ''
+            if upload_folder == 'educational':
+                # برای محتوای آموزشی، استفاده از مسیر استاندارد
+                full_path = os.path.join('static', 'media', 'educational')
+                create_directory(full_path)
+                file_path = os.path.join('media', 'educational', safe_filename)
+            else:
+                # برای سایر محتوا، استفاده از مسیر ارسالی
+                full_path = upload_folder
+                create_directory(full_path)
+                file_path = os.path.join(upload_folder, safe_filename)
             
             # ذخیره فایل
-            file_path = os.path.join(upload_folder, safe_filename)
-            file.save(file_path)
+            file.save(os.path.join('static', file_path))
             
             return True, file_path
         
