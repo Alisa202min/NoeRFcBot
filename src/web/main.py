@@ -1684,6 +1684,8 @@ def api_inquiries():
 @app.route('/api/telegram_file/<path:file_id>')
 def telegram_file(file_id):
     """سرو فایل‌های آپلود شده از تلگرام یا فایل‌های محلی"""
+    import os  # ماژول os را اینجا import می‌کنیم تا در این تابع قابل دسترسی باشد
+    
     try:
         logger.info(f"Requested file_id: {file_id}")
         
@@ -2017,90 +2019,10 @@ def telegram_file(file_id):
                 # برای فایل‌های محتوای آموزشی
                 logger.info("This is an EducationalContentMedia record")
                 
-                # چک کردن برای local_path
-                try:
-                    # اگر فایل محلی وجود دارد، از آن استفاده می‌کنیم
-                    if media.local_path and media.local_path.strip():
-                        logger.info(f"Using EducationalContentMedia local_path: {media.local_path}")
-                        
-                        # اگر local_path با static/ شروع می‌شود
-                        if media.local_path.startswith('static/'):
-                            relative_path = media.local_path.replace('static/', '', 1)
-                            logger.info(f"Serving educational media with static route: {relative_path}")
-                            return redirect(url_for('static', filename=relative_path))
-                        
-                        # اگر قبلاً ذخیره شده و full path نیست
-                        full_path = f"media/educational/{media.local_path}" if not media.local_path.startswith("media/") else media.local_path
-                        logger.info(f"Serving educational media with full path: {full_path}")
-                        if os.path.exists(os.path.join('static', full_path)):
-                            return redirect(url_for('static', filename=full_path))
-                        elif os.path.exists(os.path.join('static', media.local_path)):
-                            return redirect(url_for('static', filename=media.local_path))
-                except Exception as e:
-                    logger.warning(f"Error accessing local_path: {e}")
-                
-                # چک کردن با ساختارهای مسیر مختلف
-                
-                # ساخت مسیر استاندارد برای فایل‌های محتوای آموزشی
-                if media.file_id.startswith('educational_content_image_'):
-                    # مسیر استاندارد برای عکس‌های محتوای آموزشی - اولویت اول
-                    standard_path = f"media/educational/{media.file_id}.jpg"
-                    logger.info(f"Checking standard educational media path: {standard_path}")
-                    
-                    if os.path.exists(os.path.join('static', standard_path)):
-                        logger.info(f"Found file at standard path: {standard_path}")
-                        return redirect(url_for('static', filename=standard_path))
-                    
-                    # چک کردن مسیرهای جایگزین
-                    alt_path = f"educational/{media.file_id.replace('educational_content_image_', '')}.jpg"
-                    if os.path.exists(os.path.join('static', alt_path)):
-                        logger.info(f"Found file at alternative path: {alt_path}")
-                        return redirect(url_for('static', filename=alt_path))
-                        
-                    # چک کردن فایل در مسیر uploads
-                    uploads_path = f"uploads/{media.file_id.replace('educational_content_image_', '')}.jpg"
-                    if os.path.exists(os.path.join('static', uploads_path)):
-                        logger.info(f"Found file at uploads path: {uploads_path}")
-                        return redirect(url_for('static', filename=uploads_path))
-                        
-                    # اگر هنوز فایل پیدا نشده، از مسیر استاندارد استفاده می‌کنیم
-                    logger.info(f"Using standard path as fallback: {standard_path}")
-                    return redirect(url_for('static', filename=standard_path))
-                
-                elif media.file_id.startswith('educational_content_video_'):
-                    # مسیر استاندارد برای ویدیوهای محتوای آموزشی
-                    education_path = f"media/educational/{media.file_id}.mp4"
-                    logger.info(f"Using standard educational video path: {education_path}")
-                    return redirect(url_for('static', filename=education_path))
-                
-                elif '/' in media.file_id and (media.file_id.startswith('uploads/') or media.file_id.startswith('educational/')):
-                    # اگر file_id خودش مسیر فایل است
-                    logger.info(f"Educational media file_id is a path itself: {media.file_id}")
-                    return redirect(url_for('static', filename=media.file_id))
-                
-                else:
-                    # اگر file_id شکل غیرمعمول دارد
-                    logger.warning(f"Unusual educational media file_id format: {media.file_id}")
-                    
-                    # سعی می‌کنیم فایل را بر اساس نوع آن پیدا کنیم
-                    if media.file_type == 'video':
-                        return redirect(url_for('static', filename=f"media/educational/{media.file_id}.mp4"))
-                    else:
-                        # برای فایل‌های تصویری، چندین مسیر احتمالی را بررسی می‌کنیم
-                        paths_to_check = [
-                            f"media/educational/{media.file_id}.jpg",
-                            f"educational/{media.file_id}.jpg",
-                            f"uploads/{media.file_id}.jpg",
-                            f"media/{media.file_id}.jpg"
-                        ]
-                        
-                        for path in paths_to_check:
-                            if os.path.exists(os.path.join('static', path)):
-                                logger.info(f"Found image at path: {path}")
-                                return redirect(url_for('static', filename=path))
-                        
-                        # اگر هیچ فایلی پیدا نشد، از مسیر اصلی استفاده می‌کنیم
-                        return redirect(url_for('static', filename=f"media/educational/{media.file_id}.jpg"))
+                # به جای بررسی‌های پیچیده، از مسیر مستقیم استفاده می‌کنیم
+                direct_path = f"media/educational/{media.file_id}.jpg"
+                logger.info(f"Using direct path: {direct_path}")
+                return redirect(url_for('static', filename=direct_path))
                         
             else:
                 # برای انواع دیگر فایل‌ها (احتمالاً غیرممکن)
