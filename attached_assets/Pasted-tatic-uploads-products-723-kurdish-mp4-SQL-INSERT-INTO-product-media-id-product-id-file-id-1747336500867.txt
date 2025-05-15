@@ -1,0 +1,182 @@
+tatic/uploads/products/723/kurdish.mp4).
+
+[SQL: INSERT INTO product_media (id, product_id, file_id, file_type, local_path, created_at) VALUES (%(id)s, %(product_id)s, %(file_id)s, %(file_type)s, %(local_path)s, %(created_at)s)]
+[parameters: {'id': 427, 'product_id': 723, 'file_id': None, 'file_type': 'video', 'local_path': 'static/uploads/products/723/kurdish.mp4', 'created_at': '2025-05-14 18:45:10.729222'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+2025-05-15 19:12:44,250 - src.web.main - WARNING - خطا در بررسی کلید خارجی: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)
+(psycopg2.errors.NotNullViolation) null value in column "file_id" of relation "product_media" violates not-null constraint
+DETAIL:  Failing row contains (427, 723, null, video, 2025-05-14 18:45:10.729222, static/uploads/products/723/kurdish.mp4).
+
+[SQL: INSERT INTO product_media (id, product_id, file_id, file_type, local_path, created_at) VALUES (%(id)s, %(product_id)s, %(file_id)s, %(file_type)s, %(local_path)s, %(created_at)s)]
+[parameters: {'id': 427, 'product_id': 723, 'file_id': None, 'file_type': 'video', 'local_path': 'static/uploads/products/723/kurdish.mp4', 'created_at': '2025-05-14 18:45:10.729222'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+2025-05-15 19:12:44,251 - src.web.main - WARNING - خطا در بررسی کلید خارجی: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)
+(psycopg2.errors.NotNullViolation) null value in column "file_id" of relation "product_media" violates not-null constraint
+DETAIL:  Failing row contains (427, 723, null, video, 2025-05-14 18:45:10.729222, static/uploads/products/723/kurdish.mp4).
+
+[SQL: INSERT INTO product_media (id, product_id, file_id, file_type, local_path, created_at) VALUES (%(id)s, %(product_id)s, %(file_id)s, %(file_type)s, %(local_path)s, %(created_at)s)]
+[parameters: {'id': 427, 'product_id': 723, 'file_id': None, 'file_type': 'video', 'local_path': 'static/uploads/products/723/kurdish.mp4', 'created_at': '2025-05-14 18:45:10.729222'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+2025-05-15 19:12:44,252 - src.web.main - WARNING - خطا در بررسی کلید خارجی: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)
+(psycopg2.errors.NotNullViolation) null value in column "file_id" of relation "product_media" violates not-null constraint
+DETAIL:  Failing row contains (427, 723, null, video, 2025-05-14 18:45:10.729222, static/uploads/products/723/kurdish.mp4).
+
+[SQL: INSERT INTO product_media (id, product_id, file_id, file_type, local_path, created_at) VALUES (%(id)s, %(product_id)s, %(file_id)s, %(file_type)s, %(local_path)s, %(created_at)s)]
+[parameters: {'id': 427, 'product_id': 723, 'file_id': None, 'file_type': 'video', 'local_path': 'static/uploads/products/723/kurdish.mp4', 'created_at': '2025-05-14 18:45:10.729222'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+2025-05-15 19:12:44,252 - src.web.main - WARNING - خطا در بررسی کلید خارجی: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)
+(psycopg2.errors.NotNullViolation) null value in column "file_id" of relation "product_media" violates not-null constraint
+DETAIL:  Failing row contains (427, 723, null, video, 2025-05-14 18:45:10.729222, static/uploads/products/723/kurdish.mp4).
+
+[SQL: INSERT INTO product_media (id, product_id, file_id, file_type, local_path, created_at) VALUES (%(id)s, %(product_id)s, %(file_id)s, %(file_type)s, %(local_path)s, %(created_at)s)]
+[parameters: {'id': 427, 'product_id': 723, 'file_id': None, 'file_type': 'video', 'local_path': 'static/uploads/products/723/kurdish.mp4', 'created_at': '2025-05-14 18:45:10.729222'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+2025-05-15 19:12:44,253 - src.web.main - WARNING - خطا در بررسی کلید خارجی: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)
+(psycopg2.errors.NotNullViolation) null value in column "file_id" of relation "product_media" violates not-null constraint
+DETAIL:  Failing row contains (427, 723, null, video, 2025-05-14 18:45:10.729222, static/uploads/products/723/kurdish.mp4).
+
+[SQL: INSERT INTO product_media (id, product_id, file_id, file_type, local_path, created_at) VALUES (%(id)s, %(product_id)s, %(file_id)s, %(file_type)s, %(local_path)s, %(created_at)s)]
+[parameters: {'id': 427, 'product_id': 723, 'file_id': None, 'file_type': 'video', 'local_path': 'static/uploads/products/723/kurdish.mp4', 'created_at': '2025-05-14 18:45:10.729222'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+2025-05-15 19:12:44,253 - src.web.main - WARNING - خطا در بررسی کلید خارجی: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)
+(psycopg2.errors.NotNullViolation) null value in column "file_id" of relation "product_media" violates not-null constraint
+DETAIL:  Failing row contains (427, 723, null, video, 2025-05-14 18:45:10.729222, static/uploads/products/723/kurdish.mp4).
+
+[SQL: INSERT INTO product_media (id, product_id, file_id, file_type, local_path, created_at) VALUES (%(id)s, %(product_id)s, %(file_id)s, %(file_type)s, %(local_path)s, %(created_at)s)]
+[parameters: {'id': 427, 'product_id': 723, 'file_id': None, 'file_type': 'video', 'local_path': 'static/uploads/products/723/kurdish.mp4', 'created_at': '2025-05-14 18:45:10.729222'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+2025-05-15 19:12:44,253 - src.web.main - WARNING - خطا در بررسی کلید خارجی: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)
+(psycopg2.errors.NotNullViolation) null value in column "file_id" of relation "product_media" violates not-null constraint
+DETAIL:  Failing row contains (427, 723, null, video, 2025-05-14 18:45:10.729222, static/uploads/products/723/kurdish.mp4).
+
+[SQL: INSERT INTO product_media (id, product_id, file_id, file_type, local_path, created_at) VALUES (%(id)s, %(product_id)s, %(file_id)s, %(file_type)s, %(local_path)s, %(created_at)s)]
+[parameters: {'id': 427, 'product_id': 723, 'file_id': None, 'file_type': 'video', 'local_path': 'static/uploads/products/723/kurdish.mp4', 'created_at': '2025-05-14 18:45:10.729222'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+2025-05-15 19:12:44,254 - src.web.main - WARNING - خطا در بررسی کلید خارجی: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)
+(psycopg2.errors.NotNullViolation) null value in column "file_id" of relation "product_media" violates not-null constraint
+DETAIL:  Failing row contains (427, 723, null, video, 2025-05-14 18:45:10.729222, static/uploads/products/723/kurdish.mp4).
+
+[SQL: INSERT INTO product_media (id, product_id, file_id, file_type, local_path, created_at) VALUES (%(id)s, %(product_id)s, %(file_id)s, %(file_type)s, %(local_path)s, %(created_at)s)]
+[parameters: {'id': 427, 'product_id': 723, 'file_id': None, 'file_type': 'video', 'local_path': 'static/uploads/products/723/kurdish.mp4', 'created_at': '2025-05-14 18:45:10.729222'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+2025-05-15 19:12:44,257 - src.web.main - WARNING - خطا در بررسی کلید خارجی: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)
+(psycopg2.errors.NotNullViolation) null value in column "file_id" of relation "product_media" violates not-null constraint
+DETAIL:  Failing row contains (427, 723, null, video, 2025-05-14 18:45:10.729222, static/uploads/products/723/kurdish.mp4).
+
+[SQL: INSERT INTO product_media (id, product_id, file_id, file_type, local_path, created_at) VALUES (%(id)s, %(product_id)s, %(file_id)s, %(file_type)s, %(local_path)s, %(created_at)s)]
+[parameters: {'id': 427, 'product_id': 723, 'file_id': None, 'file_type': 'video', 'local_path': 'static/uploads/products/723/kurdish.mp4', 'created_at': '2025-05-14 18:45:10.729222'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+/home/runner/workspace/src/web/main.py:3365: SAWarning: Session's state has been changed on a non-active transaction - this state will be discarded.
+  db.session.rollback()
+2025-05-15 19:12:44,264 - src.web.main - ERROR - خطا در کامیت نهایی product_media.csv: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)
+(psycopg2.errors.NotNullViolation) null value in column "file_id" of relation "product_media" violates not-null constraint
+DETAIL:  Failing row contains (427, 723, null, video, 2025-05-14 18:45:10.729222, static/uploads/products/723/kurdish.mp4).
+
+[SQL: INSERT INTO product_media (id, product_id, file_id, file_type, local_path, created_at) VALUES (%(id)s, %(product_id)s, %(file_id)s, %(file_type)s, %(local_path)s, %(created_at)s)]
+[parameters: {'id': 427, 'product_id': 723, 'file_id': None, 'file_type': 'video', 'local_path': 'static/uploads/products/723/kurdish.mp4', 'created_at': '2025-05-14 18:45:10.729222'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+2025-05-15 19:12:44,264 - src.web.main - INFO - بازیابی فایل service_media.csv با مدل ServiceMedia
+2025-05-15 19:12:44,621 - src.web.main - INFO - جدول service_media.csv با 0 رکورد پاکسازی شد.
+2025-05-15 19:12:44,982 - src.web.main - WARNING - خطا در بررسی کلید خارجی: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)
+(psycopg2.errors.NotNullViolation) null value in column "file_id" of relation "service_media" violates not-null constraint
+DETAIL:  Failing row contains (25, 18, null, photo, 2025-05-15 19:12:44.732644, null).
+
+[SQL: INSERT INTO service_media (id, service_id, file_id, file_type) VALUES (%(id)s, %(service_id)s, %(file_id)s, %(file_type)s)]
+[parameters: {'id': 25, 'service_id': 18, 'file_id': None, 'file_type': 'photo'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+2025-05-15 19:12:44,983 - src.web.main - WARNING - خطا در بررسی کلید خارجی: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)
+(psycopg2.errors.NotNullViolation) null value in column "file_id" of relation "service_media" violates not-null constraint
+DETAIL:  Failing row contains (25, 18, null, photo, 2025-05-15 19:12:44.732644, null).
+
+[SQL: INSERT INTO service_media (id, service_id, file_id, file_type) VALUES (%(id)s, %(service_id)s, %(file_id)s, %(file_type)s)]
+[parameters: {'id': 25, 'service_id': 18, 'file_id': None, 'file_type': 'photo'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+2025-05-15 19:12:44,983 - src.web.main - WARNING - خطا در بررسی کلید خارجی: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)
+(psycopg2.errors.NotNullViolation) null value in column "file_id" of relation "service_media" violates not-null constraint
+DETAIL:  Failing row contains (25, 18, null, photo, 2025-05-15 19:12:44.732644, null).
+
+[SQL: INSERT INTO service_media (id, service_id, file_id, file_type) VALUES (%(id)s, %(service_id)s, %(file_id)s, %(file_type)s)]
+[parameters: {'id': 25, 'service_id': 18, 'file_id': None, 'file_type': 'photo'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+2025-05-15 19:12:44,984 - src.web.main - WARNING - خطا در بررسی کلید خارجی: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)
+(psycopg2.errors.NotNullViolation) null value in column "file_id" of relation "service_media" violates not-null constraint
+DETAIL:  Failing row contains (25, 18, null, photo, 2025-05-15 19:12:44.732644, null).
+
+[SQL: INSERT INTO service_media (id, service_id, file_id, file_type) VALUES (%(id)s, %(service_id)s, %(file_id)s, %(file_type)s)]
+[parameters: {'id': 25, 'service_id': 18, 'file_id': None, 'file_type': 'photo'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+2025-05-15 19:12:44,984 - src.web.main - WARNING - خطا در بررسی کلید خارجی: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)
+(psycopg2.errors.NotNullViolation) null value in column "file_id" of relation "service_media" violates not-null constraint
+DETAIL:  Failing row contains (25, 18, null, photo, 2025-05-15 19:12:44.732644, null).
+
+[SQL: INSERT INTO service_media (id, service_id, file_id, file_type) VALUES (%(id)s, %(service_id)s, %(file_id)s, %(file_type)s)]
+[parameters: {'id': 25, 'service_id': 18, 'file_id': None, 'file_type': 'photo'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+2025-05-15 19:12:44,985 - src.web.main - WARNING - خطا در بررسی کلید خارجی: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)
+(psycopg2.errors.NotNullViolation) null value in column "file_id" of relation "service_media" violates not-null constraint
+DETAIL:  Failing row contains (25, 18, null, photo, 2025-05-15 19:12:44.732644, null).
+
+[SQL: INSERT INTO service_media (id, service_id, file_id, file_type) VALUES (%(id)s, %(service_id)s, %(file_id)s, %(file_type)s)]
+[parameters: {'id': 25, 'service_id': 18, 'file_id': None, 'file_type': 'photo'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+2025-05-15 19:12:44,986 - src.web.main - WARNING - خطا در بررسی کلید خارجی: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)
+(psycopg2.errors.NotNullViolation) null value in column "file_id" of relation "service_media" violates not-null constraint
+DETAIL:  Failing row contains (25, 18, null, photo, 2025-05-15 19:12:44.732644, null).
+
+[SQL: INSERT INTO service_media (id, service_id, file_id, file_type) VALUES (%(id)s, %(service_id)s, %(file_id)s, %(file_type)s)]
+[parameters: {'id': 25, 'service_id': 18, 'file_id': None, 'file_type': 'photo'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+2025-05-15 19:12:44,986 - src.web.main - WARNING - خطا در بررسی کلید خارجی: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)
+(psycopg2.errors.NotNullViolation) null value in column "file_id" of relation "service_media" violates not-null constraint
+DETAIL:  Failing row contains (25, 18, null, photo, 2025-05-15 19:12:44.732644, null).
+
+[SQL: INSERT INTO service_media (id, service_id, file_id, file_type) VALUES (%(id)s, %(service_id)s, %(file_id)s, %(file_type)s)]
+[parameters: {'id': 25, 'service_id': 18, 'file_id': None, 'file_type': 'photo'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+2025-05-15 19:12:44,987 - src.web.main - WARNING - خطا در بررسی کلید خارجی: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)
+(psycopg2.errors.NotNullViolation) null value in column "file_id" of relation "service_media" violates not-null constraint
+DETAIL:  Failing row contains (25, 18, null, photo, 2025-05-15 19:12:44.732644, null).
+
+[SQL: INSERT INTO service_media (id, service_id, file_id, file_type) VALUES (%(id)s, %(service_id)s, %(file_id)s, %(file_type)s)]
+[parameters: {'id': 25, 'service_id': 18, 'file_id': None, 'file_type': 'photo'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+2025-05-15 19:12:44,988 - src.web.main - WARNING - خطا در بررسی کلید خارجی: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)
+(psycopg2.errors.NotNullViolation) null value in column "file_id" of relation "service_media" violates not-null constraint
+DETAIL:  Failing row contains (25, 18, null, photo, 2025-05-15 19:12:44.732644, null).
+
+[SQL: INSERT INTO service_media (id, service_id, file_id, file_type) VALUES (%(id)s, %(service_id)s, %(file_id)s, %(file_type)s)]
+[parameters: {'id': 25, 'service_id': 18, 'file_id': None, 'file_type': 'photo'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+2025-05-15 19:12:44,989 - src.web.main - WARNING - خطا در بررسی کلید خارجی: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)
+(psycopg2.errors.NotNullViolation) null value in column "file_id" of relation "service_media" violates not-null constraint
+DETAIL:  Failing row contains (25, 18, null, photo, 2025-05-15 19:12:44.732644, null).
+
+[SQL: INSERT INTO service_media (id, service_id, file_id, file_type) VALUES (%(id)s, %(service_id)s, %(file_id)s, %(file_type)s)]
+[parameters: {'id': 25, 'service_id': 18, 'file_id': None, 'file_type': 'photo'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+2025-05-15 19:12:44,989 - src.web.main - ERROR - خطا در کامیت نهایی service_media.csv: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)
+(psycopg2.errors.NotNullViolation) null value in column "file_id" of relation "service_media" violates not-null constraint
+DETAIL:  Failing row contains (25, 18, null, photo, 2025-05-15 19:12:44.732644, null).
+
+[SQL: INSERT INTO service_media (id, service_id, file_id, file_type) VALUES (%(id)s, %(service_id)s, %(file_id)s, %(file_type)s)]
+[parameters: {'id': 25, 'service_id': 18, 'file_id': None, 'file_type': 'photo'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+2025-05-15 19:12:44,989 - src.web.main - INFO - بازیابی فایل educational_media.csv با مدل EducationalContentMedia
+2025-05-15 19:12:45,335 - src.web.main - INFO - جدول educational_media.csv با 0 رکورد پاکسازی شد.
+2025-05-15 19:12:45,624 - src.web.main - ERROR - خطا در کامیت نهایی educational_media.csv: (psycopg2.errors.NotNullViolation) null value in column "file_id" of relation "educational_content_media" violates not-null constraint
+DETAIL:  Failing row contains (21, 55, null, photo, 2025-05-15 13:57:59.9119, media/educational/antenna_workshop.jpg).
+
+[SQL: INSERT INTO educational_content_media (id, educational_content_id, file_id, file_type, local_path, created_at) VALUES (%(id__0)s, %(educational_content_id__0)s, %(file_id__0)s, %(file_type__0)s, %(local_path__0)s, %(created_at__0)s), (%(id__1)s, %(ed ... 230 characters truncated ... educational_content_id__3)s, %(file_id__3)s, %(file_type__3)s, %(local_path__3)s, %(created_at__3)s)]
+[parameters: {'local_path__0': 'media/educational/antenna_workshop.jpg', 'file_id__0': None, 'file_type__0': 'photo', 'id__0': 21, 'educational_content_id__0': 55, 'created_at__0': '2025-05-15 13:57:59.911900', 'local_path__1': 'media/educational/antenna1.jpg', 'file_id__1': None, 'file_type__1': 'photo', 'id__1': 22, 'educational_content_id__1': 55, 'created_at__1': '2025-05-15 13:57:59.911904', 'local_path__2': 'media/educational/antenna1_detail1.jpg', 'file_id__2': None, 'file_type__2': 'photo', 'id__2': 23, 'educational_content_id__2': 55, 'created_at__2': '2025-05-15 13:57:59.911907', 'local_path__3': 'media/educational/antenna1_detail2.jpg', 'file_id__3': None, 'file_type__3': 'photo', 'id__3': 24, 'educational_content_id__3': 55, 'created_at__3': '2025-05-15 13:57:59.911908'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+2025-05-15 19:12:45,624 - src.web.main - INFO - فایل users در بک‌آپ موجود نیست
+2025-05-15 19:12:45,624 - src.web.main - INFO - فایل product_categories در بک‌آپ موجود نیست
+2025-05-15 19:12:45,624 - src.web.main - INFO - فایل service_categories در بک‌آپ موجود نیست
+2025-05-15 19:12:45,624 - src.web.main - INFO - فایل static_content در بک‌آپ موجود نیست
+2025-05-15 19:12:45,624 - src.web.main - INFO - فایل services در بک‌آپ موجود نیست
+2025-05-15 19:12:45,624 - src.web.main - INFO - فایل products در بک‌آپ موجود نیست
+2025-05-15 19:12:45,624 - src.web.main - INFO - فایل educational در بک‌آپ موجود نیست
+2025-05-15 19:12:45,624 - src.web.main - INFO - فایل inquiries در بک‌آپ موجود نیست
+2025-05-15 19:12:45,624 - src.web.main - INFO - فایل service_media در بک‌آپ موجود نیست
+2025-05-15 19:12:45,624 - src.web.main - INFO - فایل product_media در بک‌آپ موجود نیست
+2025-05-15 19:12:45,624 - src.web.main - INFO - فایل educational_media در بک‌آپ موجود نیست
