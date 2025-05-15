@@ -1,6 +1,8 @@
 import os
 import csv
 import logging
+import aiohttp
+import json
 from typing import Dict, List, Optional, Any, Tuple, Union
 from datetime import datetime
 
@@ -330,3 +332,64 @@ def generate_csv_template(output_path: str, entity_type: str) -> bool:
     except Exception as e:
         logging.error(f"Error generating CSV template: {e}")
         return False
+
+async def create_telegraph_page(title: str, content: str, author: str = "RFCatalogbot") -> Optional[str]:
+    """
+    Create a Telegraph page for longer educational content
+    
+    Args:
+        title: Title of the page
+        content: Content of the page (can include simple HTML)
+        author: Author name (default: "RFCatalogbot")
+        
+    Returns:
+        URL of the created page, or None if failed
+    """
+    try:
+        # Format content for Telegraph (convert to HTML nodes)
+        # Simple conversion for basic formatting - paragraphs
+        html_content = []
+        for paragraph in content.split('\n\n'):
+            if paragraph.strip():
+                # Skip empty paragraphs
+                html_content.append({
+                    'tag': 'p',
+                    'children': [paragraph.strip()]
+                })
+        
+        # Telegraph API endpoint for creating a page
+        api_url = 'https://api.telegra.ph/createPage'
+        
+        # Generate a path from title (simple slugify)
+        # Remove special chars and replace spaces with hyphens
+        import re
+        path = re.sub(r'[^\w\s-]', '', title.lower())
+        path = re.sub(r'[\s_-]+', '-', path)
+        
+        # Prepare request data
+        page_data = {
+            'access_token': 'XXX', # We don't need a token for anonymous pages
+            'title': title,
+            'author_name': author,
+            'content': json.dumps(html_content),
+            'return_content': False
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.post(api_url, data=page_data) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    if result.get('ok'):
+                        page_url = result.get('result', {}).get('url')
+                        if page_url:
+                            logging.info(f"Created Telegraph page: {page_url}")
+                            return page_url
+                        
+                    logging.error(f"Telegraph API error: {result}")
+                else:
+                    logging.error(f"Telegraph API HTTP error: {response.status}")
+        
+        return None
+    except Exception as e:
+        logging.error(f"Error creating Telegraph page: {str(e)}")
+        return None

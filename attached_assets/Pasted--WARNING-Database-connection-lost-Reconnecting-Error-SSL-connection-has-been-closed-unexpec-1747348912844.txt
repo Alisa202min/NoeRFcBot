@@ -1,0 +1,15 @@
+ - WARNING - Database connection lost. Reconnecting... Error: SSL connection has been closed unexpectedly
+
+2025-05-15 22:41:08,647 - root - INFO - Establishing new database connection
+2025-05-15 22:41:11,629 - root - INFO - Database connection established successfully
+2025-05-15 22:41:11,773 - root - INFO - All educational categories: [RealDictRow([('id', 2), ('name', 'آنتن\u200cها'), ('parent_id', None), ('parent_name', None), ('content_count', 0), ('children_count', 2)]), RealDictRow([('id', 3), ('name', 'تعمیر و نگهداری'), ('parent_id', None), ('parent_name', None), ('content_count', 0), ('children_count', 2)]), RealDictRow([('id', 1), ('name', 'مبانی ارتباطات رادیویی'), ('parent_id', None), ('parent_name', None), ('content_count', 0), ('children_count', 2)]), RealDictRow([('id', 7), ('name', 'استانداردهای ارتباطی'), ('parent_id', 1), ('parent_name', 'مبانی ارتباطات رادیویی'), ('content_count', 0), ('children_count', 0)]), RealDictRow([('id', 6), ('name', 'سیگنال\u200cهای رادیویی'), ('parent_id', 1), ('parent_name', 'مبانی ارتباطات رادیویی'), ('content_count', 0), ('children_count', 0)]), RealDictRow([('id', 4), ('name', 'آنتن\u200cهای دایرکشنال'), ('parent_id', 2), ('parent_name', 'آنتن\u200cها'), ('content_count', 0), ('children_count', 0)]), RealDictRow([('id', 5), ('name', 'آنتن\u200cهای همه\u200cجهته'), ('parent_id', 2), ('parent_name', 'آنتن\u200cها'), ('content_count', 0), ('children_count', 0)]), RealDictRow([('id', 9), ('name', 'عیب\u200cیابی تجهیزات'), ('parent_id', 3), ('parent_name', 'تعمیر و نگهداری'), ('content_count', 0), ('children_count', 0)]), RealDictRow([('id', 8), ('name', 'نگهداری پیشگیرانه'), ('parent_id', 3), ('parent_name', 'تعمیر و نگهداری'), ('content_count', 1), ('children_count', 0)])]
+2025-05-15 22:41:11,774 - root - INFO - Category name: نگهداری پیشگیرانه
+2025-05-15 22:41:11,842 - root - INFO - Content list for category 8: [RealDictRow([('id', 55), ('title', 'نگهداری اتاق آنتن'), ('content', 'یک محتوای آموزشی جدید ایجاد کنید و چند تصویر آپلود کنید '), ('category', 'نگهداری پیشگیرانه'), ('content_type', 'text'), ('type', 'text'), ('category_id', 8), ('category_name', 'نگهداری پیشگیرانه'), ('media_count', 4)])]
+2025-05-15 22:41:12,065 - aiogram.event - INFO - Update id=542671913 is handled. Duration 3902 ms by bot id=7630601243
+2025-05-15 22:41:15,213 - root - INFO - Found 4 media files for educational content 55
+2025-05-15 22:41:15,217 - bot - INFO - Using bot token starting with: 76306...
+2025-05-15 22:41:15,231 - bot - INFO - Bot instance created successfully
+2025-05-15 22:41:15,232 - root - INFO - Attempting to send 4 educational media files to chat_id 7625738591
+2025-05-15 22:41:15,232 - root - INFO - Processing educational media: file_id=media/educational/antenna_workshop.jpg, file_type=photo
+2025-05-15 22:41:15,232 - root - INFO - Assuming educational media file_id is a Telegram file_id: media/educational/antenna_workshop.jpg
+2025-05-15 22:41:15
