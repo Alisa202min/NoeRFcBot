@@ -1197,6 +1197,9 @@ def admin_education():
         # دریافت محتوا برای ویرایش
         content = EducationalContent.query.get_or_404(int(content_id))
         
+        # تبدیل محتوای media به لیست
+        media_list = content.media.all()
+        
         # دریافت لیست دسته‌بندی‌های موجود
         categories = db.session.query(EducationalContent.category).distinct().all()
         categories = [cat[0] for cat in categories if cat[0]]
@@ -1204,6 +1207,7 @@ def admin_education():
         return render_template('admin/education_form.html',
                               title="ویرایش محتوای آموزشی",
                               content=content,
+                              media_list=media_list,
                               categories=categories,
                               active_page='admin')
     
@@ -2320,17 +2324,23 @@ def educational():
             query = query.filter_by(category=category)
         contents = query.order_by(EducationalContent.created_at.desc()).all()
         
+        # آماده‌سازی لیست‌های media برای هر محتوا
+        content_media_map = {}
+        for content in contents:
+            content_media_map[content.id] = content.media.all()
+        
         # دریافت دسته‌بندی‌های منحصر به فرد
         categories = db.session.query(EducationalContent.category).distinct().all()
         categories = [c[0] for c in categories]
         
         return render_template('educational.html', 
                               contents=contents,
+                              content_media_map=content_media_map,
                               categories=categories,
                               selected_category=category)
     except Exception as e:
         flash(f'خطا در نمایش صفحه محتوای آموزشی: {str(e)}', 'danger')
-        return render_template('educational.html', contents=[], categories=[], selected_category=None)
+        return render_template('educational.html', contents=[], content_media_map={}, categories=[], selected_category=None)
 
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():

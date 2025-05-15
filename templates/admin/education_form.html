@@ -104,11 +104,11 @@
                                     {% endif %}
                                     
                                     <!-- نمایش فایل‌های ضمیمه موجود -->
-                                    {% if content and content.media.count() > 0 %}
+                                    {% if media_list and media_list|length > 0 %}
                                     <div class="mt-3">
                                         <h6 class="text-primary">فایل‌های ضمیمه موجود:</h6>
                                         <div class="row row-cols-1 row-cols-md-3 g-3">
-                                            {% for media in content.media %}
+                                            {% for media in media_list %}
                                             <div class="col">
                                                 <div class="card h-100">
                                                     {% if media.file_type == 'photo' %}
