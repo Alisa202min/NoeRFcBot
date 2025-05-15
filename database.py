@@ -806,35 +806,78 @@ class Database:
 
     def get_educational_content(self, content_id: int) -> Optional[Dict]:
         """Get educational content by ID with media files"""
-        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            # Get main content data
-            cursor.execute(
-                '''SELECT ec.id, ec.title, ec.content, ec.category, ec.content_type, ec.type, 
-                   ec.category_id, cat.name as category_name
-                   FROM educational_content ec
-                   LEFT JOIN educational_categories cat ON ec.category_id = cat.id
-                   WHERE ec.id = %s''',
-                (content_id,)
-            )
-            content = cursor.fetchone()
-            
-            if not content:
-                return None
+        # Ensure connection is active
+        self.ensure_connection()
+        
+        try:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                # Get main content data
+                cursor.execute(
+                    '''SELECT ec.id, ec.title, ec.content, ec.category, ec.content_type, ec.type, 
+                       ec.category_id, cat.name as category_name
+                       FROM educational_content ec
+                       LEFT JOIN educational_categories cat ON ec.category_id = cat.id
+                       WHERE ec.id = %s''',
+                    (content_id,)
+                )
+                content = cursor.fetchone()
                 
-            # Get media files
-            cursor.execute(
-                '''SELECT id, file_id, file_type 
-                   FROM educational_content_media 
-                   WHERE educational_content_id = %s 
-                   ORDER BY file_type, id''',
-                (content_id,)
-            )
-            media_files = cursor.fetchall()
+                if not content:
+                    return None
+                    
+                # Get media files
+                cursor.execute(
+                    '''SELECT id, file_id, file_type, local_path
+                       FROM educational_content_media 
+                       WHERE educational_content_id = %s 
+                       ORDER BY file_type, id''',
+                    (content_id,)
+                )
+                media_files = cursor.fetchall()
+                
+                # Add media files to content
+                content['media'] = media_files
+                
+                return content
+        except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+            # Connection lost during query execution - reconnect and retry
+            logging.warning(f"Connection error in get_educational_content: {str(e)}. Reconnecting...")
+            try:
+                self.conn.close()
+            except:
+                pass
+            self.connect()
             
-            # Add media files to content
-            content['media'] = media_files
-            
-            return content
+            # Try again with new connection
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                # Get main content data
+                cursor.execute(
+                    '''SELECT ec.id, ec.title, ec.content, ec.category, ec.content_type, ec.type, 
+                       ec.category_id, cat.name as category_name
+                       FROM educational_content ec
+                       LEFT JOIN educational_categories cat ON ec.category_id = cat.id
+                       WHERE ec.id = %s''',
+                    (content_id,)
+                )
+                content = cursor.fetchone()
+                
+                if not content:
+                    return None
+                    
+                # Get media files
+                cursor.execute(
+                    '''SELECT id, file_id, file_type, local_path
+                       FROM educational_content_media 
+                       WHERE educational_content_id = %s 
+                       ORDER BY file_type, id''',
+                    (content_id,)
+                )
+                media_files = cursor.fetchall()
+                
+                # Add media files to content
+                content['media'] = media_files
+                
+                return content
 
     def get_all_educational_content(self, category: Optional[str] = None, category_id: Optional[int] = None) -> List[Dict]:
         """
@@ -896,17 +939,41 @@ class Database:
         Returns:
             List of category objects with id, name, parent_id
         """
-        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            # Get all categories with their parent_id
-            cursor.execute('''
-                SELECT c.id, c.name, c.parent_id, p.name as parent_name,
-                       (SELECT COUNT(*) FROM educational_content WHERE category_id = c.id) as content_count,
-                       (SELECT COUNT(*) FROM educational_categories WHERE parent_id = c.id) as children_count
-                FROM educational_categories c
-                LEFT JOIN educational_categories p ON c.parent_id = p.id
-                ORDER BY c.parent_id NULLS FIRST, c.name
-            ''')
-            return cursor.fetchall()
+        # Ensure connection is active
+        self.ensure_connection()
+        
+        try:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                # Get all categories with their parent_id
+                cursor.execute('''
+                    SELECT c.id, c.name, c.parent_id, p.name as parent_name,
+                        (SELECT COUNT(*) FROM educational_content WHERE category_id = c.id) as content_count,
+                        (SELECT COUNT(*) FROM educational_categories WHERE parent_id = c.id) as children_count
+                    FROM educational_categories c
+                    LEFT JOIN educational_categories p ON c.parent_id = p.id
+                    ORDER BY c.parent_id NULLS FIRST, c.name
+                ''')
+                return cursor.fetchall()
+        except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+            # Connection lost during query execution - reconnect and retry
+            logging.warning(f"Connection error in get_educational_categories: {str(e)}. Reconnecting...")
+            try:
+                self.conn.close()
+            except:
+                pass
+            self.connect()
+            
+            # Try again with new connection
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute('''
+                    SELECT c.id, c.name, c.parent_id, p.name as parent_name,
+                        (SELECT COUNT(*) FROM educational_content WHERE category_id = c.id) as content_count,
+                        (SELECT COUNT(*) FROM educational_categories WHERE parent_id = c.id) as children_count
+                    FROM educational_categories c
+                    LEFT JOIN educational_categories p ON c.parent_id = p.id
+                    ORDER BY c.parent_id NULLS FIRST, c.name
+                ''')
+                return cursor.fetchall()
             
     def get_educational_category_by_id(self, category_id: int) -> Optional[Dict]:
         """Get educational category by ID"""
@@ -1203,15 +1270,38 @@ class Database:
         Returns:
             List of media file objects with id, file_id, file_type
         """
-        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            cursor.execute(
-                '''SELECT id, file_id, file_type, created_at
-                   FROM educational_content_media
-                   WHERE educational_content_id = %s
-                   ORDER BY file_type, id''',
-                (content_id,)
-            )
-            return cursor.fetchall()
+        # Ensure connection is active
+        self.ensure_connection()
+        
+        try:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute(
+                    '''SELECT id, file_id, file_type, created_at, local_path
+                       FROM educational_content_media
+                       WHERE educational_content_id = %s
+                       ORDER BY file_type, id''',
+                    (content_id,)
+                )
+                return cursor.fetchall()
+        except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+            # Connection lost during query execution - reconnect and retry
+            logging.warning(f"Connection error in get_educational_content_media: {str(e)}. Reconnecting...")
+            try:
+                self.conn.close()
+            except:
+                pass
+            self.connect()
+            
+            # Try again with new connection
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute(
+                    '''SELECT id, file_id, file_type, created_at, local_path
+                       FROM educational_content_media
+                       WHERE educational_content_id = %s
+                       ORDER BY file_type, id''',
+                    (content_id,)
+                )
+                return cursor.fetchall()
             
     def add_educational_content_media(self, content_id: int, file_id: str, file_type: str = 'photo') -> int:
         """
