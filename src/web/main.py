@@ -1287,6 +1287,7 @@ def admin_education():
                     content.title = title
                     content.category = category
                     content.content_type = content_type
+                    content.type = content_type  # تنظیم فیلد type برابر با content_type
                     
                     # اگر فایل جدید آپلود شده، از آن استفاده می‌کنیم
                     if main_file_path and (content_type in ['image', 'video', 'file']):
@@ -1334,6 +1335,7 @@ def admin_education():
                 content.title = title
                 content.category = category
                 content.content_type = content_type
+                content.type = content_type  # تنظیم فیلد type برابر با content_type
                 
                 # تنظیم محتوا بر اساس نوع
                 if main_file_path and (content_type in ['image', 'video', 'file']):
