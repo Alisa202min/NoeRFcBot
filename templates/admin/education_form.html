@@ -112,11 +112,11 @@
                                             <div class="col">
                                                 <div class="card h-100">
                                                     {% if media.file_type == 'photo' %}
-                                                    <img src="{{ url_for('telegram_file', file_id=media.file_id) }}" class="card-img-top" alt="تصویر ضمیمه">
+                                                    <img src="{{ media.redirect_url }}" class="card-img-top" alt="تصویر ضمیمه">
                                                     {% elif media.file_type == 'video' %}
                                                     <div class="ratio ratio-16x9">
                                                         <video controls>
-                                                            <source src="{{ url_for('telegram_file', file_id=media.file_id) }}" type="video/mp4">
+                                                            <source src="{{ media.redirect_url }}" type="video/mp4">
                                                         </video>
                                                     </div>
                                                     {% elif media.file_type == 'file' %}
@@ -126,7 +126,7 @@
                                                     </div>
                                                     {% endif %}
                                                     <div class="card-footer">
-                                                        <a href="{{ url_for('telegram_file', file_id=media.file_id) }}" class="btn btn-sm btn-primary" target="_blank">
+                                                        <a href="{{ media.redirect_url }}" class="btn btn-sm btn-primary" target="_blank">
                                                             <i class="bi bi-download"></i> دانلود
                                                         </a>
                                                     </div>
