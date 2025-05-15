@@ -2967,63 +2967,104 @@ def import_entity():
 @app.route('/admin/backup')
 @login_required
 def backup_database():
-    """تهیه پشتیبان از دیتابیس"""
+    """تهیه پشتیبان از دیتابیس با استفاده از sqlalchemy"""
     try:
         import os
-        import subprocess
         import datetime
-        
-        # دریافت متغیرهای محیطی دیتابیس از محیط اجرایی
-        db_host = os.environ.get('PGHOST')
-        db_port = os.environ.get('PGPORT')
-        db_name = os.environ.get('PGDATABASE')
-        db_user = os.environ.get('PGUSER')
-        db_password = os.environ.get('PGPASSWORD')
+        import io
+        import csv
+        import zipfile
         
         # نام فایل پشتیبان با تاریخ و زمان
         timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-        backup_filename = f"database_backup_{timestamp}.sql"
-        backup_dir = os.path.join('static', 'backups')
+        backup_filename = f"database_backup_{timestamp}.zip"
         
-        # اطمینان از وجود دایرکتوری برای ذخیره فایل پشتیبان
-        os.makedirs(backup_dir, exist_ok=True)
+        # مدل‌های دیتابیس برای پشتیبان‌گیری
+        models_map = {
+            'products': Product,
+            'services': Service,
+            'categories': Category,
+            'inquiries': Inquiry,
+            'educational': EducationalContent,
+            'product_media': ProductMedia,
+            'service_media': ServiceMedia,
+            'educational_media': EducationalContentMedia,
+            'product_categories': ProductCategory,
+            'service_categories': ServiceCategory,
+            'users': User,
+            'static_content': StaticContent,
+        }
         
-        # مسیر کامل فایل پشتیبان
-        backup_path = os.path.join(backup_dir, backup_filename)
+        # ایجاد یک فایل ZIP در حافظه
+        memory_file = io.BytesIO()
+        with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+            # پیمایش تمام جداول
+            for table_name, model in models_map.items():
+                try:
+                    # دریافت داده‌ها از جدول
+                    items = db.session.query(model).all()
+                    
+                    # اگر هیچ داده‌ای وجود نداشت، رد کردن این جدول
+                    if not items:
+                        continue
+                    
+                    # دریافت نام ستون‌ها
+                    columns = [column.name for column in model.__table__.columns]
+                    
+                    # ایجاد فایل CSV در حافظه
+                    csv_output = io.StringIO()
+                    writer = csv.writer(csv_output)
+                    
+                    # نوشتن هدر
+                    writer.writerow(columns)
+                    
+                    # نوشتن داده‌ها
+                    for item in items:
+                        row = []
+                        for column in columns:
+                            value = getattr(item, column)
+                            # تبدیل None به رشته خالی
+                            row.append("" if value is None else str(value))
+                        writer.writerow(row)
+                    
+                    # افزودن فایل CSV به فایل ZIP
+                    zf.writestr(f"{table_name}.csv", csv_output.getvalue().encode('utf-8'))
+                    
+                except Exception as e:
+                    logger.error(f"Error backing up table {table_name}: {str(e)}")
+                    # ادامه با جدول بعدی
+                    continue
+                    
+            # افزودن فایل README
+            readme_content = f"""این پشتیبان در تاریخ {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ایجاد شده است.
+هر فایل CSV شامل داده‌های یک جدول است.
+ستون اول در هر فایل CSV نام ستون‌ها را نشان می‌دهد.
+
+نام فایل‌ها مطابق با نام جداول است:
+- products.csv: جدول محصولات
+- services.csv: جدول خدمات
+- categories.csv: جدول دسته‌بندی‌ها
+- inquiries.csv: جدول استعلام‌ها
+- educational.csv: جدول محتوای آموزشی
+- product_media.csv: جدول رسانه‌های محصولات
+- service_media.csv: جدول رسانه‌های خدمات
+- educational_media.csv: جدول رسانه‌های محتوای آموزشی
+- users.csv: جدول کاربران
+- static_content.csv: جدول محتوای ثابت
+"""
+            zf.writestr("README.txt", readme_content.encode('utf-8'))
         
-        # ساخت دستور pg_dump
-        pg_dump_cmd = [
-            "pg_dump",
-            "-h", db_host,
-            "-p", db_port,
-            "-U", db_user,
-            "-d", db_name,
-            "-f", backup_path,
-            "--format=p",  # plain text format
-            "--no-owner"   # بدون اطلاعات مالکیت
-        ]
+        # آماده‌سازی فایل برای دانلود
+        memory_file.seek(0)
         
-        # تنظیم متغیر محیطی PGPASSWORD برای ارائه رمز عبور
-        env = os.environ.copy()
-        env["PGPASSWORD"] = db_password
-        
-        # اجرای دستور pg_dump
-        result = subprocess.run(pg_dump_cmd, env=env, capture_output=True, text=True)
-        
-        # بررسی نتیجه
-        if result.returncode == 0:
-            # ایجاد پاسخ برای دانلود فایل
-            from flask import send_file
-            return send_file(
-                backup_path,
-                mimetype='application/sql',
-                as_attachment=True,
-                download_name=backup_filename
-            )
-        else:
-            logger.error(f"Error in pg_dump: {result.stderr}")
-            flash(f"خطا در پشتیبان‌گیری از دیتابیس: {result.stderr}", 'danger')
-            return redirect(url_for('admin_import_export'))
+        # ایجاد پاسخ برای دانلود فایل
+        from flask import send_file
+        return send_file(
+            memory_file,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=backup_filename
+        )
             
     except Exception as e:
         logger.error(f"Error in backup_database: {str(e)}")
@@ -3034,8 +3075,137 @@ def backup_database():
 @login_required
 def restore_database():
     """بازیابی دیتابیس از فایل پشتیبان"""
-    flash('این ویژگی هنوز پیاده‌سازی نشده است.', 'warning')
-    return redirect(url_for('admin_import_export'))
+    try:
+        import os
+        import tempfile
+        import zipfile
+        import csv
+        import io
+        from werkzeug.utils import secure_filename
+        
+        # دریافت فایل آپلود شده
+        backup_file = request.files.get('backup_file')
+        if not backup_file:
+            flash('لطفاً یک فایل پشتیبان انتخاب کنید.', 'warning')
+            return redirect(url_for('admin_import_export'))
+        
+        # بررسی پسوند فایل
+        filename = backup_file.filename
+        if not filename or not filename.endswith('.zip'):
+            flash('فایل پشتیبان باید با فرمت ZIP باشد.', 'warning')
+            return redirect(url_for('admin_import_export'))
+        
+        # ذخیره موقت فایل
+        safe_filename = secure_filename(filename)
+        temp_dir = tempfile.mkdtemp()
+        temp_path = os.path.join(temp_dir, safe_filename)
+        backup_file.save(temp_path)
+        
+        # مدل‌های دیتابیس برای بازیابی
+        models_map = {
+            'products.csv': Product,
+            'services.csv': Service,
+            'categories.csv': Category,
+            'inquiries.csv': Inquiry,
+            'educational.csv': EducationalContent,
+            'product_media.csv': ProductMedia,
+            'service_media.csv': ServiceMedia,
+            'educational_media.csv': EducationalContentMedia,
+            'product_categories.csv': ProductCategory,
+            'service_categories.csv': ServiceCategory,
+            'users.csv': User,
+            'static_content.csv': StaticContent,
+        }
+        
+        # آمار بازیابی
+        restored_tables = []
+        skipped_tables = []
+        error_tables = []
+        
+        try:
+            # باز کردن فایل ZIP
+            with zipfile.ZipFile(temp_path, 'r') as zip_ref:
+                # لیست فایل‌های موجود در ZIP
+                file_list = zip_ref.namelist()
+                
+                # حذف README.txt از لیست
+                if 'README.txt' in file_list:
+                    file_list.remove('README.txt')
+                
+                # بازیابی هر جدول
+                for csv_filename in file_list:
+                    if csv_filename in models_map:
+                        model = models_map[csv_filename]
+                        
+                        try:
+                            # استخراج فایل CSV
+                            csv_content = zip_ref.read(csv_filename).decode('utf-8')
+                            csv_file = io.StringIO(csv_content)
+                            reader = csv.reader(csv_file)
+                            
+                            # خواندن نام ستون‌ها (سطر اول)
+                            headers = next(reader, None)
+                            if not headers:
+                                skipped_tables.append(csv_filename)
+                                continue
+                            
+                            # خواندن داده‌ها و افزودن به دیتابیس
+                            # جدول را پاک نمی‌کنیم چون ممکن است به روابط آسیب بزند
+                            # فقط داده‌های جدید را اضافه می‌کنیم
+                            
+                            for row in reader:
+                                # ساخت دیکشنری ستون-مقدار
+                                data = {}
+                                for i, column in enumerate(headers):
+                                    if i < len(row):
+                                        # تبدیل رشته خالی به None
+                                        value = row[i]
+                                        if value == "":
+                                            value = None
+                                        data[column] = value
+                                
+                                try:
+                                    # ایجاد یک نمونه جدید از مدل
+                                    item = model()
+                                    for column, value in data.items():
+                                        if hasattr(item, column):
+                                            setattr(item, column, value)
+                                    
+                                    # افزودن به دیتابیس
+                                    db.session.add(item)
+                                except Exception as item_error:
+                                    logger.error(f"Error adding item in {csv_filename}: {str(item_error)}")
+                                    continue
+                            
+                            # ذخیره تغییرات
+                            db.session.commit()
+                            restored_tables.append(csv_filename)
+                            
+                        except Exception as table_error:
+                            db.session.rollback()
+                            logger.error(f"Error restoring table {csv_filename}: {str(table_error)}")
+                            error_tables.append(csv_filename)
+                    else:
+                        skipped_tables.append(csv_filename)
+        finally:
+            # پاک کردن فایل موقت
+            os.unlink(temp_path)
+            os.rmdir(temp_dir)
+        
+        # نمایش نتیجه
+        if restored_tables:
+            flash(f'بازیابی {len(restored_tables)} جدول با موفقیت انجام شد: {", ".join(restored_tables)}', 'success')
+        if skipped_tables:
+            flash(f'{len(skipped_tables)} جدول رد شد: {", ".join(skipped_tables)}', 'warning')
+        if error_tables:
+            flash(f'خطا در بازیابی {len(error_tables)} جدول: {", ".join(error_tables)}', 'danger')
+            
+        return redirect(url_for('admin_import_export'))
+            
+    except Exception as e:
+        logger.error(f"Error in restore_database: {str(e)}")
+        flash(f"خطا در بازیابی دیتابیس: {str(e)}", 'danger')
+        return redirect(url_for('admin_import_export'))
 
 @app.route('/admin/database/export/<table_name>', methods=['POST'])
 @login_required
