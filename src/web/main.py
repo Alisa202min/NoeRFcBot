@@ -2974,6 +2974,11 @@ def backup_database():
         import io
         import csv
         import zipfile
+        from src.models.models import (
+            Product, Service, Inquiry, EducationalContent,
+            ProductMedia, ServiceMedia, EducationalContentMedia,
+            ProductCategory, ServiceCategory, User, StaticContent
+        )
         
         # نام فایل پشتیبان با تاریخ و زمان
         timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -2983,7 +2988,6 @@ def backup_database():
         models_map = {
             'products': Product,
             'services': Service,
-            'categories': Category,
             'inquiries': Inquiry,
             'educational': EducationalContent,
             'product_media': ProductMedia,
@@ -3082,6 +3086,11 @@ def restore_database():
         import csv
         import io
         from werkzeug.utils import secure_filename
+        from src.models.models import (
+            Product, Service, Inquiry, EducationalContent,
+            ProductMedia, ServiceMedia, EducationalContentMedia,
+            ProductCategory, ServiceCategory, User, StaticContent
+        )
         
         # دریافت فایل آپلود شده
         backup_file = request.files.get('backup_file')
