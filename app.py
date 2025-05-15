@@ -108,7 +108,17 @@ def logout():
 @login_required
 def admin():
     """Admin dashboard."""
-    return render_template('admin/index.html', title="Admin Dashboard")
+    from datetime import datetime
+    return render_template(
+        'admin/index.html', 
+        title="Admin Dashboard", 
+        now=datetime.now(),
+        product_count=0,
+        service_count=0,
+        category_count=0,
+        inquiry_count=0,
+        inquiries=[]
+    )
 
 @app.route('/api/health')
 def health():
