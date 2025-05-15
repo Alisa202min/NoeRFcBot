@@ -3047,7 +3047,8 @@ def backup_database():
 نام فایل‌ها مطابق با نام جداول است:
 - products.csv: جدول محصولات
 - services.csv: جدول خدمات
-- categories.csv: جدول دسته‌بندی‌ها
+- product_categories.csv: جدول دسته‌بندی محصولات
+- service_categories.csv: جدول دسته‌بندی خدمات
 - inquiries.csv: جدول استعلام‌ها
 - educational.csv: جدول محتوای آموزشی
 - product_media.csv: جدول رسانه‌های محصولات
@@ -3114,7 +3115,6 @@ def restore_database():
         models_map = {
             'products.csv': Product,
             'services.csv': Service,
-            'categories.csv': Category,
             'inquiries.csv': Inquiry,
             'educational.csv': EducationalContent,
             'product_media.csv': ProductMedia,
