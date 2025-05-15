@@ -1200,6 +1200,15 @@ def admin_education():
         # تبدیل محتوای media به لیست
         media_list = content.media.all()
         
+        # افزودن redirect_url برای هر media
+        for media in media_list:
+            # برای استفاده در تمپلیت
+            if hasattr(media, 'file_id') and media.file_id:
+                media.redirect_url = url_for('telegram_file', file_id=media.file_id)
+            else:
+                # اگر file_id نداشت، یک مسیر پیش‌فرض تنظیم می‌کنیم
+                media.redirect_url = url_for('static', filename='images/no-image.png')
+        
         # دریافت لیست دسته‌بندی‌های موجود
         categories = db.session.query(EducationalContent.category).distinct().all()
         categories = [cat[0] for cat in categories if cat[0]]
@@ -1739,17 +1748,77 @@ def telegram_file(file_id):
                     logger.info(f"Found service media file: {service_media_path}")
                     return redirect(url_for('static', filename=f"media/services/{file_id}.jpg"))
                     
-            # برای محتوای آموزشی
-            elif file_id.startswith('educational_content_image_'):
-                edu_media_path = os.path.join('static', 'media', 'educational', f"{file_id}.jpg")
-                if os.path.exists(edu_media_path):
-                    logger.info(f"Found educational content media file: {edu_media_path}")
-                    return redirect(url_for('static', filename=f"media/educational/{file_id}.jpg"))
-            elif file_id.startswith('educational_content_video_'):
-                edu_media_path = os.path.join('static', 'media', 'educational', f"{file_id}.mp4")
-                if os.path.exists(edu_media_path):
-                    logger.info(f"Found educational content video file: {edu_media_path}")
-                    return redirect(url_for('static', filename=f"media/educational/{file_id}.mp4"))
+            # برای محتوای آموزشی - تمام حالت‌های ممکن
+            elif file_id.startswith('educational_'):
+                # بررسی اینکه media record تنظیم شده یا خیر
+                if media:
+                    logger.info(f"Media record type: EducationalContentMedia")
+                    attr_names = [attr for attr in dir(media) if not attr.startswith('_') and not callable(getattr(media, attr))]
+                    logger.info(f"Media record details: {{'id': {media.id}, 'file_id': '{media.file_id}', 'attr_names': {attr_names}}}")
+                    logger.info(f"This is an EducationalContentMedia record")
+                
+                # حالت video یا فایل را بررسی می‌کنیم
+                if 'video' in file_id:
+                    # بررسی با پسوند mp4
+                    edu_media_path = os.path.join('static', 'media', 'educational', f"{file_id}.mp4")
+                    if os.path.exists(edu_media_path):
+                        logger.info(f"Found educational content video file: {edu_media_path}")
+                        return redirect(url_for('static', filename=f"media/educational/{file_id}.mp4"))
+                elif file_id.startswith('educational_content_image_'):
+                    # فرمت استاندارد برای تصاویر محتوای آموزشی
+                    logger.info(f"Using standard educational media path: media/educational/{file_id}.jpg")
+                    edu_media_path = os.path.join('static', 'media', 'educational', f"{file_id}.jpg")
+                    if os.path.exists(edu_media_path):
+                        logger.info(f"Found educational content image file: {edu_media_path}")
+                        return redirect(url_for('static', filename=f"media/educational/{file_id}.jpg"))
+                elif file_id.startswith('educational_image_'):
+                    # فرمت قدیمی برای تصاویر محتوای آموزشی
+                    logger.warning(f"Unusual educational media file_id format: {file_id}")
+                    
+                    # در دو مسیر مختلف بررسی می‌کنیم
+                    # 1. مسیر استاندارد با پسوند jpg
+                    edu_media_path = os.path.join('static', 'media', 'educational', f"{file_id}.jpg")
+                    if os.path.exists(edu_media_path):
+                        logger.info(f"Found educational image file: {edu_media_path}")
+                        return redirect(url_for('static', filename=f"media/educational/{file_id}.jpg"))
+                    
+                    # 2. محتوای فایل را از رکورد دیتابیس بررسی می‌کنیم
+                    if media and hasattr(media, 'content'):
+                        content_path = media.content
+                        if content_path and os.path.exists(os.path.join('static', content_path)):
+                            logger.info(f"Using content path from database: {content_path}")
+                            return redirect(url_for('static', filename=content_path))
+                    
+                    # 3. پسوندهای دیگر را بررسی می‌کنیم
+                    for ext in ['.png', '.gif', '.jpeg']:
+                        alt_path = os.path.join('static', 'media', 'educational', f"{file_id}{ext}")
+                        if os.path.exists(alt_path):
+                            rel_path = f"media/educational/{file_id}{ext}"
+                            logger.info(f"Found educational image with different extension: {alt_path}")
+                            return redirect(url_for('static', filename=rel_path))
+                else:
+                    # سایر فرمت‌های محتوای آموزشی
+                    logger.warning(f"Unknown educational content file_id format: {file_id}")
+                    for ext in ['.jpg', '.png', '.mp4', '.pdf']:
+                        potential_path = os.path.join('static', 'media', 'educational', f"{file_id}{ext}")
+                        if os.path.exists(potential_path):
+                            logger.info(f"Found educational file: {potential_path}")
+                            return redirect(url_for('static', filename=f"media/educational/{file_id}{ext}"))
+                    
+                    # جستجوی گسترده‌تر در کل دایرکتوری رسانه‌ها
+                    media_dir = os.path.join('static', 'media', 'educational')
+                    if os.path.exists(media_dir):
+                        # تلاش برای یافتن فایلی که با file_id شروع می‌شود
+                        file_matches = []
+                        for filename in os.listdir(media_dir):
+                            if filename.startswith(file_id):
+                                file_matches.append(filename)
+                                
+                        if file_matches:
+                            # اولین فایل یافت شده را استفاده می‌کنیم
+                            match_file = file_matches[0]
+                            logger.info(f"Found matching file in educational media dir: {match_file}")
+                            return redirect(url_for('static', filename=f"media/educational/{match_file}"))
             
             # تلاش نهایی - بررسی اینکه آیا این یک مسیر فایل است
             potential_path = os.path.join('static', file_id)
