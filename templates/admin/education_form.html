@@ -67,30 +67,7 @@
                                     </div>
                                     
                                     {% if content %}
-                                    <!-- نمایش محتوای اصلی -->
-                                    <div class="mt-3 mb-2">
-                                        <h6 class="text-primary">فایل اصلی:</h6>
-                                        {% if content.content_type == 'image' %}
-                                        <div class="mb-2">
-                                            <img src="{{ content.content }}" alt="{{ content.title }}" class="img-thumbnail" style="max-height: 200px;">
-                                        </div>
-                                        {% elif content.content_type == 'video' %}
-                                        <div class="mb-2">
-                                            <div class="ratio ratio-16x9">
-                                                <video controls>
-                                                    <source src="{{ content.content }}" type="video/mp4">
-                                                    مرورگر شما از پخش ویدیو پشتیبانی نمی‌کند.
-                                                </video>
-                                            </div>
-                                        </div>
-                                        {% elif content.content_type == 'file' %}
-                                        <div class="mb-2">
-                                            <div class="alert alert-info">
-                                                فایل فعلی: <a href="{{ content.content }}" target="_blank">{{ content.content.split('/')[-1] }}</a>
-                                            </div>
-                                        </div>
-                                        {% endif %}
-                                    </div>
+                                    <!-- نمایش مدیا فقط با استفاده از media_list -->
                                     {% endif %}
                                     
                                     <!-- نمایش فایل‌های ضمیمه موجود -->

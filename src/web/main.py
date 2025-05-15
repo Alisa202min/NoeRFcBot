@@ -1290,11 +1290,15 @@ def admin_education():
                     content.type = content_type  # تنظیم فیلد type برابر با content_type
                     
                     # اگر فایل جدید آپلود شده، از آن استفاده می‌کنیم
-                    if main_file_path and (content_type in ['image', 'video', 'file']):
+                    if main_file_path:
                         # فایل اصلی را در فیلد content ذخیره می‌کنیم (برای سازگاری با کد قبلی)
                         content.content = main_file_path
-                        
-                        # همه فایل‌ها (شامل فایل اصلی و ضمیمه‌ها) را به EducationalContentMedia اضافه می‌کنیم
+                    else:
+                        # اگر فایل آپلود نشده، از متن استفاده می‌کنیم
+                        content.content = content_text
+                    
+                    # همه فایل‌ها را به EducationalContentMedia اضافه می‌کنیم (بدون توجه به نوع محتوا)
+                    if file_paths:
                         for idx, current_file_path in enumerate(file_paths):
                             timestamp = int(time.time()) + idx  # زمان + ایندکس برای جلوگیری از تکرار
                             media_file_id = f"educational_content_image_{content.id}_{timestamp}"
@@ -1323,10 +1327,6 @@ def admin_education():
                             
                             db.session.add(media)
                             logger.info(f"فایل رسانه اضافه شد: {media_file_id} - {current_file_path}")
-                    # در غیر این صورت، فقط اگر نوع محتوا متن باشد، متن را به‌روزرسانی می‌کنیم
-                    elif content_type == 'text':
-                        content.content = content_text
-                    
                     db.session.commit()
                     flash('محتوای آموزشی با موفقیت به‌روزرسانی شد.', 'success')
             else:
@@ -1347,7 +1347,7 @@ def admin_education():
                 db.session.commit()
                 
                 # اگر فایل‌های آپلود شده داریم، رکورد EducationalContentMedia برای هر فایل ایجاد می‌کنیم
-                if file_paths and (content_type in ['image', 'video', 'file']):
+                if file_paths:
                     # اضافه کردن تمام فایل‌ها به EducationalContentMedia
                     for idx, current_file_path in enumerate(file_paths):
                         timestamp = int(time.time()) + idx  # زمان + ایندکس برای جلوگیری از تکرار
