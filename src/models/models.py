@@ -327,6 +327,7 @@ class EducationalContentMedia(db.Model):
     educational_content_id = db.Column(db.Integer, db.ForeignKey('educational_content.id', ondelete='CASCADE'), nullable=False)
     file_id = db.Column(db.Text, nullable=False)  # Telegram file_id
     file_type = db.Column(db.String(10), default='photo')  # photo, video, etc.
+    local_path = db.Column(db.Text, nullable=True)  # مسیر محلی برای فایل‌ها
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):
