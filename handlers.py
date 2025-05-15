@@ -276,27 +276,43 @@ async def callback_educational_category(callback: CallbackQuery):
     try:
         # استخراج شناسه دسته‌بندی
         category_id = int(callback.data.replace(f"{EDUCATION_PREFIX}cat_", ""))
+        logging.info(f"Selected educational category ID: {category_id}")
         
         # دریافت اطلاعات دسته‌بندی
         category_info = None
         categories = db.get_educational_categories()
+        logging.info(f"All educational categories: {categories}")
+        
         for cat in categories:
             if cat['id'] == category_id:
                 category_info = cat
                 break
                 
         if not category_info:
+            logging.error(f"Category info not found for ID: {category_id}")
             await callback.message.answer("⚠️ دسته‌بندی مورد نظر یافت نشد.")
             return
             
         category_name = category_info['name']
+        logging.info(f"Category name: {category_name}")
         
         # دریافت محتوای آموزشی برای این دسته‌بندی
         content_list = db.get_all_educational_content(category_id=category_id)
+        logging.info(f"Content list for category {category_id}: {content_list}")
         
         if not content_list:
-            await callback.message.answer(f"⚠️ محتوای آموزشی برای دسته‌بندی '{category_name}' موجود نیست.")
-            return
+            logging.warning(f"No educational content found for category ID: {category_id}")
+            
+            # دریافت محتوای آموزشی با استفاده از نام دسته بندی (رفتار قدیمی)
+            legacy_content = db.get_all_educational_content(category=category_name)
+            logging.info(f"Legacy content search by category name: {legacy_content}")
+            
+            if legacy_content:
+                content_list = legacy_content
+                logging.info(f"Using legacy content for display: {content_list}")
+            else:
+                await callback.message.answer(f"⚠️ محتوای آموزشی برای دسته‌بندی '{category_name}' موجود نیست.")
+                return
         
         # ساخت کیبورد با آیتم‌های محتوا
         from keyboards import education_content_keyboard
@@ -306,6 +322,7 @@ async def callback_educational_category(callback: CallbackQuery):
                                reply_markup=keyboard)
     except Exception as e:
         logging.error(f"خطا در نمایش محتوای آموزشی دسته‌بندی: {str(e)}")
+        logging.error(traceback.format_exc())
         await callback.message.answer("⚠️ خطایی در نمایش محتوای آموزشی رخ داد. لطفا مجددا تلاش کنید.")
 
 @router.callback_query(F.data == f"{EDUCATION_PREFIX}categories")
