@@ -11,7 +11,9 @@ from datetime import datetime
 from database import Database
 from configuration import (
     PRODUCTS_BTN, SERVICES_BTN, INQUIRY_BTN, EDUCATION_BTN, 
-    CONTACT_BTN, ABOUT_BTN, SEARCH_BTN
+    CONTACT_BTN, ABOUT_BTN, SEARCH_BTN, EDUCATION_PREFIX, 
+    PRODUCT_PREFIX, SERVICE_PREFIX, CATEGORY_PREFIX,
+    BACK_PREFIX, INQUIRY_PREFIX, ADMIN_PREFIX
 )
 
 # Initialize router and database - use name to better identify it in logs
@@ -260,65 +262,86 @@ async def callback_educational(callback: CallbackQuery):
         return
     
     # Create keyboard with educational categories
-    kb = InlineKeyboardBuilder()
-    for category in categories:
-        kb.button(text=category, callback_data=f"edu_cat:{category}")
-    
-    kb.button(text="🔙 بازگشت به منوی اصلی", callback_data="back_to_main")
-    kb.adjust(1)
+    from keyboards import education_categories_keyboard
+    keyboard = education_categories_keyboard(categories)
     
     await callback.message.answer("🎓 دسته‌بندی محتوای آموزشی را انتخاب کنید:", 
-                               reply_markup=kb.as_markup())
+                               reply_markup=keyboard)
 
-@router.callback_query(F.data.startswith("edu_cat:"))
+@router.callback_query(F.data.startswith(f"{EDUCATION_PREFIX}cat_"))
 async def callback_educational_category(callback: CallbackQuery):
     """Handle educational category selection"""
     await callback.answer()
     
-    # Extract category name
-    category = callback.data.split(':', 1)[1]
-    
-    # Get educational content for this category
-    content_list = db.get_all_educational_content(category)
-    
-    if not content_list:
-        await callback.message.answer(f"محتوای آموزشی برای دسته {category} موجود نیست.")
-        return
-    
-    # Create keyboard with content items
-    kb = InlineKeyboardBuilder()
-    for content in content_list:
-        kb.button(text=content['title'], callback_data=f"edu_content:{content['id']}")
-    
-    kb.button(text="🔙 بازگشت به دسته‌بندی‌ها", callback_data="educational")
-    kb.adjust(1)
-    
-    await callback.message.answer(f"📚 محتوای آموزشی دسته {category}:", 
-                               reply_markup=kb.as_markup())
+    try:
+        # استخراج شناسه دسته‌بندی
+        category_id = int(callback.data.replace(f"{EDUCATION_PREFIX}cat_", ""))
+        
+        # دریافت اطلاعات دسته‌بندی
+        category_info = None
+        categories = db.get_educational_categories()
+        for cat in categories:
+            if cat['id'] == category_id:
+                category_info = cat
+                break
+                
+        if not category_info:
+            await callback.message.answer("⚠️ دسته‌بندی مورد نظر یافت نشد.")
+            return
+            
+        category_name = category_info['name']
+        
+        # دریافت محتوای آموزشی برای این دسته‌بندی
+        content_list = db.get_all_educational_content(category_id=category_id)
+        
+        if not content_list:
+            await callback.message.answer(f"⚠️ محتوای آموزشی برای دسته‌بندی '{category_name}' موجود نیست.")
+            return
+        
+        # ساخت کیبورد با آیتم‌های محتوا
+        from keyboards import education_content_keyboard
+        keyboard = education_content_keyboard(content_list, category_id)
+        
+        await callback.message.answer(f"📚 محتوای آموزشی در دسته‌بندی '{category_name}':", 
+                               reply_markup=keyboard)
+    except Exception as e:
+        logging.error(f"خطا در نمایش محتوای آموزشی دسته‌بندی: {str(e)}")
+        await callback.message.answer("⚠️ خطایی در نمایش محتوای آموزشی رخ داد. لطفا مجددا تلاش کنید.")
 
-@router.callback_query(F.data.startswith("edu_content:"))
+@router.callback_query(F.data.startswith(f"{EDUCATION_PREFIX}"))
 async def callback_educational_content(callback: CallbackQuery):
-    """Handle educational content selection"""
+    """Handle educational content selection - direct navigation to content"""
     await callback.answer()
     
-    # Extract content ID
-    content_id = int(callback.data.split(':', 1)[1])
-    
-    # Get content details
-    content = db.get_educational_content(content_id)
-    
-    if not content:
-        await callback.message.answer("محتوای آموزشی مورد نظر یافت نشد.")
-        return
-    
-    # Format the content based on its type
-    content_text = f"📖 {content['title']}\n\n{content['content']}"
-    
-    # Add back button
-    kb = InlineKeyboardBuilder()
-    kb.button(text="🔙 بازگشت به لیست محتوا", callback_data=f"edu_cat:{content['category']}")
-    
-    await callback.message.answer(content_text, reply_markup=kb.as_markup())
+    try:
+        # Extract content ID (removing the prefix)
+        content_id = int(callback.data.replace(f"{EDUCATION_PREFIX}", ""))
+        
+        # Get content details
+        content = db.get_educational_content(content_id)
+        
+        if not content:
+            await callback.message.answer("⚠️ محتوای آموزشی مورد نظر یافت نشد.")
+            return
+        
+        # Format the content based on its type
+        content_text = f"📖 *{content['title']}*\n\n{content['content']}"
+        
+        # Get category_id for back button
+        category_id = content.get('category_id')
+        if not category_id:
+            # اگر category_id موجود نیست، به صفحه اصلی دسته‌بندی‌ها برگردیم
+            from keyboards import education_detail_keyboard
+            keyboard = education_detail_keyboard(0)  # صفر به عنوان پیش‌فرض
+        else:
+            from keyboards import education_detail_keyboard
+            keyboard = education_detail_keyboard(category_id)
+            
+        # ارسال محتوا
+        await callback.message.answer(content_text, parse_mode="Markdown", reply_markup=keyboard)
+    except Exception as e:
+        logging.error(f"خطا در نمایش محتوای آموزشی: {str(e)}")
+        await callback.message.answer("⚠️ خطایی در نمایش محتوا رخ داد. لطفا مجددا تلاش کنید.")
 
 @router.callback_query(F.data == "back_to_main")
 async def callback_back_to_main(callback: CallbackQuery, state: FSMContext):
