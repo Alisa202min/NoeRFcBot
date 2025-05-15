@@ -3114,8 +3114,10 @@ def restore_database():
         temp_path = os.path.join(temp_dir, safe_filename)
         backup_file.save(temp_path)
         
-        # مدل‌های دیتابیس برای بازیابی
+        # مدل‌های دیتابیس برای بازیابی - با اولویت‌بندی برای رعایت محدودیت‌های کلید خارجی
         models_map = {
+            'product_categories.csv': ProductCategory,
+            'service_categories.csv': ServiceCategory,
             'products.csv': Product,
             'services.csv': Service,
             'inquiries.csv': Inquiry,
@@ -3123,8 +3125,6 @@ def restore_database():
             'product_media.csv': ProductMedia,
             'service_media.csv': ServiceMedia,
             'educational_media.csv': EducationalContentMedia,
-            'product_categories.csv': ProductCategory,
-            'service_categories.csv': ServiceCategory,
             'users.csv': User,
             'static_content.csv': StaticContent,
         }
@@ -3166,111 +3166,120 @@ def restore_database():
                 logger.info(f"فایل‌های موجود در بک‌آپ: {', '.join(file_list)}")
                 logger.info(f"تعریف شده در models_map: {', '.join(models_map.keys())}")
                 
-                # بازیابی هر جدول
-                for csv_filename in file_list:
-                    if csv_filename in models_map:
-                        model = models_map[csv_filename]
-                        logger.info(f"بازیابی فایل {csv_filename} با مدل {model.__name__}")
+                # بازیابی هر جدول به ترتیب تعریف شده در models_map
+                # این برای رعایت محدودیت‌های کلید خارجی ضروری است
+                for csv_filename in models_map.keys():
+                    # بررسی اینکه آیا این فایل در ZIP وجود دارد
+                    if csv_filename not in file_list:
+                        logger.info(f"فایل {csv_filename} در بک‌آپ موجود نیست")
+                        continue
+                    
+                    # دریافت مدل مربوطه
+                    model = models_map[csv_filename]
+                    logger.info(f"بازیابی فایل {csv_filename} با مدل {model.__name__}")
+                    
+                    try:
+                        # استخراج فایل CSV
+                        csv_content = zip_ref.read(csv_filename).decode('utf-8')
+                        csv_file = io.StringIO(csv_content)
+                        reader = csv.reader(csv_file)
                         
-                        try:
-                            # استخراج فایل CSV
-                            csv_content = zip_ref.read(csv_filename).decode('utf-8')
-                            csv_file = io.StringIO(csv_content)
-                            reader = csv.reader(csv_file)
-                            
-                            # خواندن نام ستون‌ها (سطر اول)
-                            headers = next(reader, None)
-                            if not headers:
-                                skipped_tables.append(csv_filename)
-                                continue
-                            
-                            # خواندن داده‌ها و افزودن به دیتابیس
-                            # بررسی اینکه آیا کاربر می‌خواهد جداول پاکسازی شوند یا خیر
-                            should_clear_tables = request.form.get('clear_tables') == 'on'
-                            # تعریف متغیرها برای شمارش
-                            restored_rows = 0
-                            error_rows = 0
-                            
-                            if should_clear_tables:
-                                try:
-                                    # تعداد رکوردهای موجود را ذخیره می‌کنیم
-                                    existing_count = db.session.query(model).count()
-                                    # حذف تمام رکوردهای جدول
-                                    db.session.query(model).delete()
-                                    db.session.commit()
-                                    logger.info(f"جدول {csv_filename} با {existing_count} رکورد پاکسازی شد.")
-                                except Exception as clear_error:
-                                    db.session.rollback()
-                                    logger.error(f"خطا در پاکسازی جدول {csv_filename}: {str(clear_error)}")
-                                    skipped_tables.append(f"{csv_filename} (خطای پاکسازی: {str(clear_error)})")
-                                    continue
-                            
-                            # اکنون داده‌های جدید را اضافه می‌کنیم
-                            for row in reader:
-                                # ساخت دیکشنری ستون-مقدار
-                                data = {}
-                                for i, column in enumerate(headers):
-                                    if i < len(row):
-                                        # تبدیل رشته خالی به None
-                                        value = row[i]
-                                        if value == "":
-                                            value = None
-                                        data[column] = value
-                                
-                                try:
-                                    # ایجاد یک نمونه جدید از مدل
-                                    item = model()
-                                    for column, value in data.items():
-                                        if hasattr(item, column):
-                                            try:
-                                                setattr(item, column, value)
-                                            except Exception as attr_error:
-                                                logger.error(f"خطا در تنظیم ویژگی {column} با مقدار {value}: {str(attr_error)}")
-                                                # تلاش برای تبدیل نوع داده در صورت ارور
-                                                if column == 'id' or column.endswith('_id'):
-                                                    try:
-                                                        # تبدیل به عدد صحیح
-                                                        int_value = int(value) if value else None
-                                                        setattr(item, column, int_value)
-                                                    except:
-                                                        pass
-                                    
-                                    # افزودن به دیتابیس
-                                    db.session.add(item)
-                                    # افزایش شمارنده ردیف‌های بازیابی شده
-                                    restored_rows += 1
-                                    # برای امنیت بیشتر، هر 100 آیتم یک بار کامیت می‌کنیم
-                                    if restored_rows % 100 == 0:
-                                        try:
-                                            db.session.commit()
-                                            logger.info(f"کامیت موفق {restored_rows} آیتم برای {csv_filename}")
-                                        except Exception as commit_error:
-                                            db.session.rollback()
-                                            logger.error(f"خطا در کامیت {csv_filename}: {str(commit_error)}")
-                                            raise
-                                except Exception as item_error:
-                                    logger.error(f"خطا در افزودن آیتم در {csv_filename}: {str(item_error)}")
-                                    continue
-                            
-                            # ذخیره نهایی تغییرات
+                        # خواندن نام ستون‌ها (سطر اول)
+                        headers = next(reader, None)
+                        if not headers:
+                            skipped_tables.append(csv_filename)
+                            continue
+                        
+                        # بررسی اینکه آیا کاربر می‌خواهد جداول پاکسازی شوند یا خیر
+                        should_clear_tables = request.form.get('clear_tables') == 'on'
+                        # تعریف متغیرها برای شمارش
+                        restored_rows = 0
+                        error_rows = 0
+                        
+                        if should_clear_tables:
                             try:
+                                # تعداد رکوردهای موجود را ذخیره می‌کنیم
+                                existing_count = db.session.query(model).count()
+                                # حذف تمام رکوردهای جدول
+                                db.session.query(model).delete()
                                 db.session.commit()
-                                logger.info(f"کامیت نهایی موفق برای {csv_filename}: {restored_rows} آیتم")
-                            except Exception as final_commit_error:
+                                logger.info(f"جدول {csv_filename} با {existing_count} رکورد پاکسازی شد.")
+                            except Exception as clear_error:
                                 db.session.rollback()
-                                logger.error(f"خطا در کامیت نهایی {csv_filename}: {str(final_commit_error)}")
-                                raise
-                            restored_tables.append(csv_filename)
+                                logger.error(f"خطا در پاکسازی جدول {csv_filename}: {str(clear_error)}")
+                                skipped_tables.append(f"{csv_filename} (خطای پاکسازی: {str(clear_error)})")
+                                continue
+                        
+                        # اکنون داده‌های جدید را اضافه می‌کنیم
+                        for row in reader:
+                            # ساخت دیکشنری ستون-مقدار
+                            data = {}
+                            for i, column in enumerate(headers):
+                                if i < len(row):
+                                    # تبدیل رشته خالی به None
+                                    value = row[i]
+                                    if value == "":
+                                        value = None
+                                    data[column] = value
                             
-                        except Exception as table_error:
+                            try:
+                                # ایجاد یک نمونه جدید از مدل
+                                item = model()
+                                for column, value in data.items():
+                                    if hasattr(item, column):
+                                        try:
+                                            setattr(item, column, value)
+                                        except Exception as attr_error:
+                                            logger.error(f"خطا در تنظیم ویژگی {column} با مقدار {value}: {str(attr_error)}")
+                                            # تلاش برای تبدیل نوع داده در صورت ارور
+                                            if column == 'id' or column.endswith('_id'):
+                                                try:
+                                                    # تبدیل به عدد صحیح
+                                                    int_value = int(value) if value else None
+                                                    setattr(item, column, int_value)
+                                                except:
+                                                    pass
+                                            # تبدیل مقادیر بولین
+                                            elif column == 'is_admin' or column == 'in_stock' or column == 'featured':
+                                                if value in ('True', 'true', '1', 'yes', 'Y', 'بله'):
+                                                    setattr(item, column, True)
+                                                elif value in ('False', 'false', '0', 'no', 'N', 'خیر'):
+                                                    setattr(item, column, False)
+                                                else:
+                                                    setattr(item, column, value)
+                                
+                                # افزودن به دیتابیس
+                                db.session.add(item)
+                                # افزایش شمارنده ردیف‌های بازیابی شده
+                                restored_rows += 1
+                                # برای امنیت بیشتر، هر 100 آیتم یک بار کامیت می‌کنیم
+                                if restored_rows % 100 == 0:
+                                    try:
+                                        db.session.commit()
+                                        logger.info(f"کامیت موفق {restored_rows} آیتم برای {csv_filename}")
+                                    except Exception as commit_error:
+                                        db.session.rollback()
+                                        logger.error(f"خطا در کامیت {csv_filename}: {str(commit_error)}")
+                                        raise
+                            except Exception as item_error:
+                                logger.error(f"خطا در افزودن آیتم در {csv_filename}: {str(item_error)}")
+                                continue
+                        
+                        # ذخیره نهایی تغییرات
+                        try:
+                            db.session.commit()
+                            logger.info(f"کامیت نهایی موفق برای {csv_filename}: {restored_rows} آیتم")
+                            restored_tables.append(csv_filename)
+                        except Exception as final_commit_error:
                             db.session.rollback()
-                            model_name = models_map[csv_filename].__name__ if csv_filename in models_map else "نامشخص"
-                            logger.error(f"خطا در بازیابی جدول {csv_filename} (مدل {model_name}): {str(table_error)}")
-                            error_tables.append(f"{csv_filename} ({model_name})")
-                    else:
-                        # این فایل در نقشه مدل‌ها پیدا نشد
-                        logger.warning(f"فایل {csv_filename} نگاشت مدل مناسبی ندارد")
-                        skipped_tables.append(f"{csv_filename} (نگاشت نامعتبر)")
+                            logger.error(f"خطا در کامیت نهایی {csv_filename}: {str(final_commit_error)}")
+                            error_tables.append(f"{csv_filename} (خطای کامیت نهایی)")
+                    
+                    except Exception as table_error:
+                        db.session.rollback()
+                        model_name = model.__name__ if model else "نامشخص"
+                        logger.error(f"خطا در بازیابی جدول {csv_filename} (مدل {model_name}): {str(table_error)}")
+                        error_tables.append(f"{csv_filename} ({model_name})")
         finally:
             # پاک کردن فایل موقت
             os.unlink(temp_path)
