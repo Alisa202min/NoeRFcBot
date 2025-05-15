@@ -308,7 +308,9 @@ async def callback_educational_category(callback: CallbackQuery):
         logging.error(f"خطا در نمایش محتوای آموزشی دسته‌بندی: {str(e)}")
         await callback.message.answer("⚠️ خطایی در نمایش محتوای آموزشی رخ داد. لطفا مجددا تلاش کنید.")
 
-@router.callback_query(F.data.startswith(f"{EDUCATION_PREFIX}"))
+@router.callback_query(
+    lambda c: c.data and c.data.startswith(f"{EDUCATION_PREFIX}") and "cat_" not in c.data and "categories" not in c.data
+)
 async def callback_educational_content(callback: CallbackQuery):
     """Handle educational content selection - direct navigation to content"""
     await callback.answer()
