@@ -1320,11 +1320,12 @@ def admin_education():
                             )
                             
                             # تنظیم local_path بعد از ساخت آبجکت
-                            if hasattr(media, 'local_path'):
+                            try:
                                 media.local_path = current_file_path
-                            else:
-                                # اگر ویژگی local_path موجود نیست، پیام لاگ بنویسیم
-                                logger.warning(f"EducationalContentMedia does not have local_path attribute. Path not saved: {current_file_path}")
+                                logger.info(f"local_path تنظیم شد: {current_file_path}")
+                            except Exception as e:
+                                # اگر تنظیم local_path با خطا مواجه شد
+                                logger.warning(f"خطا در تنظیم local_path: {e} - path: {current_file_path}")
                             
                             db.session.add(media)
                             logger.info(f"فایل رسانه اضافه شد: {media_file_id} - {current_file_path}")
@@ -2011,6 +2012,19 @@ def telegram_file(file_id):
             elif isinstance(media, EducationalContentMedia):
                 # برای فایل‌های محتوای آموزشی
                 logger.info("This is an EducationalContentMedia record")
+                
+                # اگر local_path وجود دارد، از آن استفاده می‌کنیم
+                if hasattr(media, 'local_path') and media.local_path:
+                    logger.info(f"Using EducationalContentMedia local_path: {media.local_path}")
+                    
+                    # اگر local_path با static/ شروع می‌شود
+                    if media.local_path.startswith('static/'):
+                        relative_path = media.local_path.replace('static/', '', 1)
+                        logger.info(f"Serving educational media with static route: {relative_path}")
+                        return redirect(url_for('static', filename=relative_path))
+                    
+                    # اگر قبلاً ذخیره شده و full path نیست
+                    return redirect(url_for('static', filename=media.local_path))
                 
                 # ساخت مسیر استاندارد برای فایل‌های محتوای آموزشی
                 if media.file_id.startswith('educational_content_image_'):
