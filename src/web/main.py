@@ -1142,9 +1142,10 @@ def admin_inquiries():
         # ایجاد فایل CSV
         output = StringIO()
         writer = csv.writer(output)
-        
-        # هدر فایل
-        writer.writerow(['ID', 'تاریخ', 'نام', 'شماره تماس', 'توضیحات', 'وضعیت', 'نوع محصول', 'شناسه محصول'])
+        # نوشتن هدر
+        writer.writerow([
+            'شناسه', 'تاریخ', 'نام', 'تلفن', 'توضیحات', 'وضعیت', 'شناسه محصول/خدمت'
+        ])
         
         # داده‌ها
         inquiries = query.order_by(Inquiry.created_at.desc()).all()
@@ -1156,8 +1157,7 @@ def admin_inquiries():
                 inquiry.phone,
                 inquiry.description,
                 inquiry.status,
-                inquiry.product_type,
-                inquiry.product_id
+                inquiry.product_id if inquiry.product_id else inquiry.service_id
             ])
         
         # ارسال فایل

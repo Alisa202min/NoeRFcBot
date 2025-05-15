@@ -253,6 +253,16 @@ class Inquiry(db.Model):
     def related_service(self):
         """For backward compatibility"""
         return self.service
+    
+    @property
+    def product_type(self):
+        """نوع محصول یا خدمت را برای استفاده در خروجی CSV برمی‌گرداند"""
+        if self.product_id:
+            return 'محصول'
+        elif self.service_id:
+            return 'خدمت'
+        else:
+            return 'نامشخص'
 
 
 class ServiceInquiry(db.Model):
