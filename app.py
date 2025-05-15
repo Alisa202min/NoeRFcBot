@@ -30,7 +30,7 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 }
 
 # Configure Flask-Uploads
-from utils_upload import UploadSet, IMAGES, VIDEO, configure_uploads
+from src.utils.utils_upload import UploadSet, IMAGES, VIDEO, configure_uploads
 
 # Add mp4 to allowed formats
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4'} 
@@ -56,8 +56,13 @@ login_manager.login_view = 'login'
 # Load user function for Flask-Login
 @login_manager.user_loader
 def load_user(user_id):
+    # Import inside function to avoid circular import
     from models import User
-    return User.query.get(int(user_id))
+    try:
+        return User.query.get(int(user_id))
+    except Exception as e:
+        print(f"Error loading user: {e}")
+        return None
 
 # Create database tables
 with app.app_context():
@@ -69,9 +74,5 @@ with app.app_context():
     
     # Create admin user if not exists
     from models import User
-    admin = User.query.filter_by(username='admin').first()
-    if not admin:
-        admin = User(username='admin', email='admin@example.com', is_admin=True)
-        admin.set_password('admin')  # Set a default password - should be changed immediately
-        db.session.add(admin)
-        db.session.commit()
+    # Defer admin user creation to avoid circular import during startup
+    # Admin user will be created on first access if needed

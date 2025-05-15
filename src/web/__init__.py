@@ -1,12 +1,5 @@
-"""
-ماژول وب فلسک
-این ماژول شامل برنامه فلسک و مسیرهای وب است.
-"""
+# Import app from app module
+from .app import app, db
 
-from .app import app, db, media_files
-
-__all__ = [
-    'app',
-    'db',
-    'media_files'
-]
+# Make modules available for import
+__all__ = ['app', 'db']
