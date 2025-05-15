@@ -67,7 +67,14 @@
                                     </div>
                                     
                                     {% if content %}
-                                    <!-- نمایش مدیا فقط با استفاده از media_list -->
+                                    <!-- نمایش اطلاعات محتوا (برای اطلاع) -->
+                                    <div class="mt-3 mb-2">
+                                        <div class="alert alert-info">
+                                            <p><strong>عنوان محتوا:</strong> {{ content.title }}</p>
+                                            <p><strong>دسته‌بندی:</strong> {{ content.category }}</p>
+                                            <p><strong>نوع محتوا:</strong> {{ content.content_type }}</p>
+                                        </div>
+                                    </div>
                                     {% endif %}
                                     
                                     <!-- نمایش فایل‌های ضمیمه موجود -->
