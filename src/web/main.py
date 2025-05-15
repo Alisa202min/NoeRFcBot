@@ -1219,13 +1219,25 @@ def admin_education():
         if category == 'new_category':
             category = request.form.get('new_category')
         
-        # بررسی آپلود فایل برای محتوای نوع تصویر، ویدیو یا فایل
-        uploaded_file = request.files.get('file')
-        file_path = None
+        # بررسی آپلود فایل‌ها برای محتوای نوع تصویر، ویدیو یا فایل
+        uploaded_files = request.files.getlist('file')
+        logger.info(f"تعداد فایل‌های آپلود شده: {len(uploaded_files)}")
         
-        if uploaded_file and uploaded_file.filename and allowed_file(uploaded_file.filename):
-            # ذخیره فایل
-            file_path = save_uploaded_file(uploaded_file, 'educational')
+        file_paths = []
+        main_file_path = None
+        
+        # پردازش تمام فایل‌های آپلود شده
+        for uploaded_file in uploaded_files:
+            if uploaded_file and uploaded_file.filename and allowed_file(uploaded_file.filename):
+                # ذخیره فایل
+                file_path = save_uploaded_file(uploaded_file, 'educational')
+                file_paths.append(file_path)
+                
+                # اولین فایل را به عنوان فایل اصلی در نظر می‌گیریم (برای سازگاری با کد قبلی)
+                if main_file_path is None:
+                    main_file_path = file_path
+                
+                logger.info(f"فایل ذخیره شد: {file_path}")
         
         try:
             if content_id:
@@ -1237,31 +1249,39 @@ def admin_education():
                     content.content_type = content_type
                     
                     # اگر فایل جدید آپلود شده، از آن استفاده می‌کنیم
-                    if file_path and (content_type in ['image', 'video', 'file']):
-                        content.content = file_path
+                    if main_file_path and (content_type in ['image', 'video', 'file']):
+                        # فایل اصلی را در فیلد content ذخیره می‌کنیم (برای سازگاری با کد قبلی)
+                        content.content = main_file_path
                         
-                        # اضافه کردن فایل به EducationalContentMedia
-                        media_file_id = f"educational_content_image_{content.id}_{int(time.time())}"
-                        file_type = 'photo'
-                        if content_type == 'video':
-                            file_type = 'video'
-                            media_file_id = f"educational_content_video_{content.id}_{int(time.time())}"
-                        elif content_type == 'file':
-                            file_type = 'file'
+                        # همه فایل‌ها (شامل فایل اصلی و ضمیمه‌ها) را به EducationalContentMedia اضافه می‌کنیم
+                        for idx, current_file_path in enumerate(file_paths):
+                            timestamp = int(time.time()) + idx  # زمان + ایندکس برای جلوگیری از تکرار
+                            media_file_id = f"educational_content_image_{content.id}_{timestamp}"
+                            file_type = 'photo'
                             
-                        # ساخت رکورد جدید فایل
-                        media = EducationalContentMedia(
-                            educational_content_id=content.id,
-                            file_id=media_file_id,
-                            file_type=file_type
-                        )
-                        # تنظیم local_path بعد از ساخت آبجکت
-                        if hasattr(media, 'local_path'):
-                            media.local_path = file_path
-                        else:
-                            # اگر ویژگی local_path موجود نیست، پیام لاگ بنویسیم
-                            logger.warning(f"EducationalContentMedia does not have local_path attribute. Path not saved: {file_path}")
-                        db.session.add(media)
+                            # تشخیص نوع فایل
+                            if content_type == 'video' or current_file_path.lower().endswith(('.mp4', '.avi', '.mov', '.mkv')):
+                                file_type = 'video'
+                                media_file_id = f"educational_content_video_{content.id}_{timestamp}"
+                            elif content_type == 'file' or not current_file_path.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')):
+                                file_type = 'file'
+                                
+                            # ساخت رکورد جدید فایل
+                            media = EducationalContentMedia(
+                                educational_content_id=content.id,
+                                file_id=media_file_id,
+                                file_type=file_type
+                            )
+                            
+                            # تنظیم local_path بعد از ساخت آبجکت
+                            if hasattr(media, 'local_path'):
+                                media.local_path = current_file_path
+                            else:
+                                # اگر ویژگی local_path موجود نیست، پیام لاگ بنویسیم
+                                logger.warning(f"EducationalContentMedia does not have local_path attribute. Path not saved: {current_file_path}")
+                            
+                            db.session.add(media)
+                            logger.info(f"فایل رسانه اضافه شد: {media_file_id} - {current_file_path}")
                     # در غیر این صورت، فقط اگر نوع محتوا متن باشد، متن را به‌روزرسانی می‌کنیم
                     elif content_type == 'text':
                         content.content = content_text
@@ -1276,37 +1296,47 @@ def admin_education():
                 content.content_type = content_type
                 
                 # تنظیم محتوا بر اساس نوع
-                if file_path and (content_type in ['image', 'video', 'file']):
-                    content.content = file_path
+                if main_file_path and (content_type in ['image', 'video', 'file']):
+                    content.content = main_file_path
                 else:
                     content.content = content_text
                 
                 db.session.add(content)
                 db.session.commit()
                 
-                # اگر فایل آپلود شده باشد، رکورد EducationalContentMedia هم ایجاد می‌کنیم
-                if file_path and (content_type in ['image', 'video', 'file']):
-                    media_file_id = f"educational_content_image_{content.id}_{int(time.time())}"
-                    file_type = 'photo'
-                    if content_type == 'video':
-                        file_type = 'video'
-                        media_file_id = f"educational_content_video_{content.id}_{int(time.time())}"
-                    elif content_type == 'file':
-                        file_type = 'file'
+                # اگر فایل‌های آپلود شده داریم، رکورد EducationalContentMedia برای هر فایل ایجاد می‌کنیم
+                if file_paths and (content_type in ['image', 'video', 'file']):
+                    # اضافه کردن تمام فایل‌ها به EducationalContentMedia
+                    for idx, current_file_path in enumerate(file_paths):
+                        timestamp = int(time.time()) + idx  # زمان + ایندکس برای جلوگیری از تکرار
+                        media_file_id = f"educational_content_image_{content.id}_{timestamp}"
+                        file_type = 'photo'
                         
-                    # ساخت رکورد جدید فایل
-                    media = EducationalContentMedia(
-                        educational_content_id=content.id,
-                        file_id=media_file_id,
-                        file_type=file_type
-                    )
-                    # تنظیم local_path بعد از ساخت آبجکت
-                    if hasattr(media, 'local_path'):
-                        media.local_path = file_path
-                    else:
-                        # اگر ویژگی local_path موجود نیست، پیام لاگ بنویسیم
-                        logger.warning(f"EducationalContentMedia does not have local_path attribute. Path not saved: {file_path}")
-                    db.session.add(media)
+                        # تشخیص نوع فایل
+                        if content_type == 'video' or current_file_path.lower().endswith(('.mp4', '.avi', '.mov', '.mkv')):
+                            file_type = 'video'
+                            media_file_id = f"educational_content_video_{content.id}_{timestamp}"
+                        elif content_type == 'file' or not current_file_path.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')):
+                            file_type = 'file'
+                            media_file_id = f"educational_content_file_{content.id}_{timestamp}"
+                            
+                        # ساخت رکورد جدید فایل
+                        media = EducationalContentMedia(
+                            educational_content_id=content.id,
+                            file_id=media_file_id,
+                            file_type=file_type
+                        )
+                        
+                        # تنظیم local_path بعد از ساخت آبجکت
+                        if hasattr(media, 'local_path'):
+                            media.local_path = current_file_path
+                        else:
+                            # اگر ویژگی local_path موجود نیست، پیام لاگ بنویسیم
+                            logger.warning(f"EducationalContentMedia does not have local_path attribute. Path not saved: {current_file_path}")
+                        
+                        db.session.add(media)
+                        logger.info(f"فایل رسانه اضافه شد: {media_file_id} - {current_file_path}")
+                    
                     db.session.commit()
                 flash('محتوای آموزشی جدید با موفقیت ایجاد شد.', 'success')
         
