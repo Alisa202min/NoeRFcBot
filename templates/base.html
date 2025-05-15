@@ -307,26 +307,7 @@
     <!-- Main content -->
     <div class="main-content">
         {% if active_page not in ['dashboard', 'configuration', 'admin'] %}
-        <!-- Search bar -->
-        <div class="search-bar bg-light py-3 border-bottom">
-            <div class="container">
-                <div class="row justify-content-center">
-                    <div class="col-md-6">
-                        <form action="{{ url_for('search') }}" method="GET">
-                            <div class="input-group">
-                                <input type="text" class="form-control" name="query" placeholder="جستجو در محصولات و خدمات...">
-                                <button class="btn btn-primary" type="submit">
-                                    <i class="bi bi-search"></i>
-                                </button>
-                                <a href="{{ url_for('search') }}" class="btn btn-outline-secondary" title="جستجوی پیشرفته">
-                                    <i class="bi bi-funnel"></i>
-                                </a>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
+       
         {% endif %}
         
         <div class="content-wrapper fade-in">
