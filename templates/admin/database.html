@@ -1,6 +1,13 @@
 {% extends 'admin_layout.html' %}
 {% set active_page = 'database' %}
 
+{% block head_extra %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap5.min.js"></script>
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap5.min.css">
+{% endblock %}
+
 {% block title %}مدیریت پایگاه داده{% endblock %}
 
 {% block content %}
@@ -140,20 +147,19 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- افزودن کتابخانه‌های مورد نیاز برای دیتاتیبل -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap5.min.js"></script>
-<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap5.min.css">
-
 <script>
-$(document).ready(function() {
-    $('#dataTable').DataTable({
-        "order": [[0, "asc"]],
-        "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.10.21/i18n/Persian.json"
-        }
-    });
+document.addEventListener('DOMContentLoaded', function() {
+    // وقتی کتابخانه‌ها بارگذاری شدند، دیتاتیبل را راه‌اندازی می‌کنیم
+    if (typeof $ !== 'undefined') {
+        $('#dataTable').DataTable({
+            "order": [[0, "asc"]],
+            "language": {
+                "url": "//cdn.datatables.net/plug-ins/1.10.21/i18n/Persian.json"
+            }
+        });
+    } else {
+        console.error('jQuery is not loaded properly');
+    }
 });
 </script>
 {% endblock %}
