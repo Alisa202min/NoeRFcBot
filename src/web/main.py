@@ -2724,13 +2724,15 @@ def view_table_data(table_name):
         # مپ کردن نام جدول به کلاس مدل
         model_map = {
             'users': User,
-            'categories': Category,
+            'product_categories': ProductCategory,
+            'service_categories': ServiceCategory,
             'products': Product,
-            
+            'services': Service,
             'product_media': ProductMedia,
-            
+            'service_media': ServiceMedia,
             'inquiries': Inquiry,
             'educational_content': EducationalContent,
+            'educational_media': EducationalContentMedia,
             'static_content': StaticContent
         }
         
@@ -3236,13 +3238,15 @@ def export_table_csv(table_name):
         # مپ کردن نام جدول به کلاس مدل
         model_map = {
             'users': User,
-            'categories': Category,
+            'product_categories': ProductCategory,
+            'service_categories': ServiceCategory,
             'products': Product,
-            
+            'services': Service,
             'product_media': ProductMedia,
-            
+            'service_media': ServiceMedia,
             'inquiries': Inquiry,
             'educational_content': EducationalContent,
+            'educational_media': EducationalContentMedia,
             'static_content': StaticContent
         }
         
