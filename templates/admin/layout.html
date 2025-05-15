@@ -82,37 +82,37 @@
                     </div>
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link {% if request.path == '/admin' or request.path == '/admin/' %}active{% endif %}" href="{{ url_for('admin_index') }}">
+                            <a class="nav-link {% if request.path == '/admin' or request.path == '/admin/' %}active{% endif %}" href="{{ url_for('admin') }}">
                                 <i class="fas fa-home me-2"></i>
                                 داشبورد
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if '/admin/products' in request.path %}active{% endif %}" href="{{ url_for('admin_products') }}">
+                            <a class="nav-link {% if '/admin/products' in request.path %}active{% endif %}" href="#">
                                 <i class="fas fa-box me-2"></i>
                                 محصولات
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if '/admin/services' in request.path %}active{% endif %}" href="{{ url_for('admin_services') }}">
+                            <a class="nav-link {% if '/admin/services' in request.path %}active{% endif %}" href="#">
                                 <i class="fas fa-cogs me-2"></i>
                                 خدمات
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if '/admin/categories' in request.path %}active{% endif %}" href="{{ url_for('admin_categories') }}">
+                            <a class="nav-link {% if '/admin/categories' in request.path %}active{% endif %}" href="#">
                                 <i class="fas fa-folder me-2"></i>
                                 دسته‌بندی‌ها
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if '/admin/inquiries' in request.path %}active{% endif %}" href="{{ url_for('admin_inquiries') }}">
+                            <a class="nav-link {% if '/admin/inquiries' in request.path %}active{% endif %}" href="#">
                                 <i class="fas fa-question-circle me-2"></i>
                                 استعلام‌ها
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if '/admin/database' in request.path %}active{% endif %}" href="{{ url_for('admin_database') }}">
+                            <a class="nav-link {% if '/admin/database' in request.path %}active{% endif %}" href="#">
                                 <i class="fas fa-database me-2"></i>
                                 پایگاه داده
                             </a>
