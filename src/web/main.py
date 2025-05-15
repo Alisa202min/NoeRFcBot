@@ -3286,6 +3286,18 @@ def restore_database():
                                     else:
                                         processed_data[column] = value
                                 
+                                # بررسی و اصلاح مقادیر برای جداول رسانه
+                                if model.__name__ in ['ProductMedia', 'ServiceMedia', 'EducationalContentMedia']:
+                                    # اگر file_id خالی است ولی local_path وجود دارد، از local_path استفاده کنیم
+                                    if 'file_id' in processed_data and processed_data['file_id'] is None:
+                                        if 'local_path' in processed_data and processed_data['local_path']:
+                                            logger.info(f"جایگزینی file_id با local_path: {processed_data['local_path']}")
+                                            processed_data['file_id'] = processed_data['local_path']
+                                        else:
+                                            # اگر فایل محلی هم نداریم، یک مقدار پیش‌فرض قرار دهیم
+                                            logger.warning(f"تنظیم file_id پیش‌فرض برای رکورد {processed_data.get('id', '?')}")
+                                            processed_data['file_id'] = f"default_media_{processed_data.get('id', 'unknown')}"
+                                
                                 # ساخت آیتم با مقادیر پردازش شده
                                 try:
                                     # ساخت مدل با تمام داده‌های پردازش شده در یک مرحله
@@ -3406,6 +3418,18 @@ def restore_database():
                                             # سایر فیلدها را بدون تغییر استفاده کن
                                             else:
                                                 processed_data[column] = value
+
+                                        # بررسی و اصلاح مقادیر برای جداول رسانه
+                                        if model.__name__ in ['ProductMedia', 'ServiceMedia', 'EducationalContentMedia']:
+                                            # اگر file_id خالی است ولی local_path وجود دارد، از local_path استفاده کنیم
+                                            if 'file_id' in processed_data and processed_data['file_id'] is None:
+                                                if 'local_path' in processed_data and processed_data['local_path']:
+                                                    logger.info(f"جایگزینی file_id با local_path در تک رکورد: {processed_data['local_path']}")
+                                                    processed_data['file_id'] = processed_data['local_path']
+                                                else:
+                                                    # اگر فایل محلی هم نداریم، یک مقدار پیش‌فرض قرار دهیم
+                                                    logger.warning(f"تنظیم file_id پیش‌فرض برای تک رکورد {processed_data.get('id', '?')}")
+                                                    processed_data['file_id'] = f"default_media_{processed_data.get('id', 'unknown')}"
                                         
                                         # تلاش برای ساخت آیتم جدید
                                         try:
