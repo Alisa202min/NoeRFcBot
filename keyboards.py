@@ -209,7 +209,7 @@ def education_content_keyboard(contents: List[Dict], category_id: int) -> Inline
     
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def education_detail_keyboard(category_id: int, category_name: str = None) -> InlineKeyboardMarkup:
+def education_detail_keyboard(category_id: int, category_name: Optional[str] = None) -> InlineKeyboardMarkup:
     """
     Create a keyboard for educational content detail
     
