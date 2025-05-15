@@ -3206,6 +3206,10 @@ def restore_database():
                         restored_rows = 0
                         error_rows = 0
                         
+                        # تشخیص نوع جدول برای مدیریت ویژه
+                        is_user_table = (model.__name__ == 'User')
+                        is_media_table = (model.__name__ in ['ProductMedia', 'ServiceMedia', 'EducationalContentMedia'])
+                        
                         if should_clear_tables:
                             try:
                                 # تعداد رکوردهای موجود را ذخیره می‌کنیم
@@ -3251,16 +3255,26 @@ def restore_database():
                                                     pass
                                             # تبدیل مقادیر بولین
                                             elif column == 'is_admin' or column == 'in_stock' or column == 'featured':
-                                                if isinstance(value, str) and value.lower() in ('true', '1', 'yes', 'y', 'بله'):
-                                                    setattr(item, column, True)
-                                                elif isinstance(value, str) and value.lower() in ('false', '0', 'no', 'n', 'خیر'):
-                                                    setattr(item, column, False)
-                                                elif value is None:
-                                                    setattr(item, column, False)
+                                                # مدیریت ویژه برای User.is_admin
+                                                if is_user_table and column == 'is_admin':
+                                                    # برای جدول User، با دقت بیشتری is_admin را تنظیم می‌کنیم
+                                                    if isinstance(value, str) and value.lower() in ('true', '1', 'yes', 'y', 'بله'):
+                                                        setattr(item, column, True)
+                                                    else:
+                                                        setattr(item, column, False)
+                                                    logger.info(f"تنظیم مقدار is_admin برای کاربر {getattr(item, 'id', '?')}: {getattr(item, 'is_admin', '?')}")
                                                 else:
-                                                    # اگر نمی‌توانیم به طور مطمئن تبدیل کنیم، پیش‌فرض False می‌گذاریم
-                                                    logger.warning(f"مقدار بولین نامعتبر برای {column}: {value} - مقدار False استفاده می‌شود")
-                                                    setattr(item, column, False)
+                                                    # مدیریت عمومی برای سایر فیلدهای بولین
+                                                    if isinstance(value, str) and value.lower() in ('true', '1', 'yes', 'y', 'بله'):
+                                                        setattr(item, column, True)
+                                                    elif isinstance(value, str) and value.lower() in ('false', '0', 'no', 'n', 'خیر'):
+                                                        setattr(item, column, False)
+                                                    elif value is None:
+                                                        setattr(item, column, False)
+                                                    else:
+                                                        # اگر نمی‌توانیم به طور مطمئن تبدیل کنیم، پیش‌فرض False می‌گذاریم
+                                                        logger.warning(f"مقدار بولین نامعتبر برای {column}: {value} - مقدار False استفاده می‌شود")
+                                                        setattr(item, column, False)
                                 
                                 # افزودن به دیتابیس
                                 db.session.add(item)
@@ -3337,20 +3351,70 @@ def restore_database():
                                                 except:
                                                     pass
                                         
-                                        # افزودن به دیتابیس و کامیت فوری
-                                        db.session.add(item)
-                                        try:
-                                            db.session.commit()
-                                            success_count += 1
-                                        except:
-                                            db.session.rollback()
+                                        # بررسی کلید خارجی قبل از درج - فقط برای جداول مدیا
+                                        foreign_key_valid = True
+                                        
+                                        # برای جدول ProductMedia، مطمئن شویم که product_id وجود دارد
+                                        if model.__name__ == 'ProductMedia' and hasattr(item, 'product_id') and item.product_id:
+                                            product_exists = db.session.query(db.exists().where(Product.id == item.product_id)).scalar()
+                                            if not product_exists:
+                                                foreign_key_valid = False
+                                                logger.warning(f"رد رکورد ProductMedia به دلیل وجود نداشتن product_id={item.product_id}")
+                                            
+                                        # برای جدول ServiceMedia، مطمئن شویم که service_id وجود دارد
+                                        elif model.__name__ == 'ServiceMedia' and hasattr(item, 'service_id') and item.service_id:
+                                            service_exists = db.session.query(db.exists().where(Service.id == item.service_id)).scalar()
+                                            if not service_exists:
+                                                foreign_key_valid = False
+                                                logger.warning(f"رد رکورد ServiceMedia به دلیل وجود نداشتن service_id={item.service_id}")
+                                                
+                                        # برای جدول EducationalContentMedia، مطمئن شویم که content_id وجود دارد
+                                        elif model.__name__ == 'EducationalContentMedia' and hasattr(item, 'content_id') and item.content_id:
+                                            content_exists = db.session.query(db.exists().where(EducationalContent.id == item.content_id)).scalar()
+                                            if not content_exists:
+                                                foreign_key_valid = False
+                                                logger.warning(f"رد رکورد EducationalContentMedia به دلیل وجود نداشتن content_id={item.content_id}")
+                                                
+                                        # فقط اگر رابطه‌ی کلید خارجی معتبر باشد، رکورد را اضافه کنیم
+                                        if foreign_key_valid:
+                                            # افزودن به دیتابیس و کامیت فوری
+                                            db.session.add(item)
+                                            try:
+                                                db.session.commit()
+                                                success_count += 1
+                                            except Exception as commit_error:
+                                                db.session.rollback()
+                                                logger.error(f"خطا در کامیت تک رکوردی: {str(commit_error)}")
                                     except:
                                         continue
                                 
+                                # گزارش آمار بازیابی تک رکوردی
+                                skipped_records = 0
+                                total_records = 0
+                                
+                                # برگرداندن CSV به ابتدا برای شمارش کل رکوردها
+                                csv_file.seek(0)
+                                reader = csv.reader(csv_file)
+                                next(reader, None)  # رد کردن هدر
+                                total_records = sum(1 for _ in reader)
+                                
+                                skipped_records = total_records - success_count
+                                
                                 if success_count > 0:
-                                    logger.info(f"بازیابی موفق {success_count} رکورد از {csv_filename} در حالت تک رکوردی")
-                                    restored_tables.append(f"{csv_filename} (جزئی: {success_count} رکورد)")
+                                    # تهیه گزارش مفصل
+                                    success_percent = (success_count / total_records) * 100 if total_records > 0 else 0
+                                    details = f"{success_count}/{total_records} رکورد ({success_percent:.1f}٪)"
+                                    
+                                    logger.info(f"بازیابی موفق {details} از {csv_filename} در حالت تک رکوردی")
+                                    
+                                    if success_count == total_records:
+                                        # همه رکوردها با موفقیت بازیابی شدند
+                                        restored_tables.append(f"{csv_filename}")
+                                    else:
+                                        # بازیابی جزئی
+                                        restored_tables.append(f"{csv_filename} (بازیابی جزئی: {details})")
                                 else:
+                                    logger.warning(f"عدم موفقیت در بازیابی {total_records} رکورد از {csv_filename}")
                                     error_tables.append(f"{csv_filename} (خطای کامیت نهایی)")
                             else:
                                 error_tables.append(f"{csv_filename} (خطای کامیت نهایی)")
