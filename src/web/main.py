@@ -2968,8 +2968,67 @@ def import_entity():
 @login_required
 def backup_database():
     """تهیه پشتیبان از دیتابیس"""
-    flash('این ویژگی هنوز پیاده‌سازی نشده است.', 'warning')
-    return redirect(url_for('admin_import_export'))
+    try:
+        import os
+        import subprocess
+        import datetime
+        
+        # دریافت متغیرهای محیطی دیتابیس از محیط اجرایی
+        db_host = os.environ.get('PGHOST')
+        db_port = os.environ.get('PGPORT')
+        db_name = os.environ.get('PGDATABASE')
+        db_user = os.environ.get('PGUSER')
+        db_password = os.environ.get('PGPASSWORD')
+        
+        # نام فایل پشتیبان با تاریخ و زمان
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_filename = f"database_backup_{timestamp}.sql"
+        backup_dir = os.path.join('static', 'backups')
+        
+        # اطمینان از وجود دایرکتوری برای ذخیره فایل پشتیبان
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        # مسیر کامل فایل پشتیبان
+        backup_path = os.path.join(backup_dir, backup_filename)
+        
+        # ساخت دستور pg_dump
+        pg_dump_cmd = [
+            "pg_dump",
+            "-h", db_host,
+            "-p", db_port,
+            "-U", db_user,
+            "-d", db_name,
+            "-f", backup_path,
+            "--format=p",  # plain text format
+            "--no-owner"   # بدون اطلاعات مالکیت
+        ]
+        
+        # تنظیم متغیر محیطی PGPASSWORD برای ارائه رمز عبور
+        env = os.environ.copy()
+        env["PGPASSWORD"] = db_password
+        
+        # اجرای دستور pg_dump
+        result = subprocess.run(pg_dump_cmd, env=env, capture_output=True, text=True)
+        
+        # بررسی نتیجه
+        if result.returncode == 0:
+            # ایجاد پاسخ برای دانلود فایل
+            from flask import send_file
+            return send_file(
+                backup_path,
+                mimetype='application/sql',
+                as_attachment=True,
+                download_name=backup_filename
+            )
+        else:
+            logger.error(f"Error in pg_dump: {result.stderr}")
+            flash(f"خطا در پشتیبان‌گیری از دیتابیس: {result.stderr}", 'danger')
+            return redirect(url_for('admin_import_export'))
+            
+    except Exception as e:
+        logger.error(f"Error in backup_database: {str(e)}")
+        flash(f"خطا در پشتیبان‌گیری از دیتابیس: {str(e)}", 'danger')
+        return redirect(url_for('admin_import_export'))
     
 @app.route('/admin/restore', methods=['POST'])
 @login_required
