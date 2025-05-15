@@ -362,9 +362,6 @@ async def callback_educational_content(callback: CallbackQuery):
             await callback.message.answer("⚠️ محتوای آموزشی مورد نظر یافت نشد.")
             return
         
-        # Format the content based on its type
-        content_text = f"📖 *{content['title']}*\n\n{content['content']}"
-        
         # Get category_id for back button
         category_id = content.get('category_id')
         if not category_id:
@@ -374,17 +371,63 @@ async def callback_educational_content(callback: CallbackQuery):
         else:
             from keyboards import education_detail_keyboard
             keyboard = education_detail_keyboard(category_id)
-            
-        # ارسال محتوا
-        await callback.message.answer(content_text, parse_mode="Markdown", reply_markup=keyboard)
         
-        # Now send the associated media files if any
+        # Get the associated media files
         media_files = db.get_educational_content_media(content_id)
+        
         if media_files:
             logging.info(f"Found {len(media_files)} media files for educational content {content_id}")
-            await send_educational_media(callback.message.chat.id, media_files)
+            
+            # Format the content title and text
+            title = content['title']
+            content_text = content.get('content', '')
+            
+            # Check if text is too long for a media caption (Telegram limit ~1024 chars)
+            MAX_CAPTION_LENGTH = 850  # Leave some room for the title and "متن کامل" link
+            
+            caption_text = f"📖 *{title}*\n\n"
+            
+            if len(content_text) > MAX_CAPTION_LENGTH:
+                # Create a shortened version with link to full text
+                short_text = content_text[:MAX_CAPTION_LENGTH] + "...\n\n"
+                short_text += "[(متن کامل)](https://telegra.ph/temp-link)"  # Placeholder, will be updated
+                caption_text += short_text
+                
+                # Create Telegra.ph article with full content
+                from utils import create_telegraph_page
+                try:
+                    telegraph_url = await create_telegraph_page(
+                        title=title,
+                        content=content_text,
+                        author="RFCatalogbot"
+                    )
+                    
+                    # Update the caption with the actual link
+                    if telegraph_url:
+                        caption_text = caption_text.replace("https://telegra.ph/temp-link", telegraph_url)
+                except Exception as e:
+                    logging.error(f"Error creating Telegraph page: {e}")
+                    # Fallback to regular text without link
+                    caption_text = f"📖 *{title}*\n\n{content_text[:MAX_CAPTION_LENGTH]}..."
+            else:
+                # Text fits in caption, use it directly
+                caption_text += content_text
+            
+            # Send as media group with caption on first item
+            await send_educational_media_group(
+                chat_id=callback.message.chat.id, 
+                media_files=media_files, 
+                caption=caption_text, 
+                keyboard=keyboard
+            )
+        else:
+            # No media files, send as regular text message
+            content_text = f"📖 *{content['title']}*\n\n{content['content']}"
+            await callback.message.answer(content_text, parse_mode="Markdown", reply_markup=keyboard)
+            
     except Exception as e:
         logging.error(f"خطا در نمایش محتوای آموزشی: {str(e)}")
+        logging.error(traceback.format_exc())
         await callback.message.answer("⚠️ خطایی در نمایش محتوا رخ داد. لطفا مجددا تلاش کنید.")
 
 @router.callback_query(F.data == "back_to_main")
@@ -614,16 +657,33 @@ async def send_educational_media(chat_id, media_files):
     for media in media_files:
         try:
             file_id = media.get('file_id', '')
+            local_path = media.get('local_path', '')
             file_type = media.get('file_type', 'photo')
             
             # Log the full media info for debugging
-            logging.info(f"Processing educational media: file_id={file_id}, file_type={file_type}")
+            logging.info(f"Processing educational media: file_id={file_id}, local_path={local_path}, file_type={file_type}")
             
-            if not file_id:
-                logging.warning(f"Empty file_id for educational media: {media}")
+            # Check if we have any valid path to use
+            if not file_id and not local_path:
+                logging.warning(f"Both file_id and local_path empty for educational media: {media}")
                 continue
             
-            # Handle different file location scenarios
+            # Prioritize checking local_path if available
+            if local_path and os.path.isfile(local_path):
+                logging.info(f"Using educational media local_path that exists: {local_path}")
+                
+                if file_type == 'photo':
+                    photo_file = FSInputFile(local_path)
+                    await bot.send_photo(chat_id=chat_id, photo=photo_file)
+                    logging.info(f"Sent educational photo from local_path: {local_path}")
+                    continue  # Skip the rest of the loop for this media item
+                elif file_type == 'video':
+                    video_file = FSInputFile(local_path)
+                    await bot.send_video(chat_id=chat_id, video=video_file)
+                    logging.info(f"Sent educational video from local_path: {local_path}")
+                    continue  # Skip the rest of the loop for this media item
+            
+            # Handle different file location scenarios for file_id
             if isinstance(file_id, str) and file_id.startswith('http'):
                 # It's a URL, use URLInputFile
                 logging.info(f"Educational media file is a URL: {file_id}")
@@ -652,8 +712,33 @@ async def send_educational_media(chat_id, media_files):
                 # Try to find the file in various directories
                 file_found = False
                 
-                # If only the filename is stored (common case), try in multiple folders
-                if '/' not in file_id:
+                # If a path pattern starts with 'media/' or 'static/' (non-Telegram file_id format)
+                if file_id and ('/' in file_id):
+                    # Handle common path patterns by checking root and with './static/' prefix
+                    possible_paths = [
+                        file_id,                # As is
+                        f"./{file_id}",         # With ./ prefix
+                        f"./static/{file_id}",  # With ./static/ prefix
+                    ]
+                    
+                    for path in possible_paths:
+                        if os.path.isfile(path):
+                            logging.info(f"Found educational media at alternative path: {path}")
+                            file_found = True
+                            
+                            if file_type == 'photo':
+                                photo_file = FSInputFile(path)
+                                await bot.send_photo(chat_id=chat_id, photo=photo_file)
+                                logging.info(f"Sent educational photo from alt path: {path}")
+                            elif file_type == 'video':
+                                video_file = FSInputFile(path)
+                                await bot.send_video(chat_id=chat_id, video=video_file)
+                                logging.info(f"Sent educational video from alt path: {path}")
+                                
+                            break
+                
+                # If file not found yet and path doesn't contain '/', try all media directories
+                if not file_found and '/' not in file_id:
                     for path in media_paths:
                         full_path = f"{path}{file_id}"
                         if os.path.isfile(full_path):
@@ -670,35 +755,29 @@ async def send_educational_media(chat_id, media_files):
                                 logging.info(f"Sent educational video from path: {full_path}")
                                 
                             break
-                else:
-                    # Special handling for paths with slashes
-                    full_path = file_id
-                    if os.path.isfile(full_path):
-                        logging.info(f"Found educational media file with path: {full_path}")
-                        file_found = True
-                        
-                        if file_type == 'photo':
-                            photo_file = FSInputFile(full_path)
-                            await bot.send_photo(chat_id=chat_id, photo=photo_file)
-                            logging.info(f"Sent educational photo from path: {full_path}")
-                        elif file_type == 'video':
-                            video_file = FSInputFile(full_path)
-                            await bot.send_video(chat_id=chat_id, video=video_file)
-                            logging.info(f"Sent educational video from path: {full_path}")
                 
-                # If file wasn't found in any of our directories, assume it's a Telegram file_id
+                # If file wasn't found in any of our directories, try as a Telegram file_id (last resort)
                 if not file_found:
-                    logging.info(f"Assuming educational media file_id is a Telegram file_id: {file_id}")
-                    
-                    try:
-                        if file_type == 'photo':
-                            await bot.send_photo(chat_id=chat_id, photo=file_id)
-                            logging.info(f"Sent educational photo using file_id: {file_id}")
-                        elif file_type == 'video':
-                            await bot.send_video(chat_id=chat_id, video=file_id)
-                            logging.info(f"Sent educational video using file_id: {file_id}")
-                    except Exception as e:
-                        logging.error(f"Failed to send educational media using file_id, error: {str(e)}")
+                    # Only if it doesn't look like a local path pattern (no slashes)
+                    if '/' not in file_id:
+                        logging.info(f"Trying as Telegram file_id: {file_id}")
+                        
+                        try:
+                            if file_type == 'photo':
+                                await bot.send_photo(chat_id=chat_id, photo=file_id)
+                                logging.info(f"Sent educational photo using file_id: {file_id}")
+                            elif file_type == 'video':
+                                await bot.send_video(chat_id=chat_id, video=file_id)
+                                logging.info(f"Sent educational video using file_id: {file_id}")
+                        except Exception as e:
+                            logging.error(f"Failed to send educational media using file_id, error: {str(e)}")
+                            await bot.send_message(
+                                chat_id=chat_id, 
+                                text=f"⚠️ تصویر یا ویدیوی محتوای آموزشی موجود نیست"
+                            )
+                    else:
+                        # It looks like a path but we couldn't find the file
+                        logging.error(f"Educational media file not found at path: {file_id}")
                         await bot.send_message(
                             chat_id=chat_id, 
                             text=f"⚠️ تصویر یا ویدیوی محتوای آموزشی موجود نیست"
