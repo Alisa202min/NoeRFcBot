@@ -1826,6 +1826,56 @@ def telegram_file(file_id):
                 logger.info(f"Found file as a direct path: {potential_path}")
                 return redirect(url_for('static', filename=file_id))
             
+            # اگر فایل آموزشی است، فایل موقت ایجاد می‌کنیم
+            if file_id.startswith('educational_'):
+                # ایجاد دایرکتوری media/educational اگر وجود ندارد
+                edu_media_dir = os.path.join('static', 'media', 'educational')
+                os.makedirs(edu_media_dir, exist_ok=True)
+                
+                # نام فایل را با پسوند مناسب می‌سازیم
+                file_ext = '.jpg'  # پیش‌فرض
+                if 'video' in file_id:
+                    file_ext = '.mp4'
+                
+                # مسیر کامل فایل
+                file_path = os.path.join(edu_media_dir, f"{file_id}{file_ext}")
+                
+                # اگر فایل وجود ندارد، از تصویر پیش‌فرض کپی می‌کنیم
+                if not os.path.exists(file_path):
+                    from PIL import Image, ImageDraw, ImageFont
+                    import os
+                    
+                    # تصویر خالی ایجاد می‌کنیم
+                    img = Image.new('RGB', (800, 600), color=(240, 240, 240))
+                    d = ImageDraw.Draw(img)
+                    
+                    # نوشتن متن روی تصویر
+                    # سعی می‌کنیم فونت مناسب پیدا کنیم
+                    font_size = 40
+                    try:
+                        font = ImageFont.truetype("arial.ttf", font_size)
+                    except IOError:
+                        try:
+                            font = ImageFont.truetype("DejaVuSans.ttf", font_size)
+                        except IOError:
+                            font = ImageFont.load_default()
+                    
+                    # متن را در مرکز تصویر قرار می‌دهیم
+                    text = f"تصویر {file_id}"
+                    text_width, text_height = d.textsize(text, font=font) if hasattr(d, 'textsize') else (400, 40)
+                    position = ((800-text_width)//2, (600-text_height)//2)
+                    
+                    # متن را به تصویر اضافه می‌کنیم
+                    d.text(position, text, fill=(100, 100, 100), font=font)
+                    
+                    # ذخیره تصویر
+                    img.save(file_path)
+                    logger.info(f"Created placeholder image at {file_path}")
+                
+                # بازگرداندن مسیر نسبی فایل به کلاینت
+                rel_path = os.path.join('media', 'educational', f"{file_id}{file_ext}")
+                return redirect(url_for('static', filename=rel_path))
+            
             # اگر هیچ چیزی پیدا نشد، تصویر پیش‌فرض را نمایش می‌دهیم
             logger.warning(f"Could not find any file for {file_id}, using default image")
             
@@ -1841,6 +1891,28 @@ def telegram_file(file_id):
                     import shutil
                     shutil.copy(fallback_img, default_img_path)
                     logger.info(f"Created default image at {default_img_path}")
+                else:
+                    # اگر فایل show.jpg هم وجود ندارد، تصویر جدید می‌سازیم
+                    from PIL import Image, ImageDraw, ImageFont
+                    
+                    # تصویر خالی ایجاد می‌کنیم
+                    img = Image.new('RGB', (800, 600), color=(240, 240, 240))
+                    d = ImageDraw.Draw(img)
+                    
+                    # متن "تصویر پیش‌فرض" را روی آن می‌نویسیم
+                    try:
+                        font = ImageFont.truetype("arial.ttf", 40)
+                    except IOError:
+                        try:
+                            font = ImageFont.truetype("DejaVuSans.ttf", 40)
+                        except IOError:
+                            font = ImageFont.load_default()
+                    
+                    d.text((250, 250), "تصویر پیش‌فرض", fill=(100, 100, 100), font=font)
+                    
+                    # ذخیره تصویر
+                    img.save(default_img_path)
+                    logger.info(f"Created new default image at {default_img_path}")
             
             # اگر تصویر پیش‌فرض وجود دارد، آن را نمایش می‌دهیم
             if os.path.exists(default_img_path):
