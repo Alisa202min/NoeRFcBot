@@ -3143,14 +3143,14 @@ def restore_database():
             'service_categories': ServiceCategory,
             # سپس محتوای ثابت
             'static_content': StaticContent,
-            # سپس جداول اصلی
-            'products': Product,
+            # سپس جداول اصلی - با ترتیب مشخص شده
             'services': Service,
+            'products': Product,
             'educational': EducationalContent,
             'inquiries': Inquiry,
-            # در نهایت رسانه‌ها (که به جداول اصلی وابسته هستند)
-            'product_media': ProductMedia,
+            # در نهایت رسانه‌ها (که به جداول اصلی وابسته هستند) - با ترتیب مشخص شده
             'service_media': ServiceMedia,
+            'product_media': ProductMedia, 
             'educational_media': EducationalContentMedia,
         }
         
@@ -3209,6 +3209,16 @@ def restore_database():
                         # تشخیص نوع جدول برای مدیریت ویژه
                         is_user_table = (model.__name__ == 'User')
                         is_media_table = (model.__name__ in ['ProductMedia', 'ServiceMedia', 'EducationalContentMedia'])
+                        
+                        # برای جداول media، ما نیاز به اطمینان از صحت کلید خارجی داریم
+                        media_foreign_key = None
+                        if is_media_table:
+                            if model.__name__ == 'ProductMedia':
+                                media_foreign_key = 'product_id'
+                            elif model.__name__ == 'ServiceMedia':
+                                media_foreign_key = 'service_id'
+                            elif model.__name__ == 'EducationalContentMedia':
+                                media_foreign_key = 'content_id'
                         
                         if should_clear_tables:
                             try:
@@ -3275,6 +3285,33 @@ def restore_database():
                                                         # اگر نمی‌توانیم به طور مطمئن تبدیل کنیم، پیش‌فرض False می‌گذاریم
                                                         logger.warning(f"مقدار بولین نامعتبر برای {column}: {value} - مقدار False استفاده می‌شود")
                                                         setattr(item, column, False)
+                                
+                                # بررسی ویژه برای جداول رسانه و صحت کلید خارجی
+                                if is_media_table and media_foreign_key:
+                                    # در صورتی که این یک جدول رسانه است، کلید خارجی را بررسی کنیم
+                                    foreign_key_value = getattr(item, media_foreign_key, None)
+                                    if foreign_key_value:
+                                        # بررسی کنیم که آیا مقدار کلید خارجی در جدول مرجع وجود دارد
+                                        try:
+                                            # تعیین مدل مرجع بر اساس نوع جدول رسانه
+                                            if model.__name__ == 'ProductMedia':
+                                                ref_model = Product
+                                            elif model.__name__ == 'ServiceMedia':
+                                                ref_model = Service
+                                            elif model.__name__ == 'EducationalContentMedia':
+                                                ref_model = EducationalContent
+                                            
+                                            # بررسی وجود رکورد مرجع
+                                            ref_exists = db.session.query(ref_model).filter_by(id=foreign_key_value).first() is not None
+                                            
+                                            if not ref_exists:
+                                                # اگر رکورد مرجع وجود ندارد، این رکورد را پرش می‌کنیم
+                                                logger.warning(f"رد شد: {model.__name__}، {media_foreign_key}={foreign_key_value} وجود ندارد")
+                                                error_rows += 1
+                                                continue
+                                        except Exception as fk_err:
+                                            logger.warning(f"خطا در بررسی کلید خارجی: {str(fk_err)}")
+                                            # به روال عادی ادامه می‌دهیم و اجازه می‌دهیم خود دیتابیس خطا بدهد اگر لازم باشد
                                 
                                 # افزودن به دیتابیس
                                 db.session.add(item)
@@ -3429,13 +3466,30 @@ def restore_database():
             os.unlink(temp_path)
             os.rmdir(temp_dir)
         
-        # نمایش نتیجه
+        # نمایش نتیجه با فرمت بهتر
         if restored_tables:
-            flash(f'بازیابی {len(restored_tables)} جدول با موفقیت انجام شد: {", ".join(restored_tables)}', 'success')
+            restored_message = f'بازیابی {len(restored_tables)} جدول با موفقیت انجام شد:<br>'
+            restored_message += '<ul>'
+            for table in restored_tables:
+                restored_message += f'<li>{table}</li>'
+            restored_message += '</ul>'
+            flash(restored_message, 'success')
+            
         if skipped_tables:
-            flash(f'{len(skipped_tables)} جدول رد شد: {", ".join(skipped_tables)}', 'warning')
+            skipped_message = f'{len(skipped_tables)} جدول رد شد:<br>'
+            skipped_message += '<ul>'
+            for table in skipped_tables:
+                skipped_message += f'<li>{table}</li>'
+            skipped_message += '</ul>'
+            flash(skipped_message, 'warning')
+            
         if error_tables:
-            flash(f'خطا در بازیابی {len(error_tables)} جدول: {", ".join(error_tables)}', 'danger')
+            error_message = f'خطا در بازیابی {len(error_tables)} جدول:<br>'
+            error_message += '<ul>'
+            for table in error_tables:
+                error_message += f'<li>{table}</li>'
+            error_message += '</ul>'
+            flash(error_message, 'danger')
             
         return redirect(url_for('admin_import_export'))
             
