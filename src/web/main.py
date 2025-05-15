@@ -1270,12 +1270,13 @@ def admin_education():
         for uploaded_file in uploaded_files:
             if uploaded_file and uploaded_file.filename and allowed_file(uploaded_file.filename):
                 # ذخیره فایل
-                file_path = save_uploaded_file(uploaded_file, 'educational')
-                file_paths.append(file_path)
-                
-                # اولین فایل را به عنوان فایل اصلی در نظر می‌گیریم (برای سازگاری با کد قبلی)
-                if main_file_path is None:
-                    main_file_path = file_path
+                success, file_path = save_uploaded_file(uploaded_file, 'educational')
+                if success and file_path:
+                    file_paths.append(file_path)
+                    
+                    # اولین فایل را به عنوان فایل اصلی در نظر می‌گیریم (برای سازگاری با کد قبلی)
+                    if main_file_path is None:
+                        main_file_path = file_path
                 
                 logger.info(f"فایل ذخیره شد: {file_path}")
         
