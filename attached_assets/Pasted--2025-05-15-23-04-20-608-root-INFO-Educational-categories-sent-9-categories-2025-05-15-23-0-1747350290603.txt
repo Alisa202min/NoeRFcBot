@@ -1,0 +1,20 @@
+
+2025-05-15 23:04:20,608 - root - INFO - Educational categories sent: 9 categories
+2025-05-15 23:04:20,608 - aiogram.event - INFO - Update id=542671919 is handled. Duration 385 ms by bot id=7630601243
+2025-05-15 23:04:22,075 - root - INFO - Selected educational category ID: 8
+2025-05-15 23:04:22,189 - root - INFO - All educational categories: [RealDictRow([('id', 2), ('name', 'آنتن\u200cها'), ('parent_id', None), ('parent_name', None), ('content_count', 0), ('children_count', 2)]), RealDictRow([('id', 3), ('name', 'تعمیر و نگهداری'), ('parent_id', None), ('parent_name', None), ('content_count', 0), ('children_count', 2)]), RealDictRow([('id', 1), ('name', 'مبانی ارتباطات رادیویی'), ('parent_id', None), ('parent_name', None), ('content_count', 0), ('children_count', 2)]), RealDictRow([('id', 7), ('name', 'استانداردهای ارتباطی'), ('parent_id', 1), ('parent_name', 'مبانی ارتباطات رادیویی'), ('content_count', 0), ('children_count', 0)]), RealDictRow([('id', 6), ('name', 'سیگنال\u200cهای رادیویی'), ('parent_id', 1), ('parent_name', 'مبانی ارتباطات رادیویی'), ('content_count', 0), ('children_count', 0)]), RealDictRow([('id', 4), ('name', 'آنتن\u200cهای دایرکشنال'), ('parent_id', 2), ('parent_name', 'آنتن\u200cها'), ('content_count', 0), ('children_count', 0)]), RealDictRow([('id', 5), ('name', 'آنتن\u200cهای همه\u200cجهته'), ('parent_id', 2), ('parent_name', 'آنتن\u200cها'), ('content_count', 0), ('children_count', 0)]), RealDictRow([('id', 9), ('name', 'عیب\u200cیابی تجهیزات'), ('parent_id', 3), ('parent_name', 'تعمیر و نگهداری'), ('content_count', 0), ('children_count', 0)]), RealDictRow([('id', 8), ('name', 'نگهداری پیشگیرانه'), ('parent_id', 3), ('parent_name', 'تعمیر و نگهداری'), ('content_count', 1), ('children_count', 0)])]
+2025-05-15 23:04:22,189 - root - INFO - Category name: نگهداری پیشگیرانه
+2025-05-15 23:04:22,253 - root - INFO - Content list for category 8: [RealDictRow([('id', 55), ('title', 'نگهداری اتاق آنتن'), ('content', 'یک محتوای آموزشی جدید ایجاد کنید و چند تصویر آپلود کنید '), ('category', 'نگهداری پیشگیرانه'), ('content_type', 'text'), ('type', 'text'), ('category_id', 8), ('category_name', 'نگهداری پیشگیرانه'), ('media_count', 4)])]
+2025-05-15 23:04:22,422 - aiogram.event - INFO - Update id=542671920 is handled. Duration 512 ms by bot id=7630601243
+2025-05-15 23:04:24,826 - root - INFO - Found 4 media files for educational content 55
+2025-05-15 23:04:24,828 - bot - INFO - Using bot token starting with: 76306...
+2025-05-15 23:04:24,840 - bot - INFO - Bot instance created successfully
+2025-05-15 23:04:24,842 - root - ERROR - خطا در نمایش محتوای آموزشی: cannot import name 'MediaGroup' from 'aiogram.types' (/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/aiogram/types/__init__.py)
+2025-05-15 23:04:24,843 - root - ERROR - Traceback (most recent call last):
+  File "/home/runner/workspace/handlers.py", line 417, in callback_educational_content
+    await send_educational_media_group(
+  File "/home/runner/workspace/handlers.py", line 809, in send_educational_media_group
+    from aiogram.types import FSInputFile, InputMediaPhoto, InputMediaVideo, MediaGroup
+ImportError: cannot import name 'MediaGroup' from 'aiogram.types' (/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/aiogram/types/__init__.py)
+
+2025-05-15 23:04:25,012 - aiogram.event - INFO - Update id=542671921 is handled. Duration 683 ms by bot id=7630601243

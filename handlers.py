@@ -792,6 +792,219 @@ async def send_educational_media(chat_id, media_files):
             except:
                 pass
 
+
+async def send_educational_media_group(chat_id, media_files, caption="", keyboard=None):
+    """
+    Send educational content as a media group with caption
+    
+    Args:
+        chat_id: Telegram chat ID to send to
+        media_files: List of media file dictionaries
+        caption: Caption text for the first media (supports Markdown)
+        keyboard: Optional inline keyboard to attach to the last message
+    """
+    from bot import bot  # Import bot here to avoid circular imports
+    import os
+    import traceback
+    from aiogram.types import FSInputFile, InputMediaPhoto, InputMediaVideo
+    from aiogram.methods.send_media_group import SendMediaGroup
+    
+    # Check if we have any media files
+    if not media_files:
+        # No media files, send just the text with keyboard
+        if caption:
+            await bot.send_message(
+                chat_id=chat_id,
+                text=caption,
+                parse_mode="Markdown",
+                reply_markup=keyboard
+            )
+        return
+    
+    # Define possible paths to check
+    media_paths = [
+        './', 
+        './static/', 
+        './static/images/', 
+        './static/photos/',
+        './static/uploads/',
+        './static/media/',
+        './static/media/educational/',
+        './static/products/',
+        './static/services/',
+    ]
+    
+    # Process media files to create a media group
+    media_list = []
+    valid_media_count = 0
+    
+    # For each media file
+    for i, media in enumerate(media_files):
+        file_id = media.get('file_id')
+        local_path = media.get('local_path')
+        file_type = media.get('file_type', 'photo')  # Default to photo if not specified
+        
+        logging.info(f"Processing media for group: file_id={file_id}, local_path={local_path}, file_type={file_type}")
+        
+        # Skip if no file_id or local_path
+        if not file_id and not local_path:
+            logging.warning(f"Media has no file_id or local_path")
+            continue
+        
+        # If we have a local_path but no file_id, use local_path as file_id
+        if not file_id and local_path:
+            file_id = local_path
+            logging.info(f"Using local_path as file_id: {file_id}")
+        
+        try:
+            file_found = False
+            file_path = None
+            
+            # First check if the path exists as is
+            if os.path.exists(file_id):
+                file_found = True
+                file_path = file_id
+                logging.info(f"Found media at direct path: {file_path}")
+            
+            # If file not found and the file_id looks like a path (has slashes)
+            if not file_found and ('/' in file_id):
+                # Handle common path patterns by checking root and with './static/' prefix
+                possible_paths = [
+                    file_id,                # As is
+                    f"./{file_id}",         # With ./ prefix
+                    f"./static/{file_id}",  # With ./static/ prefix
+                ]
+                
+                # Check all paths in our list
+                for media_path in media_paths:
+                    # If the path already has a common prefix like 'media/' or 'static/', we take just the filename part
+                    if file_id.startswith(('media/', 'static/')):
+                        # Extract just the filename part
+                        parts = file_id.split('/')
+                        filename = parts[-1]  # Get the last part (filename)
+                        
+                        # Create a path with our media_path + filename
+                        test_path = os.path.join(media_path, filename)
+                    else:
+                        # Use the full file_id with the media_path
+                        test_path = os.path.join(media_path, file_id)
+                    
+                    # Add this to our possible paths
+                    possible_paths.append(test_path)
+                
+                # Try all possible paths
+                for path in possible_paths:
+                    if os.path.exists(path):
+                        file_found = True
+                        file_path = path
+                        logging.info(f"Found media at alternative path: {file_path}")
+                        break
+            
+            # If file was found locally
+            if file_found and file_path:
+                # For the first media, include the caption
+                media_caption = caption if i == 0 else ""
+                
+                # Add to media group based on file type
+                if file_type == 'photo':
+                    media_list.append(
+                        InputMediaPhoto(
+                            media=FSInputFile(file_path),
+                            caption=media_caption,
+                            parse_mode="Markdown"
+                        )
+                    )
+                    valid_media_count += 1
+                elif file_type == 'video':
+                    media_list.append(
+                        InputMediaVideo(
+                            media=FSInputFile(file_path),
+                            caption=media_caption,
+                            parse_mode="Markdown"
+                        )
+                    )
+                    valid_media_count += 1
+            
+            # If file wasn't found, try as a Telegram file_id (no slashes)
+            elif '/' not in file_id:
+                logging.info(f"Trying as Telegram file_id: {file_id}")
+                
+                # For the first media, include the caption
+                media_caption = caption if i == 0 else ""
+                
+                # Add to media group based on file type
+                if file_type == 'photo':
+                    media_list.append(
+                        InputMediaPhoto(
+                            media=file_id,
+                            caption=media_caption,
+                            parse_mode="Markdown"
+                        )
+                    )
+                    valid_media_count += 1
+                elif file_type == 'video':
+                    media_list.append(
+                        InputMediaVideo(
+                            media=file_id,
+                            caption=media_caption,
+                            parse_mode="Markdown"
+                        )
+                    )
+                    valid_media_count += 1
+            
+            else:
+                # File couldn't be found as path or file_id
+                logging.error(f"Media file not found: {file_id}")
+        
+        except Exception as e:
+            logging.error(f"Error processing media for group: {str(e)}")
+            logging.error(traceback.format_exc())
+    
+    # Now send the media group if we have any valid media
+    try:
+        if valid_media_count > 0:
+            # Send the media group using SendMediaGroup method
+            await bot.send_media_group(chat_id=chat_id, media=media_list)
+            logging.info(f"Sent media group with {valid_media_count} files")
+            
+            # Send a separate message with keyboard if needed
+            if keyboard:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text="🔍 گزینه‌های زیر را انتخاب کنید:",
+                    reply_markup=keyboard
+                )
+        elif caption:
+            # If we couldn't send any media but have a caption, send as text message
+            await bot.send_message(
+                chat_id=chat_id,
+                text=caption,
+                parse_mode="Markdown",
+                reply_markup=keyboard
+            )
+    except Exception as e:
+        logging.error(f"Error sending media group: {str(e)}")
+        logging.error(traceback.format_exc())
+        
+        # Fallback to sending individual messages
+        if caption:
+            await bot.send_message(
+                chat_id=chat_id,
+                text=caption,
+                parse_mode="Markdown",
+                reply_markup=keyboard
+            )
+        
+        # Try to send notification about error
+        try:
+            await bot.send_message(
+                chat_id=chat_id, 
+                text=f"⚠️ خطا در نمایش مجموعه فایل‌های رسانه‌ای"
+            )
+        except:
+            pass
+
+
 async def send_product_media(chat_id, media_files):
     """Send product media files to user"""
     from bot import bot  # Import bot here to avoid circular imports
