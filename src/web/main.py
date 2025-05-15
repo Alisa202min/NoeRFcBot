@@ -2988,17 +2988,17 @@ def backup_database():
         
         # مدل‌های دیتابیس برای پشتیبان‌گیری
         models_map = {
-            'products': Product,
-            'services': Service,
-            'inquiries': Inquiry,
-            'educational': EducationalContent,
-            'product_media': ProductMedia,
-            'service_media': ServiceMedia,
-            'educational_media': EducationalContentMedia,
-            'product_categories': ProductCategory,
-            'service_categories': ServiceCategory,
-            'users': User,
-            'static_content': StaticContent,
+            'products.csv': Product,
+            'services.csv': Service,
+            'inquiries.csv': Inquiry,
+            'educational.csv': EducationalContent,
+            'product_media.csv': ProductMedia,
+            'service_media.csv': ServiceMedia,
+            'educational_media.csv': EducationalContentMedia,
+            'product_categories.csv': ProductCategory,
+            'service_categories.csv': ServiceCategory,
+            'users.csv': User,
+            'static_content.csv': StaticContent,
         }
         
         # ایجاد یک فایل ZIP در حافظه
@@ -3034,7 +3034,8 @@ def backup_database():
                         writer.writerow(row)
                     
                     # افزودن فایل CSV به فایل ZIP
-                    zf.writestr(f"{table_name}.csv", csv_output.getvalue().encode('utf-8'))
+                    # از خود نام table_name استفاده می‌کنیم که حاوی پسوند CSV است
+                    zf.writestr(f"{table_name}", csv_output.getvalue().encode('utf-8'))
                     
                 except Exception as e:
                     logger.error(f"Error backing up table {table_name}: {str(e)}")
@@ -3046,9 +3047,9 @@ def backup_database():
 هر فایل CSV شامل داده‌های یک جدول است.
 ستون اول در هر فایل CSV نام ستون‌ها را نشان می‌دهد.
 
-نام فایل‌ها مطابق با نام جداول است:
+فایل‌های پشتیبان به صورت زیر نام‌گذاری شده‌اند:
 - products.csv: جدول محصولات
-- services.csv: جدول خدمات
+- services.csv: جدول خدمات 
 - product_categories.csv: جدول دسته‌بندی محصولات
 - service_categories.csv: جدول دسته‌بندی خدمات
 - inquiries.csv: جدول استعلام‌ها
@@ -3186,6 +3187,9 @@ def restore_database():
                             # خواندن داده‌ها و افزودن به دیتابیس
                             # بررسی اینکه آیا کاربر می‌خواهد جداول پاکسازی شوند یا خیر
                             should_clear_tables = request.form.get('clear_tables') == 'on'
+                            # تعریف متغیرها برای شمارش
+                            restored_rows = 0
+                            error_rows = 0
                             
                             if should_clear_tables:
                                 try:
@@ -3233,6 +3237,8 @@ def restore_database():
                                     
                                     # افزودن به دیتابیس
                                     db.session.add(item)
+                                    # افزایش شمارنده ردیف‌های بازیابی شده
+                                    restored_rows += 1
                                     # برای امنیت بیشتر، هر 100 آیتم یک بار کامیت می‌کنیم
                                     if restored_rows % 100 == 0:
                                         try:
@@ -3258,10 +3264,13 @@ def restore_database():
                             
                         except Exception as table_error:
                             db.session.rollback()
-                            logger.error(f"Error restoring table {csv_filename}: {str(table_error)}")
-                            error_tables.append(csv_filename)
+                            model_name = models_map[csv_filename].__name__ if csv_filename in models_map else "نامشخص"
+                            logger.error(f"خطا در بازیابی جدول {csv_filename} (مدل {model_name}): {str(table_error)}")
+                            error_tables.append(f"{csv_filename} ({model_name})")
                     else:
-                        skipped_tables.append(csv_filename)
+                        # این فایل در نقشه مدل‌ها پیدا نشد
+                        logger.warning(f"فایل {csv_filename} نگاشت مدل مناسبی ندارد")
+                        skipped_tables.append(f"{csv_filename} (نگاشت نامعتبر)")
         finally:
             # پاک کردن فایل موقت
             os.unlink(temp_path)
