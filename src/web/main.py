@@ -10,6 +10,7 @@ import time
 from flask import render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory, Response
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
+from sqlalchemy import text
 
 from src.web.app import app, db, media_files
 from src.models.models import (
