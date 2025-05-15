@@ -1184,10 +1184,36 @@ def admin_education():
     
     # اگر action برابر با 'add' یا 'edit' باشد، فرم نمایش داده می‌شود
     if action == 'add':
-        # دریافت لیست دسته‌بندی‌های موجود
-        categories = db.session.query(EducationalContent.category).distinct().all()
-        categories = [cat[0] for cat in categories if cat[0]] 
-        
+        # دریافت لیست دسته‌بندی‌های آموزشی که فرزند ندارند
+        try:
+            # بررسی وجود جدول educational_categories
+            educational_cats = []
+            try:
+                # دریافت دسته‌بندی‌هایی که فرزند ندارند
+                query = """
+                    SELECT id, name 
+                    FROM educational_categories ec 
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM educational_categories 
+                        WHERE parent_id = ec.id
+                    )
+                """
+                educational_cats = db.session.execute(text(query)).fetchall()
+                educational_cats = [cat[1] for cat in educational_cats]  # فقط نام دسته‌بندی‌ها
+                logger.info(f"دسته‌بندی‌های آموزشی بدون فرزند: {educational_cats}")
+            except Exception as e:
+                logger.error(f"خطا در دریافت دسته‌بندی‌های آموزشی: {str(e)}")
+                
+            # اگر از جدول دسته‌بندی‌ها نتوانستیم اطلاعات بگیریم، از دسته‌بندی‌های استفاده شده قبلی استفاده می‌کنیم
+            if not educational_cats:
+                categories = db.session.query(EducationalContent.category).distinct().all()
+                categories = [cat[0] for cat in categories if cat[0]] 
+            else:
+                categories = educational_cats
+        except Exception as e:
+            logger.error(f"خطا در دریافت دسته‌بندی‌ها: {str(e)}")
+            categories = []
+            
         return render_template('admin/education_form.html',
                               title="افزودن محتوای آموزشی جدید",
                               categories=categories,
