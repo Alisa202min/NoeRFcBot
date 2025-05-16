@@ -925,8 +925,8 @@ async def send_educational_media_group(chat_id, media_files, caption="", keyboar
                     )
                     valid_media_count += 1
             
-            # If file wasn't found, try as a Telegram file_id (no slashes)
-            elif '/' not in file_id:
+            # If file wasn't found, try as a Telegram file_id (no slashes) but check if it's a real Telegram file_id
+            elif '/' not in file_id and not file_id.startswith('educational_content_image_'):
                 logging.info(f"Trying as Telegram file_id: {file_id}")
                 
                 # For the first media, include the caption
