@@ -357,37 +357,59 @@ async def create_telegraph_page(title: str, content: str, author: str = "RFCatal
                     'children': [paragraph.strip()]
                 })
         
-        # Telegraph API endpoint for creating a page
-        api_url = 'https://api.telegra.ph/createPage'
-        
-        # Generate a path from title (simple slugify)
-        # Remove special chars and replace spaces with hyphens
-        import re
-        path = re.sub(r'[^\w\s-]', '', title.lower())
-        path = re.sub(r'[\s_-]+', '-', path)
-        
-        # Prepare request data
-        page_data = {
-            'access_token': 'XXX', # We don't need a token for anonymous pages
-            'title': title,
-            'author_name': author,
-            'content': json.dumps(html_content),
-            'return_content': False
+        # First create a Telegraph account to get an access token
+        create_account_url = 'https://api.telegra.ph/createAccount'
+        account_data = {
+            'short_name': author,
+            'author_name': author
         }
         
         async with aiohttp.ClientSession() as session:
-            async with session.post(api_url, data=page_data) as response:
+            # Step 1: Create an account and get access token
+            async with session.post(create_account_url, data=account_data) as response:
                 if response.status == 200:
-                    result = await response.json()
-                    if result.get('ok'):
-                        page_url = result.get('result', {}).get('url')
-                        if page_url:
-                            logging.info(f"Created Telegraph page: {page_url}")
-                            return page_url
-                        
-                    logging.error(f"Telegraph API error: {result}")
+                    account_result = await response.json()
+                    if not account_result.get('ok'):
+                        logging.error(f"Telegraph API error creating account: {account_result}")
+                        return None
+                    
+                    access_token = account_result.get('result', {}).get('access_token')
+                    if not access_token:
+                        logging.error("No access token received from Telegraph API")
+                        return None
+                    
+                    # Step 2: Create the page using the access token
+                    create_page_url = 'https://api.telegra.ph/createPage'
+                    
+                    # Generate a path from title (simple slugify)
+                    import re
+                    path = re.sub(r'[^\w\s-]', '', title.lower())
+                    path = re.sub(r'[\s_-]+', '-', path)
+                    
+                    # Prepare page creation data
+                    page_data = {
+                        'access_token': access_token,
+                        'title': title,
+                        'author_name': author,
+                        'content': json.dumps(html_content),
+                        'return_content': False
+                    }
+                    
+                    # Create the page
+                    async with session.post(create_page_url, data=page_data) as page_response:
+                        if page_response.status == 200:
+                            page_result = await page_response.json()
+                            if page_result.get('ok'):
+                                page_url = page_result.get('result', {}).get('url')
+                                if page_url:
+                                    logging.info(f"Created Telegraph page: {page_url}")
+                                    return page_url
+                            
+                            logging.error(f"Telegraph API error creating page: {page_result}")
+                        else:
+                            logging.error(f"Telegraph API HTTP error: {page_response.status}")
                 else:
-                    logging.error(f"Telegraph API HTTP error: {response.status}")
+                    logging.error(f"Telegraph API HTTP error creating account: {response.status}")
         
         return None
     except Exception as e:
