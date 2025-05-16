@@ -925,8 +925,56 @@ async def send_educational_media_group(chat_id, media_files, caption="", keyboar
                     )
                     valid_media_count += 1
             
-            # If file wasn't found, try as a Telegram file_id (no slashes) but check if it's a real Telegram file_id
-            elif '/' not in file_id and not file_id.startswith('educational_content_image_'):
+            # Handle auto-generated educational content IDs specially
+            elif file_id.startswith('educational_content_image_'):
+                # Extract the content ID and search for the associated image
+                try:
+                    content_id = file_id.split('_')[3]  # educational_content_image_56_timestamp
+                    # Try common paths for educational content images
+                    test_paths = [
+                        f"./static/media/educational/image_{content_id}.jpg",
+                        f"./media/educational/image_{content_id}.jpg",
+                        f"./static/media/educational/content_{content_id}.jpg",
+                        f"./media/educational/content_{content_id}.jpg"
+                    ]
+                    
+                    # Try each possible path
+                    for test_path in test_paths:
+                        if os.path.exists(test_path):
+                            file_found = True
+                            file_path = test_path
+                            logging.info(f"Found auto-generated educational content image at: {file_path}")
+                            break
+                    
+                    # If found, add to media group
+                    if file_found and file_path:
+                        # For the first media, include the caption
+                        media_caption = caption if i == 0 else ""
+                        
+                        # Add to media group based on file type
+                        if file_type == 'photo':
+                            media_list.append(
+                                InputMediaPhoto(
+                                    media=FSInputFile(file_path),
+                                    caption=media_caption,
+                                    parse_mode="Markdown"
+                                )
+                            )
+                            valid_media_count += 1
+                        elif file_type == 'video':
+                            media_list.append(
+                                InputMediaVideo(
+                                    media=FSInputFile(file_path),
+                                    caption=media_caption,
+                                    parse_mode="Markdown"
+                                )
+                            )
+                            valid_media_count += 1
+                except Exception as e:
+                    logging.error(f"Error processing auto-generated educational content ID: {str(e)}")
+                    
+            # If file wasn't found and it looks like a Telegram file_id (no slashes)
+            elif '/' not in file_id:
                 logging.info(f"Trying as Telegram file_id: {file_id}")
                 
                 # For the first media, include the caption

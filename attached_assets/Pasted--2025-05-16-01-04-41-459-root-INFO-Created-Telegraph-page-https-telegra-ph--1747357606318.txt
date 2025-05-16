@@ -1,0 +1,24 @@
+
+2025-05-16 01:04:41,459 - root - INFO - Created Telegraph page: https://telegra.ph/محتوای-آموزشی-جدید-طولانی-05-16-2
+2025-05-16 01:04:41,460 - root - INFO - Processing media for group: file_id=educational_content_image_56_1747350587, local_path=media/educational/image_7.jpg, file_type=photo
+2025-05-16 01:04:41,460 - root - ERROR - Media file not found: educational_content_image_56_1747350587
+2025-05-16 01:04:41,920 - aiogram.event - INFO - Update id=542671950 is handled. Duration 1662 ms by bot id=7630601243
+2025-05-16 01:05:42,549 - root - INFO - Educational content requested by user: 7625738591
+2025-05-16 01:05:42,839 - root - INFO - Educational categories sent: 9 categories
+2025-05-16 01:05:42,839 - aiogram.event - INFO - Update id=542671951 is handled. Duration 291 ms by bot id=7630601243
+2025-05-16 01:05:44,543 - root - INFO - Selected educational category ID: 8
+2025-05-16 01:05:44,659 - root - INFO - All educational categories: [RealDictRow([('id', 2), ('name', 'آنتن\u200cها'), ('parent_id', None), ('parent_name', None), ('content_count', 0), ('children_count', 2)]), RealDictRow([('id', 3), ('name', 'تعمیر و نگهداری'), ('parent_id', None), ('parent_name', None), ('content_count', 0), ('children_count', 2)]), RealDictRow([('id', 1), ('name', 'مبانی ارتباطات رادیویی'), ('parent_id', None), ('parent_name', None), ('content_count', 0), ('children_count', 2)]), RealDictRow([('id', 7), ('name', 'استانداردهای ارتباطی'), ('parent_id', 1), ('parent_name', 'مبانی ارتباطات رادیویی'), ('content_count', 0), ('children_count', 0)]), RealDictRow([('id', 6), ('name', 'سیگنال\u200cهای رادیویی'), ('parent_id', 1), ('parent_name', 'مبانی ارتباطات رادیویی'), ('content_count', 0), ('children_count', 0)]), RealDictRow([('id', 4), ('name', 'آنتن\u200cهای دایرکشنال'), ('parent_id', 2), ('parent_name', 'آنتن\u200cها'), ('content_count', 0), ('children_count', 0)]), RealDictRow([('id', 5), ('name', 'آنتن\u200cهای همه\u200cجهته'), ('parent_id', 2), ('parent_name', 'آنتن\u200cها'), ('content_count', 0), ('children_count', 0)]), RealDictRow([('id', 9), ('name', 'عیب\u200cیابی تجهیزات'), ('parent_id', 3), ('parent_name', 'تعمیر و نگهداری'), ('content_count', 0), ('children_count', 0)]), RealDictRow([('id', 8), ('name', 'نگهداری پیشگیرانه'), ('parent_id', 3), ('parent_name', 'تعمیر و نگهداری'), ('content_count', 1), ('children_count', 0)])]
+2025-05-16 01:05:44,659 - root - INFO - Category name: نگهداری پیشگیرانه
+2025-05-16 01:05:44,717 - root - INFO - Content list for category 8: [RealDictRow([('id', 55), ('title', 'نگهداری اتاق آنتن'), ('content', 'یک محتوای آموزشی جدید ایجاد کنید و چند تصویر آپلود کنید '), ('category', 'نگهداری پیشگیرانه'), ('content_type', 'text'), ('type', 'text'), ('category_id', 8), ('category_name', 'نگهداری پیشگیرانه'), ('media_count', 4)])]
+2025-05-16 01:05:44,906 - aiogram.event - INFO - Update id=542671952 is handled. Duration 546 ms by bot id=7630601243
+2025-05-16 01:05:46,779 - root - INFO - Found 4 media files for educational content 55
+2025-05-16 01:05:46,779 - root - INFO - Processing media for group: file_id=media/educational/antenna_workshop.jpg, local_path=media/educational/antenna_workshop.jpg, file_type=photo
+2025-05-16 01:05:46,779 - root - INFO - Found media at alternative path: ./static/media/educational/antenna_workshop.jpg
+2025-05-16 01:05:46,779 - root - INFO - Processing media for group: file_id=media/educational/antenna1.jpg, local_path=media/educational/antenna1.jpg, file_type=photo
+2025-05-16 01:05:46,780 - root - INFO - Found media at alternative path: ./static/media/educational/antenna1.jpg
+2025-05-16 01:05:46,780 - root - INFO - Processing media for group: file_id=media/educational/antenna1_detail1.jpg, local_path=media/educational/antenna1_detail1.jpg, file_type=photo
+2025-05-16 01:05:46,780 - root - INFO - Found media at alternative path: ./static/media/educational/antenna1_detail1.jpg
+2025-05-16 01:05:46,780 - root - INFO - Processing media for group: file_id=media/educational/antenna1_detail2.jpg, local_path=media/educational/antenna1_detail2.jpg, file_type=photo
+2025-05-16 01:05:46,780 - root - INFO - Found media at alternative path: ./static/media/educational/antenna1_detail2.jpg
+2025-05-16 01:05:47,678 - root - INFO - Sent media group with 4 files
+2025-05-16 01:05:47,839 - aiogram.event - INFO - Update id=542671953 is handled
