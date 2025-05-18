@@ -1290,13 +1290,12 @@ def admin_education():
                     content.content_type = content_type
                     content.type = content_type  # تنظیم فیلد type برابر با content_type
                     
-                    # اگر فایل جدید آپلود شده، از آن استفاده می‌کنیم
-                    if main_file_path:
-                        # فایل اصلی را در فیلد content ذخیره می‌کنیم (برای سازگاری با کد قبلی)
-                        content.content = main_file_path
-                    else:
-                        # اگر فایل آپلود نشده، از متن استفاده می‌کنیم
-                        content.content = content_text
+                    # همیشه از متن استفاده می‌کنیم و مسیر فایل ها در جدول دیگری ذخیره می‌شود
+                    content.content = content_text
+                    
+                    # برای سازگاری با کد قبلی، اگر محتوا خالی است و فایل آپلود شده، مسیر را در محتوا هم ذخیره می‌کنیم
+                    if not content_text.strip() and main_file_path and content_type in ['image', 'video', 'file']:
+                        content.content = f"Content with media: {content.title}"
                     
                     # همه فایل‌ها را به EducationalContentMedia اضافه می‌کنیم (بدون توجه به نوع محتوا)
                     if file_paths:
@@ -1339,11 +1338,12 @@ def admin_education():
                 content.content_type = content_type
                 content.type = content_type  # تنظیم فیلد type برابر با content_type
                 
-                # تنظیم محتوا بر اساس نوع
-                if main_file_path and (content_type in ['image', 'video', 'file']):
-                    content.content = main_file_path
-                else:
-                    content.content = content_text
+                # همیشه از متن محتوا استفاده می‌کنیم
+                content.content = content_text
+                
+                # برای سازگاری با کد قبلی، اگر محتوا خالی است و فایل آپلود شده، یک محتوای پیش‌فرض می‌گذاریم
+                if not content_text.strip() and main_file_path and content_type in ['image', 'video', 'file']:
+                    content.content = f"Content with media: {title}"
                 
                 db.session.add(content)
                 db.session.commit()
