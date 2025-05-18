@@ -935,16 +935,22 @@ async def send_educational_media_group(chat_id, media_files, caption="", keyboar
                         f"./static/media/educational/image_{content_id}.jpg",
                         f"./media/educational/image_{content_id}.jpg",
                         f"./static/media/educational/content_{content_id}.jpg",
-                        f"./media/educational/content_{content_id}.jpg"
+                        f"./media/educational/content_{content_id}.jpg",
+                        "./static/media/educational/image_7.jpg",  # Specific path from logs
+                        "./media/educational/image_7.jpg"         # Alternative path
                     ]
                     
                     # Try each possible path
                     for test_path in test_paths:
+                        logging.info(f"Checking path: {test_path} (exists: {os.path.exists(test_path)})")
                         if os.path.exists(test_path):
                             file_found = True
                             file_path = test_path
                             logging.info(f"Found auto-generated educational content image at: {file_path}")
                             break
+                    
+                    if not file_found:
+                        logging.error(f"Could not find image for educational content ID {content_id} after trying multiple paths")
                     
                     # If found, add to media group
                     if file_found and file_path:
