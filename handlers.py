@@ -929,14 +929,16 @@ async def send_educational_media_group(chat_id, media_files, caption="", keyboar
             elif file_id.startswith('educational_content_image_'):
                 # Extract the content ID and search for the associated image
                 try:
-                    # Special case for known problem file
+                    # Extract content ID from file_id
+                    content_id = file_id.split('_')[3]  # educational_content_image_56_timestamp
+                    
+                    # Special case for known problem files
                     if file_id == "educational_content_image_56_1747350587":
                         # This is our problem file, directly use the known correct path
                         file_found = True
                         file_path = "./static/media/educational/image_7.jpg"
                         logging.info(f"Using hardcoded path for problem file: {file_path}")
                     else:
-                        content_id = file_id.split('_')[3]  # educational_content_image_56_timestamp
                         # Try common paths for educational content images
                         test_paths = [
                             f"./static/media/educational/image_{content_id}.jpg",
