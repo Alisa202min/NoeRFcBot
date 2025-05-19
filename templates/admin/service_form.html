@@ -71,7 +71,15 @@
                             <label for="photo" class="form-label">تصویر اصلی خدمت</label>
                             {% if service and service.photo_url %}
                             <div class="mb-2">
-                                <img src="{{ url_for('static', filename=service.photo_url) }}" alt="{{ service.name }}" class="img-thumbnail" style="max-height: 150px;">
+                                <div class="card">
+                                    <img src="{{ url_for('static', filename=service.photo_url) }}" alt="{{ service.name }}" class="card-img-top" style="max-height: 150px; object-fit: contain;">
+                                    <div class="card-footer d-flex justify-content-end">
+                                        <button type="button" class="btn btn-sm btn-danger" 
+                                                onclick="confirmDeleteMedia('service', {{ service.id }}, {{ service.id }}, 'photo')">
+                                            <i class="bi bi-trash"></i> حذف تصویر
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                             {% endif %}
                             <input type="file" class="form-control" id="photo" name="photo" accept="image/*" onchange="previewImage(this)">
@@ -186,6 +194,39 @@
             });
         }
     });
+    
+    // تابع تأیید حذف فایل رسانه‌ای
+    window.confirmDeleteMedia = function(contentType, contentId, mediaId, mediaType) {
+        if (confirm('آیا از حذف این فایل رسانه‌ای اطمینان دارید؟ این عملیات غیرقابل بازگشت است.')) {
+            // ارسال درخواست حذف فایل
+            fetch(`/admin/delete_media?type=${contentType}&content_id=${contentId}&media_id=${mediaId}&media_type=${mediaType}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('فایل با موفقیت حذف شد.');
+                    // حذف کارت مربوط به فایل از صفحه یا بارگذاری مجدد صفحه
+                    if (mediaType === 'photo') {
+                        window.location.reload(); // بارگذاری مجدد صفحه برای تصویر اصلی
+                    } else {
+                        const mediaCard = document.querySelector(`button[onclick*="${mediaId}"]`).closest('.col');
+                        if (mediaCard) mediaCard.remove();
+                    }
+                } else {
+                    alert('خطا در حذف فایل: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('خطایی در عملیات حذف رخ داد.');
+            });
+        }
+    }
 })();
 </script>
 {% endblock %}

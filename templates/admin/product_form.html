@@ -124,6 +124,47 @@
                             </div>
                         </div>
                         
+                        <!-- بخش تصاویر اضافی محصول -->
+                        <div class="mb-4">
+                            <label class="form-label">تصاویر اضافی محصول</label>
+                            
+                            {% if product and product.id %}
+                            <!-- نمایش تصاویر اضافی موجود -->
+                            <div class="row mb-3">
+                                {% set product_medias = product_media(product.id) if product_media is defined else [] %}
+                                {% for media in product_medias %}
+                                <div class="col-md-3 col-sm-6 mb-3">
+                                    <div class="card h-100">
+                                        <img src="{{ url_for('static', filename=media.local_path) if media.local_path else media.file_id }}" 
+                                             class="card-img-top" style="height: 150px; object-fit: contain;" 
+                                             alt="تصویر اضافی {{ loop.index }}">
+                                        <div class="card-footer d-flex justify-content-end">
+                                            <button type="button" class="btn btn-sm btn-danger" 
+                                                    onclick="confirmDeleteMedia('product', {{ product.id }}, {{ media.id }}, 'additional')">
+                                                <i class="bi bi-trash"></i> حذف تصویر
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="col-12">
+                                    <div class="alert alert-info">
+                                        هیچ تصویر اضافی برای این محصول وجود ندارد.
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                            
+                            <!-- فرم آپلود تصاویر اضافی -->
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">افزودن تصاویر اضافی</h6>
+                                    <p class="card-text text-muted">تصاویر اضافی را پس از ذخیره محصول می‌توانید از صفحه مدیریت رسانه‌های محصول آپلود کنید.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div class="d-flex justify-content-between">
                             <a href="{{ url_for('admin_products') }}" class="btn btn-secondary">
                                 <i class="bi bi-arrow-left"></i> بازگشت به لیست
