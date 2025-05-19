@@ -437,16 +437,43 @@ async def callback_educational_content(callback: CallbackQuery):
                 
                 # Check if file exists in static/media/educational folder
                 if file_id.startswith('educational_content_image_'):
-                    # Extract filename from known paths in media folder
+                    # Extract content ID from file_id (format: educational_content_image_[content_id]_...)
                     try:
-                        # Look for files in static/media/educational
+                        # Try to get content ID from the file_id format
+                        parts = file_id.split('_')
+                        content_id_str = parts[3] if len(parts) > 3 else None
+                        
+                        logging.info(f"Looking for media files for content ID: {content_id_str}")
+                        
+                        # Look for all files in static/media/educational directory
                         import glob
-                        possible_files = glob.glob(f"./static/media/educational/*.jpg")
-                        if possible_files:
-                            # Use first media file found
-                            media_path = possible_files[0]
-                            logging.info(f"Using media from path: {media_path}")
-                            
+                        import os.path
+                        
+                        # First try with local_path if available
+                        found_file = False
+                        if local_path:
+                            # Try with static prefix
+                            if not local_path.startswith('static/'):
+                                full_path = f"./static/{local_path}"
+                            else:
+                                full_path = f"./{local_path}"
+                                
+                            if os.path.exists(full_path) and os.path.isfile(full_path):
+                                logging.info(f"Found media file using local_path: {full_path}")
+                                media_path = full_path
+                                found_file = True
+                        
+                        # If no file found yet, try with different glob patterns
+                        if not found_file:
+                            # Try all jpg files in the educational directory
+                            possible_files = glob.glob(f"./static/media/educational/*.jpg")
+                            if possible_files:
+                                # Use first media file found as fallback
+                                media_path = possible_files[0]
+                                logging.info(f"Using first available media file from: {media_path}")
+                                found_file = True
+                        
+                        if found_file:
                             media_group.append(
                                 InputMediaPhoto(
                                     media=FSInputFile(media_path),
@@ -455,6 +482,8 @@ async def callback_educational_content(callback: CallbackQuery):
                                 )
                             )
                             found_valid_media = True
+                        else:
+                            logging.error(f"Could not find any media file for content ID: {content_id_str}")
                     except Exception as e:
                         logging.error(f"Error processing media file: {str(e)}")
                 else:
