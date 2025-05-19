@@ -1051,8 +1051,8 @@ class Database:
             return content_id
 
     def update_educational_content(self, content_id: int, title: Optional[str] = None, 
-                                 content: Optional[str] = None, category: Optional[str] = None, 
-                                 content_type: Optional[str] = None, category_id: Optional[int] = None,
+                                 content: Optional[str] = None, category: Optional[str] = None,
+                                 category_id: Optional[int] = None,
                                  media_files: Optional[List[Dict]] = None, 
                                  replace_media: bool = False) -> bool:
         """
@@ -1063,7 +1063,6 @@ class Database:
             title: New title (optional)
             content: New content body (optional)
             category: New legacy category (optional)
-            content_type: New content type (optional)
             category_id: New category ID in hierarchical structure (optional)
             media_files: List of media files to add (optional)
             replace_media: If True, will delete existing media files before adding new ones
@@ -1558,8 +1557,7 @@ class Database:
                             self.add_educational_content(
                                 title=row['title'],
                                 content=row['content'],
-                                category=row['category'],
-                                content_type=row['type']
+                                category=row['category']
                             )
                             success_count += 1
                         except Exception as e:
