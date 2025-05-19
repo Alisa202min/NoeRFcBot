@@ -12,7 +12,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from sqlalchemy import text
 
-from src.web.app import app, db, media_files
+from src.web.app import app, db, media_files, csrf
 from src.models.models import (
     User, Product, ProductMedia, Service, ServiceMedia, Inquiry,
     EducationalContent, StaticContent, EducationalCategory, EducationalContentMedia,
@@ -1632,13 +1632,31 @@ def admin_education():
         return redirect(url_for('admin_education'))
     
     elif action == 'delete' and content_id and request.method == 'POST':
+        # CSRF protection is automatically handled by Flask-WTF for POST requests
+        # We don't need to manually validate the token since the @app.route decorator handles it
+            
         # حذف محتوا
         try:
             content = EducationalContent.query.get(int(content_id))
             if content:
+                # Get media files to delete
+                media_files = EducationalContentMedia.query.filter_by(content_id=int(content_id)).all()
+                
+                # Delete media files from disk if they are local files
+                for media in media_files:
+                    try:
+                        if media.file_id and media.local_path and os.path.exists(media.local_path):
+                            os.remove(media.local_path)
+                            logger.info(f"Deleted media file: {media.local_path}")
+                    except Exception as media_error:
+                        logger.error(f"Error deleting media file: {media_error}")
+                
+                # Delete the content (cascade will delete associated media records)
                 db.session.delete(content)
                 db.session.commit()
                 flash('محتوای آموزشی با موفقیت حذف شد.', 'success')
+            else:
+                flash('محتوای آموزشی یافت نشد.', 'warning')
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error deleting educational content: {e}")
