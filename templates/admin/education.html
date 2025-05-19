@@ -177,7 +177,6 @@
             <div class="modal-footer">
                 <form id="deleteContentForm" method="post" action="">
                     <input type="hidden" name="_method" value="delete">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
                     <button type="submit" class="btn btn-danger">حذف</button>
                 </form>
@@ -193,26 +192,7 @@
         document.getElementById('contentTitle').textContent = title;
         
         const form = document.getElementById('deleteContentForm');
-        form.action = "{{ url_for('admin_education') }}";
-        
-        // Add hidden fields for the action and id parameters
-        let actionInput = form.querySelector('input[name="action"]');
-        if (!actionInput) {
-            actionInput = document.createElement('input');
-            actionInput.type = 'hidden';
-            actionInput.name = 'action';
-            form.appendChild(actionInput);
-        }
-        actionInput.value = 'delete';
-        
-        let idInput = form.querySelector('input[name="id"]');
-        if (!idInput) {
-            idInput = document.createElement('input');
-            idInput.type = 'hidden';
-            idInput.name = 'id';
-            form.appendChild(idInput);
-        }
-        idInput.value = contentId;
+        form.action = "{{ url_for('admin_education') }}?action=delete&id=" + contentId;
         
         const modal = new bootstrap.Modal(document.getElementById('deleteContentModal'));
         modal.show();

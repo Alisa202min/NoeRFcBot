@@ -5,7 +5,6 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_login import LoginManager
-from flask_wtf.csrf import CSRFProtect
 
 
 class Base(DeclarativeBase):
@@ -58,9 +57,6 @@ configure_uploads(app, media_files)
 
 # Ensure upload directory exists
 os.makedirs(app.config['UPLOADED_MEDIA_DEST'], exist_ok=True)
-
-# Initialize CSRF protection
-csrf = CSRFProtect(app)
 
 # Initialize Flask-Login
 login_manager = LoginManager()

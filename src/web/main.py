@@ -12,7 +12,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from sqlalchemy import text
 
-from src.web.app import app, db, media_files, csrf
+from src.web.app import app, db, media_files
 from src.models.models import (
     User, Product, ProductMedia, Service, ServiceMedia, Inquiry,
     EducationalContent, StaticContent, EducationalCategory, EducationalContentMedia,
@@ -34,57 +34,6 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 # ----- Utility Functions for Media Management -----
-
-def get_product_media(product_id):
-    """
-    دریافت تمام رسانه‌های اضافی یک محصول
-    
-    Args:
-        product_id: شناسه محصول
-    
-    Returns:
-        List: لیستی از رسانه‌های محصول
-    """
-    try:
-        media_list = ProductMedia.query.filter_by(product_id=product_id).all()
-        return media_list
-    except Exception as e:
-        logger.error(f"Error fetching product media: {str(e)}")
-        return []
-
-def get_service_media(service_id):
-    """
-    دریافت تمام رسانه‌های اضافی یک خدمت
-    
-    Args:
-        service_id: شناسه خدمت
-    
-    Returns:
-        List: لیستی از رسانه‌های خدمت
-    """
-    try:
-        media_list = ServiceMedia.query.filter_by(service_id=service_id).all()
-        return media_list
-    except Exception as e:
-        logger.error(f"Error fetching service media: {str(e)}")
-        return []
-
-def get_educational_media(content_id):
-    """
-    دریافت تمام رسانه‌های اضافی یک محتوای آموزشی
-    
-    Args:
-        content_id: شناسه محتوا
-    
-    Returns:
-        List: لیستی از رسانه‌های محتوای آموزشی
-    """
-    try:
-        media_list = EducationalContentMedia.query.filter_by(content_id=content_id).all()
-        return media_list
-    except Exception as e:
-        logger.error(f"Error fetching educational content media: {str(e)}")
-        return []
 
 def delete_media_file(file_path):
     """
@@ -365,7 +314,7 @@ def delete_media():
         elif content_type == 'educational':
             # حذف رسانه محتوای آموزشی
             media = EducationalContentMedia.query.get(media_id)
-            if not media or media.educational_content_id != int(content_id):
+            if not media or media.content_id != content_id:
                 logger.warning(f"Educational content media not found or mismatch: media_id={media_id}, content_id={content_id}")
                 return jsonify({'success': False, 'error': 'رسانه محتوای آموزشی یافت نشد'}), 404
             
@@ -589,8 +538,7 @@ def product_detail(product_id):
     product = Product.query.get_or_404(product_id)
     # محصولات مرتبط که در همان دسته‌بندی هستند اما ID متفاوتی دارند
     related_products = Product.query.filter_by(category_id=product.category_id).filter(Product.id != product.id).limit(4).all()
-    # استفاده از تابع کمکی برای دریافت رسانه‌های محصول
-    media = get_product_media(product.id)
+    media = ProductMedia.query.filter_by(product_id=product.id).all()
     
     # تبدیل مسیر photo_url برای استفاده در url_for
     photo_url = get_photo_url(product.photo_url)
@@ -614,61 +562,8 @@ def admin_products():
     
     # عملیات POST
     if request.method == 'POST':
-        # افزودن رسانه اضافی به محصول
-        if action == 'add_media':
-            product_id = request.form.get('id')
-            if not product_id:
-                flash('شناسه محصول الزامی است.', 'danger')
-                return redirect(url_for('admin_products'))
-                
-            # اطمینان از وجود محصول
-            product = Product.query.get_or_404(int(product_id))
-            
-            # بررسی وجود فایل در درخواست
-            if 'media' not in request.files:
-                flash('هیچ فایلی انتخاب نشده است.', 'warning')
-                return redirect(url_for('admin_products') + f'?action=edit&id={product_id}')
-                
-            media_file = request.files['media']
-            if media_file.filename == '':
-                flash('هیچ فایلی انتخاب نشده است.', 'warning')
-                return redirect(url_for('admin_products') + f'?action=edit&id={product_id}')
-                
-            if media_file and allowed_file(media_file.filename):
-                # ذخیره فایل در مسیر مناسب
-                filename = secure_filename(media_file.filename)
-                timestamp = int(time.time())
-                # ساخت مسیر اختصاصی برای محصول
-                product_dir = os.path.join('static', 'uploads', 'products', str(product_id))
-                create_directory(product_dir)
-                
-                # ساخت نام فایل جدید با افزودن timestamp
-                file_extension = os.path.splitext(filename)[1]
-                new_filename = f"product_{product_id}_{timestamp}{file_extension}"
-                file_path = os.path.join(product_dir, new_filename)
-                
-                # ذخیره فایل
-                media_file.save(file_path)
-                
-                # ایجاد رکورد جدید در پایگاه داده
-                new_media = ProductMedia()
-                new_media.product_id = product.id
-                new_media.file_id = f"product_media_{product_id}_{timestamp}"
-                new_media.local_path = file_path
-                new_media.file_type = 'photo'  # پیش‌فرض برای تصاویر
-                
-                db.session.add(new_media)
-                db.session.commit()
-                
-                logger.info(f"New product media added: product_id={product_id}, file_path={file_path}")
-                flash('تصویر با موفقیت به محصول اضافه شد.', 'success')
-            else:
-                flash('فرمت فایل مجاز نیست. لطفاً یک تصویر با فرمت معتبر انتخاب کنید.', 'danger')
-                
-            return redirect(url_for('admin_products') + f'?action=edit&id={product_id}')
-            
         # حذف محصول
-        elif action == 'delete':
+        if action == 'delete':
             product_id = request.form.get('product_id')
             if not product_id:
                 flash('شناسه محصول الزامی است.', 'danger')
@@ -948,8 +843,7 @@ def admin_products():
         return render_template('admin/product_form.html',
                               title="ویرایش محصول",
                               product=product,
-                              categories=categories,
-                              get_product_media=get_product_media)
+                              categories=categories)
     elif action == 'media':
         if not product_id:
             # اگر شناسه محصول وجود نداشت، خطا نمایش داده می‌شود
@@ -1447,14 +1341,8 @@ def admin_inquiries():
 @login_required
 def admin_education():
     """پنل مدیریت - محتوای آموزشی"""
-    # Log request information for debugging
-    logger.info(f"Request to admin_education - Method: {request.method}, Args: {request.args}, Form: {request.form if request.method == 'POST' else 'No form data'}")
-    
-    # Get parameters from either POST or GET requests
-    action = request.form.get('action') if request.method == 'POST' else request.args.get('action')
-    content_id = request.form.get('id') if request.method == 'POST' else request.args.get('id')
-    
-    logger.info(f"Processed parameters - Action: {action}, Content ID: {content_id}")
+    action = request.args.get('action')
+    content_id = request.args.get('id')
     
     # اگر action برابر با 'add' یا 'edit' باشد، فرم نمایش داده می‌شود
     if action == 'add':
@@ -1522,13 +1410,10 @@ def admin_education():
     
     elif action == 'save' and request.method == 'POST':
         # ذخیره محتوای جدید یا ویرایش شده
-        logger.info("Processing educational content save request")
         content_id = request.form.get('id')
         title = request.form.get('title')
         category = request.form.get('category')
         content_text = request.form.get('content')
-        
-        logger.info(f"Form data - content_id: {content_id}, title: {title}, category: {category}, content length: {len(content_text) if content_text else 0}")
         
         # اگر دسته‌بندی جدید انتخاب شده، از فیلد new_category استفاده می‌کنیم
         if category == 'new_category':
@@ -1640,31 +1525,13 @@ def admin_education():
         return redirect(url_for('admin_education'))
     
     elif action == 'delete' and content_id and request.method == 'POST':
-        # CSRF protection is automatically handled by Flask-WTF for POST requests
-        # We don't need to manually validate the token since the @app.route decorator handles it
-            
         # حذف محتوا
         try:
             content = EducationalContent.query.get(int(content_id))
             if content:
-                # Get media files to delete
-                media_files = EducationalContentMedia.query.filter_by(educational_content_id=int(content_id)).all()
-                
-                # Delete media files from disk if they are local files
-                for media in media_files:
-                    try:
-                        if media.file_id and media.local_path and os.path.exists(media.local_path):
-                            os.remove(media.local_path)
-                            logger.info(f"Deleted media file: {media.local_path}")
-                    except Exception as media_error:
-                        logger.error(f"Error deleting media file: {media_error}")
-                
-                # Delete the content (cascade will delete associated media records)
                 db.session.delete(content)
                 db.session.commit()
                 flash('محتوای آموزشی با موفقیت حذف شد.', 'success')
-            else:
-                flash('محتوای آموزشی یافت نشد.', 'warning')
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error deleting educational content: {e}")
