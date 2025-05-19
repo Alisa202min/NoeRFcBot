@@ -813,7 +813,7 @@ class Database:
             with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
                 # Get main content data
                 cursor.execute(
-                    '''SELECT ec.id, ec.title, ec.content, ec.category, ec.content_type, ec.type, 
+                    '''SELECT ec.id, ec.title, ec.content, ec.category, 
                        ec.category_id, cat.name as category_name
                        FROM educational_content ec
                        LEFT JOIN educational_categories cat ON ec.category_id = cat.id
@@ -852,7 +852,7 @@ class Database:
             with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
                 # Get main content data
                 cursor.execute(
-                    '''SELECT ec.id, ec.title, ec.content, ec.category, ec.content_type, ec.type, 
+                    '''SELECT ec.id, ec.title, ec.content, ec.category, 
                        ec.category_id, cat.name as category_name
                        FROM educational_content ec
                        LEFT JOIN educational_categories cat ON ec.category_id = cat.id
@@ -1009,7 +1009,7 @@ class Database:
             rows = cursor.fetchall()
             return [row[0] for row in rows]
 
-    def add_educational_content(self, title: str, content: str, category: str, content_type: str, 
+    def add_educational_content(self, title: str, content: str, category: str, 
                                 category_id: Optional[int] = None, media_files: Optional[List[Dict]] = None) -> int:
         """
         Add new educational content with optional category_id and media files
@@ -1018,7 +1018,6 @@ class Database:
             title: Content title
             content: Content body text
             category: Legacy category field (for backwards compatibility)
-            content_type: Content type (article, tutorial, etc.)
             category_id: New hierarchical category ID (optional)
             media_files: List of media files in format [{'file_id': '...', 'file_type': 'photo'}, ...] (optional)
             
@@ -1029,9 +1028,9 @@ class Database:
             # Insert main content record
             cursor.execute(
                 '''INSERT INTO educational_content 
-                   (title, content, category, content_type, type, category_id) 
-                   VALUES (%s, %s, %s, %s, %s, %s) RETURNING id''',
-                (title, content, category, content_type, content_type, category_id)
+                   (title, content, category, category_id) 
+                   VALUES (%s, %s, %s, %s) RETURNING id''',
+                (title, content, category, category_id)
             )
             content_id = cursor.fetchone()[0]
             
