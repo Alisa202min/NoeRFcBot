@@ -33,6 +33,35 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
+# ----- Utility Functions for Media Management -----
+
+def delete_media_file(file_path):
+    """
+    حذف فیزیکی فایل رسانه‌ای از سیستم فایل
+    
+    Args:
+        file_path: مسیر فایل برای حذف
+    
+    Returns:
+        bool: موفقیت یا عدم موفقیت عملیات
+    """
+    try:
+        # بررسی اینکه آیا فایل وجود دارد
+        if file_path and os.path.exists(file_path):
+            # حذف فایل
+            if os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+            else:
+                os.remove(file_path)
+            logger.info(f"File deleted successfully: {file_path}")
+            return True
+        else:
+            logger.warning(f"File not found for deletion: {file_path}")
+            return False
+    except Exception as e:
+        logger.error(f"Error deleting file {file_path}: {str(e)}")
+        return False
+
 # ----- Main Routes -----
 
 @app.route('/')
@@ -197,6 +226,128 @@ def logout():
     return redirect(url_for('index'))
 
 # ----- Admin Panel Routes -----
+
+# ----- Media Deletion Route -----
+
+@app.route('/admin/delete_media', methods=['POST'])
+@login_required
+def delete_media():
+    """
+    حذف فایل رسانه‌ای از سیستم
+    
+    این مسیر برای حذف فایل‌های رسانه‌ای از محصولات، خدمات و محتوای آموزشی استفاده می‌شود.
+    هم رکورد پایگاه داده و هم فایل فیزیکی حذف می‌شوند.
+    """
+    if not current_user.is_admin:
+        logger.warning(f"Non-admin user {current_user.id} attempted to delete media")
+        return jsonify({'success': False, 'error': 'دسترسی مجاز نیست'}), 403
+    
+    try:
+        content_type = request.args.get('type')
+        content_id = request.args.get('content_id')
+        media_id = request.args.get('media_id')
+        media_type = request.args.get('media_type')
+        
+        if not all([content_type, content_id, media_id]):
+            logger.error(f"Missing parameters in delete_media request: {request.args}")
+            return jsonify({'success': False, 'error': 'پارامترهای ناقص'}), 400
+        
+        # تبدیل به اعداد صحیح
+        try:
+            content_id = int(content_id)
+            media_id = int(media_id)
+        except ValueError:
+            logger.error(f"Invalid ID format in delete_media request: content_id={content_id}, media_id={media_id}")
+            return jsonify({'success': False, 'error': 'فرمت شناسه نامعتبر است'}), 400
+        
+        # حذف بر اساس نوع محتوا
+        if content_type == 'product':
+            # حذف رسانه محصول
+            media = ProductMedia.query.get(media_id)
+            if not media or media.product_id != content_id:
+                logger.warning(f"Product media not found or mismatch: media_id={media_id}, product_id={content_id}")
+                return jsonify({'success': False, 'error': 'رسانه محصول یافت نشد'}), 404
+            
+            # حذف فایل فیزیکی
+            file_path = None
+            if hasattr(media, 'local_path') and media.local_path and os.path.exists(media.local_path):
+                file_path = media.local_path
+            elif media.file_id:
+                # تلاش برای پیدا کردن مسیر فایل از file_id
+                file_path = os.path.join('static', 'uploads', 'products', f"{media.file_id.split('_')[-1]}")
+            
+            # حذف فایل فیزیکی
+            delete_result = delete_media_file(file_path) if file_path else False
+            
+            # حذف رکورد از پایگاه داده
+            db.session.delete(media)
+            db.session.commit()
+            
+            logger.info(f"Product media deleted: id={media_id}, product_id={content_id}, file_path={file_path}, file_deleted={delete_result}")
+            return jsonify({'success': True})
+            
+        elif content_type == 'service':
+            # حذف رسانه خدمت
+            media = ServiceMedia.query.get(media_id)
+            if not media or media.service_id != content_id:
+                logger.warning(f"Service media not found or mismatch: media_id={media_id}, service_id={content_id}")
+                return jsonify({'success': False, 'error': 'رسانه خدمت یافت نشد'}), 404
+            
+            # حذف فایل فیزیکی
+            file_path = None
+            if hasattr(media, 'local_path') and media.local_path and os.path.exists(media.local_path):
+                file_path = media.local_path
+            elif media.file_id:
+                # تلاش برای پیدا کردن مسیر فایل از file_id
+                file_path = os.path.join('static', 'uploads', 'services', f"{media.file_id.split('_')[-1]}")
+            
+            # حذف فایل فیزیکی
+            delete_result = delete_media_file(file_path) if file_path else False
+            
+            # حذف رکورد از پایگاه داده
+            db.session.delete(media)
+            db.session.commit()
+            
+            logger.info(f"Service media deleted: id={media_id}, service_id={content_id}, file_path={file_path}, file_deleted={delete_result}")
+            return jsonify({'success': True})
+            
+        elif content_type == 'educational':
+            # حذف رسانه محتوای آموزشی
+            media = EducationalContentMedia.query.get(media_id)
+            if not media or media.content_id != content_id:
+                logger.warning(f"Educational content media not found or mismatch: media_id={media_id}, content_id={content_id}")
+                return jsonify({'success': False, 'error': 'رسانه محتوای آموزشی یافت نشد'}), 404
+            
+            # حذف فایل فیزیکی
+            file_path = None
+            if hasattr(media, 'local_path') and media.local_path and os.path.exists(media.local_path):
+                file_path = media.local_path
+            elif media.file_id:
+                # تلاش برای پیدا کردن مسیر فایل از file_id
+                file_path = os.path.join('static', 'uploads', 'educational', f"{media.file_id.split('_')[-1]}")
+                if not os.path.exists(file_path):
+                    file_path = os.path.join('media', 'educational', f"{media.file_id.split('_')[-1]}")
+            
+            # حذف فایل فیزیکی
+            delete_result = delete_media_file(file_path) if file_path else False
+            
+            # حذف رکورد از پایگاه داده
+            db.session.delete(media)
+            db.session.commit()
+            
+            logger.info(f"Educational content media deleted: id={media_id}, content_id={content_id}, file_path={file_path}, file_deleted={delete_result}")
+            return jsonify({'success': True})
+            
+        else:
+            logger.error(f"Invalid content type in delete_media request: {content_type}")
+            return jsonify({'success': False, 'error': 'نوع محتوا نامعتبر است'}), 400
+            
+    except Exception as e:
+        logger.error(f"Error in delete_media: {str(e)}", exc_info=True)
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ----- Admin Dashboard Routes -----
 
 @app.route('/admin')
 @app.route('/admin/')
