@@ -128,13 +128,9 @@ def format_educational_content(content: Dict) -> str:
     title = content['title']
     content_text = content['content']
     category = content['category']
-    content_type = content['type']
     
-    # Format based on content type
-    if content_type == 'link':
-        return f"📚 *{title}*\n\n🔗 لینک: {content_text}\n\n📂 دسته‌بندی: {category}"
-    else:
-        return f"📚 *{title}*\n\n{content_text}\n\n📂 دسته‌بندی: {category}"
+    # Simplified format - all content is now text-based
+    return f"📚 *{title}*\n\n{content_text}\n\n📂 دسته‌بندی: {category}"
 
 def is_valid_phone_number(phone: str) -> bool:
     """
