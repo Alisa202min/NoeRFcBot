@@ -813,7 +813,7 @@ class Database:
             with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
                 # Get main content data
                 cursor.execute(
-                    '''SELECT ec.id, ec.title, ec.content, ec.category, 
+                    '''SELECT ec.id, ec.title, ec.content, ec.category, ec.content_type, ec.type, 
                        ec.category_id, cat.name as category_name
                        FROM educational_content ec
                        LEFT JOIN educational_categories cat ON ec.category_id = cat.id
@@ -852,7 +852,7 @@ class Database:
             with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
                 # Get main content data
                 cursor.execute(
-                    '''SELECT ec.id, ec.title, ec.content, ec.category, 
+                    '''SELECT ec.id, ec.title, ec.content, ec.category, ec.content_type, ec.type, 
                        ec.category_id, cat.name as category_name
                        FROM educational_content ec
                        LEFT JOIN educational_categories cat ON ec.category_id = cat.id
@@ -891,7 +891,7 @@ class Database:
             List of educational content with media count
         """
         query = '''
-            SELECT ec.id, ec.title, ec.content, ec.category,
+            SELECT ec.id, ec.title, ec.content, ec.category, ec.content_type, ec.type,
                    ec.category_id, cat.name as category_name,
                    (SELECT COUNT(*) FROM educational_content_media WHERE educational_content_id = ec.id) as media_count
             FROM educational_content ec
@@ -1009,7 +1009,7 @@ class Database:
             rows = cursor.fetchall()
             return [row[0] for row in rows]
 
-    def add_educational_content(self, title: str, content: str, category: str,
+    def add_educational_content(self, title: str, content: str, category: str, content_type: str, 
                                 category_id: Optional[int] = None, media_files: Optional[List[Dict]] = None) -> int:
         """
         Add new educational content with optional category_id and media files
@@ -1018,6 +1018,7 @@ class Database:
             title: Content title
             content: Content body text
             category: Legacy category field (for backwards compatibility)
+            content_type: Content type (article, tutorial, etc.)
             category_id: New hierarchical category ID (optional)
             media_files: List of media files in format [{'file_id': '...', 'file_type': 'photo'}, ...] (optional)
             
@@ -1028,9 +1029,9 @@ class Database:
             # Insert main content record
             cursor.execute(
                 '''INSERT INTO educational_content 
-                   (title, content, category, category_id) 
-                   VALUES (%s, %s, %s, %s) RETURNING id''',
-                (title, content, category, category_id)
+                   (title, content, category, content_type, type, category_id) 
+                   VALUES (%s, %s, %s, %s, %s, %s) RETURNING id''',
+                (title, content, category, content_type, content_type, category_id)
             )
             content_id = cursor.fetchone()[0]
             
@@ -1052,7 +1053,7 @@ class Database:
 
     def update_educational_content(self, content_id: int, title: Optional[str] = None, 
                                  content: Optional[str] = None, category: Optional[str] = None, 
-                                 category_id: Optional[int] = None,
+                                 content_type: Optional[str] = None, category_id: Optional[int] = None,
                                  media_files: Optional[List[Dict]] = None, 
                                  replace_media: bool = False) -> bool:
         """
@@ -1063,6 +1064,7 @@ class Database:
             title: New title (optional)
             content: New content body (optional)
             category: New legacy category (optional)
+            content_type: New content type (optional)
             category_id: New category ID in hierarchical structure (optional)
             media_files: List of media files to add (optional)
             replace_media: If True, will delete existing media files before adding new ones
@@ -1085,9 +1087,9 @@ class Database:
             # Update main content record
             cursor.execute(
                 '''UPDATE educational_content 
-                   SET title = %s, content = %s, category = %s, category_id = %s
+                   SET title = %s, content = %s, category = %s, content_type = %s, type = %s, category_id = %s
                    WHERE id = %s''',
-                (new_title, new_content, new_category, new_category_id, content_id)
+                (new_title, new_content, new_category, new_type, new_type, new_category_id, content_id)
             )
             
             # Media management
@@ -1558,7 +1560,7 @@ class Database:
                                 title=row['title'],
                                 content=row['content'],
                                 category=row['category'],
-                                # content_type=row['type'] - حذف شده
+                                content_type=row['type']
                             )
                             success_count += 1
                         except Exception as e:
