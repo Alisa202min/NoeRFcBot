@@ -386,6 +386,7 @@ async def callback_educational_content(callback: CallbackQuery):
             MAX_CAPTION_LENGTH = 850  # Leave some room for the title and "متن کامل" link
             
             caption_text = f"📖 *{title}*\n\n"
+            telegraph_url = None
             
             if len(content_text) > MAX_CAPTION_LENGTH:
                 # Create a shortened version with link to full text
@@ -401,6 +402,7 @@ async def callback_educational_content(callback: CallbackQuery):
                         content=content_text,
                         author="RFCatalogbot"
                     )
+                    logging.info(f"Created Telegraph page: {telegraph_url}")
                     
                     # Update the caption with the actual link
                     if telegraph_url:
@@ -413,13 +415,93 @@ async def callback_educational_content(callback: CallbackQuery):
                 # Text fits in caption, use it directly
                 caption_text += content_text
             
-            # Send as media group with caption on first item
-            await send_educational_media_group(
-                chat_id=callback.message.chat.id, 
-                media_files=media_files, 
-                caption=caption_text, 
-                keyboard=keyboard
-            )
+            # Prepare media items for the group
+            from bot import bot
+            from aiogram.types import InputMediaPhoto, FSInputFile
+            
+            media_group = []
+            found_valid_media = False
+            
+            # Process media files
+            for idx, media in enumerate(media_files):
+                file_id = media.get('file_id')
+                local_path = media.get('local_path')
+                file_type = media.get('file_type', 'photo')
+                
+                # Skip if no file_id
+                if not file_id:
+                    continue
+                
+                # For first media item, include caption
+                item_caption = caption_text if idx == 0 else ""
+                
+                # Check if file exists in static/media/educational folder
+                if file_id.startswith('educational_content_image_'):
+                    # Extract filename from known paths in media folder
+                    try:
+                        # Look for files in static/media/educational
+                        import glob
+                        possible_files = glob.glob(f"./static/media/educational/*.jpg")
+                        if possible_files:
+                            # Use first media file found
+                            media_path = possible_files[0]
+                            logging.info(f"Using media from path: {media_path}")
+                            
+                            media_group.append(
+                                InputMediaPhoto(
+                                    media=FSInputFile(media_path),
+                                    caption=item_caption,
+                                    parse_mode="Markdown"
+                                )
+                            )
+                            found_valid_media = True
+                    except Exception as e:
+                        logging.error(f"Error processing media file: {str(e)}")
+                else:
+                    try:
+                        # Try to use as direct Telegram file_id
+                        media_group.append(
+                            InputMediaPhoto(
+                                media=file_id,
+                                caption=item_caption,
+                                parse_mode="Markdown"
+                            )
+                        )
+                        found_valid_media = True
+                    except Exception as e:
+                        logging.error(f"Error adding media: {str(e)}")
+            
+            if found_valid_media and media_group:
+                logging.info(f"Sending media group with {len(media_group)} items")
+                try:
+                    # Send media group
+                    await bot.send_media_group(
+                        chat_id=callback.message.chat.id,
+                        media=media_group
+                    )
+                    
+                    # Send keyboard in separate message if needed
+                    if keyboard:
+                        await bot.send_message(
+                            chat_id=callback.message.chat.id,
+                            text="🔍 گزینه‌های مرتبط با محتوای آموزشی:",
+                            reply_markup=keyboard
+                        )
+                except Exception as e:
+                    logging.error(f"Error sending media group: {str(e)}")
+                    # Fallback to text-only message
+                    content_text = f"📖 *{title}*\n\n{content_text}"
+                    if telegraph_url:
+                        content_text += f"\n\n[متن کامل]({telegraph_url})"
+                    
+                    await callback.message.answer(content_text, parse_mode="Markdown", reply_markup=keyboard)
+            else:
+                # No valid media found, fallback to text message
+                content_text = f"📖 *{title}*\n\n{content['content']}"
+                if telegraph_url:
+                    content_text += f"\n\n[متن کامل]({telegraph_url})"
+                
+                await callback.message.answer(content_text, parse_mode="Markdown", reply_markup=keyboard)
         else:
             # No media files, send as regular text message
             content_text = f"📖 *{content['title']}*\n\n{content['content']}"
