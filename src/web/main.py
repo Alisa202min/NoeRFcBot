@@ -1447,9 +1447,14 @@ def admin_inquiries():
 @login_required
 def admin_education():
     """پنل مدیریت - محتوای آموزشی"""
+    # Log request information for debugging
+    logger.info(f"Request to admin_education - Method: {request.method}, Args: {request.args}, Form: {request.form if request.method == 'POST' else 'No form data'}")
+    
     # Get parameters from either POST or GET requests
     action = request.form.get('action') if request.method == 'POST' else request.args.get('action')
     content_id = request.form.get('id') if request.method == 'POST' else request.args.get('id')
+    
+    logger.info(f"Processed parameters - Action: {action}, Content ID: {content_id}")
     
     # اگر action برابر با 'add' یا 'edit' باشد، فرم نمایش داده می‌شود
     if action == 'add':
