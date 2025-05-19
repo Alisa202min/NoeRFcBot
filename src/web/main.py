@@ -1354,10 +1354,6 @@ def admin_education():
                     
                     db.session.commit()
                 
-                db.session.add(content)
-                db.session.commit()
-                
-
                 flash('محتوای آموزشی جدید با موفقیت ایجاد شد.', 'success')
         
         except Exception as e:
