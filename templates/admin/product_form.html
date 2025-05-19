@@ -131,7 +131,7 @@
                             {% if product and product.id %}
                             <!-- نمایش تصاویر اضافی موجود -->
                             <div class="row mb-3">
-                                {% set product_medias = product_media(product.id) if product_media is defined else [] %}
+                                {% set product_medias = get_product_media(product.id) if get_product_media is defined else [] %}
                                 {% for media in product_medias %}
                                 <div class="col-md-3 col-sm-6 mb-3">
                                     <div class="card h-100">
@@ -160,7 +160,26 @@
                             <div class="card">
                                 <div class="card-body">
                                     <h6 class="card-title">افزودن تصاویر اضافی</h6>
-                                    <p class="card-text text-muted">تصاویر اضافی را پس از ذخیره محصول می‌توانید از صفحه مدیریت رسانه‌های محصول آپلود کنید.</p>
+                                    
+                                    {% if product and product.id %}
+                                    <form method="post" action="{{ url_for('admin_products') }}?action=add_media" enctype="multipart/form-data" class="mb-3">
+                                        <input type="hidden" name="id" value="{{ product.id }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        
+                                        <div class="mb-3">
+                                            <label for="additional_media" class="form-label">انتخاب فایل تصویر</label>
+                                            <input type="file" class="form-control" id="additional_media" name="media" accept="image/*" required>
+                                            <div class="form-text">فرمت‌های مجاز: JPG، PNG، GIF (حداکثر 2MB)</div>
+                                        </div>
+                                        
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="bi bi-upload"></i> آپلود تصویر اضافی
+                                        </button>
+                                    </form>
+                                    <p class="text-muted small">بعد از آپلود هر تصویر، صفحه مجدداً بارگذاری می‌شود.</p>
+                                    {% else %}
+                                    <p class="card-text text-muted">تصاویر اضافی را پس از ذخیره محصول می‌توانید آپلود کنید.</p>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
