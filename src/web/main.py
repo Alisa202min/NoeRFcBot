@@ -20,8 +20,18 @@ from src.models.models import (
 )
 from src.utils.utils import allowed_file, save_uploaded_file, create_directory
 from src.utils.utils_upload import handle_media_upload, remove_file, serve_file
+import shutil
 
+# تنظیم لاگر
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# تنظیم لاگر برای ذخیره لاگ‌ها در فایل
+file_handler = logging.FileHandler('logs/rfcbot.log')
+file_handler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
 
 # ----- Main Routes -----
 
