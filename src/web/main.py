@@ -35,6 +35,57 @@ logger.addHandler(file_handler)
 
 # ----- Utility Functions for Media Management -----
 
+def get_product_media(product_id):
+    """
+    دریافت تمام رسانه‌های اضافی یک محصول
+    
+    Args:
+        product_id: شناسه محصول
+    
+    Returns:
+        List: لیستی از رسانه‌های محصول
+    """
+    try:
+        media_list = ProductMedia.query.filter_by(product_id=product_id).all()
+        return media_list
+    except Exception as e:
+        logger.error(f"Error fetching product media: {str(e)}")
+        return []
+
+def get_service_media(service_id):
+    """
+    دریافت تمام رسانه‌های اضافی یک خدمت
+    
+    Args:
+        service_id: شناسه خدمت
+    
+    Returns:
+        List: لیستی از رسانه‌های خدمت
+    """
+    try:
+        media_list = ServiceMedia.query.filter_by(service_id=service_id).all()
+        return media_list
+    except Exception as e:
+        logger.error(f"Error fetching service media: {str(e)}")
+        return []
+
+def get_educational_media(content_id):
+    """
+    دریافت تمام رسانه‌های اضافی یک محتوای آموزشی
+    
+    Args:
+        content_id: شناسه محتوا
+    
+    Returns:
+        List: لیستی از رسانه‌های محتوای آموزشی
+    """
+    try:
+        media_list = EducationalContentMedia.query.filter_by(content_id=content_id).all()
+        return media_list
+    except Exception as e:
+        logger.error(f"Error fetching educational content media: {str(e)}")
+        return []
+
 def delete_media_file(file_path):
     """
     حذف فیزیکی فایل رسانه‌ای از سیستم فایل
@@ -538,7 +589,8 @@ def product_detail(product_id):
     product = Product.query.get_or_404(product_id)
     # محصولات مرتبط که در همان دسته‌بندی هستند اما ID متفاوتی دارند
     related_products = Product.query.filter_by(category_id=product.category_id).filter(Product.id != product.id).limit(4).all()
-    media = ProductMedia.query.filter_by(product_id=product.id).all()
+    # استفاده از تابع کمکی برای دریافت رسانه‌های محصول
+    media = get_product_media(product.id)
     
     # تبدیل مسیر photo_url برای استفاده در url_for
     photo_url = get_photo_url(product.photo_url)
