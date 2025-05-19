@@ -1640,7 +1640,7 @@ def admin_education():
             content = EducationalContent.query.get(int(content_id))
             if content:
                 # Get media files to delete
-                media_files = EducationalContentMedia.query.filter_by(content_id=int(content_id)).all()
+                media_files = EducationalContentMedia.query.filter_by(educational_content_id=int(content_id)).all()
                 
                 # Delete media files from disk if they are local files
                 for media in media_files:
