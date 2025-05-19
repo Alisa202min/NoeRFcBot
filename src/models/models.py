@@ -312,14 +312,11 @@ class EducationalContent(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(128), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    # نگه داشتن فیلد category برای حفظ سازگاری با کد قبلی
     category = db.Column(db.Text, nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('educational_categories.id'), nullable=True)
-  
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    # Note: updated_at is removed as it doesn't exist in the database schema
     
     # Relationships
     media = db.relationship('EducationalContentMedia', backref='educational_content', lazy='dynamic', cascade='all, delete-orphan')
@@ -350,10 +347,8 @@ class StaticContent(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     content_type = db.Column(db.String(20), nullable=False, unique=True)  # about, contact, etc.
     content = db.Column(db.Text, nullable=False)
-    type = db.Column(db.Text)  # Duplicate of content_type for backward compatibility
     
     # Timestamps
-    # Note: created_at is not in the database schema
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     def __repr__(self):
