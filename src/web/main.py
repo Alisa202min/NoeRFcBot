@@ -1517,10 +1517,13 @@ def admin_education():
     
     elif action == 'save' and request.method == 'POST':
         # ذخیره محتوای جدید یا ویرایش شده
+        logger.info("Processing educational content save request")
         content_id = request.form.get('id')
         title = request.form.get('title')
         category = request.form.get('category')
         content_text = request.form.get('content')
+        
+        logger.info(f"Form data - content_id: {content_id}, title: {title}, category: {category}, content length: {len(content_text) if content_text else 0}")
         
         # اگر دسته‌بندی جدید انتخاب شده، از فیلد new_category استفاده می‌کنیم
         if category == 'new_category':
