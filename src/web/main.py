@@ -1447,8 +1447,9 @@ def admin_inquiries():
 @login_required
 def admin_education():
     """پنل مدیریت - محتوای آموزشی"""
-    action = request.args.get('action')
-    content_id = request.args.get('id')
+    # Get parameters from either POST or GET requests
+    action = request.form.get('action') if request.method == 'POST' else request.args.get('action')
+    content_id = request.form.get('id') if request.method == 'POST' else request.args.get('id')
     
     # اگر action برابر با 'add' یا 'edit' باشد، فرم نمایش داده می‌شود
     if action == 'add':
