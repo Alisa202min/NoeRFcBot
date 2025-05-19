@@ -1480,8 +1480,6 @@ def admin_education():
                 content.title = title
                 content.category = category
                 content.content = content_text
-                content.type = 'text'  # تنظیم مقدار پیش‌فرض برای فیلد type
-                content.content_type = 'text'  # تنظیم content_type هم برای اطمینان
                 
                 db.session.add(content)
                 db.session.commit()
