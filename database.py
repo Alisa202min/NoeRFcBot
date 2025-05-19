@@ -1561,7 +1561,7 @@ class Database:
                                 title=row['title'],
                                 content=row['content'],
                                 category=row['category'],
-                                content_type=row['type']
+                                # content_type=row['type'] - حذف شده
                             )
                             success_count += 1
                         except Exception as e:
