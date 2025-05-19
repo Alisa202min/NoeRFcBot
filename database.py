@@ -891,7 +891,7 @@ class Database:
             List of educational content with media count
         """
         query = '''
-            SELECT ec.id, ec.title, ec.content, ec.category, ec.content_type, ec.type,
+            SELECT ec.id, ec.title, ec.content, ec.category,
                    ec.category_id, cat.name as category_name,
                    (SELECT COUNT(*) FROM educational_content_media WHERE educational_content_id = ec.id) as media_count
             FROM educational_content ec
