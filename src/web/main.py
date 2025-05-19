@@ -2398,13 +2398,7 @@ def admin_database_fix(table):
                         content.category = category.name
                         modified = True
                 
-                # اطمینان از همخوانی فیلد type با content_type
-                if content.content_type and content.type != content.content_type:
-                    content.type = content.content_type
-                    modified = True
-                elif content.type and not content.content_type:
-                    content.content_type = content.type
-                    modified = True
+                # حذف کد مربوط به فیلدهای content_type و type، چون دیگر استفاده نمی‌شوند
                 
                 if modified:
                     fixed_count += 1
