@@ -74,7 +74,6 @@
                                     <th scope="col" width="80">#</th>
                                     <th scope="col">عنوان</th>
                                     <th scope="col">دسته‌بندی</th>
-                                    <th scope="col">نوع محتوا</th>
                                     <th scope="col">تاریخ ایجاد</th>
                                     <th scope="col" width="180">عملیات</th>
                                 </tr>
@@ -86,19 +85,6 @@
                                     <td>{{ content.title }}</td>
                                     <td>
                                         <span class="badge bg-info">{{ content.category }}</span>
-                                    </td>
-                                    <td>
-                                        {% if content.content_type == 'text' %}
-                                        <span class="badge bg-primary">متن</span>
-                                        {% elif content.content_type == 'video' %}
-                                        <span class="badge bg-danger">ویدیو</span>
-                                        {% elif content.content_type == 'image' %}
-                                        <span class="badge bg-success">تصویر</span>
-                                        {% elif content.content_type == 'file' %}
-                                        <span class="badge bg-warning">فایل</span>
-                                        {% else %}
-                                        <span class="badge bg-secondary">نامشخص</span>
-                                        {% endif %}
                                     </td>
                                     <td>{{ content.created_at.strftime('%Y-%m-%d %H:%M') if content.created_at else '-' }}</td>
                                     <td>

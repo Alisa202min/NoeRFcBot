@@ -1357,41 +1357,7 @@ def admin_education():
                 db.session.add(content)
                 db.session.commit()
                 
-                # اگر فایل‌های آپلود شده داریم، رکورد EducationalContentMedia برای هر فایل ایجاد می‌کنیم
-                if file_paths:
-                    # اضافه کردن تمام فایل‌ها به EducationalContentMedia
-                    for idx, current_file_path in enumerate(file_paths):
-                        timestamp = int(time.time()) + idx  # زمان + ایندکس برای جلوگیری از تکرار
-                        media_file_id = f"educational_content_image_{content.id}_{timestamp}"
-                        file_type = 'photo'
-                        
-                        # تشخیص نوع فایل
-                        if content_type == 'video' or current_file_path.lower().endswith(('.mp4', '.avi', '.mov', '.mkv')):
-                            file_type = 'video'
-                            media_file_id = f"educational_content_video_{content.id}_{timestamp}"
-                        elif content_type == 'file' or not current_file_path.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')):
-                            file_type = 'file'
-                            media_file_id = f"educational_content_file_{content.id}_{timestamp}"
-                            
-                        # ساخت رکورد جدید فایل
-                        media = EducationalContentMedia(
-                            educational_content_id=content.id,
-                            file_id=media_file_id,
-                            file_type=file_type
-                        )
-                        
-                        # تنظیم local_path بعد از ساخت آبجکت
-                        try:
-                            media.local_path = current_file_path
-                            logger.info(f"local_path تنظیم شد: {current_file_path}")
-                        except Exception as e:
-                            # اگر تنظیم local_path با خطا مواجه شد
-                            logger.warning(f"خطا در تنظیم local_path: {e} - path: {current_file_path}")
-                        
-                        db.session.add(media)
-                        logger.info(f"فایل رسانه اضافه شد: {media_file_id} - {current_file_path}")
-                    
-                    db.session.commit()
+
                 flash('محتوای آموزشی جدید با موفقیت ایجاد شد.', 'success')
         
         except Exception as e:
