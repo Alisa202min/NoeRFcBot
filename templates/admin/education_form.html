@@ -97,10 +97,14 @@
                                                         <p>فایل ضمیمه</p>
                                                     </div>
                                                     {% endif %}
-                                                    <div class="card-footer">
+                                                    <div class="card-footer d-flex justify-content-between">
                                                         <a href="{{ media.redirect_url }}" class="btn btn-sm btn-primary" target="_blank">
                                                             <i class="bi bi-download"></i> دانلود
                                                         </a>
+                                                        <button type="button" class="btn btn-sm btn-danger" 
+                                                                onclick="confirmDeleteMedia('educational', {{ content.id }}, {{ media.id }}, '{{ media.file_type }}')">
+                                                            <i class="bi bi-trash"></i> حذف
+                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -151,5 +155,34 @@
         // فراخوانی اولیه برای تنظیم حالت فرم
         updateCategoryField();
     });
+    
+    // تابع تأیید حذف فایل رسانه‌ای
+    window.confirmDeleteMedia = function(contentType, contentId, mediaId, mediaType) {
+        if (confirm('آیا از حذف این فایل رسانه‌ای اطمینان دارید؟ این عملیات غیرقابل بازگشت است.')) {
+            // ارسال درخواست حذف فایل
+            fetch(`/admin/delete_media?type=${contentType}&content_id=${contentId}&media_id=${mediaId}&media_type=${mediaType}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('فایل با موفقیت حذف شد.');
+                    // حذف کارت مربوط به فایل از صفحه
+                    const mediaCard = document.querySelector(`button[onclick*="${mediaId}"]`).closest('.col');
+                    mediaCard.remove();
+                } else {
+                    alert('خطا در حذف فایل: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('خطایی در عملیات حذف رخ داد.');
+            });
+        }
+    }
 </script>
 {% endblock %}
