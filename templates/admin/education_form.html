@@ -19,7 +19,8 @@
                     <h5 class="card-title mb-0">{{ title }}</h5>
                 </div>
                 <div class="card-body">
-                    <form method="post" action="{{ url_for('admin_education', action='save') }}" enctype="multipart/form-data">
+                    <form method="post" action="{{ url_for('admin_education') }}" enctype="multipart/form-data">
+                        <input type="hidden" name="action" value="save">
                         {% if content %}
                         <input type="hidden" name="id" value="{{ content.id }}">
                         {% endif %}
