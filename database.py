@@ -1087,9 +1087,9 @@ class Database:
             # Update main content record
             cursor.execute(
                 '''UPDATE educational_content 
-                   SET title = %s, content = %s, category = %s, content_type = %s, type = %s, category_id = %s
+                   SET title = %s, content = %s, category = %s, category_id = %s
                    WHERE id = %s''',
-                (new_title, new_content, new_category, new_type, new_type, new_category_id, content_id)
+                (new_title, new_content, new_category, new_category_id, content_id)
             )
             
             # Media management
