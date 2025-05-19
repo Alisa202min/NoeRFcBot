@@ -46,8 +46,7 @@
                                     <input type="text" class="form-control" id="new_category" name="new_category" placeholder="نام دسته‌بندی جدید">
                                 </div>
                                 
-                                <!-- فیلد نوع محتوا به صورت مخفی -->
-                                <input type="hidden" id="content_type" name="content_type" value="text">
+                                <!-- محتوای آموزشی همیشه متن است و فایل‌ها جداگانه ذخیره می‌شوند -->
                             </div>
                             
                             <div class="col-md-6">
@@ -72,7 +71,6 @@
                                         <div class="alert alert-info">
                                             <p><strong>عنوان محتوا:</strong> {{ content.title }}</p>
                                             <p><strong>دسته‌بندی:</strong> {{ content.category }}</p>
-                                            <p><strong>نوع محتوا:</strong> {{ content.content_type }}</p>
                                         </div>
                                     </div>
                                     {% endif %}
