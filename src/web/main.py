@@ -1252,19 +1252,17 @@ def admin_education():
         content_id = request.form.get('id')
         title = request.form.get('title')
         category = request.form.get('category')
-        content_type = request.form.get('content_type')
         content_text = request.form.get('content')
         
         # اگر دسته‌بندی جدید انتخاب شده، از فیلد new_category استفاده می‌کنیم
         if category == 'new_category':
             category = request.form.get('new_category')
         
-        # بررسی آپلود فایل‌ها برای محتوای نوع تصویر، ویدیو یا فایل
+        # بررسی آپلود فایل‌ها
         uploaded_files = request.files.getlist('file')
         logger.info(f"تعداد فایل‌های آپلود شده: {len(uploaded_files)}")
         
         file_paths = []
-        main_file_path = None
         
         # پردازش تمام فایل‌های آپلود شده
         for uploaded_file in uploaded_files:
@@ -1273,10 +1271,6 @@ def admin_education():
                 success, file_path = save_uploaded_file(uploaded_file, 'educational')
                 if success and file_path:
                     file_paths.append(file_path)
-                    
-                    # اولین فایل را به عنوان فایل اصلی در نظر می‌گیریم (برای سازگاری با کد قبلی)
-                    if main_file_path is None:
-                        main_file_path = file_path
                 
                 logger.info(f"فایل ذخیره شد: {file_path}")
         
@@ -1287,29 +1281,23 @@ def admin_education():
                 if content:
                     content.title = title
                     content.category = category
-                    content.content_type = content_type
-                    content.type = content_type  # تنظیم فیلد type برابر با content_type
-                    
-                    # همیشه از متن استفاده می‌کنیم و مسیر فایل ها در جدول دیگری ذخیره می‌شود
                     content.content = content_text
                     
-                    # برای سازگاری با کد قبلی، اگر محتوا خالی است و فایل آپلود شده، مسیر را در محتوا هم ذخیره می‌کنیم
-                    if not content_text.strip() and main_file_path and content_type in ['image', 'video', 'file']:
-                        content.content = f"Content with media: {content.title}"
-                    
-                    # همه فایل‌ها را به EducationalContentMedia اضافه می‌کنیم (بدون توجه به نوع محتوا)
+                    # همه فایل‌ها را به EducationalContentMedia اضافه می‌کنیم
                     if file_paths:
                         for idx, current_file_path in enumerate(file_paths):
                             timestamp = int(time.time()) + idx  # زمان + ایندکس برای جلوگیری از تکرار
-                            media_file_id = f"educational_content_image_{content.id}_{timestamp}"
-                            file_type = 'photo'
                             
-                            # تشخیص نوع فایل
-                            if content_type == 'video' or current_file_path.lower().endswith(('.mp4', '.avi', '.mov', '.mkv')):
+                            # تشخیص نوع فایل براساس پسوند
+                            file_type = 'photo'  # پیش‌فرض
+                            media_file_id = f"educational_content_image_{content.id}_{timestamp}"
+                            
+                            if current_file_path.lower().endswith(('.mp4', '.avi', '.mov', '.mkv')):
                                 file_type = 'video'
                                 media_file_id = f"educational_content_video_{content.id}_{timestamp}"
-                            elif content_type == 'file' or not current_file_path.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')):
+                            elif not current_file_path.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')):
                                 file_type = 'file'
+                                media_file_id = f"educational_content_file_{content.id}_{timestamp}"
                                 
                             # ساخت رکورد جدید فایل
                             media = EducationalContentMedia(
@@ -1318,13 +1306,8 @@ def admin_education():
                                 file_type=file_type
                             )
                             
-                            # تنظیم local_path بعد از ساخت آبجکت
-                            try:
-                                media.local_path = current_file_path
-                                logger.info(f"local_path تنظیم شد: {current_file_path}")
-                            except Exception as e:
-                                # اگر تنظیم local_path با خطا مواجه شد
-                                logger.warning(f"خطا در تنظیم local_path: {e} - path: {current_file_path}")
+                            media.local_path = current_file_path
+                            logger.info(f"local_path تنظیم شد: {current_file_path}")
                             
                             db.session.add(media)
                             logger.info(f"فایل رسانه اضافه شد: {media_file_id} - {current_file_path}")
@@ -1335,15 +1318,41 @@ def admin_education():
                 content = EducationalContent()
                 content.title = title
                 content.category = category
-                content.content_type = content_type
-                content.type = content_type  # تنظیم فیلد type برابر با content_type
-                
-                # همیشه از متن محتوا استفاده می‌کنیم
                 content.content = content_text
                 
-                # برای سازگاری با کد قبلی، اگر محتوا خالی است و فایل آپلود شده، یک محتوای پیش‌فرض می‌گذاریم
-                if not content_text.strip() and main_file_path and content_type in ['image', 'video', 'file']:
-                    content.content = f"Content with media: {title}"
+                db.session.add(content)
+                db.session.commit()
+                
+                # ذخیره فایل های آپلود شده برای محتوای جدید
+                if file_paths:
+                    for idx, current_file_path in enumerate(file_paths):
+                        timestamp = int(time.time()) + idx
+                        
+                        # تشخیص نوع فایل براساس پسوند
+                        file_type = 'photo'  # پیش‌فرض
+                        media_file_id = f"educational_content_image_{content.id}_{timestamp}"
+                        
+                        if current_file_path.lower().endswith(('.mp4', '.avi', '.mov', '.mkv')):
+                            file_type = 'video'
+                            media_file_id = f"educational_content_video_{content.id}_{timestamp}"
+                        elif not current_file_path.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')):
+                            file_type = 'file'
+                            media_file_id = f"educational_content_file_{content.id}_{timestamp}"
+                            
+                        # ساخت رکورد جدید فایل
+                        media = EducationalContentMedia(
+                            educational_content_id=content.id,
+                            file_id=media_file_id,
+                            file_type=file_type
+                        )
+                        
+                        media.local_path = current_file_path
+                        logger.info(f"local_path تنظیم شد: {current_file_path}")
+                        
+                        db.session.add(media)
+                        logger.info(f"فایل رسانه اضافه شد: {media_file_id} - {current_file_path}")
+                    
+                    db.session.commit()
                 
                 db.session.add(content)
                 db.session.commit()
