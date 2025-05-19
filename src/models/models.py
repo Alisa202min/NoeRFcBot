@@ -315,8 +315,7 @@ class EducationalContent(db.Model):
     # نگه داشتن فیلد category برای حفظ سازگاری با کد قبلی
     category = db.Column(db.Text, nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('educational_categories.id'), nullable=True)
-    content_type = db.Column(db.String(20), default='text')  # text, video, link, etc.
-    type = db.Column(db.Text)  # Duplicate of content_type for backward compatibility
+  
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
