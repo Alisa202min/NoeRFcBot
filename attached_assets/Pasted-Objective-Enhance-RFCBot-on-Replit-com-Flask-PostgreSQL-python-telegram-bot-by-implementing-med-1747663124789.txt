@@ -1,0 +1,149 @@
+Objective: Enhance RFCBot on Replit.com (Flask, PostgreSQL, python-telegram-bot) by implementing media deletion, finalizing products/services bot functionality, improving category buttons, adding search, and providing a beginner-friendly Ubuntu deployment guide with an automated setup script. Replit Agent is familiar with the project.
+
+Requirements:
+
+
+
+
+
+Media Management:
+
+
+
+
+
+Add "Delete" button next to uploaded media (images/videos) in edit/upload pages for products, services, educational content (templates/educational_content_form.html, templates/product_form.html, templates/service_form.html).
+
+
+
+Require JavaScript confirmation before deletion; remove media from static/uploads/ and additional_images table or photo_url field.
+
+
+
+Ensure media (physical and database) is deleted when a product, service, or educational content is removed.
+
+
+
+Bot Products/Services:
+
+
+
+
+
+Complete /products and /services to match /education: send media group (images/videos) with caption (name, price, description).
+
+
+
+For descriptions >200 characters, include a Telegraph link.
+
+
+
+Verify "Request Price" inline button for inquiries; confirm inquiries table logic (product_id or service_id, one NULL).
+
+
+
+Add robust error/exception handling (e.g., missing media, database errors).
+
+
+
+Category Buttons:
+
+
+
+
+
+Display subcategory or item count in parentheses on inline buttons (e.g., "Category (3)") for products, services, educational content.
+
+
+
+Search:
+
+
+
+
+
+Enhance /search to accept a keyword and return all products, services, educational content with matching fields (name, description, title) sequentially.
+
+
+
+Logging:
+
+
+
+
+
+Add logging in app.py, bot.py, database.py for media operations, bot commands, and search.
+
+
+
+Log to logs/rfcbot.log with DEBUG, INFO, ERROR levels.
+
+
+
+Tests:
+
+
+
+
+
+Create tests/test_media.py for:
+
+
+
+
+
+Media upload/deletion (valid/invalid formats, size limits).
+
+
+
+Media cleanup on item deletion.
+
+
+
+Category button count display.
+
+
+
+Search functionality.
+
+
+
+Inquiry button and database storage.
+
+
+
+Update tests/test_bot.py for /products, /services media groups, captions, Telegraph links.
+
+
+
+Use pytest, pytest-mock, Flask test client; simulate uploads with werkzeug.datastructures.FileStorage.
+
+
+
+Run pytest tests/ --junitxml=report.xml.
+
+
+
+Database Schema:
+
+
+
+
+
+products: id, name, price, description, photo_url, category_id (FK product_categories)
+
+
+
+services: id, name, price, description, photo_url, category_id (FK service_categories)
+
+
+
+educational_content: id, title, content, category_id (FK educational_categories), photo_url
+
+
+
+additional_images: id, product_id, service_id, educational_content_id, image_url (FKs with ON DELETE CASCADE, CHECK only one ID not NULL)
+
+
+
+inquiries: id, user_id, name, phone, description, product_id, service_id, date (FKs with ON DELETE SET NULL, CHECK only one ID not NULL)
