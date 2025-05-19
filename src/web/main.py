@@ -365,7 +365,7 @@ def delete_media():
         elif content_type == 'educational':
             # حذف رسانه محتوای آموزشی
             media = EducationalContentMedia.query.get(media_id)
-            if not media or media.content_id != content_id:
+            if not media or media.educational_content_id != int(content_id):
                 logger.warning(f"Educational content media not found or mismatch: media_id={media_id}, content_id={content_id}")
                 return jsonify({'success': False, 'error': 'رسانه محتوای آموزشی یافت نشد'}), 404
             
