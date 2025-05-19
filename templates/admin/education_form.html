@@ -19,12 +19,10 @@
                     <h5 class="card-title mb-0">{{ title }}</h5>
                 </div>
                 <div class="card-body">
-                    <form method="post" action="{{ url_for('admin_education') }}" enctype="multipart/form-data">
-                        <input type="hidden" name="action" value="save">
+                    <form method="post" action="{{ url_for('admin_education') }}?action=save" enctype="multipart/form-data">
                         {% if content %}
                         <input type="hidden" name="id" value="{{ content.id }}">
                         {% endif %}
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         
                         <div class="row mb-4">
                             <div class="col-md-6">
