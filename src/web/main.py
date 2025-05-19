@@ -1615,7 +1615,6 @@ def api_educational():
                 'title': content.title,
                 'content': content.content,
                 'category': content.category,
-                'content_type': content.content_type,
                 'created_at': content.created_at.isoformat() if content.created_at else None
             })
             
@@ -2409,12 +2408,12 @@ def admin_database_fix(table):
             # ایجاد رکوردهای media برای محتوای آموزشی که رسانه ندارند
             for content in contents:
                 count = EducationalContentMedia.query.filter_by(educational_content_id=content.id).count()
-                if count == 0 and content.content_type in ['photo', 'video', 'file']:
-                    # ایجاد یک رکورد پیش‌فرض
+                if count == 0:
+                    # ایجاد یک رکورد پیش‌فرض با نوع 'photo'
                     media = EducationalContentMedia(
                         educational_content_id=content.id,
                         file_id=f"educational_content_image_{content.id}_1",
-                        file_type=content.content_type,
+                        file_type='photo',  # استفاده از نوع پیش‌فرض برای همه محتوای آموزشی
                         local_path=None  # Will be set when a real file is uploaded
                     )
                     db.session.add(media)
@@ -2914,8 +2913,7 @@ def import_entity():
                 item = EducationalContent(
                     title=row.get('title', ''),
                     content=row.get('content', ''),
-                    category=row.get('category', ''),
-                    content_type=row.get('content_type', 'general')
+                    category=row.get('category', '')
                 )
                 db.session.add(item)
                 imported_count += 1
