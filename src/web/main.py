@@ -614,8 +614,61 @@ def admin_products():
     
     # عملیات POST
     if request.method == 'POST':
+        # افزودن رسانه اضافی به محصول
+        if action == 'add_media':
+            product_id = request.form.get('id')
+            if not product_id:
+                flash('شناسه محصول الزامی است.', 'danger')
+                return redirect(url_for('admin_products'))
+                
+            # اطمینان از وجود محصول
+            product = Product.query.get_or_404(int(product_id))
+            
+            # بررسی وجود فایل در درخواست
+            if 'media' not in request.files:
+                flash('هیچ فایلی انتخاب نشده است.', 'warning')
+                return redirect(url_for('admin_products') + f'?action=edit&id={product_id}')
+                
+            media_file = request.files['media']
+            if media_file.filename == '':
+                flash('هیچ فایلی انتخاب نشده است.', 'warning')
+                return redirect(url_for('admin_products') + f'?action=edit&id={product_id}')
+                
+            if media_file and allowed_file(media_file.filename):
+                # ذخیره فایل در مسیر مناسب
+                filename = secure_filename(media_file.filename)
+                timestamp = int(time.time())
+                # ساخت مسیر اختصاصی برای محصول
+                product_dir = os.path.join('static', 'uploads', 'products', str(product_id))
+                create_directory(product_dir)
+                
+                # ساخت نام فایل جدید با افزودن timestamp
+                file_extension = os.path.splitext(filename)[1]
+                new_filename = f"product_{product_id}_{timestamp}{file_extension}"
+                file_path = os.path.join(product_dir, new_filename)
+                
+                # ذخیره فایل
+                media_file.save(file_path)
+                
+                # ایجاد رکورد جدید در پایگاه داده
+                new_media = ProductMedia()
+                new_media.product_id = product.id
+                new_media.file_id = f"product_media_{product_id}_{timestamp}"
+                new_media.local_path = file_path
+                new_media.file_type = 'photo'  # پیش‌فرض برای تصاویر
+                
+                db.session.add(new_media)
+                db.session.commit()
+                
+                logger.info(f"New product media added: product_id={product_id}, file_path={file_path}")
+                flash('تصویر با موفقیت به محصول اضافه شد.', 'success')
+            else:
+                flash('فرمت فایل مجاز نیست. لطفاً یک تصویر با فرمت معتبر انتخاب کنید.', 'danger')
+                
+            return redirect(url_for('admin_products') + f'?action=edit&id={product_id}')
+            
         # حذف محصول
-        if action == 'delete':
+        elif action == 'delete':
             product_id = request.form.get('product_id')
             if not product_id:
                 flash('شناسه محصول الزامی است.', 'danger')
@@ -895,7 +948,8 @@ def admin_products():
         return render_template('admin/product_form.html',
                               title="ویرایش محصول",
                               product=product,
-                              categories=categories)
+                              categories=categories,
+                              get_product_media=get_product_media)
     elif action == 'media':
         if not product_id:
             # اگر شناسه محصول وجود نداشت، خطا نمایش داده می‌شود
