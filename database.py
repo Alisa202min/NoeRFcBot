@@ -508,33 +508,56 @@ class Database:
         Returns:
             List of products/services in the category
         """
-        category = self.get_category(category_id)
-        if not category:
-            return []
+        try:
+            # در اینجا دیگر بررسی جدول categories نمی‌کنیم، مستقیم از product_categories یا service_categories بررسی می‌کنیم
+            logging.info(f"Getting products for category ID: {category_id}, type: {cat_type}")
 
-        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            if cat_type == 'product':
-                cursor.execute(
-                    'SELECT id, name, price, description, photo_url, category_id FROM products WHERE category_id = %s ORDER BY name',
-                    (category_id,)
-                )
-                return cursor.fetchall()
-            elif cat_type == 'service':
-                cursor.execute(
-                    'SELECT id, name, price, description, photo_url, category_id FROM services WHERE category_id = %s ORDER BY name',
-                    (category_id,)
-                )
-                return cursor.fetchall()
-            else:
-                # If no specific type is requested, fetch both products and services
-                cursor.execute(
-                    'SELECT id, name, price, description, photo_url, category_id, \'product\' as item_type FROM products WHERE category_id = %s ' 
-                    'UNION ALL '
-                    'SELECT id, name, price, description, photo_url, category_id, \'service\' as item_type FROM services WHERE category_id = %s '
-                    'ORDER BY name',
-                    (category_id, category_id)
-                )
-                return cursor.fetchall()
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                if cat_type == 'product':
+                    # بررسی وجود دسته‌بندی محصول
+                    cursor.execute('SELECT * FROM product_categories WHERE id = %s', (category_id,))
+                    if not cursor.fetchone():
+                        logging.warning(f"Product category {category_id} not found")
+                        return []
+                        
+                    cursor.execute(
+                        'SELECT id, name, price, description, photo_url, category_id FROM products WHERE category_id = %s ORDER BY name',
+                        (category_id,)
+                    )
+                    result = cursor.fetchall()
+                    logging.info(f"Found {len(result)} products in category {category_id}")
+                    return result
+                    
+                elif cat_type == 'service':
+                    # بررسی وجود دسته‌بندی خدمات
+                    cursor.execute('SELECT * FROM service_categories WHERE id = %s', (category_id,))
+                    if not cursor.fetchone():
+                        logging.warning(f"Service category {category_id} not found")
+                        return []
+                        
+                    cursor.execute(
+                        'SELECT id, name, price, description, photo_url, category_id FROM services WHERE category_id = %s ORDER BY name',
+                        (category_id,)
+                    )
+                    result = cursor.fetchall()
+                    logging.info(f"Found {len(result)} services in category {category_id}")
+                    return result
+                    
+                else:
+                    # اگر نوع خاصی درخواست نشده، هر دو محصولات و خدمات را برمی‌گردانیم
+                    cursor.execute(
+                        'SELECT id, name, price, description, photo_url, category_id, \'product\' as item_type FROM products WHERE category_id = %s ' 
+                        'UNION ALL '
+                        'SELECT id, name, price, description, photo_url, category_id, \'service\' as item_type FROM services WHERE category_id = %s '
+                        'ORDER BY name',
+                        (category_id, category_id)
+                    )
+                    result = cursor.fetchall()
+                    logging.info(f"Found {len(result)} total items in category {category_id}")
+                    return result
+        except Exception as e:
+            logging.error(f"Error in get_products_by_category: {str(e)}")
+            return []
 
     def search_products(self, query: str = None, cat_type: str = None, 
                     category_id: int = None, min_price: int = None, max_price: int = None,
