@@ -677,14 +677,14 @@ async def show_categories(message, cat_type, state, parent_id=None):
         # If no categories but we're in a subcategory, show items
         if parent_id is not None:
             if cat_type == 'product':
-                products = db.get_products_by_category(parent_id, 'product')
+                products = db.get_products(parent_id)
                 logging.info(f"Retrieved {len(products)} products for category ID {parent_id}")
                 if products:
                     await show_products_list(message, products, parent_id)
                 else:
                     await message.answer("محصولی در این دسته‌بندی وجود ندارد.")
             else:  # service
-                services = db.get_products_by_category(parent_id, 'service')
+                services = db.get_services(parent_id)
                 logging.info(f"Retrieved {len(services)} services for category ID {parent_id}")
                 if services:
                     await show_services_list(message, services, parent_id)
