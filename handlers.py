@@ -102,14 +102,74 @@ async def cmd_help(message: Message):
 @router.message(lambda message: message.text == PRODUCTS_BTN)
 async def cmd_products(message: Message, state: FSMContext):
     """Handle /products command or Products button"""
-    await show_categories(message, 'product', state)
+    try:
+        logging.info(f"Products requested by user: {message.from_user.id}")
+        
+        # دریافت دسته‌بندی‌های محصولات
+        categories = db.get_product_categories()
+        logging.info(f"Product categories: {categories}")
+        
+        if not categories:
+            await message.answer("⚠️ دسته‌بندی محصولات موجود نیست.")
+            return
+        
+        # ساخت کیبورد
+        kb = InlineKeyboardBuilder()
+        for category in categories:
+            # نمایش تعداد زیرمجموعه‌ها
+            total_items = category.get('total_items', 0)
+            display_name = category['name']
+            if total_items > 0:
+                display_name = f"{category['name']} ({total_items})"
+                
+            kb.button(text=display_name, callback_data=f"category:{category['id']}")
+            
+        kb.button(text="🔙 بازگشت به منوی اصلی", callback_data="back_to_main")
+        kb.adjust(1)
+        
+        await message.answer("🛒 دسته‌بندی محصولات را انتخاب کنید:", reply_markup=kb.as_markup())
+        
+    except Exception as e:
+        logging.error(f"Error in cmd_products: {str(e)}")
+        logging.error(traceback.format_exc())
+        await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
 
 # Services command handler
 @router.message(Command("services"))
 @router.message(lambda message: message.text == SERVICES_BTN)
 async def cmd_services(message: Message, state: FSMContext):
     """Handle /services command or Services button"""
-    await show_categories(message, 'service', state)
+    try:
+        logging.info(f"Services requested by user: {message.from_user.id}")
+        
+        # دریافت دسته‌بندی‌های خدمات
+        categories = db.get_service_categories()
+        logging.info(f"Service categories: {categories}")
+        
+        if not categories:
+            await message.answer("⚠️ دسته‌بندی خدمات موجود نیست.")
+            return
+        
+        # ساخت کیبورد
+        kb = InlineKeyboardBuilder()
+        for category in categories:
+            # نمایش تعداد زیرمجموعه‌ها
+            total_items = category.get('total_items', 0)
+            display_name = category['name']
+            if total_items > 0:
+                display_name = f"{category['name']} ({total_items})"
+                
+            kb.button(text=display_name, callback_data=f"category:{category['id']}")
+            
+        kb.button(text="🔙 بازگشت به منوی اصلی", callback_data="back_to_main")
+        kb.adjust(1)
+        
+        await message.answer("🔧 دسته‌بندی خدمات را انتخاب کنید:", reply_markup=kb.as_markup())
+        
+    except Exception as e:
+        logging.error(f"Error in cmd_services: {str(e)}")
+        logging.error(traceback.format_exc())
+        await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
 
 # Contact command handler
 @router.message(Command("contact"))
