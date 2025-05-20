@@ -4,19 +4,6 @@
 """
 
 from aiogram.fsm.state import State, StatesGroup
-
-# Define FSM states
-class UserStates(StatesGroup):
-    """States for the Telegram bot FSM"""
-    browse_categories = State()
-    view_product = State()
-    view_category = State()
-    view_educational_content = State()
-    inquiry_name = State()
-    inquiry_phone = State()
-    inquiry_description = State()
-    waiting_for_confirmation = State()
-
 import os
 import logging
 from aiogram import Bot, Dispatcher, Router
@@ -31,6 +18,19 @@ from src.config.configuration import (
     BACK_BTN, SEARCH_BTN, ADMIN_BTN, PRODUCT_PREFIX, SERVICE_PREFIX, CATEGORY_PREFIX,
     BACK_PREFIX, INQUIRY_PREFIX, EDUCATION_PREFIX, ADMIN_PREFIX
 )
+# Define FSM states
+class UserStates(StatesGroup):
+    """States for the Telegram bot FSM"""
+    browse_categories = State()
+    view_product = State()
+    view_category = State()
+    view_educational_content = State()
+    inquiry_name = State()
+    inquiry_phone = State()
+    inquiry_description = State()
+    waiting_for_confirmation = State()
+
+
 
 # Create routers
 main_router = Router()

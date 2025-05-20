@@ -627,12 +627,12 @@ def admin_products():
                         logger.info(f"Product media relative path: {relative_path}")
                         
                         # افزودن به دیتابیس
-                        media = ProductMedia(
-                            product_id=product.id,
-                            file_id=relative_path,
-                            file_type=file_type,
-                            local_path=file_path  # ذخیره مسیر کامل برای استفاده بعدی
-                        )
+                        media = ProductMedia()
+                             # ذخیره مسیر کامل برای استفاده بعدی
+                        media.product_id=product.id,
+                        media.file_id=relative_path,
+                        media.file_type=file_type,
+                        media.local_path=file_path 
                         db.session.add(media)
                         db.session.commit()
                         
@@ -693,7 +693,8 @@ def admin_products():
                         logger.info(f"Using default product category ID: {category_id}")
                     else:
                         # اگر هیچ دسته‌بندی وجود ندارد، یک دسته‌بندی پیش‌فرض ایجاد می‌کنیم
-                        new_category = ProductCategory(name="دسته‌بندی پیش‌فرض محصولات")
+                        new_category = ProductCategory()
+                        new_category.name="دسته‌بندی پیش‌فرض محصولات"
                         db.session.add(new_category)
                         db.session.flush()  # برای دریافت ID
                         category_id = new_category.id
@@ -718,19 +719,18 @@ def admin_products():
                     flash('محصول با موفقیت به‌روزرسانی شد.', 'success')
                 else:
                     # ایجاد محصول جدید
-                    product = Product(
-                        name=name,
-                        price=price,
-                        description=description,
-                        category_id=category_id,  # اکنون مطمئن هستیم که این مقدار NULL نیست
-                        brand=brand,
-                        model=model,
-                        in_stock=in_stock,
-                        tags=tags,
-                        featured=featured,
-                        model_number=model_number,
-                        manufacturer=manufacturer
-                    )
+                    product = Product()
+                    product.name = name
+                    product.price = price
+                    product.description = description
+                    product.category_id = category_id  # اکنون مطمئن هستیم که این مقدار NULL نیست
+                    product.brand = brand
+                    product.model = model
+                    product.in_stock = in_stock
+                    product.tags = tags
+                    product.featured = featured
+                    product.model_number = model_number
+                    product.manufacturer = manufacturer
                     db.session.add(product)
                     logger.info(f"Creating new product, Name: {name}")
                     flash('محصول جدید با موفقیت ثبت شد.', 'success')
@@ -876,7 +876,7 @@ def service_detail(service_id):
     # استفاده از مدل Service به جای فیلتر بر روی محصول
     service = Service.query.filter_by(id=service_id).first_or_404()
     # استفاده از جدول Service برای سرویس‌های مرتبط
-    related_services = Service.query.filter_by(category_id=service.category_id).filter(Service.id != service.id).limit(4).all()
+    related_services = Service.query.filter_by(category_id=service.category_id).filter(Service.id !=         service.id).limit(4).all()
     # استفاده از ServiceMedia به جای ProductMedia
     media = ServiceMedia.query.filter_by(service_id=service.id).all()
     
@@ -974,7 +974,8 @@ def admin_services():
                         logger.info(f"Using default service category ID: {category_id}")
                     else:
                         # اگر هیچ دسته‌بندی وجود ندارد، یک دسته‌بندی پیش‌فرض ایجاد می‌کنیم
-                        new_category = ServiceCategory(name="دسته‌بندی پیش‌فرض")
+                        new_category = ServiceCategory()
+                        new_category.name="دسته‌بندی پیش‌فرض"
                         db.session.add(new_category)
                         db.session.flush()  # برای دریافت ID
                         category_id = new_category.id
@@ -994,14 +995,14 @@ def admin_services():
                     flash('خدمت با موفقیت به‌روزرسانی شد.', 'success')
                 else:
                     # ایجاد خدمت جدید
-                    service = Service(
-                        name=name,
-                        price=price,
-                        description=description,
-                        category_id=category_id,  # اکنون مطمئن هستیم که این مقدار NULL نیست
-                        tags=tags,
-                        featured=featured
-                    )
+                    service = Service()
+                    service.name=name,
+                    service.price=price,
+                    service.description=description,
+                    service.category_id=category_id,  # اکنون مطمئن هستیم که این مقدار NULL نیست
+                    service.tags=tags,
+                    service.featured=featured
+                    
                     db.session.add(service)
                     logger.info(f"Creating new service, Name: {name}")
                     flash('خدمت جدید با موفقیت ثبت شد.', 'success')

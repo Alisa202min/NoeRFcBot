@@ -53,8 +53,8 @@ class Database:
         try:
             self.cursor.execute(
                 """
-                INSERT INTO categories (name, parent_id, cat_type) 
-                VALUES (%s, %s, %s) RETURNING id
+                INSERT INTO categories (name, parent_id) 
+                VALUES (%s, %s) RETURNING id
                 """, 
                 (name, parent_id, cat_type)
             )
@@ -91,7 +91,7 @@ class Database:
             logger.error(f"Error getting category: {e}")
             return None
     
-    def get_categories(self, parent_id: Optional[int] = None, cat_type: Optional[str] = None) -> List[Dict]:
+    def get_categories(self, parent_id: Optional[int] = None) -> List[Dict]:
         """Get categories based on parent ID and/or type"""
         self._ensure_connection()
         try:
@@ -106,9 +106,7 @@ class Database:
                 query += " AND parent_id = %s"
                 params.append(parent_id)
             
-            if cat_type:
-                query += " AND cat_type = %s"
-                params.append(cat_type)
+            
             
             query += " ORDER BY name"
             
@@ -121,9 +119,8 @@ class Database:
                     'id': category[0],
                     'name': category[1],
                     'parent_id': category[2],
-                    'cat_type': category[3],
-                    'created_at': category[4],
-                    'updated_at': category[5]
+                    'created_at': category[3],
+                    'updated_at': category[4]
                 })
             
             return result
@@ -142,8 +139,8 @@ class Database:
             self.cursor.execute(
                 """
                 INSERT INTO products 
-                (name, price, description, category_id, photo_url, cat_type, brand, model, in_stock, tags, featured) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+                (name, price, description, category_id, photo_url,  brand, model, in_stock, tags, featured) 
+                VALUES (%s, %s, %s,  %s, %s, %s, %s, %s, %s, %s) RETURNING id
                 """, 
                 (name, price, description, category_id, photo_url, 'product', 
                  brand, model, in_stock, tags, featured)
@@ -163,8 +160,8 @@ class Database:
             self.cursor.execute(
                 """
                 INSERT INTO products 
-                (name, price, description, category_id, photo_url, cat_type, featured, tags) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+                (name, price, description, category_id, photo_url,  featured, tags) 
+                VALUES (%s, %s,  %s, %s, %s, %s, %s) RETURNING id
                 """, 
                 (name, price, description, category_id, photo_url, 'service', featured, tags)
             )
