@@ -2,7 +2,7 @@ from aiogram import Router, F
 from aiogram.filters import Command, CommandStart, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import Message, CallbackQuery, URLInputFile, FSInputFile
+from aiogram.types import Message, CallbackQuery, URLInputFile, FSInputFile, InputMediaPhoto, InputMediaVideo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 import logging
 import os
@@ -898,12 +898,15 @@ async def callback_product(callback: CallbackQuery, state: FSMContext):
     kb.button(text="🔙 بازگشت", callback_data=f"category:{product['category_id']}")
     kb.adjust(1)
     
-    # First send text description
-    await callback.message.answer(product_text, reply_markup=kb.as_markup())
+    # Only create keyboard message (we'll send product info with media)
+    keyboard = kb.as_markup()
     
-    # Then send media files if available
+    # Send media files with product info if available
     if media_files:
-        await send_product_media(callback.message.chat.id, media_files)
+        await send_product_media(callback.message.chat.id, media_files, product)
+    else:
+        # If no media, send only text description
+        await callback.message.answer(product_text, reply_markup=keyboard)
 
 @router.callback_query(F.data.startswith("service:"))
 async def callback_service(callback: CallbackQuery, state: FSMContext):
@@ -942,12 +945,15 @@ async def callback_service(callback: CallbackQuery, state: FSMContext):
     kb.button(text="🔙 بازگشت", callback_data=f"category:{service['category_id']}")
     kb.adjust(1)
     
-    # First send text description
-    await callback.message.answer(service_text, reply_markup=kb.as_markup())
+    # Only create keyboard message (we'll send service info with media)
+    keyboard = kb.as_markup()
     
-    # Then send media files if available
+    # Send media files with service info if available
     if media_files:
-        await send_service_media(callback.message.chat.id, media_files)
+        await send_service_media(callback.message.chat.id, media_files, service)
+    else:
+        # If no media, send only text description
+        await callback.message.answer(service_text, reply_markup=keyboard)
 
 # Media handling functions
 async def send_educational_media(chat_id, media_files):
