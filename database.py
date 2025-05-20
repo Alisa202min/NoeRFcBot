@@ -436,7 +436,9 @@ class Database:
         """Get a product by ID"""
         with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
             cursor.execute(
-                'SELECT id, name, price, description, photo_url, category_id FROM products WHERE id = %s',
+                '''SELECT id, name, price, description, photo_url, category_id, 
+                   brand, model, model_number, manufacturer, in_stock, featured, tags
+                   FROM products WHERE id = %s''',
                 (product_id,)
             )
             return cursor.fetchone() or None
@@ -498,7 +500,8 @@ class Database:
         """Get a service by ID from the services table"""
         with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
             cursor.execute(
-                'SELECT id, name, price, description, photo_url, category_id, tags, featured FROM services WHERE id = %s',
+                '''SELECT id, name, price, description, photo_url, category_id, 
+                   tags, featured, available FROM services WHERE id = %s''',
                 (service_id,)
             )
             return cursor.fetchone() or None
