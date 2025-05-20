@@ -75,6 +75,8 @@ class Database:
             except Exception as close_error:
                 logging.warning(f"Error closing connection: {str(close_error)}")
                 
+            self.conn = None  # خالی کردن متغیر اتصال
+                
             try:
                 # سعی مجدد برای اتصال
                 self.connect()
@@ -85,7 +87,11 @@ class Database:
         except Exception as e:
             # سایر خطاها ممکن است نیاز به رسیدگی خاص داشته باشند
             logging.error(f"Unknown database error: {str(e)}")
-            return False
+            try:
+                self.connect()  # تلاش مجدد برای اتصال
+                return True
+            except:
+                return False
             
         return True
         
@@ -204,12 +210,37 @@ class Database:
 
     def get_category(self, category_id: int) -> Optional[Dict]:
         """Get a category by ID"""
+        self.ensure_connection()  # اطمینان از اتصال فعال به دیتابیس
         with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
             cursor.execute(
                 'SELECT id, name, parent_id, cat_type FROM categories WHERE id = %s',
                 (category_id,)
             )
-            return cursor.fetchone() or None or None
+            return cursor.fetchone()
+            
+    def check_product_category_exists(self, category_id: int) -> bool:
+        """Check if a category exists in product_categories table"""
+        self.ensure_connection()  # اطمینان از اتصال فعال به دیتابیس
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute('SELECT COUNT(*) FROM product_categories WHERE id = %s', (category_id,))
+                count = cursor.fetchone()[0]
+                return count > 0
+        except Exception as e:
+            logging.error(f"Error in check_product_category_exists: {str(e)}")
+            return False
+            
+    def check_service_category_exists(self, category_id: int) -> bool:
+        """Check if a category exists in service_categories table"""
+        self.ensure_connection()  # اطمینان از اتصال فعال به دیتابیس
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute('SELECT COUNT(*) FROM service_categories WHERE id = %s', (category_id,))
+                count = cursor.fetchone()[0]
+                return count > 0
+        except Exception as e:
+            logging.error(f"Error in check_service_category_exists: {str(e)}")
+            return False
 
     def get_categories(self, parent_id: Optional[int] = None, cat_type: Optional[str] = None) -> List[Dict]:
         """Get categories based on parent ID and/or type"""

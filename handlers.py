@@ -729,7 +729,32 @@ async def callback_category(callback: CallbackQuery, state: FSMContext):
     
     # Get the category type from state
     state_data = await state.get_data()
+    
+    # Get stored category type (product or service)
     cat_type = state_data.get('cat_type', 'product')
+    
+    # برای اطمینان بیشتر، دسته‌بندی را بررسی کنیم تا نوع آن مشخص شود
+    logging.info(f"Selected category ID: {category_id}, current cat_type: {cat_type}")
+    
+    # بررسی وجود دسته‌بندی در جدول product_categories
+    if cat_type == 'product':
+        product_cat_exists = db.check_product_category_exists(category_id)
+        if not product_cat_exists:
+            logging.info(f"Category {category_id} not found in product_categories, checking service_categories")
+            service_cat_exists = db.check_service_category_exists(category_id)
+            if service_cat_exists:
+                cat_type = 'service'
+                await state.update_data(cat_type='service')
+                logging.info(f"Category {category_id} found in service_categories, updating type to: {cat_type}")
+    else:  # cat_type == 'service'
+        service_cat_exists = db.check_service_category_exists(category_id)
+        if not service_cat_exists:
+            logging.info(f"Category {category_id} not found in service_categories, checking product_categories")
+            product_cat_exists = db.check_product_category_exists(category_id)
+            if product_cat_exists:
+                cat_type = 'product'
+                await state.update_data(cat_type='product')
+                logging.info(f"Category {category_id} found in product_categories, updating type to: {cat_type}")
     
     # Show subcategories or products/services for this category
     await show_categories(callback.message, cat_type, state, category_id)
