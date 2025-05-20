@@ -821,6 +821,20 @@ async def callback_category(callback: CallbackQuery, state: FSMContext):
         logging.error(traceback.format_exc())
         await callback.message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید یا با پشتیبانی تماس بگیرید.")
 
+@router.callback_query(F.data == "products")
+async def callback_products(callback: CallbackQuery, state: FSMContext):
+    """Handle products button click"""
+    await callback.answer()
+    await state.update_data(cat_type='product')
+    await show_product_categories(callback.message, state)
+    
+@router.callback_query(F.data == "services")
+async def callback_services(callback: CallbackQuery, state: FSMContext):
+    """Handle services button click"""
+    await callback.answer()
+    await state.update_data(cat_type='service')
+    await show_service_categories(callback.message, state)
+
 async def show_products_list(message, products, category_id):
     """Show list of products in a category"""
     # Build keyboard with products
