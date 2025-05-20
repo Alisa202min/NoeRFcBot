@@ -1974,18 +1974,30 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
             photo_url = service_info.get('photo_url')
             logging.info(f"Adding service main photo: {photo_url}")
             
-            # Check if the photo exists as a file
+            # Check if the photo exists as a file - add all possible paths to try
             possible_paths = [
                 f"static/{photo_url}",
                 photo_url,
                 f"static/uploads/services/{photo_url}",
-                f"static/uploads/{photo_url}"
+                f"static/uploads/{photo_url}",
+                # Try without 'main' in the path
+                photo_url.replace('main/', ''),
+                f"static/{photo_url.replace('main/', '')}",
+                
+                # Try with explicit main path
+                f"./static/{photo_url}",
+                f"./{photo_url}"
             ]
+            
+            # Log all path attempts for debugging
+            logging.info(f"Trying to find main photo in these paths: {possible_paths}")
             
             photo_path = None
             for path in possible_paths:
+                logging.info(f"Checking path: {path}")
                 if os.path.isfile(path):
                     photo_path = path
+                    logging.info(f"Found main photo at path: {path}")
                     break
                     
             if photo_path:
@@ -2002,6 +2014,8 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
                     main_photo_added = True
                 except Exception as e:
                     logging.error(f"Error adding main service photo: {e}")
+            else:
+                logging.warning(f"Main photo not found in any of the checked paths for photo_url: {photo_url}")
         
         # Filter the media files to remove invalid default media
         valid_media_files = []
@@ -2058,65 +2072,80 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
                 file_type = media_file.get('file_type', 'photo')  # Default to photo if not specified
                 local_path = media_file.get('local_path', '')
                 
-                # Only the first item should have the caption
-                item_caption = caption if i == 0 else ""
+                # Only the first item should have the caption if main photo wasn't already added
+                item_caption = caption if i == 0 and not main_photo_added else ""
                 
                 media_object = None
                 media_found = False
                 
-                # Try with local_path first if it exists
-                if local_path and os.path.isfile(local_path):
-                    logging.info(f"Found media file using local_path: {local_path}")
-                    if file_type == 'photo':
-                        media_object = InputMediaPhoto(
-                            media=FSInputFile(local_path),
-                            caption=item_caption,
-                            parse_mode="Markdown"
-                        )
-                    elif file_type == 'video':
-                        media_object = InputMediaVideo(
-                            media=FSInputFile(local_path),
-                            caption=item_caption,
-                            parse_mode="Markdown"
-                        )
-                    media_found = True
+                logging.info(f"Processing service media file {i+1}/{len(valid_media_files)}: {file_id}, type: {file_type}")
                 
-                # Try with file_id as a path
-                elif file_id and os.path.isfile(file_id):
-                    logging.info(f"Found media file using file_id as path: {file_id}")
-                    if file_type == 'photo':
-                        media_object = InputMediaPhoto(
-                            media=FSInputFile(file_id),
-                            caption=item_caption,
-                            parse_mode="Markdown"
-                        )
-                    elif file_type == 'video':
-                        media_object = InputMediaVideo(
-                            media=FSInputFile(file_id),
-                            caption=item_caption,
-                            parse_mode="Markdown"
-                        )
-                    media_found = True
+                # Try all possible paths for this service media file
+                possible_paths = [
+                    local_path,
+                    file_id,
+                    f"static/{file_id}",
+                    f"./{file_id}",
+                    f"./static/{file_id}",
+                    # For services with paths that include 'uploads/services/'
+                    f"static/uploads/services/{os.path.basename(file_id)}",
+                    f"static/uploads/services/21/{os.path.basename(file_id)}"
+                ]
                 
-                # Try with filename in various directories
-                elif not media_found and '/' not in file_id:
+                # Log all path attempts for debugging
+                logging.info(f"Trying to find service media file in these paths: {possible_paths}")
+                
+                # Try all possible paths
+                for path in possible_paths:
+                    if path and os.path.isfile(path):
+                        logging.info(f"Found service media file at path: {path}")
+                        if file_type == 'photo':
+                            media_object = InputMediaPhoto(
+                                media=FSInputFile(path),
+                                caption=item_caption,
+                                parse_mode="Markdown"
+                            )
+                        elif file_type == 'video':
+                            media_object = InputMediaVideo(
+                                media=FSInputFile(path),
+                                caption=item_caption,
+                                parse_mode="Markdown"
+                            )
+                        media_found = True
+                        break
+                
+                # If still not found, try with various directory combinations
+                if not media_found:
+                    # Try with all media paths
                     for path in media_paths:
-                        full_path = f"{path}{file_id}"
-                        if os.path.isfile(full_path):
-                            logging.info(f"Found file at {full_path}")
-                            if file_type == 'photo':
-                                media_object = InputMediaPhoto(
-                                    media=FSInputFile(full_path),
-                                    caption=item_caption,
-                                    parse_mode="Markdown"
-                                )
-                            elif file_type == 'video':
-                                media_object = InputMediaVideo(
-                                    media=FSInputFile(full_path),
-                                    caption=item_caption,
-                                    parse_mode="Markdown"
-                                )
-                            media_found = True
+                        # Try with various combinations
+                        path_combinations = [
+                            f"{path}{file_id}",
+                            f"{path}{os.path.basename(file_id)}",
+                            f"{path}21/{os.path.basename(file_id)}",
+                            f"{path}main/{os.path.basename(file_id)}"
+                        ]
+                        
+                        for full_path in path_combinations:
+                            logging.info(f"Checking service media path: {full_path}")
+                            if os.path.isfile(full_path):
+                                logging.info(f"Found service media file at: {full_path}")
+                                if file_type == 'photo':
+                                    media_object = InputMediaPhoto(
+                                        media=FSInputFile(full_path),
+                                        caption=item_caption,
+                                        parse_mode="Markdown"
+                                    )
+                                elif file_type == 'video':
+                                    media_object = InputMediaVideo(
+                                        media=FSInputFile(full_path),
+                                        caption=item_caption,
+                                        parse_mode="Markdown"
+                                    )
+                                media_found = True
+                                break
+                        
+                        if media_found:
                             break
                 
                 # If not found yet, try using file_id as Telegram file_id only if it looks valid
