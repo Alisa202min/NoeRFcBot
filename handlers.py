@@ -1476,6 +1476,9 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
     from bot import bot  # Import bot here to avoid circular imports
     from utils import create_telegraph_page  # Import telegraph function
     
+    # Log what we received for debugging
+    logging.debug(f"Product info received: {product_info}")
+    
     # Check if we have any media files
     if not media_files:
         logging.warning(f"No media files provided to send_product_media for chat_id {chat_id}")
@@ -1486,9 +1489,39 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
             price = product_info.get('price', '')
             description = product_info.get('description', '')
             
+            # Get additional product metadata
+            brand = product_info.get('brand')
+            model = product_info.get('model')
+            model_number = product_info.get('model_number')
+            manufacturer = product_info.get('manufacturer')
+            tags = product_info.get('tags')
+            in_stock = product_info.get('in_stock')
+            featured = product_info.get('featured')
+            
             message_text = f"🛒 *{title}*\n\n"
             if price:
                 message_text += f"💰 قیمت: {price} تومان\n\n"
+                
+            # Add additional information if available
+            additional_info = []
+            if brand:
+                additional_info.append(f"🏢 برند: {brand}")
+            if model:
+                additional_info.append(f"📱 مدل: {model}")
+            if model_number:
+                additional_info.append(f"📋 شماره مدل: {model_number}")
+            if manufacturer:
+                additional_info.append(f"🏭 سازنده: {manufacturer}")
+            if tags:
+                additional_info.append(f"🏷️ برچسب‌ها: {tags}")
+            if in_stock:
+                additional_info.append("✅ موجود در انبار")
+            if featured:
+                additional_info.append("⭐ محصول ویژه")
+                
+            # Add additional info to message_text if available
+            if additional_info:
+                message_text += "\n".join(additional_info) + "\n\n"
                 
             message_text += f"📝 توضیحات:\n{description}\n\n"
             
@@ -1517,18 +1550,27 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
         title = product_info.get('name', '')
         price = product_info.get('price', '')
         description = product_info.get('description', '')
-        model_number = product_info.get('model_number', '')
-        manufacturer = product_info.get('manufacturer', '')
-        tags = product_info.get('tags', '')
+        
+        # Get additional product metadata
+        brand = product_info.get('brand')
+        model = product_info.get('model')
+        model_number = product_info.get('model_number')
+        manufacturer = product_info.get('manufacturer')
+        tags = product_info.get('tags')
         in_stock = product_info.get('in_stock')
         featured = product_info.get('featured')
         
+        # Build caption
         caption = f"🛒 {title}\n\n"
         if price:
             caption += f"💰 قیمت: {price} تومان\n\n"
         
         # Add additional information if available
         additional_info = []
+        if brand:
+            additional_info.append(f"🏢 برند: {brand}")
+        if model:
+            additional_info.append(f"📱 مدل: {model}")
         if model_number:
             additional_info.append(f"📋 شماره مدل: {model_number}")
         if manufacturer:
