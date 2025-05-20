@@ -1389,9 +1389,17 @@ async def send_educational_media_group(chat_id, media_files, caption="", keyboar
             pass
 
 
-async def send_product_media(chat_id, media_files):
-    """Send product media files to user"""
+async def send_product_media(chat_id, media_files, product_info=None):
+    """
+    Send product media files to user as a media group with caption
+    
+    Args:
+        chat_id: Telegram chat ID to send media to
+        media_files: List of media file information
+        product_info: Optional dictionary with product information (name, price, description)
+    """
     from bot import bot  # Import bot here to avoid circular imports
+    from utils import create_telegraph_page  # Import telegraph function
     
     # Check if we have any media files
     if not media_files:
@@ -1399,6 +1407,47 @@ async def send_product_media(chat_id, media_files):
         return
         
     logging.info(f"Attempting to send {len(media_files)} media files to chat_id {chat_id}")
+    
+    # Prepare the caption for the first media
+    caption = ""
+    title = ""
+    description = ""
+    telegraph_url = None
+    
+    if product_info:
+        title = product_info.get('name', '')
+        price = product_info.get('price', '')
+        description = product_info.get('description', '')
+        
+        caption = f"🛒 {title}\n\n"
+        if price:
+            caption += f"💰 قیمت: {price} تومان\n\n"
+        
+        # Check if description is too long (limit around 1000 characters for captions)
+        if description and len(description) > 800:
+            # Create Telegraph page for long descriptions
+            try:
+                telegraph_url = await create_telegraph_page(
+                    title=title,
+                    content=description,
+                    author="RFCatalogbot"
+                )
+                
+                # Add shortened description + link
+                caption += f"📝 توضیحات:\n{description[:300]}...\n\n"
+                if telegraph_url:
+                    caption += f"📄 [مشاهده توضیحات کامل]({telegraph_url})"
+            except Exception as e:
+                logging.error(f"Error creating Telegraph page: {e}")
+                # If Telegraph creation fails, use regular caption
+                caption += f"📝 توضیحات:\n{description}\n\n"
+        else:
+            # Description fits in caption
+            caption += f"📝 توضیحات:\n{description}\n\n"
+    
+    # Create a media group for sending multiple files
+    media_group = []
+    found_valid_media = False
     
     # Define possible paths to check
     media_paths = [
@@ -1413,11 +1462,13 @@ async def send_product_media(chat_id, media_files):
         './data/',
     ]
     
-    for media in media_files:
+    # First attempt to create media group
+    for i, media in enumerate(media_files):
         try:
             file_id = media.get('file_id', '')
             file_type = media.get('file_type', 'photo')
             file_name = media.get('file_name', 'unknown')
+            local_path = media.get('local_path', '')
             
             # Log the full media info for debugging
             logging.info(f"Processing media: file_id={file_id}, file_type={file_type}, file_name={file_name}")
@@ -1426,95 +1477,193 @@ async def send_product_media(chat_id, media_files):
                 logging.warning(f"Empty file_id for media: {media}")
                 continue
             
+            # Only add caption to the first item in media group
+            item_caption = caption if i == 0 else None
+            
             # Try a few sample files from attached_assets (this is temporary for testing)
             if file_id == 'show.jpg' and not os.path.isfile(file_id):
                 test_file = './attached_assets/show.jpg'
                 if os.path.isfile(test_file):
                     file_id = test_file
                     logging.info(f"Found test file at {test_file}")
-                    
-            # Handle different file location scenarios
+            
+            media_found = False
+            media_object = None
+            
+            # Check if it's an URL
             if isinstance(file_id, str) and file_id.startswith('http'):
-                # It's a URL, use URLInputFile
                 logging.info(f"File is a URL: {file_id}")
-                file = URLInputFile(file_id)
-                
                 if file_type == 'photo':
-                    await bot.send_photo(chat_id=chat_id, photo=file, caption=file_name)
-                    logging.info(f"Sent photo from URL: {file_id}")
+                    media_object = InputMediaPhoto(
+                        media=file_id,
+                        caption=item_caption,
+                        parse_mode="Markdown"
+                    )
                 elif file_type == 'video':
-                    await bot.send_video(chat_id=chat_id, video=file, caption=file_name)
-                    logging.info(f"Sent video from URL: {file_id}")
-                    
+                    media_object = InputMediaVideo(
+                        media=file_id,
+                        caption=item_caption,
+                        parse_mode="Markdown"
+                    )
+                media_found = True
+                
+            # Check if it's a local file with full path
             elif file_id and os.path.isfile(file_id):
-                # It's a local file that exists at the given path
                 logging.info(f"File is a local path that exists: {file_id}")
-                
                 if file_type == 'photo':
-                    photo_file = FSInputFile(file_id)
-                    await bot.send_photo(chat_id=chat_id, photo=photo_file, caption=file_name)
-                    logging.info(f"Sent photo from local file: {file_id}")
+                    media_object = InputMediaPhoto(
+                        media=FSInputFile(file_id),
+                        caption=item_caption,
+                        parse_mode="Markdown"
+                    )
                 elif file_type == 'video':
-                    video_file = FSInputFile(file_id)
-                    await bot.send_video(chat_id=chat_id, video=video_file, caption=file_name)
-                    logging.info(f"Sent video from local file: {file_id}")
-            else:
-                # Try to find the file in various directories
-                file_found = False
+                    media_object = InputMediaVideo(
+                        media=FSInputFile(file_id),
+                        caption=item_caption,
+                        parse_mode="Markdown"
+                    )
+                media_found = True
                 
-                # If only the filename is stored (common case), try in multiple folders
-                if '/' not in file_id:
-                    for path in media_paths:
-                        full_path = f"{path}{file_id}"
-                        if os.path.isfile(full_path):
-                            logging.info(f"Found file at {full_path}")
-                            file_found = True
-                            
-                            if file_type == 'photo':
-                                photo_file = FSInputFile(full_path)
-                                await bot.send_photo(chat_id=chat_id, photo=photo_file, caption=file_name)
-                                logging.info(f"Sent photo from path: {full_path}")
-                            elif file_type == 'video':
-                                video_file = FSInputFile(full_path)
-                                await bot.send_video(chat_id=chat_id, video=video_file, caption=file_name)
-                                logging.info(f"Sent video from path: {full_path}")
-                                
-                            break
-                
-                # If file wasn't found in any of our directories, assume it's a Telegram file_id
-                if not file_found:
-                    logging.info(f"Assuming file_id is a Telegram file_id: {file_id}")
+            # Try with local_path if available
+            elif local_path:
+                full_path = None
+                # Check if it's a relative path or starts with static
+                if not local_path.startswith('static/'):
+                    full_path = f"./static/{local_path}"
+                else:
+                    full_path = f"./{local_path}"
                     
-                    try:
-                        if file_type == 'photo':
-                            await bot.send_photo(chat_id=chat_id, photo=file_id, caption=file_name)
-                            logging.info(f"Sent photo using file_id: {file_id}")
-                        elif file_type == 'video':
-                            await bot.send_video(chat_id=chat_id, video=file_id, caption=file_name)
-                            logging.info(f"Sent video using file_id: {file_id}")
-                    except Exception as e:
-                        logging.error(f"Failed to send using file_id, sending error message: {str(e)}")
-                        await bot.send_message(
-                            chat_id=chat_id, 
-                            text=f"⚠️ تصویر یا ویدیوی مورد نظر موجود نیست: {file_name}"
+                if os.path.exists(full_path) and os.path.isfile(full_path):
+                    logging.info(f"Found media file using local_path: {full_path}")
+                    if file_type == 'photo':
+                        media_object = InputMediaPhoto(
+                            media=FSInputFile(full_path),
+                            caption=item_caption,
+                            parse_mode="Markdown"
                         )
-                    
+                    elif file_type == 'video':
+                        media_object = InputMediaVideo(
+                            media=FSInputFile(full_path),
+                            caption=item_caption,
+                            parse_mode="Markdown"
+                        )
+                    media_found = True
+            
+            # Try with filename in various directories
+            if not media_found and '/' not in file_id:
+                for path in media_paths:
+                    full_path = f"{path}{file_id}"
+                    if os.path.isfile(full_path):
+                        logging.info(f"Found file at {full_path}")
+                        if file_type == 'photo':
+                            media_object = InputMediaPhoto(
+                                media=FSInputFile(full_path),
+                                caption=item_caption,
+                                parse_mode="Markdown"
+                            )
+                        elif file_type == 'video':
+                            media_object = InputMediaVideo(
+                                media=FSInputFile(full_path),
+                                caption=item_caption,
+                                parse_mode="Markdown"
+                            )
+                        media_found = True
+                        break
+            
+            # If not found yet, try using file_id as Telegram file_id
+            if not media_found:
+                logging.info(f"Assuming file_id is a Telegram file_id: {file_id}")
+                if file_type == 'photo':
+                    media_object = InputMediaPhoto(
+                        media=file_id,
+                        caption=item_caption,
+                        parse_mode="Markdown"
+                    )
+                elif file_type == 'video':
+                    media_object = InputMediaVideo(
+                        media=file_id,
+                        caption=item_caption,
+                        parse_mode="Markdown"
+                    )
+                media_found = True
+            
+            # Add to media group if found
+            if media_found and media_object:
+                media_group.append(media_object)
+                found_valid_media = True
+                
         except Exception as e:
-            logging.error(f"Error sending product media: {str(e)}")
-            logging.error(f"Full error details: {traceback.format_exc()}")
-            # Try sending a notification about the failed media
-            try:
-                await bot.send_message(chat_id=chat_id, text=f"⚠️ خطا در نمایش فایل رسانه‌ای: {file_name}")
-            except:
-                pass
-
-async def send_service_media(chat_id, media_files):
-    """Send service media files to user"""
-    # This function is now just a wrapper around send_product_media for consistency
-    # since both products and services use the same underlying mechanism
+            logging.error(f"Error processing media file: {str(e)}")
+            continue
     
+    # Send the media group if we have valid media
+    if found_valid_media and media_group:
+        logging.info(f"Sending media group with {len(media_group)} items")
+        try:
+            await bot.send_media_group(
+                chat_id=chat_id,
+                media=media_group
+            )
+        except Exception as e:
+            logging.error(f"Error sending media group: {str(e)}")
+            # Fallback to text-only message with description and telegraph link
+            fallback_text = f"🛒 *{title}*\n\n"
+            if product_info and product_info.get('price'):
+                fallback_text += f"💰 قیمت: {product_info.get('price')} تومان\n\n"
+                
+            fallback_text += f"📝 توضیحات:\n{description[:500]}...\n\n"
+            
+            if telegraph_url:
+                fallback_text += f"📄 [مشاهده توضیحات کامل]({telegraph_url})"
+                
+            try:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=fallback_text,
+                    parse_mode="Markdown"
+                )
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text="⚠️ متأسفانه امکان نمایش تصاویر وجود ندارد."
+                )
+            except Exception as err:
+                logging.error(f"Failed to send fallback message: {err}")
+    elif product_info:
+        # No valid media found, send text-only message
+        fallback_text = f"🛒 *{title}*\n\n"
+        if product_info.get('price'):
+            fallback_text += f"💰 قیمت: {product_info.get('price')} تومان\n\n"
+            
+        fallback_text += f"📝 توضیحات:\n{description}\n\n"
+        
+        if telegraph_url:
+            fallback_text += f"📄 [مشاهده توضیحات کامل]({telegraph_url})"
+            
+        try:
+            await bot.send_message(
+                chat_id=chat_id,
+                text=fallback_text,
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            logging.error(f"Failed to send fallback message: {e}")
+
+async def send_service_media(chat_id, media_files, service_info=None):
+    """
+    Send service media files to user as a media group with caption
+    
+    Args:
+        chat_id: Telegram chat ID to send media to
+        media_files: List of media file information
+        service_info: Optional dictionary with service information (name, price, description)
+    """
     logging.info(f"send_service_media called, redirecting to send_product_media with {len(media_files) if media_files else 0} files")
-    await send_product_media(chat_id, media_files)
+    
+    # Custom emoji for services
+    if service_info:
+        service_info['name'] = f"🛠️ {service_info['name']}" if not service_info['name'].startswith('🛠️') else service_info['name']
+    
+    await send_product_media(chat_id, media_files, service_info)
 
 # Inquiry process handlers
 @router.callback_query(F.data.startswith("inquiry:"))
