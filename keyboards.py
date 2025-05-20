@@ -174,10 +174,14 @@ def education_categories_keyboard(categories: List[Dict]) -> InlineKeyboardMarku
         category_id = category['id']
         callback_data = f"{EDUCATION_PREFIX}cat_{category_id}"
         
-        # نمایش تعداد محتوا در صورت وجود
+        # فقط نمایش نام دسته‌بندی بدون نمایش عدد تعداد زیرمجموعه‌ها
         display_name = category_name
-        if 'content_count' in category and category['content_count'] > 0:
-            display_name = f"{category_name} ({category['content_count']})"
+        
+        # نمایش تعداد محتوا فقط در صورتی که محتوایی موجود باشد
+        content_count = int(category.get('content_count', 0))
+        
+        if content_count > 0:
+            display_name = f"{category_name} ({content_count})"
         
         keyboard.append([InlineKeyboardButton(text=display_name, callback_data=callback_data)])
     
