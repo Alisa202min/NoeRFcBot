@@ -1900,6 +1900,11 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
             
         # Add additional information if available
         additional_info = []
+        
+        # Log values for debugging
+        logging.info(f"Service tags: '{tags}' (type: {type(tags)})")
+        logging.info(f"Service featured: '{featured}' (type: {type(featured)})")
+        
         if tags:
             additional_info.append(f"🏷️ برچسب‌ها: {tags}")
         if featured:
@@ -1907,7 +1912,10 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
             
         # Add additional info to caption if available
         if additional_info:
+            logging.info(f"Additional info to add: {additional_info}")
             caption += "\n".join(additional_info) + "\n\n"
+        else:
+            logging.warning("No additional info was added to caption")
         
         # Check if description is too long
         telegraph_url = None
