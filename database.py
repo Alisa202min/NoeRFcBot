@@ -103,9 +103,7 @@ class Database:
                 CREATE TABLE IF NOT EXISTS categories (
                     id SERIAL PRIMARY KEY,
                     name TEXT NOT NULL,
-                    parent_id INTEGER NULL,
-                    cat_type TEXT NOT NULL,
-                    FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE CASCADE
+                    parent_id INTEGER NULL,                              FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE CASCADE
                 )
             ''')
 
@@ -198,12 +196,12 @@ class Database:
                 cursor.execute("INSERT INTO static_content (type, content) VALUES (%s, %s)",
                               ('about', ABOUT_DEFAULT))
 
-    def add_category(self, name: str, parent_id: Optional[int] = None, cat_type: str = 'product') -> int:
+    def add_category(self, name: str, parent_id: Optional[int] = None) -> int:
         """Add a new category"""
         with self.conn.cursor() as cursor:
             cursor.execute(
-                'INSERT INTO categories (name, parent_id, cat_type) VALUES (%s, %s, %s) RETURNING id',
-                (name, parent_id, cat_type)
+                'INSERT INTO categories (name, parent_id) VALUES (%s, %s, %s) RETURNING id',
+                (name, parent_id)
             )
             category_id = cursor.fetchone()[0]
             return category_id
@@ -213,7 +211,7 @@ class Database:
         self.ensure_connection()  # اطمینان از اتصال فعال به دیتابیس
         with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
             cursor.execute(
-                'SELECT id, name, parent_id, cat_type FROM categories WHERE id = %s',
+                'SELECT id, name, parent_id FROM categories WHERE id = %s',
                 (category_id,)
             )
             return cursor.fetchone()
@@ -244,7 +242,7 @@ class Database:
 
     def get_categories(self, parent_id: Optional[int] = None, cat_type: Optional[str] = None) -> List[Dict]:
         """Get categories based on parent ID and/or type"""
-        query = 'SELECT id, name, parent_id, cat_type FROM categories WHERE '
+        query = 'SELECT id, name, parent_id FROM categories WHERE '
         params = []
         conditions = []
 
@@ -259,7 +257,7 @@ class Database:
             params.append(cat_type)
 
         if not conditions:
-            query = 'SELECT id, name, parent_id, cat_type FROM categories'
+            query = 'SELECT id, name, parent_id FROM categories'
         else:
             query += ' AND '.join(conditions)
 
@@ -384,8 +382,7 @@ class Database:
 
         if parent_id is None:
             parent_id = category['parent_id']
-        if cat_type is None:
-            cat_type = category['cat_type']
+       
 
         with self.conn.cursor() as cursor:
             cursor.execute(

@@ -4,19 +4,6 @@
 """
 
 from aiogram.fsm.state import State, StatesGroup
-
-# Define FSM states
-class UserStates(StatesGroup):
-    """States for the Telegram bot FSM"""
-    browse_categories = State()
-    view_product = State()
-    view_category = State()
-    view_educational_content = State()
-    inquiry_name = State()
-    inquiry_phone = State()
-    inquiry_description = State()
-    waiting_for_confirmation = State()
-
 import os
 import logging
 from aiogram import Bot, Dispatcher, Router
@@ -31,6 +18,19 @@ from src.config.configuration import (
     BACK_BTN, SEARCH_BTN, ADMIN_BTN, PRODUCT_PREFIX, SERVICE_PREFIX, CATEGORY_PREFIX,
     BACK_PREFIX, INQUIRY_PREFIX, EDUCATION_PREFIX, ADMIN_PREFIX
 )
+# Define FSM states
+class UserStates(StatesGroup):
+    """States for the Telegram bot FSM"""
+    browse_categories = State()
+    view_product = State()
+    view_category = State()
+    view_educational_content = State()
+    inquiry_name = State()
+    inquiry_phone = State()
+    inquiry_description = State()
+    waiting_for_confirmation = State()
+
+
 
 # Create routers
 main_router = Router()
@@ -73,7 +73,7 @@ async def cmd_help(message: Message):
 @main_router.message(Command("products"))
 async def cmd_products(message: Message):
     """Handle /products command - Show product categories"""
-    categories = db.get_categories(cat_type='product')
+    categories = db.get_categories()
     await message.answer(
         "لطفاً دسته‌بندی محصولات مورد نظر خود را انتخاب کنید:",
         reply_markup=get_categories_keyboard(categories)
@@ -82,7 +82,7 @@ async def cmd_products(message: Message):
 @main_router.message(Command("services"))
 async def cmd_services(message: Message):
     """Handle /services command - Show service categories"""
-    categories = db.get_categories(cat_type='service')
+    categories = db.get_categories()
     await message.answer(
         "لطفاً دسته‌بندی خدمات مورد نظر خود را انتخاب کنید:",
         reply_markup=get_categories_keyboard(categories, prefix=SERVICE_PREFIX)
