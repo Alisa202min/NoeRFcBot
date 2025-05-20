@@ -901,12 +901,43 @@ async def callback_product(callback: CallbackQuery, state: FSMContext):
     # Create keyboard with inquiry button
     keyboard = kb.as_markup()
     
-    # Send media files with product info and keyboard
-    if media_files:
-        await send_product_media(callback.message.chat.id, media_files, product, keyboard)
-    else:
-        # If no media, send only text description with keyboard
-        await callback.message.answer(product_text, reply_markup=keyboard)
+    # First send description with keyboard
+    await callback.message.answer(product_text, reply_markup=keyboard)
+    
+    # Then send first image/video if available
+    if media_files and len(media_files) > 0:
+        media = media_files[0]
+        file_id = media.get('file_id', '')
+        file_type = media.get('file_type', 'photo')
+        local_path = media.get('local_path', '')
+        
+        try:
+            # Find the actual file
+            file_path = None
+            
+            # Check if it's a full path
+            if os.path.isfile(file_id):
+                file_path = file_id
+            # Check local_path
+            elif local_path:
+                if not local_path.startswith('static/'):
+                    full_path = f"./static/{local_path}"
+                else:
+                    full_path = f"./{local_path}"
+                if os.path.exists(full_path):
+                    file_path = full_path
+            
+            if file_path:
+                if file_type == 'photo':
+                    await callback.message.answer_photo(
+                        photo=FSInputFile(file_path),
+                    )
+                elif file_type == 'video':
+                    await callback.message.answer_video(
+                        video=FSInputFile(file_path),
+                    )
+        except Exception as e:
+            logging.error(f"Error sending product media: {e}")
 
 @router.callback_query(F.data.startswith("service:"))
 async def callback_service(callback: CallbackQuery, state: FSMContext):
@@ -948,12 +979,43 @@ async def callback_service(callback: CallbackQuery, state: FSMContext):
     # Create keyboard with inquiry button
     keyboard = kb.as_markup()
     
-    # Send media files with service info and keyboard
-    if media_files:
-        await send_service_media(callback.message.chat.id, media_files, service, keyboard)
-    else:
-        # If no media, send only text description with keyboard
-        await callback.message.answer(service_text, reply_markup=keyboard)
+    # First send description with keyboard
+    await callback.message.answer(service_text, reply_markup=keyboard)
+    
+    # Then send first image/video if available
+    if media_files and len(media_files) > 0:
+        media = media_files[0]
+        file_id = media.get('file_id', '')
+        file_type = media.get('file_type', 'photo')
+        local_path = media.get('local_path', '')
+        
+        try:
+            # Find the actual file
+            file_path = None
+            
+            # Check if it's a full path
+            if os.path.isfile(file_id):
+                file_path = file_id
+            # Check local_path
+            elif local_path:
+                if not local_path.startswith('static/'):
+                    full_path = f"./static/{local_path}"
+                else:
+                    full_path = f"./{local_path}"
+                if os.path.exists(full_path):
+                    file_path = full_path
+            
+            if file_path:
+                if file_type == 'photo':
+                    await callback.message.answer_photo(
+                        photo=FSInputFile(file_path),
+                    )
+                elif file_type == 'video':
+                    await callback.message.answer_video(
+                        video=FSInputFile(file_path),
+                    )
+        except Exception as e:
+            logging.error(f"Error sending service media: {e}")
 
 # Media handling functions
 async def send_educational_media(chat_id, media_files):
