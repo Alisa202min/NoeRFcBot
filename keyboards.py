@@ -43,7 +43,7 @@ def main_menu_keyboard() -> ReplyKeyboardMarkup:
         ],
         resize_keyboard=True,  # Make the keyboard smaller
         is_persistent=True,    # Show keyboard permanently
-        input_field_placeholder="انتخاب از منو..."  # Placeholder text for the input field
+        input_field_placeholder="برای شروع گزینه‌ای را انتخاب کنید..."  # Placeholder text for the input field
     )
     return keyboard
 

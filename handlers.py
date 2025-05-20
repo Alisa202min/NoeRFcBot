@@ -662,6 +662,15 @@ async def show_categories(message, cat_type, state, parent_id=None):
     """Show categories for products or services"""
     await state.update_data(cat_type=cat_type)
     
+    # ثبت گزارش در لاگ
+    logging.info(f"show_categories called with cat_type={cat_type}, parent_id={parent_id}")
+    
+    # اطمینان از مقدار معتبر برای cat_type
+    if cat_type not in ['product', 'service']:
+        logging.warning(f"Invalid cat_type: {cat_type}, defaulting to product")
+        cat_type = 'product'
+        await state.update_data(cat_type='product')
+    
     # Get categories - استفاده از توابع خاص برای هر نوع دسته‌بندی
     categories = []
     if cat_type == 'product':
@@ -673,9 +682,25 @@ async def show_categories(message, cat_type, state, parent_id=None):
     
     logging.info(f"Categories for {cat_type}: {categories}")
     
+    # اگر هیچ دسته‌بندی یافت نشد، بررسی کنیم آیا این یک دسته‌بندی نهایی است که محصول/خدمت دارد
     if not categories:
         # If no categories but we're in a subcategory, show items
         if parent_id is not None:
+            # بررسی اینکه این دسته‌بندی در چه نوعی (محصول/خدمت) وجود دارد
+            product_cat_exists = db.check_product_category_exists(parent_id)
+            service_cat_exists = db.check_service_category_exists(parent_id)
+            
+            # اگر در نوع دیگری وجود دارد، نوع را تغییر دهیم
+            if cat_type == 'product' and not product_cat_exists and service_cat_exists:
+                logging.info(f"Category {parent_id} is a service category, switching type")
+                cat_type = 'service'
+                await state.update_data(cat_type='service')
+            elif cat_type == 'service' and not service_cat_exists and product_cat_exists:
+                logging.info(f"Category {parent_id} is a product category, switching type")
+                cat_type = 'product'
+                await state.update_data(cat_type='product')
+                
+            # نمایش محصولات یا خدمات
             if cat_type == 'product':
                 products = db.get_products(parent_id)
                 logging.info(f"Retrieved {len(products)} products for category ID {parent_id}")
