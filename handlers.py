@@ -901,11 +901,9 @@ async def callback_product(callback: CallbackQuery, state: FSMContext):
     # Create keyboard with inquiry button
     keyboard = kb.as_markup()
     
-    # Send media files with product info if available
+    # Send media files with product info and keyboard
     if media_files:
-        await send_product_media(callback.message.chat.id, media_files, product)
-        # Send keyboard in a separate message after media
-        await callback.message.answer("🛍️ برای استعلام قیمت از دکمه زیر استفاده کنید:", reply_markup=keyboard)
+        await send_product_media(callback.message.chat.id, media_files, product, keyboard)
     else:
         # If no media, send only text description with keyboard
         await callback.message.answer(product_text, reply_markup=keyboard)
@@ -950,11 +948,9 @@ async def callback_service(callback: CallbackQuery, state: FSMContext):
     # Create keyboard with inquiry button
     keyboard = kb.as_markup()
     
-    # Send media files with service info if available
+    # Send media files with service info and keyboard
     if media_files:
-        await send_service_media(callback.message.chat.id, media_files, service)
-        # Send keyboard in a separate message after media
-        await callback.message.answer("🛠️ برای استعلام قیمت از دکمه زیر استفاده کنید:", reply_markup=keyboard)
+        await send_service_media(callback.message.chat.id, media_files, service, keyboard)
     else:
         # If no media, send only text description with keyboard
         await callback.message.answer(service_text, reply_markup=keyboard)
@@ -1399,7 +1395,7 @@ async def send_educational_media_group(chat_id, media_files, caption="", keyboar
             pass
 
 
-async def send_product_media(chat_id, media_files, product_info=None):
+async def send_product_media(chat_id, media_files, product_info=None, reply_markup=None):
     """
     Send product media files to user as a media group with caption
     
@@ -1407,6 +1403,7 @@ async def send_product_media(chat_id, media_files, product_info=None):
         chat_id: Telegram chat ID to send media to
         media_files: List of media file information
         product_info: Optional dictionary with product information (name, price, description)
+        reply_markup: Optional reply markup (keyboard) to include with the message
     """
     from bot import bot  # Import bot here to avoid circular imports
     from utils import create_telegraph_page  # Import telegraph function
@@ -1414,6 +1411,30 @@ async def send_product_media(chat_id, media_files, product_info=None):
     # Check if we have any media files
     if not media_files:
         logging.warning(f"No media files provided to send_product_media for chat_id {chat_id}")
+        
+        # If we have product info but no media, send text message with keyboard
+        if product_info:
+            title = product_info.get('name', '')
+            price = product_info.get('price', '')
+            description = product_info.get('description', '')
+            
+            message_text = f"🛒 *{title}*\n\n"
+            if price:
+                message_text += f"💰 قیمت: {price} تومان\n\n"
+                
+            message_text += f"📝 توضیحات:\n{description}\n\n"
+            
+            # Send message with keyboard
+            try:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=message_text,
+                    parse_mode="Markdown",
+                    reply_markup=reply_markup
+                )
+            except Exception as e:
+                logging.error(f"Failed to send product message: {e}")
+        
         return
         
     logging.info(f"Attempting to send {len(media_files)} media files to chat_id {chat_id}")
@@ -1610,10 +1631,20 @@ async def send_product_media(chat_id, media_files, product_info=None):
     if found_valid_media and media_group:
         logging.info(f"Sending media group with {len(media_group)} items")
         try:
+            # First send media group
             await bot.send_media_group(
                 chat_id=chat_id,
                 media=media_group
             )
+            
+            # Then send inquiry button and back in a separate message
+            if reply_markup:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text="🔽 گزینه‌های محصول:",
+                    reply_markup=reply_markup
+                )
+                
         except Exception as e:
             logging.error(f"Error sending media group: {str(e)}")
             # Fallback to text-only message with description and telegraph link
@@ -1630,11 +1661,8 @@ async def send_product_media(chat_id, media_files, product_info=None):
                 await bot.send_message(
                     chat_id=chat_id,
                     text=fallback_text,
-                    parse_mode="Markdown"
-                )
-                await bot.send_message(
-                    chat_id=chat_id,
-                    text="⚠️ متأسفانه امکان نمایش تصاویر وجود ندارد."
+                    parse_mode="Markdown",
+                    reply_markup=reply_markup
                 )
             except Exception as err:
                 logging.error(f"Failed to send fallback message: {err}")
@@ -1653,12 +1681,13 @@ async def send_product_media(chat_id, media_files, product_info=None):
             await bot.send_message(
                 chat_id=chat_id,
                 text=fallback_text,
-                parse_mode="Markdown"
+                parse_mode="Markdown",
+                reply_markup=reply_markup
             )
         except Exception as e:
             logging.error(f"Failed to send fallback message: {e}")
 
-async def send_service_media(chat_id, media_files, service_info=None):
+async def send_service_media(chat_id, media_files, service_info=None, reply_markup=None):
     """
     Send service media files to user as a media group with caption
     
@@ -1666,6 +1695,7 @@ async def send_service_media(chat_id, media_files, service_info=None):
         chat_id: Telegram chat ID to send media to
         media_files: List of media file information
         service_info: Optional dictionary with service information (name, price, description)
+        reply_markup: Optional reply markup (keyboard) to include with the message
     """
     logging.info(f"send_service_media called, redirecting to send_product_media with {len(media_files) if media_files else 0} files")
     
@@ -1673,7 +1703,7 @@ async def send_service_media(chat_id, media_files, service_info=None):
     if service_info:
         service_info['name'] = f"🛠️ {service_info['name']}" if not service_info['name'].startswith('🛠️') else service_info['name']
     
-    await send_product_media(chat_id, media_files, service_info)
+    await send_product_media(chat_id, media_files, service_info, reply_markup)
 
 # Inquiry process handlers
 @router.callback_query(F.data.startswith("inquiry:"))
