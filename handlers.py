@@ -1941,6 +1941,43 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
             caption += f"📝 توضیحات:\n{description}\n\n"
         
         # Process and send service media files
+        # Check for default media file identifiers that might be causing errors
+        valid_media_files = []
+        for media_file in media_files:
+            file_id = media_file.get('file_id', '')
+            # Skip default media files that are causing errors
+            if file_id and file_id.startswith('default_media_'):
+                logging.warning(f"Skipping likely invalid default media file: {file_id}")
+                continue
+            valid_media_files.append(media_file)
+        
+        # If all media files were filtered out, proceed as if there were no media files
+        if not valid_media_files:
+            logging.warning(f"All {len(media_files)} media files were filtered out as invalid")
+            # Send text-only message with full service information
+            service_text = f"🛠️ *{title}*\n\n"
+            if price:
+                service_text += f"💰 قیمت: {price} تومان\n\n"
+            
+            # Add additional information if available
+            if additional_info:
+                service_text += "\n".join(additional_info) + "\n\n"
+                
+            service_text += f"📝 توضیحات:\n{description}\n\n"
+            
+            try:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=service_text,
+                    parse_mode="Markdown",
+                    reply_markup=reply_markup
+                )
+                logging.info(f"Sent text-only message for service with tags: {tags}, featured: {featured}")
+                return
+            except Exception as e:
+                logging.error(f"Failed to send service text-only message: {e}")
+                return
+                
         found_valid_media = False
         media_group = []
         item_caption = caption
@@ -1954,7 +1991,7 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
         ]
         
         # Process each media file
-        for i, media_file in enumerate(media_files):
+        for i, media_file in enumerate(valid_media_files):
             try:
                 file_id = media_file.get('file_id', '')
                 file_type = media_file.get('file_type', 'photo')  # Default to photo if not specified
@@ -2021,8 +2058,8 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
                             media_found = True
                             break
                 
-                # If not found yet, try using file_id as Telegram file_id
-                if not media_found:
+                # If not found yet, try using file_id as Telegram file_id only if it looks valid
+                if not media_found and not file_id.startswith('default_media_'):
                     logging.info(f"Assuming file_id is a Telegram file_id: {file_id}")
                     if file_type == 'photo':
                         media_object = InputMediaPhoto(
