@@ -230,6 +230,96 @@ class Database:
             cursor.execute(query, params)
             return cursor.fetchall()
 
+    def get_product_categories(self, parent_id=None) -> List[Dict]:
+        """Get product categories with subcategory and product counts
+        
+        Args:
+            parent_id: Optional parent ID to filter by. If None, returns top-level categories.
+            
+        Returns:
+            List of product categories with counts
+        """
+        try:
+            query = 'SELECT * FROM product_categories WHERE '
+            params = []
+            
+            if parent_id is None:
+                query += 'parent_id IS NULL'
+            else:
+                query += 'parent_id = %s'
+                params.append(parent_id)
+                
+            query += ' ORDER BY name'
+            
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute(query, params)
+                categories = cursor.fetchall()
+                
+                # اضافه کردن تعداد زیرمجموعه‌ها برای هر دسته‌بندی
+                for category in categories:
+                    # محاسبه تعداد زیردسته‌بندی‌ها
+                    cursor.execute('SELECT COUNT(*) FROM product_categories WHERE parent_id = %s', [category['id']])
+                    subcategory_count = cursor.fetchone()['count']
+                    
+                    # محاسبه تعداد محصولات
+                    cursor.execute('SELECT COUNT(*) FROM products WHERE category_id = %s', [category['id']])
+                    product_count = cursor.fetchone()['count']
+                    
+                    # ذخیره مجموع زیردسته‌بندی‌ها و محصولات
+                    category['subcategory_count'] = subcategory_count
+                    category['product_count'] = product_count
+                    category['total_items'] = subcategory_count + product_count
+                
+                return categories
+        except Exception as e:
+            logging.error(f"Error in get_product_categories: {e}")
+            return []
+            
+    def get_service_categories(self, parent_id=None) -> List[Dict]:
+        """Get service categories with subcategory and service counts
+        
+        Args:
+            parent_id: Optional parent ID to filter by. If None, returns top-level categories.
+            
+        Returns:
+            List of service categories with counts
+        """
+        try:
+            query = 'SELECT * FROM service_categories WHERE '
+            params = []
+            
+            if parent_id is None:
+                query += 'parent_id IS NULL'
+            else:
+                query += 'parent_id = %s'
+                params.append(parent_id)
+                
+            query += ' ORDER BY name'
+            
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute(query, params)
+                categories = cursor.fetchall()
+                
+                # اضافه کردن تعداد زیرمجموعه‌ها برای هر دسته‌بندی
+                for category in categories:
+                    # محاسبه تعداد زیردسته‌بندی‌ها
+                    cursor.execute('SELECT COUNT(*) FROM service_categories WHERE parent_id = %s', [category['id']])
+                    subcategory_count = cursor.fetchone()['count']
+                    
+                    # محاسبه تعداد خدمات
+                    cursor.execute('SELECT COUNT(*) FROM services WHERE category_id = %s', [category['id']])
+                    service_count = cursor.fetchone()['count']
+                    
+                    # ذخیره مجموع زیردسته‌بندی‌ها و خدمات
+                    category['subcategory_count'] = subcategory_count
+                    category['service_count'] = service_count
+                    category['total_items'] = subcategory_count + service_count
+                
+                return categories
+        except Exception as e:
+            logging.error(f"Error in get_service_categories: {e}")
+            return []
+    
     def update_category(self, category_id: int, name: str, parent_id: Optional[int] = None, 
                        cat_type: Optional[str] = None) -> bool:
         """Update a category"""
