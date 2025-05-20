@@ -1932,14 +1932,185 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
             # Description fits in caption
             caption += f"📝 توضیحات:\n{description}\n\n"
         
-        # Update service_info with the new name for product_media function
-        service_info['name'] = title
+        # Process and send service media files
+        found_valid_media = False
+        media_group = []
+        item_caption = caption
         
-        # Use the product_media function to send media
-        await send_product_media(chat_id, media_files, service_info, reply_markup)
+        # Define possible paths to check for media files
+        media_paths = [
+            './', 
+            'static/media/services/', 
+            'static/uploads/services/',
+            'media/services/'
+        ]
+        
+        # Process each media file
+        for i, media_file in enumerate(media_files):
+            try:
+                file_id = media_file.get('file_id', '')
+                file_type = media_file.get('file_type', 'photo')  # Default to photo if not specified
+                local_path = media_file.get('local_path', '')
+                
+                # Only the first item should have the caption
+                item_caption = caption if i == 0 else ""
+                
+                media_object = None
+                media_found = False
+                
+                # Try with local_path first if it exists
+                if local_path and os.path.isfile(local_path):
+                    logging.info(f"Found media file using local_path: {local_path}")
+                    if file_type == 'photo':
+                        media_object = InputMediaPhoto(
+                            media=FSInputFile(local_path),
+                            caption=item_caption,
+                            parse_mode="Markdown"
+                        )
+                    elif file_type == 'video':
+                        media_object = InputMediaVideo(
+                            media=FSInputFile(local_path),
+                            caption=item_caption,
+                            parse_mode="Markdown"
+                        )
+                    media_found = True
+                
+                # Try with file_id as a path
+                elif file_id and os.path.isfile(file_id):
+                    logging.info(f"Found media file using file_id as path: {file_id}")
+                    if file_type == 'photo':
+                        media_object = InputMediaPhoto(
+                            media=FSInputFile(file_id),
+                            caption=item_caption,
+                            parse_mode="Markdown"
+                        )
+                    elif file_type == 'video':
+                        media_object = InputMediaVideo(
+                            media=FSInputFile(file_id),
+                            caption=item_caption,
+                            parse_mode="Markdown"
+                        )
+                    media_found = True
+                
+                # Try with filename in various directories
+                elif not media_found and '/' not in file_id:
+                    for path in media_paths:
+                        full_path = f"{path}{file_id}"
+                        if os.path.isfile(full_path):
+                            logging.info(f"Found file at {full_path}")
+                            if file_type == 'photo':
+                                media_object = InputMediaPhoto(
+                                    media=FSInputFile(full_path),
+                                    caption=item_caption,
+                                    parse_mode="Markdown"
+                                )
+                            elif file_type == 'video':
+                                media_object = InputMediaVideo(
+                                    media=FSInputFile(full_path),
+                                    caption=item_caption,
+                                    parse_mode="Markdown"
+                                )
+                            media_found = True
+                            break
+                
+                # If not found yet, try using file_id as Telegram file_id
+                if not media_found:
+                    logging.info(f"Assuming file_id is a Telegram file_id: {file_id}")
+                    if file_type == 'photo':
+                        media_object = InputMediaPhoto(
+                            media=file_id,
+                            caption=item_caption,
+                            parse_mode="Markdown"
+                        )
+                    elif file_type == 'video':
+                        media_object = InputMediaVideo(
+                            media=file_id,
+                            caption=item_caption,
+                            parse_mode="Markdown"
+                        )
+                    media_found = True
+                
+                # Add to media group if found
+                if media_found and media_object:
+                    media_group.append(media_object)
+                    found_valid_media = True
+                    
+            except Exception as e:
+                logging.error(f"Error processing service media file: {str(e)}")
+                continue
+        
+        # Send the media group if we have valid media
+        if found_valid_media and media_group:
+            logging.info(f"Sending service media group with {len(media_group)} items")
+            try:
+                # First send media group
+                await bot.send_media_group(
+                    chat_id=chat_id,
+                    media=media_group
+                )
+                
+                # Then send inquiry button and back in a separate message
+                if reply_markup:
+                    await bot.send_message(
+                        chat_id=chat_id,
+                        text="🔽 گزینه‌های خدمت:",
+                        reply_markup=reply_markup
+                    )
+                    
+            except Exception as e:
+                logging.error(f"Error sending service media group: {str(e)}")
+                # Fallback to text-only message with description
+                fallback_text = f"🛠️ *{title}*\n\n"
+                if price:
+                    fallback_text += f"💰 قیمت: {price} تومان\n\n"
+                
+                # Add additional information if available
+                if additional_info:
+                    fallback_text += "\n".join(additional_info) + "\n\n"
+                    
+                fallback_text += f"📝 توضیحات:\n{description[:500]}...\n\n"
+                
+                if telegraph_url:
+                    fallback_text += f"📄 [مشاهده توضیحات کامل]({telegraph_url})"
+                    
+                try:
+                    await bot.send_message(
+                        chat_id=chat_id,
+                        text=fallback_text,
+                        parse_mode="Markdown",
+                        reply_markup=reply_markup
+                    )
+                except Exception as err:
+                    logging.error(f"Failed to send service fallback message: {err}")
+        else:
+            # No valid media found, send text-only message
+            fallback_text = f"🛠️ *{title}*\n\n"
+            if price:
+                fallback_text += f"💰 قیمت: {price} تومان\n\n"
+            
+            # Add additional information if available
+            if additional_info:
+                fallback_text += "\n".join(additional_info) + "\n\n"
+                
+            fallback_text += f"📝 توضیحات:\n{description}\n\n"
+            
+            try:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=fallback_text,
+                    parse_mode="Markdown",
+                    reply_markup=reply_markup
+                )
+            except Exception as e:
+                logging.error(f"Failed to send service text-only message: {e}")
     else:
-        # If no service_info, just send the media without custom processing
-        await send_product_media(chat_id, media_files, None, reply_markup)
+        # If no service_info, send a generic message
+        if media_files:
+            await bot.send_message(
+                chat_id=chat_id,
+                text="⚠️ اطلاعات خدمت موجود نیست.",
+                reply_markup=reply_markup
+            )
 
 # Inquiry process handlers
 @router.callback_query(F.data.startswith("inquiry:"))
