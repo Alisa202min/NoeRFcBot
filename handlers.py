@@ -1625,7 +1625,30 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
         './data/',
     ]
     
-    # First attempt to create media group
+    # Add product main image first if it exists and we're processing a product
+    main_photo_added = False
+    if product_info and 'photo_url' in product_info and product_info['photo_url']:
+        photo_url = product_info.get('photo_url')
+        logging.info(f"Adding product main photo: {photo_url}")
+        
+        # Check if the main photo exists as a file
+        photo_path = f"static/{photo_url}"
+        if os.path.isfile(photo_path):
+            logging.info(f"Main product photo file found at: {photo_path}")
+            try:
+                # Add the main photo as the first item with caption
+                media_object = InputMediaPhoto(
+                    media=FSInputFile(photo_path),
+                    caption=caption,
+                    parse_mode="Markdown"
+                )
+                media_group.append(media_object)
+                found_valid_media = True
+                main_photo_added = True
+            except Exception as e:
+                logging.error(f"Error adding main product photo: {e}")
+
+    # Process the rest of media files
     for i, media in enumerate(media_files):
         try:
             file_id = media.get('file_id', '')
@@ -1640,8 +1663,8 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
                 logging.warning(f"Empty file_id for media: {media}")
                 continue
             
-            # Only add caption to the first item in media group
-            item_caption = caption if i == 0 else None
+            # Only add caption to the first item in media group, and only if main photo wasn't added
+            item_caption = caption if i == 0 and not main_photo_added else None
             
             # Try a few sample files from attached_assets (this is temporary for testing)
             if file_id == 'show.jpg' and not os.path.isfile(file_id):
@@ -1941,7 +1964,46 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
             caption += f"📝 توضیحات:\n{description}\n\n"
         
         # Process and send service media files
-        # Check for default media file identifiers that might be causing errors
+        # First create an empty media group
+        found_valid_media = False
+        media_group = []
+        
+        # Add service main image first if it exists
+        main_photo_added = False
+        if service_info and 'photo_url' in service_info and service_info['photo_url']:
+            photo_url = service_info.get('photo_url')
+            logging.info(f"Adding service main photo: {photo_url}")
+            
+            # Check if the photo exists as a file
+            possible_paths = [
+                f"static/{photo_url}",
+                photo_url,
+                f"static/uploads/services/{photo_url}",
+                f"static/uploads/{photo_url}"
+            ]
+            
+            photo_path = None
+            for path in possible_paths:
+                if os.path.isfile(path):
+                    photo_path = path
+                    break
+                    
+            if photo_path:
+                logging.info(f"Main service photo file found at: {photo_path}")
+                try:
+                    # Add the main photo as the first item with caption
+                    media_object = InputMediaPhoto(
+                        media=FSInputFile(photo_path),
+                        caption=caption,
+                        parse_mode="Markdown"
+                    )
+                    media_group.append(media_object)
+                    found_valid_media = True
+                    main_photo_added = True
+                except Exception as e:
+                    logging.error(f"Error adding main service photo: {e}")
+        
+        # Filter the media files to remove invalid default media
         valid_media_files = []
         for media_file in media_files:
             file_id = media_file.get('file_id', '')
@@ -1951,9 +2013,9 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
                 continue
             valid_media_files.append(media_file)
         
-        # If all media files were filtered out, proceed as if there were no media files
-        if not valid_media_files:
-            logging.warning(f"All {len(media_files)} media files were filtered out as invalid")
+        # If no valid media files and no main photo, send text-only message
+        if not valid_media_files and not main_photo_added:
+            logging.warning(f"All {len(media_files)} media files were filtered out as invalid and no main photo was found")
             # Send text-only message with full service information
             service_text = f"🛠️ *{title}*\n\n"
             if price:
@@ -1978,9 +2040,8 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
                 logging.error(f"Failed to send service text-only message: {e}")
                 return
                 
-        found_valid_media = False
-        media_group = []
-        item_caption = caption
+        # Caption will only be used for the first media if main photo wasn't added
+        item_caption = None if main_photo_added else caption
         
         # Define possible paths to check for media files
         media_paths = [
