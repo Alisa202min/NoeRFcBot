@@ -155,6 +155,7 @@ class Service(db.Model):
     # Service status columns
     featured = db.Column(db.Boolean, default=False)  # برای نمایش در صفحه اصلی
     available = db.Column(db.Boolean, default=True)  # وضعیت در دسترس بودن
+    tags = db.Column(db.Text, nullable=True)  # برچسب‌های خدمت
     
     # Relationships
     media = db.relationship('ServiceMedia', backref='service', lazy='dynamic', cascade='all, delete-orphan')
