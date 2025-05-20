@@ -254,12 +254,51 @@ async def callback_educational(callback: CallbackQuery):
     """Handle educational content button click"""
     await callback.answer()
     
+    logging.info(f"Educational content requested by user: {callback.from_user.id}")
+    
     # Get educational categories
     categories = db.get_educational_categories()
     
     if not categories:
         await callback.message.answer("در حال حاضر محتوای آموزشی موجود نیست.")
         return
+    
+    # برای هر دسته‌بندی، محتوای قدیمی (legacy) مرتبط با آن را نیز بررسی کنیم
+    updated_categories = []
+    for category in categories:
+        category_name = category['name']
+        category_id = category['id']
+        # دریافت محتوای آموزشی قدیمی با استفاده از نام دسته‌بندی
+        legacy_content = db.get_all_educational_content(category=category_name)
+        
+        # اضافه کردن تعداد محتوای قدیمی به شمارش کلی محتوا
+        legacy_count = len(legacy_content) if legacy_content else 0
+        
+        # ساخت یک نسخه جدید از دسته‌بندی با مقادیر به‌روز شده
+        new_category = dict(category)  # کپی از دیکشنری اصلی
+        
+        # به‌روزرسانی شمارش محتوا
+        content_count = 0
+        if 'content_count' in category:
+            try:
+                content_count = int(category['content_count'])
+            except (ValueError, TypeError):
+                content_count = 0
+        
+        # اضافه کردن تعداد محتوای قدیمی
+        total_count = content_count + legacy_count
+        new_category['content_count'] = total_count
+        
+        # گزارش‌دهی برای اشکال‌زدایی
+        logging.info(f"Category '{category_name}' (ID: {category_id}): content_count={content_count}, legacy_count={legacy_count}, total={total_count}")
+        
+        updated_categories.append(new_category)
+    
+    # جایگزینی لیست دسته‌بندی‌ها با نسخه به‌روز شده
+    categories = updated_categories
+            
+    # ثبت تعداد کل دسته‌بندی‌ها
+    logging.info(f"Educational categories sent: {len(categories)} categories")
     
     # Create keyboard with educational categories
     from keyboards import education_categories_keyboard
