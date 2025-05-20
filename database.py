@@ -278,6 +278,8 @@ class Database:
         Returns:
             List of product categories with counts
         """
+        self.ensure_connection()  # اطمینان از اتصال فعال به دیتابیس
+        
         try:
             query = 'SELECT * FROM product_categories WHERE '
             params = []
@@ -312,7 +314,13 @@ class Database:
                 return categories
         except Exception as e:
             logging.error(f"Error in get_product_categories: {e}")
-            return []
+            # در صورت خطا، یک بار دیگر تلاش می‌کنیم اتصال را برقرار کنیم
+            try:
+                self.connect()
+                return self.get_product_categories(parent_id)  # تلاش مجدد
+            except Exception as retry_error:
+                logging.error(f"Failed retry in get_product_categories: {retry_error}")
+                return []
             
     def get_service_categories(self, parent_id=None) -> List[Dict]:
         """Get service categories with subcategory and service counts
@@ -323,6 +331,8 @@ class Database:
         Returns:
             List of service categories with counts
         """
+        self.ensure_connection()  # اطمینان از اتصال فعال به دیتابیس
+        
         try:
             query = 'SELECT * FROM service_categories WHERE '
             params = []
@@ -357,7 +367,13 @@ class Database:
                 return categories
         except Exception as e:
             logging.error(f"Error in get_service_categories: {e}")
-            return []
+            # در صورت خطا، یک بار دیگر تلاش می‌کنیم اتصال را برقرار کنیم
+            try:
+                self.connect()
+                return self.get_service_categories(parent_id)  # تلاش مجدد
+            except Exception as retry_error:
+                logging.error(f"Failed retry in get_service_categories: {retry_error}")
+                return []
     
     def update_category(self, category_id: int, name: str, parent_id: Optional[int] = None, 
                        cat_type: Optional[str] = None) -> bool:
