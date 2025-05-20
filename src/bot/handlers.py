@@ -73,7 +73,7 @@ async def cmd_help(message: Message):
 @main_router.message(Command("products"))
 async def cmd_products(message: Message):
     """Handle /products command - Show product categories"""
-    categories = db.get_categories(cat_type='product')
+    categories = db.get_categories()
     await message.answer(
         "لطفاً دسته‌بندی محصولات مورد نظر خود را انتخاب کنید:",
         reply_markup=get_categories_keyboard(categories)
@@ -82,7 +82,7 @@ async def cmd_products(message: Message):
 @main_router.message(Command("services"))
 async def cmd_services(message: Message):
     """Handle /services command - Show service categories"""
-    categories = db.get_categories(cat_type='service')
+    categories = db.get_categories()
     await message.answer(
         "لطفاً دسته‌بندی خدمات مورد نظر خود را انتخاب کنید:",
         reply_markup=get_categories_keyboard(categories, prefix=SERVICE_PREFIX)

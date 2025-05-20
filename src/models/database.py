@@ -47,7 +47,7 @@ class Database:
     
     # Category Methods
     
-    def add_category(self, name: str, parent_id: Optional[int] = None, cat_type: str = 'product') -> int:
+    def add_category(self, name: str, parent_id: Optional[int] = None) -> int:
         """Add a new category"""
         self._ensure_connection()
         try:
@@ -56,7 +56,7 @@ class Database:
                 INSERT INTO categories (name, parent_id) 
                 VALUES (%s, %s) RETURNING id
                 """, 
-                (name, parent_id, cat_type)
+                (name, parent_id)
             )
             category_id = self.cursor.fetchone()[0]
             return category_id
@@ -70,7 +70,7 @@ class Database:
         try:
             self.cursor.execute(
                 """
-                SELECT id, name, parent_id, cat_type, created_at, updated_at
+                SELECT id, name, parent_id, created_at, updated_at
                 FROM categories
                 WHERE id = %s
                 """, 
@@ -82,9 +82,8 @@ class Database:
                     'id': category[0],
                     'name': category[1],
                     'parent_id': category[2],
-                    'cat_type': category[3],
-                    'created_at': category[4],
-                    'updated_at': category[5]
+                    'created_at': category[3],
+                    'updated_at': category[4]
                 }
             return None
         except Exception as e:
@@ -96,7 +95,7 @@ class Database:
         self._ensure_connection()
         try:
             query = """
-                SELECT id, name, parent_id, cat_type, created_at, updated_at
+                SELECT id, name, parent_id, created_at, updated_at
                 FROM categories
                 WHERE 1=1
             """
