@@ -64,24 +64,32 @@ class Database:
             
         try:
             # تلاش برای اجرای یک دستور ساده برای بررسی وضعیت اتصال
-            cursor = self.conn.cursor()
-            cursor.execute("SELECT 1")
-            cursor.close()
-        except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+            with self.conn.cursor() as cursor:
+                cursor.execute("SELECT 1")
+        except (psycopg2.OperationalError, psycopg2.InterfaceError, psycopg2.Error) as e:
             # در صورت بروز خطای ارتباطی، اتصال مجدد
             logging.warning(f"Database connection lost. Reconnecting... Error: {str(e)}")
             try:
-                self.conn.close()
-            except:
-                pass
-            self.connect()
-            return True
+                if hasattr(self, 'conn') and self.conn:
+                    self.conn.close()
+            except Exception as close_error:
+                logging.warning(f"Error closing connection: {str(close_error)}")
+                
+            try:
+                # سعی مجدد برای اتصال
+                self.connect()
+                return True
+            except Exception as connect_error:
+                logging.error(f"Failed to reconnect: {str(connect_error)}")
+                return False
         except Exception as e:
             # سایر خطاها ممکن است نیاز به رسیدگی خاص داشته باشند
             logging.error(f"Unknown database error: {str(e)}")
             return False
             
         return True
+        
+    def initialize(self):
         """Initialize PostgreSQL database and create necessary tables"""
         with self.conn.cursor() as cursor:
             # Create categories table
@@ -134,7 +142,7 @@ class Database:
                         file_id TEXT NOT NULL,
                         file_type TEXT NOT NULL CHECK(file_type IN ('photo', 'video')),
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        FOREIGN KEY (service_id) REFERENCES products(id) ON DELETE CASCADE
+                        FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE
                     )
                 ''')
 
