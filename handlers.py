@@ -883,12 +883,54 @@ async def callback_product(callback: CallbackQuery, state: FSMContext):
     # Get product media
     media_files = db.get_product_media(product_id)
     
-    # Format the product details
-    product_text = (
-        f"🛒 {product['name']}\n\n"
-        f"💰 قیمت: {product['price']} تومان\n\n"
-        f"📝 توضیحات:\n{product['description']}\n\n"
-    )
+    # Log product information for debugging
+    logging.debug(f"Product details: {product}")
+    
+    # Format the product details with additional information
+    product_text = f"🛒 {product['name']}\n\n"
+    
+    # Add price information if available
+    if 'price' in product and product['price']:
+        product_text += f"💰 قیمت: {product['price']} تومان\n\n"
+    
+    # Add additional information if available
+    additional_info = []
+    
+    # Add brand if available
+    if 'brand' in product and product['brand']:
+        additional_info.append(f"🏢 برند: {product['brand']}")
+    
+    # Add model if available
+    if 'model' in product and product['model']:
+        additional_info.append(f"📱 مدل: {product['model']}")
+    
+    # Add model_number if available
+    if 'model_number' in product and product['model_number']:
+        additional_info.append(f"📋 شماره مدل: {product['model_number']}")
+    
+    # Add manufacturer if available
+    if 'manufacturer' in product and product['manufacturer']:
+        additional_info.append(f"🏭 سازنده: {product['manufacturer']}")
+    
+    # Add tags if available
+    if 'tags' in product and product['tags']:
+        additional_info.append(f"🏷️ برچسب‌ها: {product['tags']}")
+    
+    # Add in_stock status if available and true
+    if 'in_stock' in product and product['in_stock']:
+        additional_info.append("✅ موجود در انبار")
+    
+    # Add featured status if available and true
+    if 'featured' in product and product['featured']:
+        additional_info.append("⭐ محصول ویژه")
+    
+    # Add additional info to product text if available
+    if additional_info:
+        product_text += "\n".join(additional_info) + "\n\n"
+    
+    # Add description
+    if 'description' in product and product['description']:
+        product_text += f"📝 توضیحات:\n{product['description']}\n\n"
     
     # Add keyboard for inquiry and back
     kb = InlineKeyboardBuilder()
@@ -930,12 +972,38 @@ async def callback_service(callback: CallbackQuery, state: FSMContext):
     # Get service media
     media_files = db.get_service_media(service_id)
     
-    # Format the service details
-    service_text = (
-        f"🛠️ {service['name']}\n\n"
-        f"💰 قیمت: {service['price']} تومان\n\n"
-        f"📝 توضیحات:\n{service['description']}\n\n"
-    )
+    # Log service information for debugging
+    logging.debug(f"Service details: {service}")
+    
+    # Format the service details with additional information
+    service_text = f"🛠️ {service['name']}\n\n"
+    
+    # Add price information if available
+    if 'price' in service and service['price']:
+        service_text += f"💰 قیمت: {service['price']} تومان\n\n"
+    
+    # Add additional information if available
+    additional_info = []
+    
+    # Add tags if available
+    if 'tags' in service and service['tags']:
+        additional_info.append(f"🏷️ برچسب‌ها: {service['tags']}")
+    
+    # Add featured status if available and true
+    if 'featured' in service and service['featured']:
+        additional_info.append("⭐ خدمت ویژه")
+    
+    # Add available status if available and true
+    if 'available' in service and service['available']:
+        additional_info.append("✅ در دسترس")
+    
+    # Add additional info to service text if available
+    if additional_info:
+        service_text += "\n".join(additional_info) + "\n\n"
+    
+    # Add description
+    if 'description' in service and service['description']:
+        service_text += f"📝 توضیحات:\n{service['description']}\n\n"
     
     # Add keyboard for inquiry and back
     kb = InlineKeyboardBuilder()
