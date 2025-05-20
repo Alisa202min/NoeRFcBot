@@ -105,29 +105,11 @@ async def cmd_products(message: Message, state: FSMContext):
     try:
         logging.info(f"Products requested by user: {message.from_user.id}")
         
-        # دریافت دسته‌بندی‌های محصولات
-        categories = db.get_product_categories()
-        logging.info(f"Product categories: {categories}")
+        # تنظیم حالت برای محصولات
+        await state.update_data(cat_type='product')
         
-        if not categories:
-            await message.answer("⚠️ دسته‌بندی محصولات موجود نیست.")
-            return
-        
-        # ساخت کیبورد
-        kb = InlineKeyboardBuilder()
-        for category in categories:
-            # نمایش تعداد زیرمجموعه‌ها
-            total_items = category.get('total_items', 0)
-            display_name = category['name']
-            if total_items > 0:
-                display_name = f"{category['name']} ({total_items})"
-                
-            kb.button(text=display_name, callback_data=f"category:{category['id']}")
-            
-        kb.button(text="🔙 بازگشت به منوی اصلی", callback_data="back_to_main")
-        kb.adjust(1)
-        
-        await message.answer("🛒 دسته‌بندی محصولات را انتخاب کنید:", reply_markup=kb.as_markup())
+        # نمایش دسته‌بندی‌های محصولات با استفاده از تابع مخصوص محصولات
+        await show_product_categories(message, state)
         
     except Exception as e:
         logging.error(f"Error in cmd_products: {str(e)}")
@@ -142,29 +124,11 @@ async def cmd_services(message: Message, state: FSMContext):
     try:
         logging.info(f"Services requested by user: {message.from_user.id}")
         
-        # دریافت دسته‌بندی‌های خدمات
-        categories = db.get_service_categories()
-        logging.info(f"Service categories: {categories}")
+        # تنظیم حالت برای خدمات
+        await state.update_data(cat_type='service')
         
-        if not categories:
-            await message.answer("⚠️ دسته‌بندی خدمات موجود نیست.")
-            return
-        
-        # ساخت کیبورد
-        kb = InlineKeyboardBuilder()
-        for category in categories:
-            # نمایش تعداد زیرمجموعه‌ها
-            total_items = category.get('total_items', 0)
-            display_name = category['name']
-            if total_items > 0:
-                display_name = f"{category['name']} ({total_items})"
-                
-            kb.button(text=display_name, callback_data=f"category:{category['id']}")
-            
-        kb.button(text="🔙 بازگشت به منوی اصلی", callback_data="back_to_main")
-        kb.adjust(1)
-        
-        await message.answer("🔧 دسته‌بندی خدمات را انتخاب کنید:", reply_markup=kb.as_markup())
+        # نمایش دسته‌بندی‌های خدمات با استفاده از تابع مخصوص خدمات
+        await show_service_categories(message, state)
         
     except Exception as e:
         logging.error(f"Error in cmd_services: {str(e)}")
@@ -658,94 +622,46 @@ async def callback_back_to_main(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer("به منوی اصلی بازگشتید:", reply_markup=kb.as_markup())
 
 # Helper functions for category navigation
-async def show_categories(message, cat_type, state, parent_id=None):
-    """Show categories for products or services"""
+async def show_product_categories(message, state, parent_id=None):
+    """Show product categories only - separate function for products"""
     try:
         # ذخیره نوع دسته‌بندی در حالت
-        await state.update_data(cat_type=cat_type)
+        await state.update_data(cat_type='product')
         
         # ثبت گزارش در لاگ
-        logging.info(f"show_categories called with cat_type={cat_type}, parent_id={parent_id}")
+        logging.info(f"show_product_categories called with parent_id={parent_id}")
         
-        # اطمینان از مقدار معتبر برای cat_type
-        if cat_type not in ['product', 'service']:
-            logging.warning(f"Invalid cat_type: {cat_type}, defaulting to product")
-            cat_type = 'product'
-            await state.update_data(cat_type='product')
+        # فقط از جدول محصولات استفاده می‌کنیم
+        categories = db.get_product_categories(parent_id=parent_id)
+        logging.info(f"Product categories: {categories}")
         
-        # بررسی مجدد نوع دسته‌بندی اگر parent_id داریم
-        if parent_id is not None:
-            # بررسی وجود دسته‌بندی در هر دو جدول
-            is_product_category = db.check_product_category_exists(parent_id)
-            is_service_category = db.check_service_category_exists(parent_id)
-            
-            # لاگ کردن نتایج بررسی
-            logging.info(f"[show_categories] Category {parent_id} exists in product_categories: {is_product_category}")
-            logging.info(f"[show_categories] Category {parent_id} exists in service_categories: {is_service_category}")
-            
-            # اگر فقط در یکی از جداول وجود دارد، آن نوع را انتخاب می‌کنیم
-            if is_product_category and not is_service_category and cat_type != 'product':
-                logging.info(f"[show_categories] Switching to product type for category {parent_id}")
-                cat_type = 'product'
-                await state.update_data(cat_type='product')
-            elif is_service_category and not is_product_category and cat_type != 'service':
-                logging.info(f"[show_categories] Switching to service type for category {parent_id}")
-                cat_type = 'service'
-                await state.update_data(cat_type='service')
-        
-        # Get categories - استفاده از توابع خاص برای هر نوع دسته‌بندی
-        categories = []
-        if cat_type == 'product':
-            logging.info("Fetching product categories")
-            categories = db.get_product_categories(parent_id=parent_id)
-        elif cat_type == 'service':
-            logging.info("Fetching service categories")
-            categories = db.get_service_categories(parent_id=parent_id)
-        
-        logging.info(f"Categories for {cat_type}: {categories}")
-        
-        # اگر هیچ دسته‌بندی یافت نشد، بررسی کنیم آیا این یک دسته‌بندی نهایی است که محصول/خدمت دارد
+        # اگر هیچ دسته‌بندی یافت نشد، بررسی کنیم آیا این یک دسته‌بندی نهایی است که محصول دارد
         if not categories:
-            # If no categories but we're in a subcategory, show items
+            # If no categories but we're in a subcategory, show products
             if parent_id is not None:
-                # نمایش محصولات یا خدمات بر اساس نوع تعیین شده
-                if cat_type == 'product':
-                    products = db.get_products(parent_id)
-                    logging.info(f"Retrieved {len(products)} products for category ID {parent_id}")
-                    if products:
-                        await show_products_list(message, products, parent_id)
-                    else:
-                        await message.answer("محصولی در این دسته‌بندی وجود ندارد.")
-                else:  # service
-                    services = db.get_services(parent_id)
-                    logging.info(f"Retrieved {len(services)} services for category ID {parent_id}")
-                    if services:
-                        await show_services_list(message, services, parent_id)
-                    else:
-                        await message.answer("خدمتی در این دسته‌بندی وجود ندارد.")
+                # نمایش محصولات
+                products = db.get_products(parent_id)
+                logging.info(f"Retrieved {len(products)} products for category ID {parent_id}")
+                if products:
+                    await show_products_list(message, products, parent_id)
+                else:
+                    await message.answer("محصولی در این دسته‌بندی وجود ندارد.")
             else:
                 # No top-level categories
-                await message.answer(f"دسته‌بندی {'محصولات' if cat_type == 'product' else 'خدمات'} موجود نیست.")
+                await message.answer("دسته‌بندی محصولات موجود نیست.")
             return
         
         # نمایش دسته‌بندی‌ها
-        # Build keyboard with categories
         kb = InlineKeyboardBuilder()
         
-        # ساخت دکمه‌ها با نمایش تعداد زیرمجموعه‌ها و محصولات/خدمات
+        # ساخت دکمه‌ها با نمایش تعداد زیرمجموعه‌ها و محصولات
         for category in categories:
-            # بررسی وجود اطلاعات تعداد زیرمجموعه‌ها
+            # بررسی وجود اطلاعات تعداد زیرمجموعه‌ها و محصولات
             subcategory_count = category.get('subcategory_count', 0)
-            
-            # بررسی وجود اطلاعات تعداد محصولات/خدمات
-            item_count = 0
-            if cat_type == 'product':
-                item_count = category.get('product_count', 0)
-            else:  # service
-                item_count = category.get('service_count', 0)
+            product_count = category.get('product_count', 0)
             
             # محاسبه مجموع تعداد آیتم‌ها
-            total_items = subcategory_count + item_count
+            total_items = subcategory_count + product_count
             
             # ساخت نام نمایشی برای دکمه
             display_name = category['name']
@@ -761,8 +677,7 @@ async def show_categories(message, cat_type, state, parent_id=None):
             if parent_category and parent_category.get('parent_id') is not None:
                 kb.button(text="🔙 بازگشت", callback_data=f"category:{parent_category['parent_id']}")
             else:
-                kb.button(text="🔙 بازگشت به دسته‌بندی‌های اصلی", 
-                        callback_data=f"{'products' if cat_type == 'product' else 'services'}")
+                kb.button(text="🔙 بازگشت به دسته‌بندی‌های اصلی", callback_data="products")
         else:
             kb.button(text="🔙 بازگشت به منوی اصلی", callback_data="back_to_main")
         
@@ -770,16 +685,89 @@ async def show_categories(message, cat_type, state, parent_id=None):
         kb.adjust(1)
         
         # ارسال پیام
-        await message.answer(f"دسته‌بندی {'محصولات' if cat_type == 'product' else 'خدمات'} را انتخاب کنید:", 
-                        reply_markup=kb.as_markup())
+        await message.answer("دسته‌بندی محصولات را انتخاب کنید:", reply_markup=kb.as_markup())
         
         # تنظیم حالت کاربر
         await state.set_state(UserStates.browse_categories)
         
     except Exception as e:
-        logging.error(f"Error in show_categories: {str(e)}")
+        logging.error(f"Error in show_product_categories: {str(e)}")
         logging.error(traceback.format_exc())
-        await message.answer("⚠️ متأسفانه در نمایش دسته‌بندی‌ها خطایی رخ داد. لطفا مجددا تلاش کنید یا با پشتیبانی تماس بگیرید.")
+        await message.answer("⚠️ متأسفانه در نمایش دسته‌بندی‌های محصولات خطایی رخ داد. لطفا مجددا تلاش کنید یا با پشتیبانی تماس بگیرید.")
+
+
+async def show_service_categories(message, state, parent_id=None):
+    """Show service categories only - separate function for services"""
+    try:
+        # ذخیره نوع دسته‌بندی در حالت
+        await state.update_data(cat_type='service')
+        
+        # ثبت گزارش در لاگ
+        logging.info(f"show_service_categories called with parent_id={parent_id}")
+        
+        # فقط از جدول خدمات استفاده می‌کنیم
+        categories = db.get_service_categories(parent_id=parent_id)
+        logging.info(f"Service categories: {categories}")
+        
+        # اگر هیچ دسته‌بندی یافت نشد، بررسی کنیم آیا این یک دسته‌بندی نهایی است که خدمت دارد
+        if not categories:
+            # If no categories but we're in a subcategory, show services
+            if parent_id is not None:
+                # نمایش خدمات
+                services = db.get_services(parent_id)
+                logging.info(f"Retrieved {len(services)} services for category ID {parent_id}")
+                if services:
+                    await show_services_list(message, services, parent_id)
+                else:
+                    await message.answer("خدمتی در این دسته‌بندی وجود ندارد.")
+            else:
+                # No top-level categories
+                await message.answer("دسته‌بندی خدمات موجود نیست.")
+            return
+        
+        # نمایش دسته‌بندی‌ها
+        kb = InlineKeyboardBuilder()
+        
+        # ساخت دکمه‌ها با نمایش تعداد زیرمجموعه‌ها و خدمات
+        for category in categories:
+            # بررسی وجود اطلاعات تعداد زیرمجموعه‌ها و خدمات
+            subcategory_count = category.get('subcategory_count', 0)
+            service_count = category.get('service_count', 0)
+            
+            # محاسبه مجموع تعداد آیتم‌ها
+            total_items = subcategory_count + service_count
+            
+            # ساخت نام نمایشی برای دکمه
+            display_name = category['name']
+            if total_items > 0:
+                display_name = f"{category['name']} ({total_items})"
+                
+            # اضافه کردن دکمه به کیبورد
+            kb.button(text=display_name, callback_data=f"category:{category['id']}")
+            
+        # اضافه کردن دکمه بازگشت
+        if parent_id is not None:
+            parent_category = db.get_category(parent_id)
+            if parent_category and parent_category.get('parent_id') is not None:
+                kb.button(text="🔙 بازگشت", callback_data=f"category:{parent_category['parent_id']}")
+            else:
+                kb.button(text="🔙 بازگشت به دسته‌بندی‌های اصلی", callback_data="services")
+        else:
+            kb.button(text="🔙 بازگشت به منوی اصلی", callback_data="back_to_main")
+        
+        # تنظیم نمایش دکمه‌ها در یک ستون
+        kb.adjust(1)
+        
+        # ارسال پیام
+        await message.answer("دسته‌بندی خدمات را انتخاب کنید:", reply_markup=kb.as_markup())
+        
+        # تنظیم حالت کاربر
+        await state.set_state(UserStates.browse_categories)
+        
+    except Exception as e:
+        logging.error(f"Error in show_service_categories: {str(e)}")
+        logging.error(traceback.format_exc())
+        await message.answer("⚠️ متأسفانه در نمایش دسته‌بندی‌های خدمات خطایی رخ داد. لطفا مجددا تلاش کنید یا با پشتیبانی تماس بگیرید.")
 
 @router.callback_query(F.data.startswith("category:"))
 async def callback_category(callback: CallbackQuery, state: FSMContext):
@@ -787,7 +775,7 @@ async def callback_category(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     
     try:
-        # ثبت گزارش کامل درباره درخواست
+        # ثبت گزارش درباره درخواست
         logging.info(f"Category callback received: {callback.data}")
         
         # استخراج شناسه دسته‌بندی
@@ -796,38 +784,37 @@ async def callback_category(callback: CallbackQuery, state: FSMContext):
         # دریافت اطلاعات حالت
         state_data = await state.get_data()
         
-        # دریافت نوع دسته‌بندی (محصول یا خدمت) از حالت
-        initial_cat_type = state_data.get('cat_type', 'product')
+        # نوع دسته‌بندی (محصول یا خدمت) را قطعی از حالت دریافت می‌کنیم
+        cat_type = state_data.get('cat_type', 'product')
         
-        # بررسی دقیق نوع دسته‌بندی
-        logging.info(f"Determining category type for ID: {category_id}, initial type: {initial_cat_type}")
+        logging.info(f"Processing category ID {category_id} as {cat_type} type")
         
-        # بررسی وجود دسته‌بندی در هر دو جدول
-        is_product_category = db.check_product_category_exists(category_id)
-        is_service_category = db.check_service_category_exists(category_id)
-        
-        # لاگ کردن نتایج بررسی
-        logging.info(f"Category {category_id} exists in product_categories: {is_product_category}")
-        logging.info(f"Category {category_id} exists in service_categories: {is_service_category}")
-        
-        # تصمیم‌گیری نهایی درباره نوع دسته‌بندی
-        final_cat_type = initial_cat_type
-        
-        # اگر فقط در یکی از جداول وجود دارد، آن نوع را انتخاب می‌کنیم
-        if is_product_category and not is_service_category:
-            final_cat_type = 'product'
-        elif is_service_category and not is_product_category:
-            final_cat_type = 'service'
-        # اگر در هر دو جدول وجود دارد، به نوع اولیه اعتماد می‌کنیم
-        
-        # اگر نوع تغییر کرده، به‌روزرسانی می‌کنیم
-        if final_cat_type != initial_cat_type:
-            logging.info(f"Category type changed from {initial_cat_type} to {final_cat_type}")
-            await state.update_data(cat_type=final_cat_type)
-        
-        # نمایش زیردسته‌بندی‌ها یا محصولات/خدمات برای این دسته‌بندی
-        logging.info(f"Showing category contents with type: {final_cat_type}")
-        await show_categories(callback.message, final_cat_type, state, category_id)
+        # براساس نوع دسته‌بندی، تابع مناسب را فراخوانی می‌کنیم
+        if cat_type == 'product':
+            # فقط دسته‌بندی‌های محصول را بررسی می‌کنیم
+            is_valid = db.check_product_category_exists(category_id)
+            if not is_valid:
+                logging.warning(f"Category {category_id} is not found in product_categories")
+                await callback.message.answer("⚠️ این دسته‌بندی محصول وجود ندارد. لطفا دسته‌بندی دیگری انتخاب کنید.")
+                return
+                
+            # نمایش زیردسته‌بندی‌های محصول یا محصولات
+            await show_product_categories(callback.message, state, category_id)
+                
+        elif cat_type == 'service':
+            # فقط دسته‌بندی‌های خدمت را بررسی می‌کنیم
+            is_valid = db.check_service_category_exists(category_id)
+            if not is_valid:
+                logging.warning(f"Category {category_id} is not found in service_categories")
+                await callback.message.answer("⚠️ این دسته‌بندی خدمت وجود ندارد. لطفا دسته‌بندی دیگری انتخاب کنید.")
+                return
+                
+            # نمایش زیردسته‌بندی‌های خدمت یا خدمات
+            await show_service_categories(callback.message, state, category_id)
+            
+        else:
+            logging.error(f"Unknown category type: {cat_type}")
+            await callback.message.answer("⚠️ نوع دسته‌بندی نامشخص است. لطفا دوباره تلاش کنید.")
     
     except Exception as e:
         logging.error(f"Error in callback_category: {str(e)}")
