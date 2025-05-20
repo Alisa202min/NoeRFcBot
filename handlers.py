@@ -602,8 +602,16 @@ async def show_categories(message, cat_type, state, parent_id=None):
     """Show categories for products or services"""
     await state.update_data(cat_type=cat_type)
     
-    # Get categories
-    categories = db.get_categories(parent_id, cat_type)
+    # Get categories - استفاده از توابع خاص برای هر نوع دسته‌بندی
+    categories = []
+    if cat_type == 'product':
+        logging.info("Fetching product categories")
+        categories = db.get_product_categories(parent_id=parent_id)
+    elif cat_type == 'service':
+        logging.info("Fetching service categories")
+        categories = db.get_service_categories(parent_id=parent_id)
+    
+    logging.info(f"Categories for {cat_type}: {categories}")
     
     if not categories:
         # If no categories but we're in a subcategory, show items
