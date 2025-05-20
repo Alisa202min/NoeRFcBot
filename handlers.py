@@ -1449,10 +1449,32 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
         title = product_info.get('name', '')
         price = product_info.get('price', '')
         description = product_info.get('description', '')
+        model_number = product_info.get('model_number', '')
+        manufacturer = product_info.get('manufacturer', '')
+        tags = product_info.get('tags', '')
+        in_stock = product_info.get('in_stock')
+        featured = product_info.get('featured')
         
         caption = f"🛒 {title}\n\n"
         if price:
             caption += f"💰 قیمت: {price} تومان\n\n"
+        
+        # Add additional information if available
+        additional_info = []
+        if model_number:
+            additional_info.append(f"📋 شماره مدل: {model_number}")
+        if manufacturer:
+            additional_info.append(f"🏭 سازنده: {manufacturer}")
+        if tags:
+            additional_info.append(f"🏷️ برچسب‌ها: {tags}")
+        if in_stock:
+            additional_info.append("✅ موجود در انبار")
+        if featured:
+            additional_info.append("⭐ محصول ویژه")
+            
+        # Add additional info to caption if available
+        if additional_info:
+            caption += "\n".join(additional_info) + "\n\n"
         
         # Check if description is too long (limit around 1000 characters for captions)
         if description and len(description) > 800:
