@@ -898,14 +898,16 @@ async def callback_product(callback: CallbackQuery, state: FSMContext):
     kb.button(text="🔙 بازگشت", callback_data=f"category:{product['category_id']}")
     kb.adjust(1)
     
-    # Only create keyboard message (we'll send product info with media)
+    # Create keyboard with inquiry button
     keyboard = kb.as_markup()
     
     # Send media files with product info if available
     if media_files:
         await send_product_media(callback.message.chat.id, media_files, product)
+        # Send keyboard in a separate message after media
+        await callback.message.answer("🛍️ برای استعلام قیمت از دکمه زیر استفاده کنید:", reply_markup=keyboard)
     else:
-        # If no media, send only text description
+        # If no media, send only text description with keyboard
         await callback.message.answer(product_text, reply_markup=keyboard)
 
 @router.callback_query(F.data.startswith("service:"))
@@ -945,14 +947,16 @@ async def callback_service(callback: CallbackQuery, state: FSMContext):
     kb.button(text="🔙 بازگشت", callback_data=f"category:{service['category_id']}")
     kb.adjust(1)
     
-    # Only create keyboard message (we'll send service info with media)
+    # Create keyboard with inquiry button
     keyboard = kb.as_markup()
     
     # Send media files with service info if available
     if media_files:
         await send_service_media(callback.message.chat.id, media_files, service)
+        # Send keyboard in a separate message after media
+        await callback.message.answer("🛠️ برای استعلام قیمت از دکمه زیر استفاده کنید:", reply_markup=keyboard)
     else:
-        # If no media, send only text description
+        # If no media, send only text description with keyboard
         await callback.message.answer(service_text, reply_markup=keyboard)
 
 # Media handling functions
