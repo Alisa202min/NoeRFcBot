@@ -1719,13 +1719,117 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
         service_info: Optional dictionary with service information (name, price, description)
         reply_markup: Optional reply markup (keyboard) to include with the message
     """
-    logging.info(f"send_service_media called, redirecting to send_product_media with {len(media_files) if media_files else 0} files")
+    logging.info(f"send_service_media called with {len(media_files) if media_files else 0} files")
     
-    # Custom emoji for services
+    from bot import bot  # Import bot here to avoid circular imports
+    from utils import create_telegraph_page  # Import telegraph function
+    
+    # Check if we have any media files
+    if not media_files:
+        logging.warning(f"No media files provided to send_service_media for chat_id {chat_id}")
+        
+        # If we have service info but no media, send text message with keyboard
+        if service_info:
+            title = service_info.get('name', '')
+            price = service_info.get('price', '')
+            description = service_info.get('description', '')
+            tags = service_info.get('tags', '')
+            featured = service_info.get('featured')
+            
+            # Add service emoji if not already present
+            if not title.startswith('🛠️'):
+                title = f"🛠️ {title}"
+                
+            message_text = f"{title}\n\n"
+            if price:
+                message_text += f"💰 قیمت: {price} تومان\n\n"
+                
+            # Add additional information if available
+            additional_info = []
+            if tags:
+                additional_info.append(f"🏷️ برچسب‌ها: {tags}")
+            if featured:
+                additional_info.append("⭐ خدمت ویژه")
+                
+            # Add additional info to message_text if available
+            if additional_info:
+                message_text += "\n".join(additional_info) + "\n\n"
+                
+            message_text += f"📝 توضیحات:\n{description}\n\n"
+            
+            # Send message with keyboard
+            try:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=message_text,
+                    parse_mode="Markdown",
+                    reply_markup=reply_markup
+                )
+            except Exception as e:
+                logging.error(f"Failed to send service message: {e}")
+        
+        return
+    
+    # Check if service_info exists
     if service_info:
-        service_info['name'] = f"🛠️ {service_info['name']}" if not service_info['name'].startswith('🛠️') else service_info['name']
-    
-    await send_product_media(chat_id, media_files, service_info, reply_markup)
+        # Customize service information for display
+        title = service_info.get('name', '')
+        price = service_info.get('price', '')
+        description = service_info.get('description', '')
+        tags = service_info.get('tags', '')
+        featured = service_info.get('featured')
+        
+        # Add service emoji if not already present
+        if not title.startswith('🛠️'):
+            title = f"🛠️ {title}"
+            
+        # Create caption
+        caption = f"{title}\n\n"
+        if price:
+            caption += f"💰 قیمت: {price} تومان\n\n"
+            
+        # Add additional information if available
+        additional_info = []
+        if tags:
+            additional_info.append(f"🏷️ برچسب‌ها: {tags}")
+        if featured:
+            additional_info.append("⭐ خدمت ویژه")
+            
+        # Add additional info to caption if available
+        if additional_info:
+            caption += "\n".join(additional_info) + "\n\n"
+        
+        # Check if description is too long
+        telegraph_url = None
+        if description and len(description) > 800:
+            # Create Telegraph page for long descriptions
+            try:
+                telegraph_url = await create_telegraph_page(
+                    title=title,
+                    content=description,
+                    author="RFCatalogbot"
+                )
+                
+                # Add shortened description + link
+                caption += f"📝 توضیحات:\n{description[:300]}...\n\n"
+                if telegraph_url:
+                    caption += f"📄 [مشاهده توضیحات کامل]({telegraph_url})"
+            except Exception as e:
+                logging.error(f"Error creating Telegraph page: {e}")
+                # If Telegraph creation fails, use regular caption
+                caption += f"📝 توضیحات:\n{description}\n\n"
+        else:
+            # Description fits in caption
+            caption += f"📝 توضیحات:\n{description}\n\n"
+        
+        # Update service_info with the new name for product_media function
+        service_info['name'] = title
+        
+        # Use the product_media function to send media
+        await send_product_media(chat_id, media_files, service_info, reply_markup)
+    else:
+        # If no service_info, just send the media without custom processing
+        await send_product_media(chat_id, media_files, None, reply_markup)
 
 # Inquiry process handlers
 @router.callback_query(F.data.startswith("inquiry:"))
