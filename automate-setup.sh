@@ -362,30 +362,70 @@ print_success "همه فایل‌های مورد نیاز پروژه موجود 
 
 # ===== ایجاد محیط مجازی پایتون =====
 print_message "در حال بررسی و نصب پایتون 3.10 برای محیط مجازی..."
-if ! command -v python3.10 >/dev/null 2>&1; then
-    print_message "نصب پایتون 3.10 با استفاده از مخزن deadsnakes..."
-    apt update >> "$LOG_FILE" 2>&1
-    apt install -y software-properties-common >> "$LOG_FILE" 2>&1
-    add-apt-repository -y ppa:deadsnakes/ppa >> "$LOG_FILE" 2>&1
-    apt update >> "$LOG_FILE" 2>&1
-    apt install -y python3.10 python3.10-venv python3.10-dev >> "$LOG_FILE" 2>&1
-    if [ $? -ne 0 ]; then
-        print_warning "نصب پایتون 3.10 با خطا مواجه شد. استفاده از پایتون پیش‌فرض سیستم (ممکن است با RFCBot ناسازگار باشد)."
+
+# Check connectivity to deadsnakes PPA
+print_message "بررسی اتصال به سرور deadsnakes..."
+if ! curl -s --connect-timeout 10 https://ppa.launchpad.net/deadsnakes/ppa/ubuntu/ >/dev/null; then
+    print_warning "اتصال به سرور deadsnakes PPA ناموفق بود. ممکن است شبکه یا دسترسی محدود شده باشد."
+    read -p "آیا می‌خواهید ادامه دهید و پایتون پیش‌فرض سیستم (3.12) را استفاده کنید؟ (y/n) [n]: " USE_DEFAULT_PYTHON
+    USE_DEFAULT_PYTHON=${USE_DEFAULT_PYTHON:-n}
+    if [ "$USE_DEFAULT_PYTHON" = "y" ] || [ "$USE_DEFAULT_PYTHON" = "Y" ]; then
         PYTHON_EXEC="python3"
     else
-        print_success "پایتون 3.10 با موفقیت نصب شد."
-        PYTHON_EXEC="python3.10"
+        print_error "لطفاً اتصال شبکه را بررسی کنید یا Python 3.10 را به صورت دستی نصب کنید: https://www.python.org/downloads/source/"
+        exit 1
     fi
 else
-    print_message "پایتون 3.10 قبلاً نصب شده است."
-    PYTHON_EXEC="python3.10"
+    if ! command -v python3.10 >/dev/null 2>&1; then
+        print_message "نصب پایتون 3.10 با استفاده از مخزن deadsnakes..."
+        apt update >> "$LOG_FILE" 2>&1
+        apt install -y software-properties-common >> "$LOG_FILE" 2>&1
+        timeout 60 add-apt-repository -y ppa:deadsnakes/ppa >> "$LOG_FILE" 2>&1
+        if [ $? -ne 0 ]; then
+            print_warning "افزودن مخزن deadsnakes با خطا مواجه شد."
+            read -p "آیا می‌خواهید ادامه دهید و پایتون پیش‌فرض سیستم (3.12) را استفاده کنید؟ (y/n) [n]: " USE_DEFAULT_PYTHON
+            USE_DEFAULT_PYTHON=${USE_DEFAULT_PYTHON:-n}
+            if [ "$USE_DEFAULT_PYTHON" = "y" ] || [ "$USE_DEFAULT_PYTHON" = "Y" ]; then
+                PYTHON_EXEC="python3"
+            else
+                print_error "لطفاً Python 3.10 را به صورت دستی نصب کنید: https://www.python.org/downloads/source/"
+                exit 1
+            fi
+        else
+            apt update >> "$LOG_FILE" 2>&1
+            timeout 300 apt install -y python3.10 python3.10-venv python3.10-dev >> "$LOG_FILE" 2>&1
+            if [ $? -ne 0 ]; then
+                print_warning "نصب پایتون 3.10 با خطا مواجه شد."
+                read -p "آیا می‌خواهید ادامه دهید و پایتون پیش‌فرض سیستم (3.12) را استفاده کنید؟ (y/n) [n]: " USE_DEFAULT_PYTHON
+                USE_DEFAULT_PYTHON=${USE_DEFAULT_PYTHON:-n}
+                if [ "$USE_DEFAULT_PYTHON" = "y" ] || [ "$USE_DEFAULT_PYTHON" = "Y" ]; then
+                    PYTHON_EXEC="python3"
+                else
+                    print_error "لطفاً Python 3.10 را به صورت دستی نصب کنید: https://www.python.org/downloads/source/"
+                    exit 1
+                fi
+            else
+                print_success "پایتون 3.10 با موفقیت نصب شد."
+                PYTHON_EXEC="python3.10"
+            fi
+        fi
+    else
+        print_message "پایتون 3.10 قبلاً نصب شده است."
+        PYTHON_EXEC="python3.10"
+    fi
 fi
+
 if [ "$PYTHON_EXEC" = "python3.10" ] && ! python3.10 -m venv --help >/dev/null 2>&1; then
     print_message "نصب بسته python3.10-venv..."
-    apt update >> "$LOG_FILE" 2>&1
-    apt install -y python3.10-venv >> "$LOG_FILE" 2>&1
+    timeout 60 apt update >> "$LOG_FILE" 2>&1
+    timeout 300 apt install -y python3.10-venv >> "$LOG_FILE" 2>&1
     check_error "نصب بسته python3.10-venv با خطا مواجه شد." "بسته python3.10-venv با موفقیت نصب شد."
 fi
+
+if [ "$PYTHON_EXEC" = "python3" ]; then
+    print_warning "استفاده از پایتون 3.12 ممکن است با برخی وابستگی‌های RFCBot ناسازگار باشد. لطفاً پس از نصب بررسی کنید."
+fi
+
 print_message "در حال ایجاد محیط مجازی پایتون با $PYTHON_EXEC..."
 cd "$APP_DIR" || exit 1
 $PYTHON_EXEC -m venv venv >> "$LOG_FILE" 2>&1
@@ -404,6 +444,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 print_success "محیط مجازی با موفقیت ایجاد شد."
+
 
 # ===== راه‌اندازی Ngrok (اختیاری) =====
 if [ "$USE_NGROK" = "y" ] || [ "$USE_NGROK" = "Y" ]; then
