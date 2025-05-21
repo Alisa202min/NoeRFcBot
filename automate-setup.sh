@@ -197,23 +197,82 @@ check_error "ایجاد پوشه‌های برنامه با خطا مواجه ش
 # ===== کپی یا کلون کردن فایل‌های پروژه =====
 read -p "آیا می‌خواهید پروژه را از مخزن گیت دانلود کنید؟ (y/n) [n]: " USE_GIT
 USE_GIT=${USE_GIT:-n}
+# ===== کپی یا کلون کردن فایل‌های پروژه =====
+print_message "در حال راه‌اندازی فایل‌های پروژه در $APP_DIR..."
+read -p "آیا می‌خواهید پروژه را از مخزن گیت دانلود کنید؟ (y/n) [n]: " USE_GIT
+USE_GIT=${USE_GIT:-n}
 
 if [ "$USE_GIT" = "y" ] || [ "$USE_GIT" = "Y" ]; then
-    read -p "آدرس مخزن گیت: " GIT_REPO
+    read -p "آدرس مخزن گیت (مثال: https://github.com/username/rfcbot.git): " GIT_REPO
+    if [ -z "$GIT_REPO" ]; then
+        print_error "آدرس مخزن گیت نمی‌تواند خالی باشد."
+        exit 1
+    fi
+    # Validate URL format (basic check for HTTPS or SSH)
+    if [[ ! "$GIT_REPO" =~ ^(https://|git@).*(\.git)$ ]]; then
+        print_error "آدرس مخزن گیت نامعتبر است. باید با https:// یا git@ شروع و به .git ختم شود."
+        exit 1
+    fi
+    # Check if repository is HTTPS and prompt for PAT if likely private
+    if [[ "$GIT_REPO" =~ ^https://github.com ]]; then
+        read -p "آیا مخزن خصوصی است؟ برای مخزن خصوصی به توکن دسترسی گیت‌هاب نیاز است (y/n) [n]: " PRIVATE_REPO
+        PRIVATE_REPO=${PRIVATE_REPO:-n}
+        if [ "$PRIVATE_REPO" = "y" ] || [ "$PRIVATE_REPO" = "Y" ]; then
+            read -p "توکن دسترسی گیت‌هاب (Personal Access Token): " GIT_TOKEN
+            if [ -z "$GIT_TOKEN" ]; then
+                print_error "توکن دسترسی گیت‌هاب نمی‌تواند خالی باشد."
+                exit 1
+            fi
+            # Embed token in URL for cloning
+            GIT_REPO=$(echo "$GIT_REPO" | sed "s|https://|https://${GIT_TOKEN}@|")
+        fi
+    fi
     print_message "در حال کلون کردن مخزن گیت..."
     git clone "$GIT_REPO" "$APP_DIR" >> "$LOG_FILE" 2>&1
-    check_error "کلون کردن مخزن گیت با خطا مواجه شد." "مخزن گیت با موفقیت کلون شد."
-else
-    print_message "لطفاً فایل‌های پروژه را به پوشه $APP_DIR منتقل کنید و سپس کلید Enter را فشار دهید."
-    read -p "آیا فایل‌های پروژه را منتقل کرده‌اید؟ (y/n) [n]: " FILES_COPIED
-    FILES_COPIED=${FILES_COPIED:-n}
-    
-    if [ "$FILES_COPIED" != "y" ] && [ "$FILES_COPIED" != "Y" ]; then
-        print_error "لطفاً ابتدا فایل‌های پروژه را منتقل کنید و سپس اسکریپت را دوباره اجرا نمایید."
+    if [ $? -ne 0 ]; then
+        print_error "کلون کردن مخزن گیت با خطا مواجه شد. لطفاً آدرس مخزن، دسترسی‌ها یا توکن را بررسی کنید."
+        print_message "نکته: برای مخزن خصوصی گیت‌هاب، توکن دسترسی با مجوز repo نیاز است. به https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token مراجعه کنید."
         exit 1
+    fi
+    print_success "مخزن گیت با موفقیت کلون شد."
+else
+    print_message "لطفاً فایل‌های پروژه را به پوشه $APP_DIR منتقل کنید (یا یک فایل ZIP حاوی پروژه آپلود کنید)."
+    read -p "آیا فایل‌های پروژه را منتقل کرده‌اید یا ZIP آپلود کرده‌اید؟ (y/n) [n]: " FILES_COPIED
+    FILES_COPIED=${FILES_COPIED:-n}
+    if [ "$FILES_COPIED" != "y" ] && [ "$FILES_COPIED" != "Y" ]; then
+        print_error "لطفاً ابتدا فایل‌های پروژه یا فایل ZIP را منتقل کنید و سپس اسکریپت را دوباره اجرا کنید."
+        exit 1
+    fi
+    # Check for ZIP file and extract if present
+    ZIP_FILE=$(find /var/www -maxdepth 1 -name "*.zip" -print -quit)
+    if [ -n "$ZIP_FILE" ]; then
+        print_message "یافتن فایل ZIP: $ZIP_FILE. در حال استخراج..."
+        apt install -y unzip >> "$LOG_FILE" 2>&1
+        unzip -o "$ZIP_FILE" -d "$APP_DIR" >> "$LOG_FILE" 2>&1
+        if [ $? -ne 0 ]; then
+            print_error "استخراج فایل ZIP با خطا مواجه شد. لطفاً فایل ZIP معتبر باشد."
+            exit 1
+        fi
+        # Move files if extracted to a subdirectory
+        SUBDIR=$(find "$APP_DIR" -maxdepth 1 -type d ! -path "$APP_DIR" -print -quit)
+        if [ -n "$SUBDIR" ] && [ "$(ls -A "$SUBDIR")" ]; then
+            mv "$SUBDIR"/* "$APP_DIR"/ >> "$LOG_FILE" 2>&1
+            rm -rf "$SUBDIR" >> "$LOG_FILE" 2>&1
+        fi
+        print_success "فایل ZIP با موفقیت استخراج شد."
     fi
 fi
 
+# ===== بررسی فایل‌های پروژه =====
+print_message "در حال بررسی فایل‌های پروژه..."
+REQUIRED_FILES=("app.py" "bot.py" "database.py")
+for file in "${REQUIRED_FILES[@]}"; do
+    if [ ! -f "$APP_DIR/$file" ]; then
+        print_error "فایل $file در $APP_DIR پیدا نشد. لطفاً مطمئن شوید پروژه کامل منتقل یا کلون شده است."
+        exit 1
+    fi
+done
+print_success "همه فایل‌های مورد نیاز پروژه موجود هستند."
 # ===== ایجاد محیط مجازی پایتون =====
 print_message "در حال ایجاد محیط مجازی پایتون..."
 cd "$APP_DIR" || exit 1
