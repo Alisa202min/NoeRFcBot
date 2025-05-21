@@ -74,8 +74,8 @@ echo "لطفاً اطلاعات زیر را وارد کنید:"
 echo "--------------------------------"
 
 # دریافت اطلاعات پایگاه داده
-read -p "نام کاربری پایگاه داده [rfuser]: " DB_USER
-DB_USER=${DB_USER:-rfuser}
+read -p "نام کاربری پایگاه داده [neondb_owner]: " DB_USER
+DB_USER=${DB_USER:-neondb_owner}
 
 read -s -p "رمز عبور پایگاه داده: " DB_PASSWORD
 echo ""
@@ -84,8 +84,8 @@ if [ -z "$DB_PASSWORD" ]; then
     exit 1
 fi
 
-read -p "نام پایگاه داده [rfbot_db]: " DB_NAME
-DB_NAME=${DB_NAME:-rfbot_db}
+read -p "نام پایگاه داده [neondb]: " DB_NAME
+DB_NAME=${DB_NAME:-neondb}
 
 # دریافت اطلاعات بات تلگرام
 read -p "توکن بات تلگرام: " BOT_TOKEN
@@ -126,6 +126,7 @@ ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
 
 read -s -p "رمز عبور ادمین: " ADMIN_PASSWORD
 echo ""
+ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
 if [ -z "$ADMIN_PASSWORD" ]; then
     print_error "رمز عبور ادمین نمی‌تواند خالی باشد."
     exit 1
@@ -206,7 +207,7 @@ if [ "$USE_GIT" = "y" ] || [ "$USE_GIT" = "Y" ]; then
         exit 1
     fi
     # Validate URL format (HTTPS or SSH)
-  if [[ ! "$GIT_REPO" =~ [](https://|git@).*(\.git)$ ]]; then
+ if [[ ! "$GIT_REPO" =~ ^(https://github\.com/|git@github\.com:).*\.git$ ]]; then
         print_error "آدرس مخزن گیت نامعتبر است. باید یک آدرس گیت‌هاب باشد که با https://github.com/ یا git@github.com: شروع و به .git ختم شود."
         exit 1
     fi
