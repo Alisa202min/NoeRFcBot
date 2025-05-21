@@ -194,8 +194,9 @@ mkdir -p "$APP_DIR/static/media/products" >> "$LOG_FILE" 2>&1
 mkdir -p "$APP_DIR/logs" >> "$LOG_FILE" 2>&1
 check_error "ایجاد پوشه‌های برنامه با خطا مواجه شد." "پوشه‌های برنامه با موفقیت ایجاد شدند."
 
-# ===== کپی یا کلون کردن فایل‌های پروژه =====
 
+# ===== کپی یا کلون کردن فایل‌های پروژه =====
+print_message "در حال راه‌اندازی فایل‌های پروژه در $APP_DIR..."
 read -p "آیا می‌خواهید پروژه را از مخزن گیت دانلود کنید؟ (y/n) [n]: " USE_GIT
 USE_GIT=${USE_GIT:-n}
 
@@ -206,11 +207,14 @@ if [ "$USE_GIT" = "y" ] || [ "$USE_GIT" = "Y" ]; then
         exit 1
     fi
     # Validate URL format (basic check for HTTPS or SSH)
-    if [[ ! "$GIT_REPO" =~ ^(https://|git@).*(\.git)$ ]]; then
+    if [[ ! "$GIT_REPO" =~ [](https://|git@).*(\.git)$ ]]; then
         print_error "آدرس مخزن گیت نامعتبر است. باید با https:// یا git@ شروع و به .git ختم شود."
         exit 1
     fi
+    # Prompt for branch (optional)
+    read -p "شاخه مخزن (خالی برای پیش‌فرض، معمولاً main یا master): " GIT_BRANCH
     # Check if repository is HTTPS and prompt for PAT if likely private
+    USE_SSH="n"
     if [[ "$GIT_REPO" =~ ^https://github.com ]]; then
         read -p "آیا مخزن خصوصی است؟ برای مخزن خصوصی به توکن دسترسی گیت‌هاب نیاز است (y/n) [n]: " PRIVATE_REPO
         PRIVATE_REPO=${PRIVATE_REPO:-n}
@@ -222,6 +226,12 @@ if [ "$USE_GIT" = "y" ] || [ "$USE_GIT" = "Y" ]; then
             fi
             # Embed token in URL for cloning
             GIT_REPO=$(echo "$GIT_REPO" | sed "s|https://|https://${GIT_TOKEN}@|")
+        fi
+        read -p "آیا می‌خواهید از SSH به جای HTTPS استفاده کنید؟ (توصیه شده برای مشکلات TLS) (y/n) [n]: " USE_SSH
+        USE_SSH=${USE_SSH:-n}
+        if [ "$USE_SSH" = "y" ] || [ "$USE_SSH" = "Y" ]; then
+            print_message "لطفاً کلید SSH را در گیت‌هاب تنظیم کنید: https://docs.github.com/en/authentication/connecting-to-github-with-ssh"
+            GIT_REPO=$(echo "$GIT_REPO" | sed 's|https://github.com/|git@github.com:|')
         fi
     fi
     # Check if $APP_DIR exists and is non-empty
@@ -239,7 +249,19 @@ if [ "$USE_GIT" = "y" ] || [ "$USE_GIT" = "Y" ]; then
         fi
     fi
     print_message "در حال کلون کردن مخزن گیت..."
-    git clone "$GIT_REPO" "$APP_DIR" >> "$LOG_FILE" 2>&1
+    if [ -n "$GIT_BRANCH" ]; then
+        if [ "$USE_SSH" = "y" ] || [ "$USE_SSH" = "Y" ]; then
+            git clone --branch "$GIT_BRANCH" "$GIT_REPO" "$APP_DIR" >> "$LOG_FILE" 2>&1
+        else
+            git clone --ipv4 --branch "$GIT_BRANCH" "$GIT_REPO" "$APP_DIR" >> "$LOG_FILE" 2>&1
+        fi
+    else
+        if [ "$USE_SSH" = "y" ] || [ "$USE_SSH" = "Y" ]; then
+            git clone "$GIT_REPO" "$APP_DIR" >> "$LOG_FILE" 2>&1
+        else
+            git clone --ipv4 "$GIT_REPO" "$APP_DIR" >> "$LOG_FILE" 2>&1
+        fi
+    fi
     if [ $? -ne 0 ]; then
         if grep -q "destination path.*already exists" "$LOG_FILE"; then
             print_error "کلون کردن مخزن گیت با خطا مواجه شد زیرا پوشه $APP_DIR هنوز وجود دارد. لطفاً آن را حذف کنید یا از گزینه انتقال دستی استفاده کنید."
@@ -248,6 +270,14 @@ if [ "$USE_GIT" = "y" ] || [ "$USE_GIT" = "Y" ]; then
             print_message "نکته: برای مخزن خصوصی گیت‌هاب، توکن دسترسی با مجوز repo نیاز است. به https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token مراجعه کنید."
         elif grep -q "Repository not found" "$LOG_FILE"; then
             print_error "مخزن گیت یافت نشد. لطفاً آدرس مخزن را بررسی کنید."
+        elif grep -q "gnutls_handshake() failed" "$LOG_FILE"; then
+            print_error "کلون کردن مخزن گیت با خطا مواجه شد: مشکل در اتصال TLS (gnutls_handshake)."
+            print_message "راه‌حل‌ها: 1) از SSH استفاده کنید (گزینه بالا را انتخاب کنید)."
+            print_message "         2) دستور زیر را اجرا کنید و دوباره تلاش کنید:"
+            print_message "            sudo apt update && sudo apt install -y git gnutls-bin libcurl3-gnutls"
+            print_message "         3) از IPv4 استفاده کنید: git clone --ipv4 $GIT_REPO"
+            print_message "         4) فایل‌ها را به صورت دستی به $APP_DIR منتقل کنید."
+            print_message "جزئیات خطا در $LOG_FILE."
         else
             print_error "کلون کردن مخزن گیت با خطا مواجه شد. جزئیات خطا در $LOG_FILE."
         fi
@@ -256,6 +286,7 @@ if [ "$USE_GIT" = "y" ] || [ "$USE_GIT" = "Y" ]; then
     print_success "مخزن گیت با موفقیت کلون شد."
 else
     print_message "لطفاً فایل‌های پروژه را به پوشه $APP_DIR منتقل کنید (یا یک فایل ZIP حاوی پروژه آپلود کنید)."
+    print_message "فایل‌های مورد نیاز: app.py، bot.py، database.py، requirements.txt و پوشه‌های templates/ و static/"
     read -p "آیا فایل‌های پروژه را منتقل کرده‌اید یا ZIP آپلود کرده‌اید؟ (y/n) [n]: " FILES_COPIED
     FILES_COPIED=${FILES_COPIED:-n}
     if [ "$FILES_COPIED" != "y" ] && [ "$FILES_COPIED" != "Y" ]; then
@@ -282,6 +313,27 @@ else
     fi
 fi
 
+# ===== بررسی فایل‌های پروژه =====
+print_message "در حال بررسی فایل‌های پروژه..."
+REQUIRED_FILES=("app.py" "bot.py" "database.py")
+MISSING_FILES=()
+for file in "${REQUIRED_FILES[@]}"; do
+    if [ ! -f "$APP_DIR/$file" ]; then
+        MISSING_FILES+=("$file")
+    fi
+done
+if [ ${#MISSING_FILES[@]} -ne 0 ]; then
+    print_error "فایل‌های زیر در $APP_DIR پیدا نشدند: ${MISSING_FILES[*]}"
+    print_message "محتوای فعلی پوشه $APP_DIR:"
+    ls -la "$APP_DIR" >> "$LOG_FILE" 2>&1
+    cat "$LOG_FILE" | tail -n 10
+    print_message "لطفاً مطمئن شوید پروژه RFCBot به درستی کلون یا منتقل شده است."
+    print_message "نکات: 1) بررسی کنید که مخزن درست باشد[](https://github.com/Alisa202min/NoeRFcBot.git)."
+    print_message "      2) اگر فایل‌ها در شاخه دیگری هستند (مثل dev)، شاخه درست را مشخص کنید."
+    print_message "      3) فایل‌ها را به صورت دستی به $APP_DIR منتقل کنید (یا ZIP آپلود کنید)."
+    exit 1
+fi
+print_success "همه فایل‌های مورد نیاز پروژه موجود هستند."
 # ===== راه‌اندازی پوشه برنامه =====
 print_message "در حال راه‌اندازی پوشه برنامه در $APP_DIR..."
 
@@ -305,16 +357,6 @@ for file in "${REQUIRED_FILES[@]}"; do
 done
 print_success "همه فایل‌های مورد نیاز پروژه موجود هستند."
 
-# ===== بررسی فایل‌های پروژه =====
-print_message "در حال بررسی فایل‌های پروژه..."
-REQUIRED_FILES=("app.py" "bot.py" "database.py")
-for file in "${REQUIRED_FILES[@]}"; do
-    if [ ! -f "$APP_DIR/$file" ]; then
-        print_error "فایل $file در $APP_DIR پیدا نشد. لطفاً مطمئن شوید پروژه کامل منتقل یا کلون شده است."
-        exit 1
-    fi
-done
-print_success "همه فایل‌های مورد نیاز پروژه موجود هستند."
 
 # ===== ایجاد محیط مجازی پایتون =====
 print_message "در حال بررسی و نصب پایتون 3.10 برای محیط مجازی..."
