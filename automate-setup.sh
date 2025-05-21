@@ -206,7 +206,7 @@ if [ "$USE_GIT" = "y" ] || [ "$USE_GIT" = "Y" ]; then
         exit 1
     fi
     # Validate URL format (HTTPS or SSH)
-    if [[ ! "$GIT_REPO" =~ ^(https://github\.com/|git@github\.com:).*\.git$ ]]; then
+  if [[ ! "$GIT_REPO" =~ [](https://|git@).*(\.git)$ ]]; then
         print_error "آدرس مخزن گیت نامعتبر است. باید یک آدرس گیت‌هاب باشد که با https://github.com/ یا git@github.com: شروع و به .git ختم شود."
         exit 1
     fi
