@@ -362,33 +362,48 @@ print_success "همه فایل‌های مورد نیاز پروژه موجود 
 
 # ===== ایجاد محیط مجازی پایتون =====
 print_message "در حال بررسی و نصب پایتون 3.10 برای محیط مجازی..."
-# Check if python3.10 is installed
 if ! command -v python3.10 >/dev/null 2>&1; then
-    print_message "نصب پایتون 3.10..."
+    print_message "نصب پایتون 3.10 با استفاده از مخزن deadsnakes..."
+    apt update >> "$LOG_FILE" 2>&1
+    apt install -y software-properties-common >> "$LOG_FILE" 2>&1
+    add-apt-repository -y ppa:deadsnakes/ppa >> "$LOG_FILE" 2>&1
     apt update >> "$LOG_FILE" 2>&1
     apt install -y python3.10 python3.10-venv python3.10-dev >> "$LOG_FILE" 2>&1
-    check_error "نصب پایتون 3.10 با خطا مواجه شد." "پایتون 3.10 با موفقیت نصب شد."
+    if [ $? -ne 0 ]; then
+        print_warning "نصب پایتون 3.10 با خطا مواجه شد. استفاده از پایتون پیش‌فرض سیستم (ممکن است با RFCBot ناسازگار باشد)."
+        PYTHON_EXEC="python3"
+    else
+        print_success "پایتون 3.10 با موفقیت نصب شد."
+        PYTHON_EXEC="python3.10"
+    fi
 else
     print_message "پایتون 3.10 قبلاً نصب شده است."
+    PYTHON_EXEC="python3.10"
 fi
-# Check if python3.10-venv is installed by testing venv module
-if ! python3.10 -m venv --help >/dev/null 2>&1; then
+if [ "$PYTHON_EXEC" = "python3.10" ] && ! python3.10 -m venv --help >/dev/null 2>&1; then
     print_message "نصب بسته python3.10-venv..."
     apt update >> "$LOG_FILE" 2>&1
     apt install -y python3.10-venv >> "$LOG_FILE" 2>&1
     check_error "نصب بسته python3.10-venv با خطا مواجه شد." "بسته python3.10-venv با موفقیت نصب شد."
 fi
-print_message "در حال ایجاد محیط مجازی پایتون..."
+print_message "در حال ایجاد محیط مجازی پایتون با $PYTHON_EXEC..."
 cd "$APP_DIR" || exit 1
-python3.10 -m venv venv >> "$LOG_FILE" 2>&1
+$PYTHON_EXEC -m venv venv >> "$LOG_FILE" 2>&1
 if [ $? -ne 0 ]; then
-    print_error "ایجاد محیط مجازی با خطا مواجه شد. جزئیات در $LOG_FILE."
-    print_message "احتمالاً بسته python3.10-venv نصب نشده است. لطفاً دستور زیر را اجرا کنید و دوباره تلاش کنید:"
-    print_message "  sudo apt install -y python3.10-venv"
+    print_error "ایجاد محیط مجازی با $PYTHON_EXEC با خطا مواجه شد. جزئیات در $LOG_FILE."
+    if [ "$PYTHON_EXEC" = "python3.10" ]; then
+        print_message "احتمالاً بسته python3.10-venv نصب نشده است. دستورات زیر را اجرا کنید:"
+        print_message "  sudo apt update"
+        print_message "  sudo apt install -y software-properties-common"
+        print_message "  sudo add-apt-repository ppa:deadsnakes/ppa"
+        print_message "  sudo apt install -y python3.10-venv"
+    else
+        print_message "لطفاً بررسی کنید که python3-venv نصب شده باشد:"
+        print_message "  sudo apt install -y python3-venv"
+    fi
     exit 1
 fi
 print_success "محیط مجازی با موفقیت ایجاد شد."
-
 
 # ===== راه‌اندازی Ngrok (اختیاری) =====
 if [ "$USE_NGROK" = "y" ] || [ "$USE_NGROK" = "Y" ]; then
