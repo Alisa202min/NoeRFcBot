@@ -202,6 +202,7 @@ USE_GIT=${USE_GIT:-n}
 
 if [ "$USE_GIT" = "y" ] || [ "$USE_GIT" = "Y" ]; then
     read -p "آدرس مخزن گیت (مثال: https://github.com/username/rfcbot.git): " GIT_REPO
+    GIT_REPO=${GIT_REPO:-https://github.com/Alisa202min/NoeRFcBot.git}
     if [ -z "$GIT_REPO" ]; then
         print_error "آدرس مخزن گیت نمی‌تواند خالی باشد."
         exit 1
@@ -238,7 +239,7 @@ if [ "$USE_GIT" = "y" ] || [ "$USE_GIT" = "Y" ]; then
     if [ -d "$APP_DIR" ] && [ "$(ls -A "$APP_DIR")" ]; then
         print_warning "پوشه $APP_DIR از قبل وجود دارد و خالی نیست."
         read -p "آیا می‌خواهید پوشه موجود را حذف کرده و مخزن را دوباره کلون کنید؟ (y/n) [n]: " OVERWRITE_DIR
-        OVERWRITE_DIR=${OVERWRITE_DIR:-n}
+        OVERWRITE_DIR=${OVERWRITE_DIR:-y}
         if [ "$OVERWRITE_DIR" = "y" ] || [ "$OVERWRITE_DIR" = "Y" ]; then
             print_message "در حال حذف پوشه $APP_DIR..."
             rm -rf "$APP_DIR" >> "$LOG_FILE" 2>&1
