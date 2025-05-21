@@ -372,8 +372,25 @@ if ! curl -s --connect-timeout 10 https://ppa.launchpad.net/deadsnakes/ppa/ubunt
     USE_DEFAULT_PYTHON=${USE_DEFAULT_PYTHON:-n}
     if [ "$USE_DEFAULT_PYTHON" = "y" ] || [ "$USE_DEFAULT_PYTHON" = "Y" ]; then
         PYTHON_EXEC="python3"
+        print_message "بررسی نصب بسته python3-venv..."
+        if ! python3 -m venv --help >/dev/null 2>&1; then
+            print_message "نصب بسته python3-venv..."
+            apt update >> "$LOG_FILE" 2>&1
+            apt install -y python3-venv >> "$LOG_FILE" 2>&1
+            if [ $? -ne 0 ]; then
+                print_error "نصب بسته python3-venv با خطا مواجه شد. لطفاً دستور زیر را اجرا کنید:"
+                print_message "  sudo apt install -y python3-venv"
+                exit 1
+            fi
+            print_success "بسته python3-venv با موفقیت نصب شد."
+        fi
     else
-        print_error "لطفاً اتصال شبکه را بررسی کنید یا Python 3.10 را به صورت دستی نصب کنید: https://www.python.org/downloads/source/"
+        print_error "لطفاً Python 3.10 را به صورت دستی نصب کنید: https://www.python.org/downloads/source/"
+        print_message "دستورات پیشنهادی برای نصب دستی:"
+        print_message "  sudo apt install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev curl libbz2-dev"
+        print_message "  wget https://www.python.org/ftp/python/3.10.12/Python-3.10.12.tar.xz"
+        print_message "  tar -xf Python-3.10.12.tar.xz && cd Python-3.10.12"
+        print_message "  ./configure --enable-optimizations && make -j$(nproc) && sudo make altinstall"
         exit 1
     fi
 else
@@ -388,6 +405,18 @@ else
             USE_DEFAULT_PYTHON=${USE_DEFAULT_PYTHON:-n}
             if [ "$USE_DEFAULT_PYTHON" = "y" ] || [ "$USE_DEFAULT_PYTHON" = "Y" ]; then
                 PYTHON_EXEC="python3"
+                print_message "بررسی نصب بسته python3-venv..."
+                if ! python3 -m venv --help >/dev/null 2>&1; then
+                    print_message "نصب بسته python3-venv..."
+                    apt update >> "$LOG_FILE" 2>&1
+                    apt install -y python3-venv >> "$LOG_FILE" 2>&1
+                    if [ $? -ne 0 ]; then
+                        print_error "نصب بسته python3-venv با خطا مواجه شد. لطفاً دستور زیر را اجرا کنید:"
+                        print_message "  sudo apt install -y python3-venv"
+                        exit 1
+                    fi
+                    print_success "بسته python3-venv با موفقیت نصب شد."
+                fi
             else
                 print_error "لطفاً Python 3.10 را به صورت دستی نصب کنید: https://www.python.org/downloads/source/"
                 exit 1
@@ -401,6 +430,18 @@ else
                 USE_DEFAULT_PYTHON=${USE_DEFAULT_PYTHON:-n}
                 if [ "$USE_DEFAULT_PYTHON" = "y" ] || [ "$USE_DEFAULT_PYTHON" = "Y" ]; then
                     PYTHON_EXEC="python3"
+                    print_message "بررسی نصب بسته python3-venv..."
+                    if ! python3 -m venv --help >/dev/null 2>&1; then
+                        print_message "نصب بسته python3-venv..."
+                        apt update >> "$LOG_FILE" 2>&1
+                        apt install -y python3-venv >> "$LOG_FILE" 2>&1
+                        if [ $? -ne 0 ]; then
+                            print_error "نصب بسته python3-venv با خطا مواجه شد. لطفاً دستور زیر را اجرا کنید:"
+                            print_message "  sudo apt install -y python3-venv"
+                            exit 1
+                        fi
+                        print_success "بسته python3-venv با موفقیت نصب شد."
+                    fi
                 else
                     print_error "لطفاً Python 3.10 را به صورت دستی نصب کنید: https://www.python.org/downloads/source/"
                     exit 1
@@ -439,13 +480,14 @@ if [ $? -ne 0 ]; then
         print_message "  sudo add-apt-repository ppa:deadsnakes/ppa"
         print_message "  sudo apt install -y python3.10-venv"
     else
-        print_message "لطفاً بررسی کنید که python3-venv نصب شده باشد:"
+        print_message "احتمالاً بسته python3-venv نصب نشده است. دستور زیر را اجرا کنید:"
         print_message "  sudo apt install -y python3-venv"
+        print_message "اگر همچنان مشکل داشتید، بررسی کنید که پایتون 3.12 به درستی نصب شده است:"
+        print_message "  python3 --version"
     fi
     exit 1
 fi
 print_success "محیط مجازی با موفقیت ایجاد شد."
-
 
 # ===== راه‌اندازی Ngrok (اختیاری) =====
 if [ "$USE_NGROK" = "y" ] || [ "$USE_NGROK" = "Y" ]; then
