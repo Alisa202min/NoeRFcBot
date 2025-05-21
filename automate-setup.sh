@@ -195,9 +195,6 @@ mkdir -p "$APP_DIR/logs" >> "$LOG_FILE" 2>&1
 check_error "ایجاد پوشه‌های برنامه با خطا مواجه شد." "پوشه‌های برنامه با موفقیت ایجاد شدند."
 
 # ===== کپی یا کلون کردن فایل‌های پروژه =====
-read -p "آیا می‌خواهید پروژه را از مخزن گیت دانلود کنید؟ (y/n) [n]: " USE_GIT
-USE_GIT=${USE_GIT:-n}
-# ===== کپی یا کلون کردن فایل‌های پروژه =====
 print_message "در حال راه‌اندازی فایل‌های پروژه در $APP_DIR..."
 read -p "آیا می‌خواهید پروژه را از مخزن گیت دانلود کنید؟ (y/n) [n]: " USE_GIT
 USE_GIT=${USE_GIT:-n}
@@ -227,11 +224,33 @@ if [ "$USE_GIT" = "y" ] || [ "$USE_GIT" = "Y" ]; then
             GIT_REPO=$(echo "$GIT_REPO" | sed "s|https://|https://${GIT_TOKEN}@|")
         fi
     fi
+    # Check if $APP_DIR exists and is non-empty
+    if [ -d "$APP_DIR" ] && [ "$(ls -A "$APP_DIR")" ]; then
+        print_warning "پوشه $APP_DIR از قبل وجود دارد و خالی نیست."
+        read -p "آیا می‌خواهید پوشه موجود را حذف کرده و مخزن را دوباره کلون کنید؟ (y/n) [n]: " OVERWRITE_DIR
+        OVERWRITE_DIR=${OVERWRITE_DIR:-n}
+        if [ "$OVERWRITE_DIR" = "y" ] || [ "$OVERWRITE_DIR" = "Y" ]; then
+            print_message "در حال حذف پوشه $APP_DIR..."
+            rm -rf "$APP_DIR" >> "$LOG_FILE" 2>&1
+            check_error "حذف پوشه $APP_DIR با خطا مواجه شد." "پوشه $APP_DIR با موفقیت حذف شد."
+        else
+            print_error "کلون کردن لغو شد زیرا پوشه $APP_DIR از قبل وجود دارد. لطفاً پوشه را به صورت دستی حذف کنید یا از گزینه انتقال دستی فایل‌ها استفاده کنید."
+            exit 1
+        fi
+    fi
     print_message "در حال کلون کردن مخزن گیت..."
     git clone "$GIT_REPO" "$APP_DIR" >> "$LOG_FILE" 2>&1
     if [ $? -ne 0 ]; then
-        print_error "کلون کردن مخزن گیت با خطا مواجه شد. لطفاً آدرس مخزن، دسترسی‌ها یا توکن را بررسی کنید."
-        print_message "نکته: برای مخزن خصوصی گیت‌هاب، توکن دسترسی با مجوز repo نیاز است. به https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token مراجعه کنید."
+        if grep -q "destination path.*already exists" "$LOG_FILE"; then
+            print_error "کلون کردن مخزن گیت با خطا مواجه شد زیرا پوشه $APP_DIR هنوز وجود دارد. لطفاً آن را حذف کنید یا از گزینه انتقال دستی استفاده کنید."
+        elif grep -q "Authentication failed" "$LOG_FILE"; then
+            print_error "کلون کردن مخزن گیت با خطا مواجه شد. لطفاً توکن دسترسی یا دسترسی‌های مخزن را بررسی کنید."
+            print_message "نکته: برای مخزن خصوصی گیت‌هاب، توکن دسترسی با مجوز repo نیاز است. به https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token مراجعه کنید."
+        elif grep -q "Repository not found" "$LOG_FILE"; then
+            print_error "مخزن گیت یافت نشد. لطفاً آدرس مخزن را بررسی کنید."
+        else
+            print_error "کلون کردن مخزن گیت با خطا مواجه شد. جزئیات خطا در $LOG_FILE."
+        fi
         exit 1
     fi
     print_success "مخزن گیت با موفقیت کلون شد."
@@ -262,6 +281,17 @@ else
         print_success "فایل ZIP با موفقیت استخراج شد."
     fi
 fi
+
+# ===== بررسی فایل‌های پروژه =====
+print_message "در حال بررسی فایل‌های پروژه..."
+REQUIRED_FILES=("app.py" "bot.py" "database.py")
+for file in "${REQUIRED_FILES[@]}"; do
+    if [ ! -f "$APP_DIR/$file" ]; then
+        print_error "فایل $file در $APP_DIR پیدا نشد. لطفاً مطمئن شوید پروژه کامل منتقل یا کلون شده است."
+        exit 1
+    fi
+done
+print_success "همه فایل‌های مورد نیاز پروژه موجود هستند."
 
 # ===== بررسی فایل‌های پروژه =====
 print_message "در حال بررسی فایل‌های پروژه..."
