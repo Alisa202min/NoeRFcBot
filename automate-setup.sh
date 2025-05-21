@@ -195,7 +195,7 @@ mkdir -p "$APP_DIR/logs" >> "$LOG_FILE" 2>&1
 check_error "ایجاد پوشه‌های برنامه با خطا مواجه شد." "پوشه‌های برنامه با موفقیت ایجاد شدند."
 
 # ===== کپی یا کلون کردن فایل‌های پروژه =====
-print_message "در حال راه‌اندازی فایل‌های پروژه در $APP_DIR..."
+
 read -p "آیا می‌خواهید پروژه را از مخزن گیت دانلود کنید؟ (y/n) [n]: " USE_GIT
 USE_GIT=${USE_GIT:-n}
 
@@ -281,6 +281,18 @@ else
         print_success "فایل ZIP با موفقیت استخراج شد."
     fi
 fi
+
+# ===== راه‌اندازی پوشه برنامه =====
+print_message "در حال راه‌اندازی پوشه برنامه در $APP_DIR..."
+
+# ایجاد پوشه‌های لازم
+mkdir -p "$APP_DIR" >> "$LOG_FILE" 2>&1
+mkdir -p "$APP_DIR/static/uploads/products" >> "$LOG_FILE" 2>&1
+mkdir -p "$APP_DIR/static/uploads/services" >> "$LOG_FILE" 2>&1
+mkdir -p "$APP_DIR/static/uploads/services/main" >> "$LOG_FILE" 2>&1
+mkdir -p "$APP_DIR/static/media/products" >> "$LOG_FILE" 2>&1
+mkdir -p "$APP_DIR/logs" >> "$LOG_FILE" 2>&1
+check_error "ایجاد پوشه‌های برنامه با خطا مواجه شد." "پوشه‌های برنامه با موفقیت ایجاد شدند."
 
 # ===== بررسی فایل‌های پروژه =====
 print_message "در حال بررسی فایل‌های پروژه..."
