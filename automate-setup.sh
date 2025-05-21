@@ -194,7 +194,6 @@ mkdir -p "$APP_DIR/static/media/products" >> "$LOG_FILE" 2>&1
 mkdir -p "$APP_DIR/logs" >> "$LOG_FILE" 2>&1
 check_error "ایجاد پوشه‌های برنامه با خطا مواجه شد." "پوشه‌های برنامه با موفقیت ایجاد شدند."
 
-
 # ===== کپی یا کلون کردن فایل‌های پروژه =====
 print_message "در حال راه‌اندازی فایل‌های پروژه در $APP_DIR..."
 read -p "آیا می‌خواهید پروژه را از مخزن گیت دانلود کنید؟ (y/n) [n]: " USE_GIT
@@ -206,16 +205,16 @@ if [ "$USE_GIT" = "y" ] || [ "$USE_GIT" = "Y" ]; then
         print_error "آدرس مخزن گیت نمی‌تواند خالی باشد."
         exit 1
     fi
-    # Validate URL format (basic check for HTTPS or SSH)
-    if [[ ! "$GIT_REPO" =~ [](https://|git@).*(\.git)$ ]]; then
-        print_error "آدرس مخزن گیت نامعتبر است. باید با https:// یا git@ شروع و به .git ختم شود."
+    # Validate URL format (HTTPS or SSH)
+    if [[ ! "$GIT_REPO" =~ ^(https://github\.com/|git@github\.com:).*\.git$ ]]; then
+        print_error "آدرس مخزن گیت نامعتبر است. باید یک آدرس گیت‌هاب باشد که با https://github.com/ یا git@github.com: شروع و به .git ختم شود."
         exit 1
     fi
     # Prompt for branch (optional)
     read -p "شاخه مخزن (خالی برای پیش‌فرض، معمولاً main یا master): " GIT_BRANCH
     # Check if repository is HTTPS and prompt for PAT if likely private
     USE_SSH="n"
-    if [[ "$GIT_REPO" =~ ^https://github.com ]]; then
+    if [[ "$GIT_REPO" =~ ^https://github\.com ]]; then
         read -p "آیا مخزن خصوصی است؟ برای مخزن خصوصی به توکن دسترسی گیت‌هاب نیاز است (y/n) [n]: " PRIVATE_REPO
         PRIVATE_REPO=${PRIVATE_REPO:-n}
         if [ "$PRIVATE_REPO" = "y" ] || [ "$PRIVATE_REPO" = "Y" ]; then
@@ -328,12 +327,15 @@ if [ ${#MISSING_FILES[@]} -ne 0 ]; then
     ls -la "$APP_DIR" >> "$LOG_FILE" 2>&1
     cat "$LOG_FILE" | tail -n 10
     print_message "لطفاً مطمئن شوید پروژه RFCBot به درستی کلون یا منتقل شده است."
-    print_message "نکات: 1) بررسی کنید که مخزن درست باشد[](https://github.com/Alisa202min/NoeRFcBot.git)."
+    print_message "نکات: 1) بررسی کنید که مخزن درست باشد (https://github.com/Alisa202min/NoeRFcBot.git)."
     print_message "      2) اگر فایل‌ها در شاخه دیگری هستند (مثل dev)، شاخه درست را مشخص کنید."
     print_message "      3) فایل‌ها را به صورت دستی به $APP_DIR منتقل کنید (یا ZIP آپلود کنید)."
     exit 1
 fi
 print_success "همه فایل‌های مورد نیاز پروژه موجود هستند."
+
+
+
 # ===== راه‌اندازی پوشه برنامه =====
 print_message "در حال راه‌اندازی پوشه برنامه در $APP_DIR..."
 
