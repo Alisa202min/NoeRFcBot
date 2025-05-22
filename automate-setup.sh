@@ -356,160 +356,63 @@ for file in "${REQUIRED_FILES[@]}"; do
 done
 print_success "همه فایل‌های مورد نیاز پروژه موجود هستند."
 
-
-
-# ===== ایجاد محیط مجازی پایتون =====
-print_message "در حال بررسی و نصب پایتون 3.10 برای محیط مجازی..."
-
-# Check connectivity to deadsnakes PPA
-print_message "بررسی اتصال به سرور deadsnakes..."
-PPA_ATTEMPTS=0
-MAX_PPA_ATTEMPTS=2
-PPA_SUCCESS=false
-while [ $PPA_ATTEMPTS -lt $MAX_PPA_ATTEMPTS ]; do
-    if curl -s --connect-timeout 10 https://ppa.launchpad.net/deadsnakes/ppa/ubuntu/ >/dev/null; then
-        print_message "اتصال به سرور deadsnakes برقرار شد."
-        PPA_SUCCESS=true
-        break
-    else
-        print_warning "اتصال به سرور deadsnakes PPA با curl ناموفق بود (تلاش $((PPA_ATTEMPTS + 1)) از $MAX_PPA_ATTEMPTS)."
-        PPA_ATTEMPTS=$((PPA_ATTEMPTS + 1))
-        if [ $PPA_ATTEMPTS -lt $MAX_PPA_ATTEMPTS ]; then
-            read -p "آیا می‌خواهید دوباره تلاش کنید؟ (مثلاً پس از تنظیم VPN یا DNS) (y/n) [y]: " RETRY_PPA
-            RETRY_PPA=${RETRY_PPA:-y}
-            if [ "$RETRY_PPA" != "y" ] && [ "$RETRY_PPA" != "Y" ]; then
-                break
-            fi
-        fi
-    fi
-done
-
-if [ "$PPA_SUCCESS" = true ] || [ "$PPA_ATTEMPTS" -ge $MAX_PPA_ATTEMPTS ] || [ "$RETRY_PPA" != "y" ] && [ "$RETRY_PPA" != "Y" ]; then
-    if ! command -v python3.10 >/dev/null 2>&1; then
-        print_message "نصب پایتون 3.10 با استفاده از مخزن deadsnakes..."
-        apt update >> "$LOG_FILE" 2>&1
-        apt install -y software-properties-common >> "$LOG_FILE" 2>&1
-        timeout 60 add-apt-repository -y ppa:deadsnakes/ppa >> "$LOG_FILE" 2>&1
-        if [ $? -ne 0 ]; then
-            print_warning "افزودن مخزن deadsnakes با خطا مواجه شد."
-            read -p "آیا می‌خواهید ادامه دهید و پایتون پیش‌فرض سیستم (3.12) را استفاده کنید؟ (y/n) [n]: " USE_DEFAULT_PYTHON
-            USE_DEFAULT_PYTHON=${USE_DEFAULT_PYTHON:-n}
-            if [ "$USE_DEFAULT_PYTHON" = "y" ] || [ "$USE_DEFAULT_PYTHON" = "Y" ]; then
-                PYTHON_EXEC="python3"
-                print_message "بررسی نصب بسته python3-venv..."
-                if ! python3 -m venv --help >/dev/null 2>&1; then
-                    print_message "نصب بسته python3.12-venv..."
-                    apt update >> "$LOG_FILE" 2>&1
-                    apt install -y python3.12-venv >> "$LOG_FILE" 2>&1
-                    if [ $? -ne 0 ]; then
-                        print_error "نصب بسته python3.12-venv با خطا مواجه شد. لطفاً دستور زیر را اجرا کنید:"
-                        print_message "  sudo apt install -y python3.12-venv"
-                        exit 1
-                    fi
-                    print_success "بسته python3.12-venv با موفقیت نصب شد."
-                fi
-            else
-                print_error "لطفاً Python 3.10 را به صورت دستی نصب کنید: https://www.python.org/downloads/source/"
-                print_message "دستورات پیشنهادی برای نصب دستی:"
-                print_message "  sudo apt install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev curl libbz2-dev"
-                print_message "  cd /usr/src"
-                print_message "  sudo wget https://www.python.org/ftp/python/3.10.12/Python-3.10.12.tar.xz"
-                print_message "  sudo tar -xf Python-3.10.12.tar.xz && cd Python-3.10.12"
-                print_message "  sudo ./configure --enable-optimizations && sudo make -j$(nproc) && sudo make altinstall"
-                exit 1
-            fi
-        else
-            apt update >> "$LOG_FILE" 2>&1
-            timeout 300 apt install -y python3.10 python3.10-venv python3.10-dev >> "$LOG_FILE" 2>&1
-            if [ $? -ne 0 ]; then
-                print_warning "نصب پایتون 3.10 با خطا مواجه شد."
-                read -p "آیا می‌خواهید ادامه دهید و پایتون پیش‌فرض سیستم (3.12) را استفاده کنید؟ (y/n) [n]: " USE_DEFAULT_PYTHON
-                USE_DEFAULT_PYTHON=${USE_DEFAULT_PYTHON:-n}
-                if [ "$USE_DEFAULT_PYTHON" = "y" ] || [ "$USE_DEFAULT_PYTHON" = "Y" ]; then
-                    PYTHON_EXEC="python3"
-                    print_message "بررسی نصب بسته python3-venv..."
-                    if ! python3 -m venv --help >/dev/null 2>&1; then
-                        print_message "نصب بسته python3.12-venv..."
-                        apt update >> "$LOG_FILE" 2>&1
-                        apt install -y python3.12-venv >> "$LOG_FILE" 2>&1
-                        if [ $? -ne 0 ]; then
-                            print_error "نصب بسته python3.12-venv با خطا مواجه شد. لطفاً دستور زیر را اجرا کنید:"
-                            print_message "  sudo apt install -y python3.12-venv"
-                            exit 1
-                        fi
-                        print_success "بسته python3.12-venv با موفقیت نصب شد."
-                    fi
-                else
-                    print_error "لطفاً Python 3.10 را به صورت دستی نصب کنید: https://www.python.org/downloads/source/"
-                    exit 1
-                fi
-            else
-                print_success "پایتون 3.10 با موفقیت نصب شد."
-                PYTHON_EXEC="python3.10"
-            fi
-        fi
-    else
-        print_message "پایتون 3.10 قبلاً نصب شده است."
-        PYTHON_EXEC="python3.10"
-    fi
+# ===== بررسی و نصب پایتون 3.11 برای محیط مجازی =====
+print_message "در حال بررسی و نصب پایتون 3.11 برای محیط مجازی..."
+if command -v python3.11 >/dev/null 2>&1; then
+    print_message "پایتون 3.11 قبلاً نصب شده است."
+    PYTHON_EXEC="python3.11"
 else
-    print_warning "اتصال به سرور deadsnakes PPA همچنان ناموفق است."
-    read -p "آیا می‌خواهید ادامه دهید و پایتون پیش‌فرض سیستم (3.12) را استفاده کنید؟ (y/n) [n]: " USE_DEFAULT_PYTHON
-    USE_DEFAULT_PYTHON=${USE_DEFAULT_PYTHON:-n}
-    if [ "$USE_DEFAULT_PYTHON" = "y" ] || [ "$USE_DEFAULT_PYTHON" = "Y" ]; then
-        PYTHON_EXEC="python3"
-        print_message "بررسی نصب بسته python3-venv..."
-        if ! python3 -m venv --help >/dev/null 2>&1; then
-            print_message "نصب بسته python3.12-venv..."
-            apt update >> "$LOG_FILE" 2>&1
-            apt install -y python3.12-venv >> "$LOG_FILE" 2>&1
-            if [ $? -ne 0 ]; then
-                print_error "نصب بسته python3.12-venv با خطا مواجه شد. لطفاً دستور زیر را اجرا کنید:"
-                print_message "  sudo apt install -y python3.12-venv"
-                exit 1
-            fi
-            print_success "بسته python3.12-venv با موفقیت نصب شد."
+    print_message "نصب پایتون 3.11 با استفاده از مخزن deadsnakes..."
+    apt update >> "$LOG_FILE" 2>&1
+    apt install -y software-properties-common >> "$LOG_FILE" 2>&1
+    timeout 60 add-apt-repository -y ppa:deadsnakes/ppa >> "$LOG_FILE" 2>&1
+    if [ $? -ne 0 ]; then
+        print_warning "افزودن مخزن deadsnakes با خطا مواجه شد."
+        print_message "تلاش برای نصب دستی پایتون 3.11..."
+        apt install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev curl libbz2-dev >> "$LOG_FILE" 2>&1
+        cd /usr/src || exit 1
+        wget https://www.python.org/ftp/python/3.11.10/Python-3.11.10.tar.xz >> "$LOG_FILE" 2>&1
+        tar -xf Python-3.11.10.tar.xz >> "$LOG_FILE" 2>&1
+        cd Python-3.11.10 || exit 1
+        ./configure --enable-optimizations >> "$LOG_FILE" 2>&1
+        make -j$(nproc) >> "$LOG_FILE" 2>&1
+        make altinstall >> "$LOG_FILE" 2>&1
+        if [ $? -ne 0 ]; then
+            print_error "نصب پایتون 3.11 با خطا مواجه شد. جزئیات در $LOG_FILE."
+            exit 1
         fi
+        print_success "پایتون 3.11 با موفقیت نصب شد."
+        PYTHON_EXEC="python3.11"
     else
-        print_error "لطفاً Python 3.10 را به صورت دستی نصب کنید: https://www.python.org/downloads/source/"
-        print_message "دستورات پیشنهادی برای نصب دستی:"
-        print_message "  sudo apt install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev curl libbz2-dev"
-        print_message "  cd /usr/src"
-        print_message "  sudo wget https://www.python.org/ftp/python/3.10.12/Python-3.10.12.tar.xz"
-        print_message "  sudo tar -xf Python-3.10.12.tar.xz && cd Python-3.10.12"
-        print_message "  sudo ./configure --enable-optimizations && sudo make -j$(nproc) && sudo make altinstall"
+        apt update >> "$LOG_FILE" 2>&1
+        timeout 300 apt install -y python3.11 python3.11-venv python3.11-dev >> "$LOG_FILE" 2>&1
+        if [ $? -ne 0 ]; then
+            print_error "نصب پایتون 3.11 با خطا مواجه شد. جزئیات در $LOG_FILE."
+            exit 1
+        fi
+        print_success "پایتون 3.11 با موفقیت نصب شد."
+        PYTHON_EXEC="python3.11"
+    fi
+fi
+
+if ! python3.11 -m venv --help >/dev/null 2>&1; then
+    print_message "نصب بسته python3.11-venv..."
+    apt update >> "$LOG_FILE" 2>&1
+    apt install -y python3.11-venv >> "$LOG_FILE" 2>&1
+    if [ $? -ne 0 ]; then
+        print_error "نصب بسته python3.11-venv با خطا مواجه شد."
         exit 1
     fi
+    print_success "بسته python3.11-venv با موفقیت نصب شد."
 fi
 
-if [ "$PYTHON_EXEC" = "python3.10" ] && ! python3.10 -m venv --help >/dev/null 2>&1; then
-    print_message "نصب بسته python3.10-venv..."
-    timeout 60 apt update >> "$LOG_FILE" 2>&1
-    timeout 300 apt install -y python3.10-venv >> "$LOG_FILE" 2>&1
-    check_error "نصب بسته python3.10-venv با خطا مواجه شد." "بسته python3.10-venv با موفقیت نصب شد."
-fi
-
-if [ "$PYTHON_EXEC" = "python3" ]; then
-    print_warning "استفاده از پایتون 3.12 ممکن است با برخی وابستگی‌های RFCBot ناسازگار باشد. لطفاً پس از نصب بررسی کنید."
-fi
-
-print_message "در حال ایجاد محیط مجازی پایتون با $PYTHON_EXEC..."
+print_message "در حال ایجاد محیط مجازی پایتون با python3.11..."
 cd "$APP_DIR" || exit 1
-$PYTHON_EXEC -m venv venv >> "$LOG_FILE" 2>&1
+python3.11 -m venv venv >> "$LOG_FILE" 2>&1
 if [ $? -ne 0 ]; then
-    print_error "ایجاد محیط مجازی با $PYTHON_EXEC با خطا مواجه شد. جزئیات در $LOG_FILE."
-    if [ "$PYTHON_EXEC" = "python3.10" ]; then
-        print_message "احتمالاً بسته python3.10-venv نصب نشده است. دستورات زیر را اجرا کنید:"
-        print_message "  sudo apt update"
-        print_message "  sudo apt install -y software-properties-common"
-        print_message "  sudo add-apt-repository ppa:deadsnakes/ppa"
-        print_message "  sudo apt install -y python3.10-venv"
-    else
-        print_message "احتمالاً بسته python3.12-venv نصب نشده است. دستور زیر را اجرا کنید:"
-        print_message "  sudo apt install -y python3.12-venv"
-        print_message "اگر همچنان مشکل داشتید، بررسی کنید که پایتون 3.12 به درستی نصب شده است:"
-        print_message "  python3 --version"
-    fi
+    print_error "ایجاد محیط مجازی با python3.11 با خطا مواجه شد. جزئیات در $LOG_FILE."
+    print_message "دستور زیر را اجرا کنید:"
+    print_message "  sudo apt install -y python3.11-venv"
     exit 1
 fi
 print_success "محیط مجازی با موفقیت ایجاد شد."
