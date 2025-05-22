@@ -364,13 +364,33 @@ done
 print_success "همه فایل‌های مورد نیاز پروژه موجود هستند."
 
 
+
 # ===== ایجاد محیط مجازی پایتون =====
 print_message "در حال بررسی و نصب پایتون 3.10 برای محیط مجازی..."
 
 # Check connectivity to deadsnakes PPA
 print_message "بررسی اتصال به سرور deadsnakes..."
-if ! curl -s --connect-timeout 10 https://ppa.launchpad.net/deadsnakes/ppa/ubuntu/ >/dev/null; then
-    print_warning "اتصال به سرور deadsnakes PPA ناموفق بود. ممکن است شبکه یا دسترسی محدود شده باشد."
+PPA_ATTEMPTS=0
+MAX_PPA_ATTEMPTS=2
+while [ $PPA_ATTEMPTS -lt $MAX_PPA_ATTEMPTS ]; do
+    if curl -s --connect-timeout 10 https://ppa.launchpad.net/deadsnakes/ppa/ubuntu/ >/dev/null; then
+        print_message "اتصال به سرور deadsnakes برقرار شد."
+        break
+    else
+        print_warning "اتصال به سرور deadsnakes PPA ناموفق بود (تلاش $((PPA_ATTEMPTS + 1)) از $MAX_PPA_ATTEMPTS)."
+        PPA_ATTEMPTS=$((PPA_ATTEMPTS + 1))
+        if [ $PPA_ATTEMPTS -lt $MAX_PPA_ATTEMPTS ]; then
+            read -p "آیا می‌خواهید دوباره تلاش کنید؟ (مثلاً پس از تنظیم VPN یا DNS) (y/n) [y]: " RETRY_PPA
+            RETRY_PPA=${RETRY_PPA:-y}
+            if [ "$RETRY_PPA" != "y" ] && [ "$RETRY_PPA" != "Y" ]; then
+                break
+            fi
+        fi
+    fi
+done
+
+if [ $PPA_ATTEMPTS -ge $MAX_PPA_ATTEMPTS ] || [ "$RETRY_PPA" != "y" ] && [ "$RETRY_PPA" != "Y" ]; then
+    print_warning "اتصال به سرور deadsnakes PPA همچنان ناموفق است."
     read -p "آیا می‌خواهید ادامه دهید و پایتون پیش‌فرض سیستم (3.12) را استفاده کنید؟ (y/n) [n]: " USE_DEFAULT_PYTHON
     USE_DEFAULT_PYTHON=${USE_DEFAULT_PYTHON:-n}
     if [ "$USE_DEFAULT_PYTHON" = "y" ] || [ "$USE_DEFAULT_PYTHON" = "Y" ]; then
@@ -391,9 +411,11 @@ if ! curl -s --connect-timeout 10 https://ppa.launchpad.net/deadsnakes/ppa/ubunt
         print_error "لطفاً Python 3.10 را به صورت دستی نصب کنید: https://www.python.org/downloads/source/"
         print_message "دستورات پیشنهادی برای نصب دستی:"
         print_message "  sudo apt install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev curl libbz2-dev"
-        print_message "  wget https://www.python.org/ftp/python/3.10.12/Python-3.10.12.tar.xz"
-        print_message "  tar -xf Python-3.10.12.tar.xz && cd Python-3.10.12"
-        print_message "  ./configure --enable-optimizations && make -j$(nproc) && sudo make altinstall"
+        print_message "  cd /usr/src"
+        print_message "  sudo wget https://www.python.org/ftp/python/3.10.12/Python-3.10.12.tar.xz"
+        print_message "  sudo tar -xf Python-3.10.12.tar.xz && cd Python-3.10.12"
+        print_message "  sudo ./configure --enable-optimizations && sudo make -j$(nproc) && sudo make altinstall"
+        print_message "پس از نصب، اسکریپت را دوباره اجرا کنید."
         exit 1
     fi
 else
@@ -485,12 +507,11 @@ if [ $? -ne 0 ]; then
     else
         print_message "احتمالاً بسته python3-venv نصب نشده است. دستور زیر را اجرا کنید:"
         print_message "  sudo apt install -y python3-venv"
-        print_message "اگر همچنان مشکل داشتید، بررسی کنید که پایتون 3.12 به درستی نصب شده است:"
-        print_message "  python3 --version"
     fi
     exit 1
 fi
 print_success "محیط مجازی با موفقیت ایجاد شد."
+
 
 # ===== راه‌اندازی Ngrok (اختیاری) =====
 if [ "$USE_NGROK" = "y" ] || [ "$USE_NGROK" = "Y" ]; then
