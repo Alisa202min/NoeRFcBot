@@ -188,14 +188,7 @@ print_success "پایگاه داده PostgreSQL با موفقیت راه‌ان�
 # ===== راه‌اندازی پوشه برنامه =====
 print_message "در حال راه‌اندازی پوشه برنامه در $APP_DIR..."
 
-# ایجاد پوشه‌های لازم
-mkdir -p "$APP_DIR" >> "$LOG_FILE" 2>&1
-mkdir -p "$APP_DIR/static/uploads/products" >> "$LOG_FILE" 2>&1
-mkdir -p "$APP_DIR/static/uploads/services" >> "$LOG_FILE" 2>&1
-mkdir -p "$APP_DIR/static/uploads/services/main" >> "$LOG_FILE" 2>&1
-mkdir -p "$APP_DIR/static/media/products" >> "$LOG_FILE" 2>&1
-mkdir -p "$APP_DIR/logs" >> "$LOG_FILE" 2>&1
-check_error "ایجاد پوشه‌های برنامه با خطا مواجه شد." "پوشه‌های برنامه با موفقیت ایجاد شدند."
+
 
 # ===== کپی یا کلون کردن فایل‌های پروژه =====
 print_message "در حال راه‌اندازی فایل‌های پروژه در $APP_DIR..."
@@ -589,7 +582,33 @@ EOF
 
 check_error "ایجاد فایل .env با خطا مواجه شد." "فایل .env با موفقیت ایجاد شد."
 
-# ===== راه‌اندازی پایگاه داده =====
+# ===== نصب وابستگی‌های پروژه =====
+print_message "در حال نصب وابستگی‌های پروژه از requirements.txt..."
+if [ ! -f "$APP_DIR/requirements.txt" ]; then
+    print_warning "فایل requirements.txt در $APP_DIR یافت نشد. ایجاد فایل پیش‌فرض..."
+    echo -e "flask==2.3.3\npython-telegram-bot==20.7\npsycopg2-binary==2.9.9\ngunicorn==21.2.0" > "$APP_DIR/requirements.txt"
+fi
+source "$APP_DIR/venv/bin/activate" >> "$LOG_FILE" 2>&1
+if [ $? -ne 0 ]; then
+    print_error "فعال‌سازی محیط مجازی با خطا مواجه شد. لطفاً مطمئن شوید که $APP_DIR/venv وجود دارد."
+    exit 1
+fi
+pip install --upgrade pip >> "$LOG_FILE" 2>&1
+pip install -r "$APP_DIR/requirements.txt" >> "$LOG_FILE" 2>&1
+if [ $? -ne 0 ]; then
+    print_error "نصب وابستگی‌ها با خطا مواجه شد. جزئیات در $LOG_FILE."
+    print_message "لطفاً دستور زیر را اجرا کنید:"
+    print_message "  source $APP_DIR/venv/bin/activate"
+    print_message "  pip install -r $APP_DIR/requirements.txt"
+    deactivate
+    exit 1
+fi
+print_success "وابستگی‌های پروژه با موفقیت نصب شدند."
+deactivate
+
+
+
+# ===== راه‌اندازی پایگاه داده ============================
 print_message "در حال راه‌اندازی جداول پایگاه داده..."
 
 # فعال‌سازی محیط مجازی اگر فعال نیست
