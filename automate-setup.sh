@@ -196,13 +196,15 @@ USE_GIT=${USE_GIT:-n}
 
 if [ "$USE_GIT" = "y" ] || [ "$USE_GIT" = "Y" ]; then
     read -p "آدرس مخزن گیت (مثال: username/rfcbot): " REPO_URL
+  GIT_REPO=${GIT_REPO:-https://github.com/Alisa202min/NoeRFcBot.git}
     if [ -z "$REPO_URL" ]; then
         print_error "آدرس مخزن گیت نمی‌تواند خالی باشد."
         exit 1
     fi
     read -p "شاخه مخزن (خالی برای پیش‌فرض، معمولاً main یا master): " GIT_BRANCH
     read -p "آیا می‌خواهید از SSH به جای HTTPS استفاده کنید؟ (y/n) [n]: " USE_SSH
-    USE_SSH=${USE_SSH:-n}
+     GIT_BRANCH=${GIT_BRANCH:-replit-agent}
+     USE_SSH=${USE_SSH:-n}
     if [ "$USE_SSH" != "y" ] && [ "$USE_SSH" != "Y" ]; then
         read -p "آیا مخزن خصوصی است؟ (y/n) [n]: " PRIVATE_REPO
         PRIVATE_REPO=${PRIVATE_REPO:-n}
