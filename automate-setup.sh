@@ -78,7 +78,9 @@ read -p "نام کاربری پایگاه داده [neondb_owner]: " DB_USER
 DB_USER=${DB_USER:-neondb_owner}
 
 read -s -p "رمز عبور پایگاه داده: " DB_PASSWORD
+DB_PASSWORD=${DB_PASSWORD:-npg_nguJUcZGPX83}
 echo ""
+
 if [ -z "$DB_PASSWORD" ]; then
     print_error "رمز عبور پایگاه داده نمی‌تواند خالی باشد."
     exit 1
