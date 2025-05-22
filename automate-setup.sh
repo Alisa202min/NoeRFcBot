@@ -372,12 +372,14 @@ print_message "در حال بررسی و نصب پایتون 3.10 برای مح�
 print_message "بررسی اتصال به سرور deadsnakes..."
 PPA_ATTEMPTS=0
 MAX_PPA_ATTEMPTS=2
+PPA_SUCCESS=false
 while [ $PPA_ATTEMPTS -lt $MAX_PPA_ATTEMPTS ]; do
     if curl -s --connect-timeout 10 https://ppa.launchpad.net/deadsnakes/ppa/ubuntu/ >/dev/null; then
         print_message "اتصال به سرور deadsnakes برقرار شد."
+        PPA_SUCCESS=true
         break
     else
-        print_warning "اتصال به سرور deadsnakes PPA ناموفق بود (تلاش $((PPA_ATTEMPTS + 1)) از $MAX_PPA_ATTEMPTS)."
+        print_warning "اتصال به سرور deadsnakes PPA با curl ناموفق بود (تلاش $((PPA_ATTEMPTS + 1)) از $MAX_PPA_ATTEMPTS)."
         PPA_ATTEMPTS=$((PPA_ATTEMPTS + 1))
         if [ $PPA_ATTEMPTS -lt $MAX_PPA_ATTEMPTS ]; then
             read -p "آیا می‌خواهید دوباره تلاش کنید؟ (مثلاً پس از تنظیم VPN یا DNS) (y/n) [y]: " RETRY_PPA
@@ -389,36 +391,7 @@ while [ $PPA_ATTEMPTS -lt $MAX_PPA_ATTEMPTS ]; do
     fi
 done
 
-if [ $PPA_ATTEMPTS -ge $MAX_PPA_ATTEMPTS ] || [ "$RETRY_PPA" != "y" ] && [ "$RETRY_PPA" != "Y" ]; then
-    print_warning "اتصال به سرور deadsnakes PPA همچنان ناموفق است."
-    read -p "آیا می‌خواهید ادامه دهید و پایتون پیش‌فرض سیستم (3.12) را استفاده کنید؟ (y/n) [n]: " USE_DEFAULT_PYTHON
-    USE_DEFAULT_PYTHON=${USE_DEFAULT_PYTHON:-n}
-    if [ "$USE_DEFAULT_PYTHON" = "y" ] || [ "$USE_DEFAULT_PYTHON" = "Y" ]; then
-        PYTHON_EXEC="python3"
-        print_message "بررسی نصب بسته python3-venv..."
-        if ! python3 -m venv --help >/dev/null 2>&1; then
-            print_message "نصب بسته python3-venv..."
-            apt update >> "$LOG_FILE" 2>&1
-            apt install -y python3.12-venv >> "$LOG_FILE" 2>&1
-            if [ $? -ne 0 ]; then
-                print_error "نصب بسته python3.12-venv با خطا مواجه شد. لطفاً دستور زیر را اجرا کنید:"
-                print_message "  sudo apt install -y python3.12-venv"
-                exit 1
-            fi
-            print_success "بسته python3.12-venv با موفقیت نصب شد."
-        fi
-    else
-        print_error "لطفاً Python 3.10 را به صورت دستی نصب کنید: https://www.python.org/downloads/source/"
-        print_message "دستورات پیشنهادی برای نصب دستی:"
-        print_message "  sudo apt install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev curl libbz2-dev"
-        print_message "  cd /usr/src"
-        print_message "  sudo wget https://www.python.org/ftp/python/3.10.12/Python-3.10.12.tar.xz"
-        print_message "  sudo tar -xf Python-3.10.12.tar.xz && cd Python-3.10.12"
-        print_message "  sudo ./configure --enable-optimizations && sudo make -j$(nproc) && sudo make altinstall"
-        print_message "پس از نصب، اسکریپت را دوباره اجرا کنید."
-        exit 1
-    fi
-else
+if [ "$PPA_SUCCESS" = true ] || [ "$PPA_ATTEMPTS" -ge $MAX_PPA_ATTEMPTS ] || [ "$RETRY_PPA" != "y" ] && [ "$RETRY_PPA" != "Y" ]; then
     if ! command -v python3.10 >/dev/null 2>&1; then
         print_message "نصب پایتون 3.10 با استفاده از مخزن deadsnakes..."
         apt update >> "$LOG_FILE" 2>&1
@@ -432,7 +405,7 @@ else
                 PYTHON_EXEC="python3"
                 print_message "بررسی نصب بسته python3-venv..."
                 if ! python3 -m venv --help >/dev/null 2>&1; then
-                    print_message "نصب بسته python3-venv..."
+                    print_message "نصب بسته python3.12-venv..."
                     apt update >> "$LOG_FILE" 2>&1
                     apt install -y python3.12-venv >> "$LOG_FILE" 2>&1
                     if [ $? -ne 0 ]; then
@@ -444,6 +417,12 @@ else
                 fi
             else
                 print_error "لطفاً Python 3.10 را به صورت دستی نصب کنید: https://www.python.org/downloads/source/"
+                print_message "دستورات پیشنهادی برای نصب دستی:"
+                print_message "  sudo apt install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev curl libbz2-dev"
+                print_message "  cd /usr/src"
+                print_message "  sudo wget https://www.python.org/ftp/python/3.10.12/Python-3.10.12.tar.xz"
+                print_message "  sudo tar -xf Python-3.10.12.tar.xz && cd Python-3.10.12"
+                print_message "  sudo ./configure --enable-optimizations && sudo make -j$(nproc) && sudo make altinstall"
                 exit 1
             fi
         else
@@ -457,7 +436,7 @@ else
                     PYTHON_EXEC="python3"
                     print_message "بررسی نصب بسته python3-venv..."
                     if ! python3 -m venv --help >/dev/null 2>&1; then
-                        print_message "نصب بسته python3-venv..."
+                        print_message "نصب بسته python3.12-venv..."
                         apt update >> "$LOG_FILE" 2>&1
                         apt install -y python3.12-venv >> "$LOG_FILE" 2>&1
                         if [ $? -ne 0 ]; then
@@ -479,6 +458,34 @@ else
     else
         print_message "پایتون 3.10 قبلاً نصب شده است."
         PYTHON_EXEC="python3.10"
+    fi
+else
+    print_warning "اتصال به سرور deadsnakes PPA همچنان ناموفق است."
+    read -p "آیا می‌خواهید ادامه دهید و پایتون پیش‌فرض سیستم (3.12) را استفاده کنید؟ (y/n) [n]: " USE_DEFAULT_PYTHON
+    USE_DEFAULT_PYTHON=${USE_DEFAULT_PYTHON:-n}
+    if [ "$USE_DEFAULT_PYTHON" = "y" ] || [ "$USE_DEFAULT_PYTHON" = "Y" ]; then
+        PYTHON_EXEC="python3"
+        print_message "بررسی نصب بسته python3-venv..."
+        if ! python3 -m venv --help >/dev/null 2>&1; then
+            print_message "نصب بسته python3.12-venv..."
+            apt update >> "$LOG_FILE" 2>&1
+            apt install -y python3.12-venv >> "$LOG_FILE" 2>&1
+            if [ $? -ne 0 ]; then
+                print_error "نصب بسته python3.12-venv با خطا مواجه شد. لطفاً دستور زیر را اجرا کنید:"
+                print_message "  sudo apt install -y python3.12-venv"
+                exit 1
+            fi
+            print_success "بسته python3.12-venv با موفقیت نصب شد."
+        fi
+    else
+        print_error "لطفاً Python 3.10 را به صورت دستی نصب کنید: https://www.python.org/downloads/source/"
+        print_message "دستورات پیشنهادی برای نصب دستی:"
+        print_message "  sudo apt install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev curl libbz2-dev"
+        print_message "  cd /usr/src"
+        print_message "  sudo wget https://www.python.org/ftp/python/3.10.12/Python-3.10.12.tar.xz"
+        print_message "  sudo tar -xf Python-3.10.12.tar.xz && cd Python-3.10.12"
+        print_message "  sudo ./configure --enable-optimizations && sudo make -j$(nproc) && sudo make altinstall"
+        exit 1
     fi
 fi
 
