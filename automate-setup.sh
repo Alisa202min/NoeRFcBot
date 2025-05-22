@@ -189,30 +189,22 @@ print_success "پایگاه داده PostgreSQL با موفقیت راه‌ان�
 print_message "در حال راه‌اندازی پوشه برنامه در $APP_DIR..."
 
 
-
-# ===== کپی یا کلون کردن فایل‌های پروژه =====
+# ===== کلون کردن مخزن گیت =====
 print_message "در حال راه‌اندازی فایل‌های پروژه در $APP_DIR..."
 read -p "آیا می‌خواهید پروژه را از مخزن گیت دانلود کنید؟ (y/n) [n]: " USE_GIT
 USE_GIT=${USE_GIT:-n}
 
 if [ "$USE_GIT" = "y" ] || [ "$USE_GIT" = "Y" ]; then
-    read -p "آدرس مخزن گیت (مثال: https://github.com/username/rfcbot.git): " GIT_REPO
-    GIT_REPO=${GIT_REPO:-https://github.com/Alisa202min/NoeRFcBot.git}
-    if [ -z "$GIT_REPO" ]; then
+    read -p "آدرس مخزن گیت (مثال: username/rfcbot): " REPO_URL
+    if [ -z "$REPO_URL" ]; then
         print_error "آدرس مخزن گیت نمی‌تواند خالی باشد."
         exit 1
     fi
-    # Validate URL format (HTTPS or SSH)
- if [[ ! "$GIT_REPO" =~ ^(https://github\.com/|git@github\.com:).*\.git$ ]]; then
-        print_error "آدرس مخزن گیت نامعتبر است. باید یک آدرس گیت‌هاب باشد که با https://github.com/ یا git@github.com: شروع و به .git ختم شود."
-        exit 1
-    fi
-    # Prompt for branch (optional)
     read -p "شاخه مخزن (خالی برای پیش‌فرض، معمولاً main یا master): " GIT_BRANCH
-    # Check if repository is HTTPS and prompt for PAT if likely private
-    USE_SSH="n"
-    if [[ "$GIT_REPO" =~ ^https://github\.com ]]; then
-        read -p "آیا مخزن خصوصی است؟ برای مخزن خصوصی به توکن دسترسی گیت‌هاب نیاز است (y/n) [n]: " PRIVATE_REPO
+    read -p "آیا می‌خواهید از SSH به جای HTTPS استفاده کنید؟ (y/n) [n]: " USE_SSH
+    USE_SSH=${USE_SSH:-n}
+    if [ "$USE_SSH" != "y" ] && [ "$USE_SSH" != "Y" ]; then
+        read -p "آیا مخزن خصوصی است؟ (y/n) [n]: " PRIVATE_REPO
         PRIVATE_REPO=${PRIVATE_REPO:-n}
         if [ "$PRIVATE_REPO" = "y" ] || [ "$PRIVATE_REPO" = "Y" ]; then
             read -p "توکن دسترسی گیت‌هاب (Personal Access Token): " GIT_TOKEN
@@ -220,95 +212,46 @@ if [ "$USE_GIT" = "y" ] || [ "$USE_GIT" = "Y" ]; then
                 print_error "توکن دسترسی گیت‌هاب نمی‌تواند خالی باشد."
                 exit 1
             fi
-            # Embed token in URL for cloning
-            GIT_REPO=$(echo "$GIT_REPO" | sed "s|https://|https://${GIT_TOKEN}@|")
-        fi
-        read -p "آیا می‌خواهید از SSH به جای HTTPS استفاده کنید؟ (توصیه شده برای مشکلات TLS) (y/n) [n]: " USE_SSH
-        USE_SSH=${USE_SSH:-n}
-        if [ "$USE_SSH" = "y" ] || [ "$USE_SSH" = "Y" ]; then
-            print_message "لطفاً کلید SSH را در گیت‌هاب تنظیم کنید: https://docs.github.com/en/authentication/connecting-to-github-with-ssh"
-            GIT_REPO=$(echo "$GIT_REPO" | sed 's|https://github.com/|git@github.com:|')
         fi
     fi
-    # Check if $APP_DIR exists and is non-empty
-    if [ -d "$APP_DIR" ] && [ "$(ls -A "$APP_DIR")" ]; then
-        print_warning "پوشه $APP_DIR از قبل وجود دارد و خالی نیست."
-        read -p "آیا می‌خواهید پوشه موجود را حذف کرده و مخزن را دوباره کلون کنید؟ (y/n) [n]: " OVERWRITE_DIR
-        OVERWRITE_DIR=${OVERWRITE_DIR:-y}
-        if [ "$OVERWRITE_DIR" = "y" ] || [ "$OVERWRITE_DIR" = "Y" ]; then
+    if [ -d "$APP_DIR" ]; then
+        print_warning "پوشه $APP_DIR از قبل وجود دارد."
+        read -p "آیا می‌خواهید آن را حذف کنید؟ (y/n) [n]: " DELETE_DIR
+        DELETE_DIR=${DELETE_DIR:-n}
+        if [ "$DELETE_DIR" = "y" ] || [ "$DELETE_DIR" = "Y" ]; then
             print_message "در حال حذف پوشه $APP_DIR..."
-            rm -rf "$APP_DIR" >> "$LOG_FILE" 2>&1
-            check_error "حذف پوشه $APP_DIR با خطا مواجه شد." "پوشه $APP_DIR با موفقیت حذف شد."
-        else
-            print_error "کلون کردن لغو شد زیرا پوشه $APP_DIR از قبل وجود دارد. لطفاً پوشه را به صورت دستی حذف کنید یا از گزینه انتقال دستی فایل‌ها استفاده کنید."
-            exit 1
+            rm -rf "$APP_DIR" >> "$LOG_FILE" 2>&1 || { print_error "حذف پوشه $APP_DIR با خطا مواجه شد."; exit 1; }
+            print_success "پوشه $APP_DIR با موفقیت حذف شد."
         fi
     fi
     print_message "در حال کلون کردن مخزن گیت..."
-    if [ -n "$GIT_BRANCH" ]; then
-        if [ "$USE_SSH" = "y" ] || [ "$USE_SSH" = "Y" ]; then
-            git clone --branch "$GIT_BRANCH" "$GIT_REPO" "$APP_DIR" >> "$LOG_FILE" 2>&1
-        else
-            git clone --ipv4 --branch "$GIT_BRANCH" "$GIT_REPO" "$APP_DIR" >> "$LOG_FILE" 2>&1
-        fi
+    cd /var/www || { print_error "تغییر به دایرکتوری /var/www با خطا مواجه شد."; exit 1; }
+    mkdir -p "$APP_DIR" >> "$LOG_FILE" 2>&1
+    CLONE_CMD="git clone"
+    [ -n "$GIT_BRANCH" ] && CLONE_CMD="$CLONE_CMD --branch $GIT_BRANCH"
+    if [ "$USE_SSH" = "y" ] || [ "$USE_SSH" = "Y" ]; then
+        CLONE_CMD="$CLONE_CMD git@github.com:$REPO_URL.git $APP_DIR"
     else
-        if [ "$USE_SSH" = "y" ] || [ "$USE_SSH" = "Y" ]; then
-            git clone "$GIT_REPO" "$APP_DIR" >> "$LOG_FILE" 2>&1
-        else
-            git clone --ipv4 "$GIT_REPO" "$APP_DIR" >> "$LOG_FILE" 2>&1
-        fi
+        [ -n "$GIT_TOKEN" ] && REPO_URL="https://$GIT_TOKEN@github.com/$REPO_URL.git" || REPO_URL="https://github.com/$REPO_URL.git"
+        CLONE_CMD="$CLONE_CMD $REPO_URL $APP_DIR"
     fi
+    $CLONE_CMD >> "$LOG_FILE" 2>&1
     if [ $? -ne 0 ]; then
-        if grep -q "destination path.*already exists" "$LOG_FILE"; then
-            print_error "کلون کردن مخزن گیت با خطا مواجه شد زیرا پوشه $APP_DIR هنوز وجود دارد. لطفاً آن را حذف کنید یا از گزینه انتقال دستی استفاده کنید."
-        elif grep -q "Authentication failed" "$LOG_FILE"; then
-            print_error "کلون کردن مخزن گیت با خطا مواجه شد. لطفاً توکن دسترسی یا دسترسی‌های مخزن را بررسی کنید."
-            print_message "نکته: برای مخزن خصوصی گیت‌هاب، توکن دسترسی با مجوز repo نیاز است. به https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token مراجعه کنید."
-        elif grep -q "Repository not found" "$LOG_FILE"; then
-            print_error "مخزن گیت یافت نشد. لطفاً آدرس مخزن را بررسی کنید."
-        elif grep -q "gnutls_handshake() failed" "$LOG_FILE"; then
-            print_error "کلون کردن مخزن گیت با خطا مواجه شد: مشکل در اتصال TLS (gnutls_handshake)."
-            print_message "راه‌حل‌ها: 1) از SSH استفاده کنید (گزینه بالا را انتخاب کنید)."
-            print_message "         2) دستور زیر را اجرا کنید و دوباره تلاش کنید:"
-            print_message "            sudo apt update && sudo apt install -y git gnutls-bin libcurl3-gnutls"
-            print_message "         3) از IPv4 استفاده کنید: git clone --ipv4 $GIT_REPO"
-            print_message "         4) فایل‌ها را به صورت دستی به $APP_DIR منتقل کنید."
-            print_message "جزئیات خطا در $LOG_FILE."
-        else
-            print_error "کلون کردن مخزن گیت با خطا مواجه شد. جزئیات خطا در $LOG_FILE."
-        fi
+        print_error "کلون کردن مخزن گیت با خطا مواجه شد. جزئیات در $LOG_FILE."
+        print_message "دستور پیشنهادی برای بررسی:"
+        print_message "  cd /var/www"
+        print_message "  $CLONE_CMD"
         exit 1
     fi
     print_success "مخزن گیت با موفقیت کلون شد."
 else
-    print_message "لطفاً فایل‌های پروژه را به پوشه $APP_DIR منتقل کنید (یا یک فایل ZIP حاوی پروژه آپلود کنید)."
-    print_message "فایل‌های مورد نیاز: app.py، bot.py، database.py، requirements.txt و پوشه‌های templates/ و static/"
-    read -p "آیا فایل‌های پروژه را منتقل کرده‌اید یا ZIP آپلود کرده‌اید؟ (y/n) [n]: " FILES_COPIED
-    FILES_COPIED=${FILES_COPIED:-n}
+    print_message "لطفاً فایل‌های پروژه را به $APP_DIR منتقل کنید."
+    read -p "آیا فایل‌های پروژه را منتقل کرده‌اید؟ (y/n) [n]: " FILES_COPIED
     if [ "$FILES_COPIED" != "y" ] && [ "$FILES_COPIED" != "Y" ]; then
-        print_error "لطفاً ابتدا فایل‌های پروژه یا فایل ZIP را منتقل کنید و سپس اسکریپت را دوباره اجرا کنید."
+        print_error "لطفاً فایل‌های پروژه را منتقل کنید و اسکریپت را دوباره اجرا کنید."
         exit 1
     fi
-    # Check for ZIP file and extract if present
-    ZIP_FILE=$(find /var/www -maxdepth 1 -name "*.zip" -print -quit)
-    if [ -n "$ZIP_FILE" ]; then
-        print_message "یافتن فایل ZIP: $ZIP_FILE. در حال استخراج..."
-        apt install -y unzip >> "$LOG_FILE" 2>&1
-        unzip -o "$ZIP_FILE" -d "$APP_DIR" >> "$LOG_FILE" 2>&1
-        if [ $? -ne 0 ]; then
-            print_error "استخراج فایل ZIP با خطا مواجه شد. لطفاً فایل ZIP معتبر باشد."
-            exit 1
-        fi
-        # Move files if extracted to a subdirectory
-        SUBDIR=$(find "$APP_DIR" -maxdepth 1 -type d ! -path "$APP_DIR" -print -quit)
-        if [ -n "$SUBDIR" ] && [ "$(ls -A "$SUBDIR")" ]; then
-            mv "$SUBDIR"/* "$APP_DIR"/ >> "$LOG_FILE" 2>&1
-            rm -rf "$SUBDIR" >> "$LOG_FILE" 2>&1
-        fi
-        print_success "فایل ZIP با موفقیت استخراج شد."
-    fi
 fi
-
 # ===== بررسی فایل‌های پروژه =====
 print_message "در حال بررسی فایل‌های پروژه..."
 REQUIRED_FILES=("app.py" "bot.py" "database.py")
