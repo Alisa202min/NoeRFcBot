@@ -399,13 +399,13 @@ if [ $PPA_ATTEMPTS -ge $MAX_PPA_ATTEMPTS ] || [ "$RETRY_PPA" != "y" ] && [ "$RET
         if ! python3 -m venv --help >/dev/null 2>&1; then
             print_message "نصب بسته python3-venv..."
             apt update >> "$LOG_FILE" 2>&1
-            apt install -y python3-venv >> "$LOG_FILE" 2>&1
+            apt install -y python3.12-venv >> "$LOG_FILE" 2>&1
             if [ $? -ne 0 ]; then
-                print_error "نصب بسته python3-venv با خطا مواجه شد. لطفاً دستور زیر را اجرا کنید:"
-                print_message "  sudo apt install -y python3-venv"
+                print_error "نصب بسته python3.12-venv با خطا مواجه شد. لطفاً دستور زیر را اجرا کنید:"
+                print_message "  sudo apt install -y python3.12-venv"
                 exit 1
             fi
-            print_success "بسته python3-venv با موفقیت نصب شد."
+            print_success "بسته python3.12-venv با موفقیت نصب شد."
         fi
     else
         print_error "لطفاً Python 3.10 را به صورت دستی نصب کنید: https://www.python.org/downloads/source/"
@@ -434,13 +434,13 @@ else
                 if ! python3 -m venv --help >/dev/null 2>&1; then
                     print_message "نصب بسته python3-venv..."
                     apt update >> "$LOG_FILE" 2>&1
-                    apt install -y python3-venv >> "$LOG_FILE" 2>&1
+                    apt install -y python3.12-venv >> "$LOG_FILE" 2>&1
                     if [ $? -ne 0 ]; then
-                        print_error "نصب بسته python3-venv با خطا مواجه شد. لطفاً دستور زیر را اجرا کنید:"
-                        print_message "  sudo apt install -y python3-venv"
+                        print_error "نصب بسته python3.12-venv با خطا مواجه شد. لطفاً دستور زیر را اجرا کنید:"
+                        print_message "  sudo apt install -y python3.12-venv"
                         exit 1
                     fi
-                    print_success "بسته python3-venv با موفقیت نصب شد."
+                    print_success "بسته python3.12-venv با موفقیت نصب شد."
                 fi
             else
                 print_error "لطفاً Python 3.10 را به صورت دستی نصب کنید: https://www.python.org/downloads/source/"
@@ -459,13 +459,13 @@ else
                     if ! python3 -m venv --help >/dev/null 2>&1; then
                         print_message "نصب بسته python3-venv..."
                         apt update >> "$LOG_FILE" 2>&1
-                        apt install -y python3-venv >> "$LOG_FILE" 2>&1
+                        apt install -y python3.12-venv >> "$LOG_FILE" 2>&1
                         if [ $? -ne 0 ]; then
-                            print_error "نصب بسته python3-venv با خطا مواجه شد. لطفاً دستور زیر را اجرا کنید:"
-                            print_message "  sudo apt install -y python3-venv"
+                            print_error "نصب بسته python3.12-venv با خطا مواجه شد. لطفاً دستور زیر را اجرا کنید:"
+                            print_message "  sudo apt install -y python3.12-venv"
                             exit 1
                         fi
-                        print_success "بسته python3-venv با موفقیت نصب شد."
+                        print_success "بسته python3.12-venv با موفقیت نصب شد."
                     fi
                 else
                     print_error "لطفاً Python 3.10 را به صورت دستی نصب کنید: https://www.python.org/downloads/source/"
@@ -505,13 +505,14 @@ if [ $? -ne 0 ]; then
         print_message "  sudo add-apt-repository ppa:deadsnakes/ppa"
         print_message "  sudo apt install -y python3.10-venv"
     else
-        print_message "احتمالاً بسته python3-venv نصب نشده است. دستور زیر را اجرا کنید:"
-        print_message "  sudo apt install -y python3-venv"
+        print_message "احتمالاً بسته python3.12-venv نصب نشده است. دستور زیر را اجرا کنید:"
+        print_message "  sudo apt install -y python3.12-venv"
+        print_message "اگر همچنان مشکل داشتید، بررسی کنید که پایتون 3.12 به درستی نصب شده است:"
+        print_message "  python3 --version"
     fi
     exit 1
 fi
 print_success "محیط مجازی با موفقیت ایجاد شد."
-
 
 # ===== راه‌اندازی Ngrok (اختیاری) =====
 if [ "$USE_NGROK" = "y" ] || [ "$USE_NGROK" = "Y" ]; then
