@@ -266,6 +266,29 @@ else
     fi
 fi
 
+# ===== بررسی فایل‌های پروژه =====
+print_message "در حال بررسی فایل‌های پروژه..."
+REQUIRED_FILES=("app.py" "bot.py" "database.py")
+MISSING_FILES=()
+for file in "${REQUIRED_FILES[@]}"; do
+    if [ ! -f "$APP_DIR/$file" ]; then
+        MISSING_FILES+=("$file")
+    fi
+done
+if [ ${#MISSING_FILES[@]} -ne 0 ]; then
+    print_error "فایل‌های زیر در $APP_DIR پیدا نشدند: ${MISSING_FILES[*]}"
+    print_message "محتوای فعلی پوشه $APP_DIR:"
+    ls -la "$APP_DIR" >> "$LOG_FILE" 2>&1
+    cat "$LOG_FILE" | tail -n 10
+    print_message "لطفاً مطمئن شوید پروژه RFCBot به درستی کلون یا منتقل شده است."
+    print_message "نکات: 1) بررسی کنید که مخزن درست باشد (https://github.com/Alisa202min/NoeRFcBot.git)."
+    print_message "      2) اگر فایل‌ها در شاخه دیگری هستند (مثل dev)، شاخه درست را مشخص کنید."
+    print_message "      3) فایل‌ها را به صورت دستی به $APP_DIR منتقل کنید (یا ZIP آپلود کنید)."
+    exit 1
+fi
+print_success "همه فایل‌های مورد نیاز پروژه موجود هستند."
+
+
 
 # ===== راه‌اندازی پوشه برنامه =====
 print_message "در حال راه‌اندازی پوشه برنامه در $APP_DIR..."
