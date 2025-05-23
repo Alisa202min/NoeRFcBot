@@ -196,7 +196,7 @@ USE_GIT=${USE_GIT:-n}
 
 if [ "$USE_GIT" = "y" ] || [ "$USE_GIT" = "Y" ]; then
     read -p "آدرس مخزن گیت (مثال: username/rfcbot): " REPO_URL
-  GIT_REPO=${GIT_REPO:-https://github.com/Alisa202min/NoeRFcBot.git}
+  REPO_URL=${REPO_URL:-https://github.com/Alisa202min/NoeRFcBot.git}
     if [ -z "$REPO_URL" ]; then
         print_error "آدرس مخزن گیت نمی‌تواند خالی باشد."
         exit 1
