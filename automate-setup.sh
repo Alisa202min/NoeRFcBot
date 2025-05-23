@@ -188,23 +188,23 @@ print_success "پایگاه داده PostgreSQL با موفقیت راه‌ان�
 # ===== راه‌اندازی پوشه برنامه =====
 print_message "در حال راه‌اندازی پوشه برنامه در $APP_DIR..."
 
-
 # ===== کلون کردن مخزن گیت =====
 print_message "در حال راه‌اندازی فایل‌های پروژه در $APP_DIR..."
 read -p "آیا می‌خواهید پروژه را از مخزن گیت دانلود کنید؟ (y/n) [n]: " USE_GIT
 USE_GIT=${USE_GIT:-n}
 
 if [ "$USE_GIT" = "y" ] || [ "$USE_GIT" = "Y" ]; then
-    read -p "آدرس مخزن گیت (مثال: username/rfcbot): " REPO_URL
-  REPO_URL=${REPO_URL:-https://github.com/Alisa202min/NoeRFcBot.git}
+    read -p "آدرس مخزن گیت (مثال: username/rfcbot یا https://github.com/username/rfcbot.git): " REPO_URL
     if [ -z "$REPO_URL" ]; then
-        print_error "آدرس مخزن گیت نمی‌تواند خالی باشد."
-        exit 1
+        print_message "آدرس مخزن وارد نشده. استفاده از مقدار پیش‌فرض: Alisa202min/NoeRFcBot"
+        REPO_URL="Alisa202min/NoeRFcBot"
     fi
-    read -p "شاخه مخزن (خالی برای پیش‌فرض، معمولاً main یا master): " GIT_BRANCH
+    # Normalize REPO_URL (remove https://github.com/ or .git if present)
+    REPO_URL=$(echo "$REPO_URL" | sed 's|https://github.com/||; s|\.git$||')
+    read -p "شاخه مخزن (پیش‌فرض: replit-agent): " GIT_BRANCH
+    GIT_BRANCH=${GIT_BRANCH:-replit-agent}
     read -p "آیا می‌خواهید از SSH به جای HTTPS استفاده کنید؟ (y/n) [n]: " USE_SSH
-     GIT_BRANCH=${GIT_BRANCH:-replit-agent}
-     USE_SSH=${USE_SSH:-n}
+    USE_SSH=${USE_SSH:-n}
     if [ "$USE_SSH" != "y" ] && [ "$USE_SSH" != "Y" ]; then
         read -p "آیا مخزن خصوصی است؟ (y/n) [n]: " PRIVATE_REPO
         PRIVATE_REPO=${PRIVATE_REPO:-n}
@@ -221,28 +221,39 @@ if [ "$USE_GIT" = "y" ] || [ "$USE_GIT" = "Y" ]; then
         read -p "آیا می‌خواهید آن را حذف کنید؟ (y/n) [n]: " DELETE_DIR
         DELETE_DIR=${DELETE_DIR:-n}
         if [ "$DELETE_DIR" = "y" ] || [ "$DELETE_DIR" = "Y" ]; then
-            print_message "در حال حذف پوشه $APP_DIR..."
+            print_message "در حال حذف پوشه $APP_DIR (تخمین زمان: کمتر از 1 دقیقه)..."
             rm -rf "$APP_DIR" >> "$LOG_FILE" 2>&1 || { print_error "حذف پوشه $APP_DIR با خطا مواجه شد."; exit 1; }
             print_success "پوشه $APP_DIR با موفقیت حذف شد."
+        else
+            print_error "کلون کردن لغو شد زیرا پوشه $APP_DIR از قبل وجود دارد."
+            exit 1
         fi
     fi
-    print_message "در حال کلون کردن مخزن گیت..."
+    print_message "در حال کلون کردن مخزن گیت (تخمین زمان: 1-3 دقیقه)..."
     cd /var/www || { print_error "تغییر به دایرکتوری /var/www با خطا مواجه شد."; exit 1; }
     mkdir -p "$APP_DIR" >> "$LOG_FILE" 2>&1
     CLONE_CMD="git clone"
     [ -n "$GIT_BRANCH" ] && CLONE_CMD="$CLONE_CMD --branch $GIT_BRANCH"
     if [ "$USE_SSH" = "y" ] || [ "$USE_SSH" = "Y" ]; then
-        CLONE_CMD="$CLONE_CMD git@github.com:$REPO_URL.git $APP_DIR"
+        FINAL_URL="git@github.com:$REPO_URL.git"
     else
-        [ -n "$GIT_TOKEN" ] && REPO_URL="https://$GIT_TOKEN@github.com/$REPO_URL.git" || REPO_URL="https://github.com/$REPO_URL.git"
-        CLONE_CMD="$CLONE_CMD $REPO_URL $APP_DIR"
+        if [ -n "$GIT_TOKEN" ]; then
+            FINAL_URL="https://$GIT_TOKEN@github.com/$REPO_URL.git"
+        else
+            FINAL_URL="https://github.com/$REPO_URL.git"
+        fi
     fi
+    CLONE_CMD="$CLONE_CMD $FINAL_URL $APP_DIR"
     $CLONE_CMD >> "$LOG_FILE" 2>&1
     if [ $? -ne 0 ]; then
         print_error "کلون کردن مخزن گیت با خطا مواجه شد. جزئیات در $LOG_FILE."
         print_message "دستور پیشنهادی برای بررسی:"
         print_message "  cd /var/www"
         print_message "  $CLONE_CMD"
+        print_message "نکات عیب‌یابی:"
+        print_message "  1) مطمئن شوید توکن گیت‌هاب معتبر است و دسترسی repo دارد."
+        print_message "  2) آدرس مخزن را بررسی کنید: https://github.com/$REPO_URL"
+        print_message "  3) برای مشکلات شبکه، از VPN یا DNS عمومی (مثل 8.8.8.8) استفاده کنید."
         exit 1
     fi
     print_success "مخزن گیت با موفقیت کلون شد."
@@ -254,28 +265,6 @@ else
         exit 1
     fi
 fi
-# ===== بررسی فایل‌های پروژه =====
-print_message "در حال بررسی فایل‌های پروژه..."
-REQUIRED_FILES=("app.py" "bot.py" "database.py")
-MISSING_FILES=()
-for file in "${REQUIRED_FILES[@]}"; do
-    if [ ! -f "$APP_DIR/$file" ]; then
-        MISSING_FILES+=("$file")
-    fi
-done
-if [ ${#MISSING_FILES[@]} -ne 0 ]; then
-    print_error "فایل‌های زیر در $APP_DIR پیدا نشدند: ${MISSING_FILES[*]}"
-    print_message "محتوای فعلی پوشه $APP_DIR:"
-    ls -la "$APP_DIR" >> "$LOG_FILE" 2>&1
-    cat "$LOG_FILE" | tail -n 10
-    print_message "لطفاً مطمئن شوید پروژه RFCBot به درستی کلون یا منتقل شده است."
-    print_message "نکات: 1) بررسی کنید که مخزن درست باشد (https://github.com/Alisa202min/NoeRFcBot.git)."
-    print_message "      2) اگر فایل‌ها در شاخه دیگری هستند (مثل dev)، شاخه درست را مشخص کنید."
-    print_message "      3) فایل‌ها را به صورت دستی به $APP_DIR منتقل کنید (یا ZIP آپلود کنید)."
-    exit 1
-fi
-print_success "همه فایل‌های مورد نیاز پروژه موجود هستند."
-
 
 
 # ===== راه‌اندازی پوشه برنامه =====
