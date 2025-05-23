@@ -459,7 +459,7 @@ EOF
 fi
 
 # ===== ایجاد فایل تنظیمات =====
-print_message "در حال ایجاد فایل .env..."
+print_message "در حال ایجاد فایل .env (تخمین زمان: کمتر از 1 دقیقه)..."
 
 # ایجاد یک کلید تصادفی برای SESSION_SECRET
 SESSION_SECRET=$(openssl rand -hex 32)
@@ -467,6 +467,7 @@ SESSION_SECRET=$(openssl rand -hex 32)
 # ایجاد فایل .env
 cat > "$APP_DIR/.env" << EOF
 DATABASE_URL=postgresql://$DB_USER:$DB_PASSWORD@localhost/$DB_NAME
+SQLALCHEMY_DATABASE_URI=postgresql://$DB_USER:$DB_PASSWORD@localhost/$DB_NAME
 SESSION_SECRET=$SESSION_SECRET
 BOT_TOKEN=$BOT_TOKEN
 BOT_MODE=$BOT_MODE
@@ -477,14 +478,41 @@ ADMIN_USERNAME=$ADMIN_USERNAME
 ADMIN_PASSWORD=$ADMIN_PASSWORD
 UPLOAD_FOLDER=$APP_DIR/static/uploads
 EOF
-
-check_error "ایجاد فایل .env با خطا مواجه شد." "فایل .env با موفقیت ایجاد شد."
+if [ $? -ne 0 ]; then
+    print_error "ایجاد فایل .env با خطا مواجه شد."
+    exit 1
+fi
+print_success "فایل .env با موفقیت ایجاد شد."
 
 # ===== نصب وابستگی‌های پروژه =====
-print_message "در حال نصب وابستگی‌های پروژه از requirements.txt..."
+print_message "در حال نصب وابستگی‌های پروژه از requirements.txt (تخمین زمان: 2-5 دقیقه)..."
 if [ ! -f "$APP_DIR/requirements.txt" ]; then
     print_warning "فایل requirements.txt در $APP_DIR یافت نشد. ایجاد فایل پیش‌فرض..."
-    echo -e "flask==2.3.3\npython-telegram-bot==20.7\npsycopg2-binary==2.9.9\ngunicorn==21.2.0" > "$APP_DIR/requirements.txt"
+    cat << EOF > "$APP_DIR/requirements.txt"
+flask==3.1.0
+Flask-SQLAlchemy==3.1.1
+Flask-Login==0.6.3
+Flask-WTF==1.2.2
+SQLAlchemy==2.0.40
+psycopg2-binary==2.9.10
+Werkzeug==3.1.3
+Jinja2==3.1.6
+gunicorn==23.0.0
+python-telegram-bot==20.7
+aiogram==3.20.0
+aiohttp==3.11.18
+python-dotenv==1.1.0
+Pillow==11.2.1
+email-validator==2.2.0
+pytest==8.3.5
+pytest-flask==1.3.0
+pytest-asyncio==0.26.0
+PyJWT==2.10.1
+oauthlib==3.2.2
+requests==2.32.3
+replit==4.1.1
+locust==2.37.1
+EOF
 fi
 source "$APP_DIR/venv/bin/activate" >> "$LOG_FILE" 2>&1
 if [ $? -ne 0 ]; then
@@ -495,7 +523,7 @@ pip install --upgrade pip >> "$LOG_FILE" 2>&1
 pip install -r "$APP_DIR/requirements.txt" >> "$LOG_FILE" 2>&1
 if [ $? -ne 0 ]; then
     print_error "نصب وابستگی‌ها با خطا مواجه شد. جزئیات در $LOG_FILE."
-    print_message "لطفاً دستور زیر را اجرا کنید:"
+    print_message "دستور پیشنهادی برای بررسی:"
     print_message "  source $APP_DIR/venv/bin/activate"
     print_message "  pip install -r $APP_DIR/requirements.txt"
     deactivate
@@ -504,40 +532,88 @@ fi
 print_success "وابستگی‌های پروژه با موفقیت نصب شدند."
 deactivate
 
-
-
 # ===== راه‌اندازی پایگاه داده ============================
-print_message "در حال راه‌اندازی جداول پایگاه داده..."
+print_message "در حال راه‌اندازی جداول پایگاه داده (تخمین زمان: 1-2 دقیقه)..."
 
 # فعال‌سازی محیط مجازی اگر فعال نیست
 if ! command -v python | grep -q "$APP_DIR/venv" 2>/dev/null; then
-    source "$APP_DIR/venv/bin/activate"
+    source "$APP_DIR/venv/bin/activate" >> "$LOG_FILE" 2>&1
 fi
 
-# بررسی می‌کنیم که آیا فایل اصلی وجود دارد
+# ایجاد اسکریپت موقت برای راه‌اندازی جداول
+cat << EOF > "$APP_DIR/init_db.py"
+from dotenv import load_dotenv
+import os
+from app import app, db
+load_dotenv()
+with app.app_context():
+    db.create_all()
+EOF
+
+# بررسی وجود فایل app.py
 if [ -f "$APP_DIR/app.py" ]; then
-    python -c "from app import db; db.create_all()" >> "$LOG_FILE" 2>&1
-    check_error "ایجاد جداول پایگاه داده با خطا مواجه شد." "جداول پایگاه داده با موفقیت ایجاد شدند."
+    python "$APP_DIR/init_db.py" >> "$LOG_FILE" 2>&1
+    if [ $? -ne 0 ]; then
+        print_error "ایجاد جداول پایگاه داده با خطا مواجه شد. جزئیات در $LOG_FILE."
+        print_message "دستور پیشنهادی برای بررسی:"
+        print_message "  cd $APP_DIR"
+        print_message "  source venv/bin/activate"
+        print_message "  python init_db.py"
+        print_message "نکات عیب‌یابی:"
+        print_message "  1) فایل $APP_DIR/.env را بررسی کنید (حاوی SQLALCHEMY_DATABASE_URI)."
+        print_message "  2) مطمئن شوید PostgreSQL در حال اجرا است: sudo systemctl status postgresql"
+        print_message "  3) اتصال به دیتابیس را تست کنید: psql -U $DB_USER -d $DB_NAME -h localhost"
+        deactivate
+        exit 1
+    fi
+    print_success "جداول پایگاه داده با موفقیت ایجاد شدند."
 elif [ -f "$APP_DIR/src/web/app.py" ]; then
     # اگر از ساختار ماژولار استفاده می‌شود
     export PYTHONPATH="$APP_DIR"
-    python -c "from src.web.app import db; db.create_all()" >> "$LOG_FILE" 2>&1
-    check_error "ایجاد جداول پایگاه داده با خطا مواجه شد." "جداول پایگاه داده با موفقیت ایجاد شدند."
+    python "$APP_DIR/init_db.py" >> "$LOG_FILE" 2>&1
+    if [ $? -ne 0 ]; then
+        print_error "ایجاد جداول پایگاه داده با خطا مواجه شد. جزئیات در $LOG_FILE."
+        print_message "دستور پیشنهادی برای بررسی:"
+        print_message "  cd $APP_DIR"
+        print_message "  source venv/bin/activate"
+        print_message "  export PYTHONPATH=$APP_DIR"
+        print_message "  python init_db.py"
+        print_message "نکات عیب‌یابی:"
+        print_message "  1) فایل $APP_DIR/.env را بررسی کنید (حاوی SQLALCHEMY_DATABASE_URI)."
+        print_message "  2) مطمئن شوید PostgreSQL در حال اجرا است: sudo systemctl status postgresql"
+        print_message "  3) اتصال به دیتابیس را تست کنید: psql -U $DB_USER -d $DB_NAME -h localhost"
+        deactivate
+        exit 1
+    fi
+    print_success "جداول پایگاه داده با موفقیت ایجاد شدند."
 else
     print_warning "فایل app.py پیدا نشد. لطفاً به صورت دستی جداول پایگاه داده را ایجاد کنید."
+    deactivate
+    exit 1
 fi
 
 # اجرای اسکریپت‌های تنظیمات اولیه
 if [ -f "$APP_DIR/seed_admin_data.py" ]; then
-    print_message "در حال اجرای اسکریپت seed_admin_data.py..."
+    print_message "در حال اجرای اسکریپت seed_admin_data.py (تخمین زمان: کمتر از 1 دقیقه)..."
     python "$APP_DIR/seed_admin_data.py" >> "$LOG_FILE" 2>&1
+    if [ $? -ne 0 ]; then
+        print_warning "اجرای seed_admin_data.py با خطا مواجه شد. جزئیات در $LOG_FILE."
+    else
+        print_success "اسکریپت seed_admin_data.py با موفقیت اجرا شد."
+    fi
 fi
 
 if [ -f "$APP_DIR/seed_categories.py" ]; then
-    print_message "در حال اجرای اسکریپت seed_categories.py..."
+    print_message "در حال اجرای اسکریپت seed_categories.py (تخمین زمان: کمتر از 1 دقیقه)..."
     python "$APP_DIR/seed_categories.py" >> "$LOG_FILE" 2>&1
+    if [ $? -ne 0 ]; then
+        print_warning "اجرای seed_categories.py با خطا مواجه شد. جزئیات در $LOG_FILE."
+    else
+        print_success "اسکریپت seed_categories.py با موفقیت اجرا شد."
+    fi
 fi
 
+deactivate >> "$LOG_FILE" 2>&1
 # ===== ایجاد سرویس‌ها =====
 print_message "در حال ایجاد سرویس‌های سیستمی..."
 
