@@ -4,21 +4,22 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_login import LoginManager
+from dotenv import load_dotenv
 
+load_dotenv()
 
 class Base(DeclarativeBase):
     pass
-
 
 db = SQLAlchemy(model_class=Base)
 
 # Create the Flask app
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "رمز موقت برای ربات RFCBot")
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)  # For proper URL generation with https
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Database configuration
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("SQLALCHEMY_DATABASE_URI") or os.environ.get("DATABASE_URL")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
@@ -29,6 +30,7 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     }
 }
 
+# بقیه کدها بدون تغییر...
 # Configure Flask-Uploads
 from utils_upload import UploadSet, IMAGES, VIDEO, configure_uploads
 
