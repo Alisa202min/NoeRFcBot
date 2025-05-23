@@ -323,35 +323,59 @@ fi
 
 if [ -z "$PYTHON_EXEC" ]; then
     print_message "در حال نصب پایتون 3.11..."
-    print_message "مرحله 1: نصب وابستگی‌های مورد نیاز (تخمین زمان: 2-5 دقیقه)"
-    apt update >> "$LOG_FILE" 2>&1
-    apt install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev curl libbz2-dev libsqlite3-dev liblzma-dev tk-dev uuid-dev >> "$LOG_FILE" 2>&1
+    print_message "مرحله 1: به‌روزرسانی مخازن و نصب ابزارهای لازم (تخمین زمان: 2-5 دقیقه)"
+    apt clean >> "$LOG_FILE" 2>&1
+    apt update >> "$LOG_FILE" 2>&1 || { print_warning "به‌روزرسانی مخازن با خطا مواجه شد. ادامه با مخازن فعلی..."; }
+    apt install -y software-properties-common ca-certificates curl gnupg >> "$LOG_FILE" 2>&1
     if [ $? -ne 0 ]; then
-        print_error "نصب وابستگی‌ها با خطا مواجه شد. جزئیات در $LOG_FILE."
+        print_error "نصب ابزارهای لازم (software-properties-common) با خطا مواجه شد. جزئیات در $LOG_FILE."
         exit 1
     fi
-    print_success "وابستگی‌ها با موفقیت نصب شدند."
+    print_success "ابزارهای لازم با موفقیت نصب شدند."
 
-    print_message "مرحله 2: دانلود و استخراج پایتون 3.11 (تخمین زمان: 1-3 دقیقه)"
-    cd /usr/src || { print_error "تغییر به /usr/src با خطا مواجه شد."; exit 1; }
-    rm -rf Python-3.11.10* >> "$LOG_FILE" 2>&1
-    wget https://www.python.org/ftp/python/3.11.10/Python-3.11.10.tar.xz >> "$LOG_FILE" 2>&1
-    tar -xf Python-3.11.10.tar.xz >> "$LOG_FILE" 2>&1 || { print_error "استخراج فایل پایتون با خطا مواجه شد."; exit 1; }
-    cd Python-3.11.10 || { print_error "تغییر به دایرکتوری Python-3.11.10 با خطا مواجه شد."; exit 1; }
-    print_success "دانلود و استخراج با موفقیت انجام شد."
+    print_message "مرحله 2: افزودن مخزن deadsnakes PPA (تخمین زمان: 1-3 دقیقه)"
+    timeout 120 add-apt-repository -y ppa:deadsnakes/ppa >> "$LOG_FILE" 2>&1
+    if [ $? -ne 0 ]; then
+        print_warning "افزودن مخزن deadsnakes با خطا مواجه شد. تلاش برای نصب دستی پایتون 3.11..."
+        print_message "مرحله 2.1: نصب وابستگی‌های مورد نیاز برای نصب دستی (تخمین زمان: 2-5 دقیقه)"
+        apt install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev curl libbz2-dev libsqlite3-dev liblzma-dev tk-dev uuid-dev >> "$LOG_FILE" 2>&1
+        if [ $? -ne 0 ]; then
+            print_error "نصب وابستگی‌ها با خطا مواجه شد. جزئیات در $LOG_FILE."
+            exit 1
+        fi
+        print_success "وابستگی‌ها با موفقیت نصب شدند."
 
-    print_message "مرحله 3: پیکربندی پایتون (تخمین زمان: 2-5 دقیقه)"
-    ./configure --enable-optimizations >> "$LOG_FILE" 2>&1 || { print_error "پیکربندی پایتون با خطا مواجه شد."; exit 1; }
-    print_success "پیکربندی با موفقیت انجام شد."
+        print_message "مرحله 2.2: دانلود و استخراج پایتون 3.11 (تخمین زمان: 1-3 دقیقه)"
+        cd /usr/src || { print_error "تغییر به /usr/src با خطا مواجه شد."; exit 1; }
+        rm -rf Python-3.11.10* >> "$LOG_FILE" 2>&1
+        wget https://www.python.org/ftp/python/3.11.10/Python-3.11.10.tar.xz >> "$LOG_FILE" 2>&1
+        tar -xf Python-3.11.10.tar.xz >> "$LOG_FILE" 2>&1 || { print_error "استخراج فایل پایتون با خطا مواجه شد."; exit 1; }
+        cd Python-3.11.10 || { print_error "تغییر به دایرکتوری Python-3.11.10 با خطا مواجه شد."; exit 1; }
+        print_success "دانلود و استخراج با موفقیت انجام شد."
 
-    print_message "مرحله 4: ساخت پایتون (تخمین زمان: 5-15 دقیقه، بسته به سخت‌افزار)"
-    make -j$(nproc) >> "$LOG_FILE" 2>&1 || { print_error "ساخت پایتون با خطا مواجه شد."; exit 1; }
-    print_success "ساخت پایتون با موفقیت انجام شد."
+        print_message "مرحله 2.3: پیکربندی پایتون (تخمین زمان: 2-5 دقیقه)"
+        ./configure --enable-optimizations >> "$LOG_FILE" 2>&1 || { print_error "پیکربندی پایتون با خطا مواجه شد."; exit 1; }
+        print_success "پیکربندی با موفقیت انجام شد."
 
-    print_message "مرحله 5: نصب پایتون (تخمین زمان: 1-3 دقیقه)"
-    make altinstall >> "$LOG_FILE" 2>&1 || { print_error "نصب پایتون با خطا مواجه شد."; exit 1; }
-    print_success "پایتون 3.11 با موفقیت نصب شد."
-    PYTHON_EXEC="python3.11"
+        print_message "مرحله 2.4: ساخت پایتون (تخمین زمان: 5-15 دقیقه، بسته به سخت‌افزار)"
+        make -j$(nproc) >> "$LOG_FILE" 2>&1 || { print_error "ساخت پایتون با خطا مواجه شد."; exit 1; }
+        print_success "ساخت پایتون با موفقیت انجام شد."
+
+        print_message "مرحله 2.5: نصب پایتون (تخمین زمان: 1-3 دقیقه)"
+        make altinstall >> "$LOG_FILE" 2>&1 || { print_error "نصب پایتون با خطا مواجه شد."; exit 1; }
+        print_success "پایتون 3.11 با موفقیت نصب شد."
+        PYTHON_EXEC="python3.11"
+    else
+        print_message "مرحله 3: نصب پایتون 3.11 از مخزن deadsnakes (تخمین زمان: 2-5 دقیقه)"
+        apt update >> "$LOG_FILE" 2>&1
+        apt install -y python3.11 python3.11-venv python3.11-dev >> "$LOG_FILE" 2>&1
+        if [ $? -ne 0 ]; then
+            print_error "نصب پایتون 3.11 با خطا مواجه شد. جزئیات در $LOG_FILE."
+            exit 1
+        fi
+        print_success "پایتون 3.11 با موفقیت نصب شد."
+        PYTHON_EXEC="python3.11"
+    fi
 fi
 
 print_message "بررسی ماژول venv برای پایتون 3.11..."
