@@ -240,7 +240,14 @@ test_db_connection
 # ===== راه‌اندازی پوشه برنامه =====
 print_message "در حال راه‌اندازی پوشه برنامه در $APP_DIR..."
 
-@ -249,282 +199,560 @@
+# ===== کلون کردن مخزن گیت =====
+print_message "در حال راه‌اندازی فایل‌های پروژه در $APP_DIR..."
+read -p "آیا می‌خواهید پروژه را از مخزن گیت دانلود کنید؟ (y/n) [n]: " USE_GIT
+USE_GIT=${USE_GIT:-n}
+
+if [ "$USE_GIT" = "y" ] || [ "$USE_GIT" = "Y" ]; then
+    read -p "آدرس مخزن گیت (مثال: username/rfcbot یا https://github.com/username/rfcbot.git): " REPO_URL
+    if [ -z "$REPO_URL" ]; then
         print_message "آدرس مخزن وارد نشده. استفاده از مقدار پیش‌فرض: Alisa202min/NoeRFcBot"
         REPO_URL="Alisa202min/NoeRFcBot"
     fi
@@ -269,8 +276,7 @@ print_message "در حال راه‌اندازی پوشه برنامه در $APP
             print_message "در حال حذف پوشه $APP_DIR (تخمین زمان: کمتر از 1 دقیقه)..."
             rm -rf "$APP_DIR" >> "$LOG_FILE" 2>&1
             check_error "حذف پوشه $APP_DIR با خطا مواجه شد." "پوشه $APP_DIR با موفقیت حذف شد."
-            rm -rf "$APP_DIR" >> "$LOG_FILE" 2>&1 || { print_error "حذف پوشه $APP_DIR با خطا مواجه شد."; exit 1; }
-            print_success "پوشه $APP_DIR با موفقیت حذف شد."
+           
         else
             print_error "کلون کردن لغو شد زیرا پوشه $APP_DIR از قبل وجود دارد."
             exit 1
@@ -294,7 +300,7 @@ print_message "در حال راه‌اندازی پوشه برنامه در $APP
     $CLONE_CMD >> "$LOG_FILE" 2>&1
     check_error "کلون کردن مخزن گیت با خطا مواجه شد. جزئیات در $LOG_FILE." "مخزن گیت با موفقیت کلون شد."
     if [ $? -ne 0 ]; then
-        print_error "کلون کردن مخزن گیت با خطا مواجه شد. جزئیات در $LOG_FILE."
+ 
         print_message "دستور پیشنهادی برای بررسی:"
         print_message "  cd /var/www"
         print_message "  $CLONE_CMD"
@@ -342,7 +348,6 @@ ensure_load_dotenv
 
 # ===== راه‌اندازی پوشه برنامه =====
 print_message "در حال راه‌اندازی پوشه برنامه در $APP_DIR..."
-mkdir -p "$APP_DIR/static/uploads/products" "$APP_DIR/static/uploads/services" "$APP_DIR/static/uploads/services/main" "$APP_DIR/static/media/products" "$APP_DIR/logs" >> "$LOG_FILE" 2>&1
 
 # ایجاد پوشه‌های لازم
 mkdir -p "$APP_DIR" >> "$LOG_FILE" 2>&1
@@ -371,7 +376,7 @@ print_message "در حال بررسی نسخه‌های پایتون نصب‌ش
 if command -v python3.11 >/dev/null 2>&1; then
     PYTHON_VERSION=$(python3.11 --version 2>&1)
     print_message "پایتون 3.11 یافت شد: $PYTHON_VERSION"
-    PYTHON_EXEC="python3.11"
+  
     read -p "آیا می‌خواهید با پایتون 3.11 موجود ادامه دهید؟ (y/n) [y]: " USE_EXISTING
     USE_EXISTING=${USE_EXISTING:-y}
     if [ "$USE_EXISTING" = "y" ] || [ "$USE_EXISTING" = "Y" ]; then
@@ -469,11 +474,8 @@ cd "$APP_DIR" || { print_error "تغییر به $APP_DIR با خطا مواجه 
 rm -rf venv >> "$LOG_FILE" 2>&1
 $PYTHON_EXEC -m venv venv >> "$LOG_FILE" 2>&1
 check_error "ایجاد محیط مجازی با خطا مواجه شد." "محیط مجازی با موفقیت ایجاد شد."
-if [ $? -ne 0 ]; then
-    print_error "ایجاد محیط مجازی با پایتون 3.11 با خطا مواجه شد."
-    exit 1
-fi
-print_success "محیط مجازی با موفقیت ایجاد شد."
+
+
 
 
 # ===== راه‌اندازی Ngrok (اختیاری) =====
