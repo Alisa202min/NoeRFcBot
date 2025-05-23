@@ -300,7 +300,6 @@ for file in "${REQUIRED_FILES[@]}"; do
     fi
 done
 print_success "همه فایل‌های مورد نیاز پروژه موجود هستند."
-
 # ===== بررسی و نصب پایتون 3.11 برای محیط مجازی =====
 print_message "در حال بررسی و نصب پایتون 3.11 برای محیط مجازی..."
 if command -v python3.11 >/dev/null 2>&1; then
@@ -314,23 +313,20 @@ else
     if [ $? -ne 0 ]; then
         print_warning "افزودن مخزن deadsnakes با خطا مواجه شد."
         print_message "تلاش برای نصب دستی پایتون 3.11..."
-        apt install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev curl libbz2-dev >> "$LOG_FILE" 2>&1
-        cd /usr/src || exit 1
+        apt install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev curl libbz2-dev libsqlite3-dev liblzma-dev tk-dev uuid-dev >> "$LOG_FILE" 2>&1
+        cd /usr/src || { print_error "تغییر به /usr/src با خطا مواجه شد."; exit 1; }
+        rm -rf Python-3.11.10* >> "$LOG_FILE" 2>&1
         wget https://www.python.org/ftp/python/3.11.10/Python-3.11.10.tar.xz >> "$LOG_FILE" 2>&1
-        tar -xf Python-3.11.10.tar.xz >> "$LOG_FILE" 2>&1
-        cd Python-3.11.10 || exit 1
-        ./configure --enable-optimizations >> "$LOG_FILE" 2>&1
-        make -j$(nproc) >> "$LOG_FILE" 2>&1
-        make altinstall >> "$LOG_FILE" 2>&1
-        if [ $? -ne 0 ]; then
-            print_error "نصب پایتون 3.11 با خطا مواجه شد. جزئیات در $LOG_FILE."
-            exit 1
-        fi
+        tar -xf Python-3.11.10.tar.xz >> "$LOG_FILE" 2>&1 || { print_error "استخراج فایل پایتون با خطا مواجه شد."; exit 1; }
+        cd Python-3.11.10 || { print_error "تغییر به دایرکتوری Python-3.11.10 با خطا مواجه شد."; exit 1; }
+        ./configure --enable-optimizations >> "$LOG_FILE" 2>&1 || { print_error "پیکربندی پایتون با خطا مواجه شد."; exit 1; }
+        make -j$(nproc) >> "$LOG_FILE" 2>&1 || { print_error "ساخت پایتون با خطا مواجه شد."; exit 1; }
+        make altinstall >> "$LOG_FILE" 2>&1 || { print_error "نصب پایتون با خطا مواجه شد."; exit 1; }
         print_success "پایتون 3.11 با موفقیت نصب شد."
         PYTHON_EXEC="python3.11"
     else
         apt update >> "$LOG_FILE" 2>&1
-        timeout 300 apt install -y python3.11 python3.11-venv python3.11-dev >> "$LOG_FILE" 2>&1
+        apt install -y python3.11 python3.11-venv python3.11-dev >> "$LOG_FILE" 2>&1
         if [ $? -ne 0 ]; then
             print_error "نصب پایتون 3.11 با خطا مواجه شد. جزئیات در $LOG_FILE."
             exit 1
@@ -339,10 +335,8 @@ else
         PYTHON_EXEC="python3.11"
     fi
 fi
-
 if ! python3.11 -m venv --help >/dev/null 2>&1; then
     print_message "نصب بسته python3.11-venv..."
-    apt update >> "$LOG_FILE" 2>&1
     apt install -y python3.11-venv >> "$LOG_FILE" 2>&1
     if [ $? -ne 0 ]; then
         print_error "نصب بسته python3.11-venv با خطا مواجه شد."
@@ -350,18 +344,15 @@ if ! python3.11 -m venv --help >/dev/null 2>&1; then
     fi
     print_success "بسته python3.11-venv با موفقیت نصب شد."
 fi
-
-print_message "در حال ایجاد محیط مجازی پایتون با python3.11..."
-cd "$APP_DIR" || exit 1
+print_message "در حال ایجاد محیط مجازی با python3.11..."
+cd "$APP_DIR" || { print_error "تغییر به $APP_DIR با خطا مواجه شد."; exit 1; }
+rm -rf venv >> "$LOG_FILE" 2>&1
 python3.11 -m venv venv >> "$LOG_FILE" 2>&1
 if [ $? -ne 0 ]; then
-    print_error "ایجاد محیط مجازی با python3.11 با خطا مواجه شد. جزئیات در $LOG_FILE."
-    print_message "دستور زیر را اجرا کنید:"
-    print_message "  sudo apt install -y python3.11-venv"
+    print_error "ایجاد محیط مجازی با python3.11 با خطا مواجه شد."
     exit 1
 fi
 print_success "محیط مجازی با موفقیت ایجاد شد."
-
 # ===== راه‌اندازی Ngrok (اختیاری) =====
 if [ "$USE_NGROK" = "y" ] || [ "$USE_NGROK" = "Y" ]; then
     print_message "در حال نصب و پیکربندی Ngrok..."
