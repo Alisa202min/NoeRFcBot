@@ -1741,7 +1741,7 @@ class Database:
                     for row in reader:
                         try:
                             old_id = int(row['id'])
-                            new_id = self.add_category(
+                            new_id = self.add_product_category(
                                 name=row['name'],
                                 parent_id=None
                             )
@@ -1762,11 +1762,10 @@ class Database:
                                 new_id = category_id_map[old_id]
                                 new_parent_id = category_id_map[int(parent_id)]
 
-                                self.update_category(
+                                self.update_product_category(
                                     category_id=new_id,
                                     name=row['name'],
-                                    parent_id=new_parent_id,
-                                    cat_type=row.get('cat_type', 'product')
+                                    parent_id=new_parent_id
                                 )
                         except Exception as e:
                             logging.error(f"Error updating category parent: {e}")
