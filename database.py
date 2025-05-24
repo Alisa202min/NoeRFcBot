@@ -407,16 +407,14 @@ class Database:
                 logging.error(f"Failed retry in get_service_categories: {retry_error}")
                 return []
     
-    def update_category(self, category_id: int, name: str, parent_id: Optional[int] = None, 
-                       cat_type: Optional[str] = None) -> bool:
-        """Update a category"""
+    def update_product_category(self, category_id: int, name: str, parent_id: Optional[int] = None) -> bool:
+        """Update a product category"""
         category = self.get_product_category(category_id)
         if not category:
             return False
 
         if parent_id is None:
             parent_id = category['parent_id']
-       
 
         with self.conn.cursor() as cursor:
             cursor.execute(
@@ -424,15 +422,41 @@ class Database:
                 (name, parent_id, category_id)
             )
             return cursor.rowcount > 0
+    
+    def update_service_category(self, category_id: int, name: str, parent_id: Optional[int] = None) -> bool:
+        """Update a service category"""
+        category = self.get_service_category(category_id)
+        if not category:
+            return False
+
+        if parent_id is None:
+            parent_id = category['parent_id']
+
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                'UPDATE service_categories SET name = %s, parent_id = %s WHERE id = %s',
+                (name, parent_id, category_id)
+            )
+            return cursor.rowcount > 0
         
-    def delete_category(self, category_id: int) -> bool:
-        """Delete a category and all its subcategories"""
+    def delete_product_category(self, category_id: int) -> bool:
+        """Delete a product category and all its subcategories"""
         try:
             with self.conn.cursor() as cursor:
                 cursor.execute('DELETE FROM product_categories WHERE id = %s', (category_id,))
                 return cursor.rowcount > 0
         except Exception as e:
-            logging.error(f"Error deleting category: {e}")
+            logging.error(f"Error deleting product category: {e}")
+            return False
+
+    def delete_service_category(self, category_id: int) -> bool:
+        """Delete a service category and all its subcategories"""
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute('DELETE FROM service_categories WHERE id = %s', (category_id,))
+                return cursor.rowcount > 0
+        except Exception as e:
+            logging.error(f"Error deleting service category: {e}")
             return False
 
     def add_product(self, name: str, price: int, description: str, 
