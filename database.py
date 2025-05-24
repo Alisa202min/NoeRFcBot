@@ -1787,3 +1787,104 @@ class Database:
         except Exception as e:
             logging.error(f"Error importing from CSV: {e}")
             return (success_count, error_count)
+
+    def unified_search(self, search_query: str, max_results: int = 30) -> Dict[str, List[Dict]]:
+        """
+        Unified search across products, services, and educational content
+        
+        Args:
+            search_query: The search term (case-insensitive, supports Persian and English)
+            max_results: Maximum total results to return (default 30)
+            
+        Returns:
+            Dictionary with 'products', 'services', and 'educational' keys containing search results
+        """
+        if not search_query or len(search_query.strip()) < 3:
+            return {'products': [], 'services': [], 'educational': []}
+            
+        query = search_query.strip().lower()
+        results = {'products': [], 'services': [], 'educational': []}
+        total_count = 0
+        
+        try:
+            self.ensure_connection()
+            
+            # Search Products (priority 1)
+            if total_count < max_results:
+                with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    product_query = """
+                        SELECT p.id, p.name, p.price, p.description, p.photo_url, p.category_id,
+                               p.tags, p.brand, p.model_number, p.manufacturer, p.in_stock, p.featured,
+                               pc.name as category_name
+                        FROM products p
+                        LEFT JOIN product_categories pc ON p.category_id = pc.id
+                        WHERE LOWER(p.name) LIKE %s 
+                           OR LOWER(p.description) LIKE %s 
+                           OR LOWER(p.tags) LIKE %s
+                           OR LOWER(p.brand) LIKE %s
+                           OR LOWER(pc.name) LIKE %s
+                        ORDER BY p.featured DESC, p.name ASC
+                        LIMIT %s
+                    """
+                    search_pattern = f"%{query}%"
+                    cursor.execute(product_query, (search_pattern, search_pattern, search_pattern, 
+                                                 search_pattern, search_pattern, max_results))
+                    products = cursor.fetchall()
+                    results['products'] = list(products)
+                    total_count += len(products)
+            
+            # Search Services (priority 2)
+            if total_count < max_results:
+                remaining = max_results - total_count
+                with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    service_query = """
+                        SELECT s.id, s.name, s.price, s.description, s.photo_url, s.category_id,
+                               s.tags, s.featured,
+                               sc.name as category_name
+                        FROM services s
+                        LEFT JOIN service_categories sc ON s.category_id = sc.id
+                        WHERE LOWER(s.name) LIKE %s 
+                           OR LOWER(s.description) LIKE %s 
+                           OR LOWER(s.tags) LIKE %s
+                           OR LOWER(sc.name) LIKE %s
+                        ORDER BY s.featured DESC, s.name ASC
+                        LIMIT %s
+                    """
+                    search_pattern = f"%{query}%"
+                    cursor.execute(service_query, (search_pattern, search_pattern, 
+                                                 search_pattern, search_pattern, remaining))
+                    services = cursor.fetchall()
+                    results['services'] = list(services)
+                    total_count += len(services)
+            
+            # Search Educational Content (priority 3)
+            if total_count < max_results:
+                remaining = max_results - total_count
+                with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    educational_query = """
+                        SELECT e.id, e.title, e.content, e.category, e.category_id,
+                               ec.name as category_name, e.created_at
+                        FROM educational_content e
+                        LEFT JOIN educational_categories ec ON e.category_id = ec.id
+                        WHERE LOWER(e.title) LIKE %s 
+                           OR LOWER(e.content) LIKE %s 
+                           OR LOWER(e.category) LIKE %s
+                           OR LOWER(ec.name) LIKE %s
+                        ORDER BY e.created_at DESC
+                        LIMIT %s
+                    """
+                    search_pattern = f"%{query}%"
+                    cursor.execute(educational_query, (search_pattern, search_pattern, 
+                                                     search_pattern, search_pattern, remaining))
+                    educational = cursor.fetchall()
+                    results['educational'] = list(educational)
+                    total_count += len(educational)
+                    
+        except Exception as e:
+            logging.error(f"Error in unified_search: {e}")
+            
+        logging.info(f"Search '{search_query}' returned {total_count} total results: "
+                    f"{len(results['products'])} products, {len(results['services'])} services, "
+                    f"{len(results['educational'])} educational")
+        
+        return results
