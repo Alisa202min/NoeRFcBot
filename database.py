@@ -98,12 +98,23 @@ class Database:
     def initialize(self):
         """Initialize PostgreSQL database and create necessary tables"""
         with self.conn.cursor() as cursor:
-            # Create categories table
+            # Create product categories table
             cursor.execute('''
-                CREATE TABLE IF NOT EXISTS categories (
+                CREATE TABLE IF NOT EXISTS product_categories (
                     id SERIAL PRIMARY KEY,
                     name TEXT NOT NULL,
-                    parent_id INTEGER NULL,                              FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE CASCADE
+                    parent_id INTEGER NULL,
+                    FOREIGN KEY (parent_id) REFERENCES product_categories(id) ON DELETE CASCADE
+                )
+            ''')
+            
+            # Create service categories table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS service_categories (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    parent_id INTEGER NULL,
+                    FOREIGN KEY (parent_id) REFERENCES service_categories(id) ON DELETE CASCADE
                 )
             ''')
 
@@ -1607,11 +1618,11 @@ class Database:
                     for row in rows:
                         writer.writerow(row)
 
-            elif entity_type == 'categories':
+            elif entity_type == 'product_categories':
                 cursor = self.conn.execute(
-                    '''SELECT c.id, c.name, c.parent_id, c.cat_type, p.name as parent_name
-                       FROM categories c
-                       LEFT JOIN categories p ON c.parent_id = p.id
+                    '''SELECT c.id, c.name, c.parent_id, 'product' as cat_type, p.name as parent_name
+                       FROM product_categories c
+                       LEFT JOIN product_categories p ON c.parent_id = p.id
                        ORDER BY c.id'''
                 )
                 rows = [dict(row) for row in cursor.fetchall()]
@@ -1664,7 +1675,7 @@ class Database:
                             category_id = int(row.get('category_id', 0))
 
                             if not category_id and category_name:
-                                categories = self.get_categories()
+                                categories = self.get_product_categories_by_parent()
                                 found = False
                                 for cat in categories:
                                     if cat['name'] == category_name:
@@ -1673,7 +1684,7 @@ class Database:
                                         break
 
                                 if not found:
-                                    category_id = self.add_category(category_name, None, 'product')
+                                    category_id = self.add_category(category_name, None)
 
                             if category_id:
                                 self.add_product(
@@ -1698,8 +1709,7 @@ class Database:
                             old_id = int(row['id'])
                             new_id = self.add_category(
                                 name=row['name'],
-                                parent_id=None,
-                                cat_type=row.get('cat_type', 'product')
+                                parent_id=None
                             )
                             category_id_map[old_id] = new_id
                             success_count += 1
