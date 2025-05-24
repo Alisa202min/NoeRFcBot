@@ -592,7 +592,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 pip install --upgrade pip >> "$LOG_FILE" 2>&1
-pip install -r "$APP_DIR/requirements.txt" >> "$LOG_FILE" 2>&1 || {
+
 pip install -r "$APP_DIR/requirements.txt" >> "$LOG_FILE" 2>&1
 if [ $? -ne 0 ]; then
     print_error "نصب وابستگی‌ها با خطا مواجه شد. جزئیات در $LOG_FILE."
@@ -601,7 +601,6 @@ if [ $? -ne 0 ]; then
     print_message "  pip install -r $APP_DIR/requirements.txt"
     deactivate
     exit 1
-}
 fi
 print_success "وابستگی‌های پروژه با موفقیت نصب شدند."
 deactivate
