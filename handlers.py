@@ -48,6 +48,7 @@ class UserStates(StatesGroup):
     inquiry_phone = State()
     inquiry_description = State()
     waiting_for_confirmation = State()
+    waiting_for_search = State()
 
 # Start command handler - add a debug message to see if it's being called
 @router.message(CommandStart())
@@ -204,6 +205,105 @@ async def cmd_education(message: Message):
         error_msg = f"خطا در دریافت محتوای آموزشی: {str(e)}"
         logging.error(f"Error in cmd_education: {str(e)}\n{traceback.format_exc()}")
         await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
+
+# Search button handler
+@router.message(lambda message: message.text == SEARCH_BTN)
+async def cmd_search(message: Message, state: FSMContext):
+    """Handle Search button"""
+    try:
+        logging.info(f"Search requested by user: {message.from_user.id}")
+        
+        search_text = (
+            "🔍 *جستجو در محتوا*\n\n"
+            "برای جستجو در تمام محصولات، خدمات و محتوای آموزشی، "
+            "کلمه کلیدی خود را تایپ کنید:\n\n"
+            "• حداقل ۳ حرف وارد کنید\n"
+            "• می‌توانید به فارسی یا انگلیسی جستجو کنید\n"
+            "• جستجو در نام، توضیحات، برندها و دسته‌بندی‌ها انجام می‌شود"
+        )
+        
+        await message.answer(search_text, parse_mode="Markdown")
+        await state.set_state(UserStates.waiting_for_search)
+        logging.info(f"User {message.from_user.id} entered search state")
+    except Exception as e:
+        logging.error(f"Error in cmd_search: {str(e)}\n{traceback.format_exc()}")
+        await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
+
+# Search input handler
+@router.message(StateFilter(UserStates.waiting_for_search))
+async def handle_search_input(message: Message, state: FSMContext):
+    """Handle search input from user"""
+    try:
+        search_query = message.text.strip()
+        logging.info(f"Search query received from user {message.from_user.id}: {search_query}")
+        
+        if len(search_query) < 3:
+            await message.answer("⚠️ لطفا حداقل ۳ حرف وارد کنید.")
+            return
+            
+        # Perform the unified search
+        search_results = db.unified_search(search_query)
+        
+        total_results = (len(search_results['products']) + 
+                        len(search_results['services']) + 
+                        len(search_results['educational']))
+        
+        if total_results == 0:
+            await message.answer(
+                f"🔍 نتایج جستجو برای: *{search_query}*\n\n"
+                "❌ هیچ نتیجه‌ای یافت نشد.\n\n"
+                "💡 پیشنهاد: کلمات کلیدی دیگری امتحان کنید یا از واژه‌های کلی‌تر استفاده کنید.",
+                parse_mode="Markdown"
+            )
+            await state.clear()
+            return
+        
+        # Display search results
+        response_text = f"🔍 نتایج جستجو برای: *{search_query}*\n\n"
+        response_text += f"📊 تعداد کل نتایج: {total_results}\n\n"
+        
+        # Display Products
+        if search_results['products']:
+            response_text += f"🛍️ *محصولات ({len(search_results['products'])})*\n"
+            for product in search_results['products'][:5]:  # Show max 5 products
+                price_text = f"{product['price']:,} تومان" if product['price'] else "قیمت نامشخص"
+                stock_text = "✅ موجود" if product.get('in_stock') else "❌ ناموجود"
+                featured_text = "⭐" if product.get('featured') else ""
+                
+                response_text += (f"• {featured_text}{product['name']}\n"
+                                f"  💰 {price_text} | {stock_text}\n"
+                                f"  📁 {product.get('category_name', 'بدون دسته‌بندی')}\n\n")
+        
+        # Display Services  
+        if search_results['services']:
+            response_text += f"🔧 *خدمات ({len(search_results['services'])})*\n"
+            for service in search_results['services'][:5]:  # Show max 5 services
+                price_text = f"{service['price']:,} تومان" if service['price'] else "قیمت نامشخص"
+                featured_text = "⭐" if service.get('featured') else ""
+                
+                response_text += (f"• {featured_text}{service['name']}\n"
+                                f"  💰 {price_text}\n"
+                                f"  📁 {service.get('category_name', 'بدون دسته‌بندی')}\n\n")
+        
+        # Display Educational Content
+        if search_results['educational']:
+            response_text += f"📚 *محتوای آموزشی ({len(search_results['educational'])})*\n"
+            for edu in search_results['educational'][:5]:  # Show max 5 educational items
+                response_text += (f"• {edu['title']}\n"
+                                f"  📁 {edu.get('category_name', edu.get('category', 'بدون دسته‌بندی'))}\n\n")
+        
+        # Add navigation hint
+        response_text += "💡 برای مشاهده جزئیات بیشتر، از منوی اصلی به بخش مربوطه مراجعه کنید."
+        
+        await message.answer(response_text, parse_mode="Markdown")
+        await state.clear()
+        
+        logging.info(f"Search results sent to user {message.from_user.id}: {total_results} total results")
+        
+    except Exception as e:
+        logging.error(f"Error in handle_search_input: {str(e)}\n{traceback.format_exc()}")
+        await message.answer("⚠️ متأسفانه در جستجو خطایی رخ داد. لطفا مجددا تلاش کنید.")
+        await state.clear()
 
 # Inquiry button handler
 @router.message(lambda message: message.text == INQUIRY_BTN)
