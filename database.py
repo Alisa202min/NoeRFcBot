@@ -200,7 +200,7 @@ class Database:
         """Add a new category"""
         with self.conn.cursor() as cursor:
             cursor.execute(
-                'INSERT INTO categories (name, parent_id) VALUES (%s, %s, %s) RETURNING id',
+                'INSERT INTO product_categories (name, parent_id) VALUES (%s, %s) RETURNING id',
                 (name, parent_id)
             )
             category_id = cursor.fetchone()[0]
@@ -260,31 +260,34 @@ class Database:
             logging.error(f"Error in check_service_category_exists: {str(e)}")
             return False
 
-    def get_categories(self, parent_id: Optional[int] = None, cat_type: Optional[str] = None) -> List[Dict]:
-        """Get categories based on parent ID and/or type"""
-        query = 'SELECT id, name, parent_id FROM categories WHERE '
-        params = []
-        conditions = []
-
-        if parent_id is None:
-            conditions.append('parent_id IS NULL')
-        else:
-            conditions.append('parent_id = %s')
-            params.append(parent_id)
-
-        if cat_type:
-            conditions.append('cat_type = %s')
-            params.append(cat_type)
-
-        if not conditions:
-            query = 'SELECT id, name, parent_id FROM categories'
-        else:
-            query += ' AND '.join(conditions)
-
-        query += ' ORDER BY name'
-
+    def get_product_categories_by_parent(self, parent_id: Optional[int] = None) -> List[Dict]:
+        """Get product categories based on parent ID"""
+        self.ensure_connection()
         with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            cursor.execute(query, params)
+            if parent_id is None:
+                cursor.execute('SELECT id, name, parent_id FROM product_categories WHERE parent_id IS NULL ORDER BY name')
+            else:
+                cursor.execute('SELECT id, name, parent_id FROM product_categories WHERE parent_id = %s ORDER BY name', (parent_id,))
+            return cursor.fetchall()
+
+    def get_service_categories_by_parent(self, parent_id: Optional[int] = None) -> List[Dict]:
+        """Get service categories based on parent ID"""
+        self.ensure_connection()
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            if parent_id is None:
+                cursor.execute('SELECT id, name, parent_id FROM service_categories WHERE parent_id IS NULL ORDER BY name')
+            else:
+                cursor.execute('SELECT id, name, parent_id FROM service_categories WHERE parent_id = %s ORDER BY name', (parent_id,))
+            return cursor.fetchall()
+
+    def get_educational_categories_by_parent(self, parent_id: Optional[int] = None) -> List[Dict]:
+        """Get educational categories based on parent ID"""
+        self.ensure_connection()
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            if parent_id is None:
+                cursor.execute('SELECT id, name, parent_id FROM educational_categories WHERE parent_id IS NULL ORDER BY name')
+            else:
+                cursor.execute('SELECT id, name, parent_id FROM educational_categories WHERE parent_id = %s ORDER BY name', (parent_id,))
             return cursor.fetchall()
 
     def get_product_categories(self, parent_id=None) -> List[Dict]:
@@ -406,8 +409,8 @@ class Database:
 
         with self.conn.cursor() as cursor:
             cursor.execute(
-                'UPDATE categories SET name = %s, parent_id = %s, cat_type = %s WHERE id = %s',
-                (name, parent_id, cat_type, category_id)
+                'UPDATE product_categories SET name = %s, parent_id = %s WHERE id = %s',
+                (name, parent_id, category_id)
             )
             return cursor.rowcount > 0
         
@@ -415,7 +418,7 @@ class Database:
         """Delete a category and all its subcategories"""
         try:
             with self.conn.cursor() as cursor:
-                cursor.execute('DELETE FROM categories WHERE id = %s', (category_id,))
+                cursor.execute('DELETE FROM product_categories WHERE id = %s', (category_id,))
                 return cursor.rowcount > 0
         except Exception as e:
             logging.error(f"Error deleting category: {e}")
@@ -1587,12 +1590,12 @@ class Database:
                     '''SELECT p.id, p.name, p.price, p.description, p.photo_url, 
                              p.category_id, c.name as category_name, 'product' as type
                         FROM products p
-                        LEFT JOIN categories c ON p.category_id = c.id
+                        LEFT JOIN product_categories c ON p.category_id = c.id
                         UNION ALL
                         SELECT s.id, s.name, s.price, s.description, s.photo_url,
                              s.category_id, c.name as category_name, 'service' as type
                         FROM services s
-                        LEFT JOIN categories c ON s.category_id = c.id
+                        LEFT JOIN service_categories c ON s.category_id = c.id
                         ORDER BY type, id'''
                 )
                 rows = [dict(row) for row in cursor.fetchall()]
