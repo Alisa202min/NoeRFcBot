@@ -1,0 +1,351 @@
+
+### پرامبت  برای Replit Agent
+
+**عنوان**: اصلاح کامل ارجاعات به `categories` و `category_type`، جداسازی توابع برای دسته‌بندی‌ها، و حذف تمام وابستگی‌ها به جدول غیرموجود
+
+**دستورالعمل**:
+
+Replit Agent، این دستور حیاتیه و باید با **دقت کامل** اجرا بشه. ما توی پروژه **هیچ جدولی به نام `categories`** نداریم و نباید هیچ ارجاعی بهش توی کد باشه. همچنین، **هیچ مفهومی مثل `category_type` یا `cat_type` نباید توی کد وجود داشته باشه**. دسته‌بندی‌های سیستم ما کاملاً جدا طراحی شدن و هر کدوم جدول و منطق مستقل خودشون رو دارن:
+- `product_categories` برای دسته‌بندی‌های محصولات
+- `service_categories` برای دسته‌بندی‌های خدمات
+- `educational_categories` برای دسته‌بندی‌های محتوای آموزشی
+
+این جداسازی توی **همه لایه‌های سیستم** (دیتابیس، کد، رابط کاربری، مدل‌ها) اعمال شده. به‌جای استفاده از `category_type` یا متغیر مشابه، کد باید با **توابع جداگانه** برای هر نوع دسته‌بندی (محصولات، خدمات، محتوای آموزشی) کار کنه. هیچ بهانه‌ای برای نگه داشتن `category_type` یا ارجاع به `categories` قابل قبول نیست!
+
+**مشکلات فعلی**:
+1. **فایل `database.py`**:
+   - تابع‌های `add_category`, `delete_category`, و `update_category` فقط برای `product_categories` پیاده‌سازی شدن و برای `service_categories` و `educational_categories` وجود ندارن.
+   - تابع `update_category` از پارامتر `cat_type` استفاده می‌کنه (خط 660 هم همین مشکل رو داره).
+   - تابع `get_categories` به جدول غیرموجود `categories` کوئری می‌زنه و باید حذف یا اصلاح بشه.
+2. **فایل‌های HTML و سایر فایل‌ها**:
+   - ارجاعات به `categories` توی `templates/database.html` (خطوط 152 و 200) و `src/models/database.py` (خطوط 74, 99, 1294, 1478) باقی مونده.
+   - استفاده از `category_type` یا `cat_type` توی فایل‌های `src/web/main.py`, `templates/admin/categories.html`, `handlers.py`, `locustfile.py`, `templates/admin_category_form.html`, `src/models/models.py` هنوز وجود داره.
+3. **خطای `get_category`**:
+   - خطای `AttributeError: 'Database' object has no attribute 'get_category'` توی `handlers.py` (خطوط 676 و 750) برای محصولات و خدمات دیده شده و ممکنه برای محتوای آموزشی هم وجود داشته باشه.
+4. **دسته‌بندی‌های خالی**:
+   - رفتار فعلی که دسته‌بندی‌های خالی پیغام «فعلاً محصولی/سرویسی/مطلبی تعریف نشده» می‌دن درسته و نباید تغییر کنه.
+5. **مدیریت خطای دیتابیس**:
+   - اگه اتصال دیتابیس بعد از تلاش مجدد برقرار نشد، باید پیام خطای کاربرپسند (مثل «مشکلی در ارتباط با پایگاه داده به وجود آمده») به کاربر نشون داده بشه.
+
+**منطق اصلاح**:
+
+1. **اصلاح فایل `database.py`**:
+   - **حذف تابع `get_categories`**:
+     - تابع `get_categories` که به جدول `categories` کوئری می‌زنه رو کامل حذف کن، چون جدول `categories` وجود نداره.
+   - **ایجاد توابع جداگانه برای هر دسته‌بندی**:
+     - برای هر عملیات (`add`, `delete`, `update`, `get`) توابع جداگانه برای `product_categories`, `service_categories`, و `educational_categories` بساز. مثال:
+       ```python
+       class Database:
+           # محصولات
+           def add_product_category(self, name: str, parent_id: Optional[int] = None) -> int:
+               with self.conn.cursor() as cursor:
+                   cursor.execute(
+                       'INSERT INTO product_categories (name, parent_id) VALUES (%s, %s) RETURNING id',
+                       (name, parent_id)
+                   )
+                   return cursor.fetchone()[0]
+
+           def delete_product_category(self, category_id: int) -> bool:
+               try:
+                   with self.conn.cursor() as cursor:
+                       cursor.execute('DELETE FROM product_categories WHERE id = %s', (category_id,))
+                       return cursor.rowcount > 0
+               except Exception as e:
+                   logging.error(f"Error deleting product category: {e}")
+                   return False
+
+           def update_product_category(self, category_id: int, name: str, parent_id: Optional[int] = None) -> bool:
+               category = self.get_product_category(category_id)
+               if not category:
+                   return False
+               if parent_id is None:
+                   parent_id = category['parent_id']
+               with self.conn.cursor() as cursor:
+                   cursor.execute(
+                       'UPDATE product_categories SET name = %s, parent_id = %s WHERE id = %s',
+                       (name, parent_id, category_id)
+                   )
+                   return cursor.rowcount > 0
+
+           def get_product_category(self, category_id: int) -> Optional[Dict]:
+               with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                   cursor.execute('SELECT id, name, parent_id FROM product_categories WHERE id = %s', (category_id,))
+                   return cursor.fetchone()
+
+           def get_product_categories(self, parent_id: Optional[int] = None) -> List[Dict]:
+               with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                   query = """
+                       SELECT id, name, parent_id, created_at, updated_at
+                       FROM product_categories
+                       WHERE parent_id IS NOT DISTINCT FROM %s
+                       ORDER BY name
+                   """
+                   cursor.execute(query, (parent_id,))
+                   return cursor.fetchall()
+
+           # خدمات (مشابه برای service_categories)
+           def add_service_category(self, name: str, parent_id: Optional[int] = None) -> int:
+               with self.conn.cursor() as cursor:
+                   cursor.execute(
+                       'INSERT INTO service_categories (name, parent_id) VALUES (%s, %s) RETURNING id',
+                       (name, parent_id)
+                   )
+                   return cursor.fetchone()[0]
+
+           def delete_service_category(self, category_id: int) -> bool:
+               try:
+                   with self.conn.cursor() as cursor:
+                       cursor.execute('DELETE FROM service_categories WHERE id = %s', (category_id,))
+                       return cursor.rowcount > 0
+               except Exception as e:
+                   logging.error(f"Error deleting service category: {e}")
+                   return False
+
+           def update_service_category(self, category_id: int, name: str, parent_id: Optional[int] = None) -> bool:
+               category = self.get_service_category(category_id)
+               if not category:
+                   return False
+               if parent_id is None:
+                   parent_id = category['parent_id']
+               with self.conn.cursor() as cursor:
+                   cursor.execute(
+                       'UPDATE service_categories SET name = %s, parent_id = %s WHERE id = %s',
+                       (name, parent_id, category_id)
+                   )
+                   return cursor.rowcount > 0
+
+           def get_service_category(self, category_id: int) -> Optional[Dict]:
+               with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                   cursor.execute('SELECT id, name, parent_id FROM service_categories WHERE id = %s', (category_id,))
+                   return cursor.fetchone()
+
+           def get_service_categories(self, parent_id: Optional[int] = None) -> List[Dict]:
+               with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                   query = """
+                       SELECT id, name, parent_id, created_at, updated_at
+                       FROM service_categories
+                       WHERE parent_id IS NOT DISTINCT FROM %s
+                       ORDER BY name
+                   """
+                   cursor.execute(query, (parent_id,))
+                   return cursor.fetchall()
+
+           # محتوای آموزشی (مشابه برای educational_categories)
+           def add_educational_category(self, name: str, parent_id: Optional[int] = None) -> int:
+               with self.conn.cursor() as cursor:
+                   cursor.execute(
+                       'INSERT INTO educational_categories (name, parent_id) VALUES (%s, %s) RETURNING id',
+                       (name, parent_id)
+                   )
+                   return cursor.fetchone()[0]
+
+           def delete_educational_category(self, category_id: int) -> bool:
+               try:
+                   with self.conn.cursor() as cursor:
+                       cursor.execute('DELETE FROM educational_categories WHERE id = %s', (category_id,))
+                       return cursor.rowcount > 0
+               except Exception as e:
+                   logging.error(f"Error deleting educational category: {e}")
+                   return False
+
+           def update_educational_category(self, category_id: int, name: str, parent_id: Optional[int] = None) -> bool:
+               category = self.get_educational_category(category_id)
+               if not category:
+                   return False
+               if parent_id is None:
+                   parent_id = category['parent_id']
+               with self.conn.cursor() as cursor:
+                   cursor.execute(
+                       'UPDATE educational_categories SET name = %s, parent_id = %s WHERE id = %s',
+                       (name, parent_id, category_id)
+                   )
+                   return cursor.rowcount > 0
+
+           def get_educational_category(self, category_id: int) -> Optional[Dict]:
+               with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                   cursor.execute('SELECT id, name, parent_id FROM educational_categories WHERE id = %s', (category_id,))
+                   return cursor.fetchone()
+
+           def get_educational_categories(self, parent_id: Optional[int] = None) -> List[Dict]:
+               with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                   query = """
+                       SELECT id, name, parent_id, created_at, updated_at
+                       FROM educational_categories
+                       WHERE parent_id IS NOT DISTINCT FROM %s
+                       ORDER BY name
+                   """
+                   cursor.execute(query, (parent_id,))
+                   return cursor.fetchall()
+       ```
+   - **حذف `cat_type`**:
+     - پارامتر `cat_type` رو از تابع `update_category` حذف کن.
+     - خط 660 که از `cat_type` استفاده می‌کنه رو پیدا کن و حذف کن یا با منطق مناسب جایگزین کن (مثلاً با فراخوانی تابع مربوط به دسته‌بندی درست).
+
+2. **اصلاح فایل `handlers.py`**:
+   - خطوط 676 و 750 (توابع `show_product_categories` و `show_service_categories`) که `db.get_category` فراخوانی می‌کنن رو اصلاح کن:
+     ```python
+     # توی show_product_categories (خط 676)
+     parent_category = db.get_product_category(parent_id)
+
+     # توی show_service_categories (خط 750)
+     parent_category = db.get_service_category(parent_id)
+     ```
+   - اگه تابع `show_educational_categories` وجود داره، فراخوانی `db.get_category` رو با `db.get_educational_category` جایگزین کن.
+   - خطوط 788, 793, 804 که از `cat_type` استفاده می‌کنن رو حذف کن و منطق رو با توابع جداگانه بازنویسی کن. مثلاً:
+     ```python
+     # قبل
+     cat_type = state_data.get('cat_type', 'product')
+     if cat_type == 'product':
+         # ...
+     elif cat_type == 'service':
+         # ...
+
+     # بعد
+     if 'product' in state_data.get('context', ''):
+         await show_product_categories(message, db, parent_id)
+     elif 'service' in state_data.get('context', ''):
+         await show_service_categories(message, db, parent_id)
+     elif 'educational' in state_data.get('context', ''):
+         await show_educational_categories(message, db, parent_id)
+     ```
+
+3. **اصلاح فایل‌های HTML**:
+   - **فایل `templates/database.html`**:
+     - خط 152:
+       ```html
+       # قبل
+       <textarea name="sql_query" rows="5" placeholder="SELECT * FROM categories LIMIT 10;"></textarea>
+       # بعد
+       <textarea name="sql_query" rows="5" placeholder="SELECT * FROM product_categories LIMIT 10;"></textarea>
+       ```
+     - خط 200:
+       ```python
+       # قبل
+       'لیست دسته‌بندی‌ها': 'SELECT * FROM categories ORDER BY id LIMIT 20;'
+       # بعد
+       'لیست دسته‌بندی‌ها': 'SELECT * FROM product_categories ORDER BY id LIMIT 20;'
+       ```
+
+4. **اصلاح فایل `src/models/database.py`**:
+   - خطوط 74, 99, 1294, 1478 که از `FROM categories` استفاده می‌کنن رو با جدول مناسب جایگزین کن (بسته به context، مثلاً `product_categories` یا `service_categories`). مثال:
+     ```python
+     # قبل
+     cursor.execute('SELECT * FROM categories WHERE ...')
+     # بعد
+     cursor.execute('SELECT * FROM product_categories WHERE ...')
+     ```
+
+5. **حذف `category_type` از فایل‌های دیگر**:
+   - **فایل `src/web/main.py`**:
+     - خطوط 450, 463, 465, 467, 1647, 1651, 1653, 1655, 2616 که از `category_type` یا `cat_type` استفاده می‌کنن رو حذف کن.
+     - منطق رو با مسیرهای جداگانه برای محصولات، خدمات، و محتوای آموزشی بازنویسی کن. مثلاً:
+       ```python
+       # قبل
+       category_type = request.form.get('category_type')
+       if category_type == 'product':
+           # ...
+       elif category_type == 'service':
+           # ...
+
+       # بعد
+       if 'product' in request.form.get('context', ''):
+           db.add_product_category(name, parent_id)
+       elif 'service' in request.form.get('context', ''):
+           db.add_service_category(name, parent_id)
+       ```
+   - **فایل `templates/admin/categories.html`**:
+     - خطوط 341, 393, 462, 465 که از `category_type` استفاده می‌کنن رو حذف کن.
+     - فرم‌ها رو با فیلدهای جداگانه برای هر نوع دسته‌بندی بازنویسی کن:
+       ```html
+       # قبل
+       <input type="hidden" id="categoryType" name="category_type" value="product">
+       # بعد
+       <input type="hidden" id="categoryContext" name="context" value="product">
+       ```
+   - **فایل `locustfile.py`**:
+     - خطوط 219, 221, 250 که از `cat_type` استفاده می‌کنن رو حذف کن و تست‌ها رو برای هر نوع دسته‌بندی جداگانه بازنویسی کن:
+       ```python
+       # قبل
+       cat_type = random.choice(["product", "service"])
+       if cat_type == "product":
+           # ...
+
+       # بعد
+       context = random.choice(["product", "service", "educational"])
+       if context == "product":
+           self.client.get("/categories/product")
+       ```
+   - **فایل `templates/admin_category_form.html`**:
+     - خطوط 22, 23, 39, 40 که از `cat_type` استفاده می‌کنن رو حذف کن.
+     - فرم رو برای انتخاب نوع دسته‌بندی با مسیرهای جداگانه بازنویسی کن:
+       ```html
+       # قبل
+       <option value="product" {% if category and category.cat_type == 'product' %}selected{% endif %}>محصول</option>
+       # بعد
+       <input type="hidden" name="context" value="product">
+       ```
+   - **فایل `src/models/models.py`**:
+     - خط 84 که ستون `cat_type` رو تعریف می‌کنه رو حذف کن:
+       ```python
+       # قبل
+       cat_type = db.Column(db.String(10), default='product')
+       # بعد
+       # کاملاً حذف شود
+       ```
+
+6. **بهبود مدیریت خطای دیتابیس**:
+   - توی فایل `database.py`، منطق تلاش مجدد برای اتصال دیتابیس رو بررسی کن.
+   - اگه اتصال بعد از تلاش مجدد برقرار نشد، یه استثنای واضح بنداز و توی توابع `show_product_categories`, `show_service_categories`, و `show_educational_categories` اینو بگیر:
+     ```python
+     from psycopg2 import OperationalError
+
+     class Database:
+         def reconnect(self):
+             try:
+                 self.conn = psycopg2.connect(...)  # پارامترهای اتصال
+             except OperationalError as e:
+                 raise DatabaseConnectionError(f"Failed to reconnect to database: {str(e)}")
+
+     # توی handlers.py
+     async def show_product_categories(message: types.Message, db: Database, parent_id: Optional[int] = None):
+         try:
+             categories = db.get_product_categories(parent_id)
+             parent_category = db.get_product_category(parent_id) if parent_id else None
+             # بقیه کد...
+         except DatabaseConnectionError:
+             await message.answer("مشکلی در ارتباط با پایگاه داده به وجود آمده، لطفاً بعداً دوباره امتحان کنید.")
+             return
+     ```
+
+7. **اسکن کامل پروژه**:
+   - با `grep -r "categories" .` و `grep -r "category_type\|cat_type" .` کل پروژه رو اسکن کن.
+   - هر ارجاع به `categories` رو با جدول مناسب جایگزین کن.
+   - هر ارجاع به `category_type` یا `cat_type` رو حذف کن و منطق رو با توابع یا مسیرهای جداگانه بازنویسی کن.
+
+8. **همگام‌سازی با سرور**:
+   - بعد از اصلاح کد توی Replit، تغییرات رو به سرور منتقل کن:
+     ```bash
+     scp -r /path/to/replit/project user@server:/var/www/rfbot
+     ```
+   - سرویس سرور رو ری‌استارت کن:
+     ```bash
+     sudo systemctl restart rfbot-telegram
+     ```
+
+**هشدارهای مهم**:
+- **هیچ ارجاعی به `categories` یا `category_type`/`cat_type` نباید توی کد بمونه**. این جدول و مفهوم وجود ندارن.
+- تمام عملیات (`add`, `delete`, `update`, `get`) باید توابع جداگانه برای `product_categories`, `service_categories`, و `educational_categories` داشته باشن.
+- رفتار دسته‌بندی‌های خالی (پیغام «فعلاً محصولی/سرویسی/مطلبی تعریف نشده») درسته و نباید تغییر کنه.
+- قبل از اعمال تغییرات، نسخه پشتیبان از تمام فایل‌های پروژه بگیر.
+- اگه context کد مشخص نیست، قبل از تغییر از من بپرس.
+
+**خروجی مورد انتظار**:
+- تمام ارجاعات به `categories` و `category_type`/`cat_type` حذف شده.
+- توابع `add`, `delete`, `update`, `get` برای هر نوع دسته‌بندی (محصولات، خدمات، محتوای آموزشی) جداگانه پیاده‌سازی شده.
+- خطای `AttributeError: 'Database' object has no attribute 'get_category'` برای همه دسته‌بندی‌ها برطرف شده.
+- دسته‌بندی‌های خالی پیغام درست نشون می‌دن.
+- بات توی Replit و سرور بدون خطا کار می‌کنه.
+- گزارش کاملی از فایل‌ها، خطوط اصلاح‌شده، و توابع جدید ارائه بشه.
+
+Replit Agent، این تغییرات رو با **دقت کامل** اعمال کن و گزارش بده که کدوم فایل‌ها و خطوط رو اصلاح کردی. اگه context کد مشخص نیست یا نمی‌دونی چطور منطق رو بازنویسی کنی، قبل از تغییر از من بپرس. این موضوع حیاتیه و نباید هیچ سوتی دیگه‌ای بدی!
+
