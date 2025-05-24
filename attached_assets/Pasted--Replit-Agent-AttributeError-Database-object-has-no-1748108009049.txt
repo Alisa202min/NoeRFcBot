@@ -1,0 +1,139 @@
+
+### پرامبت جدید برای Replit Agent
+
+**عنوان**: رفع خطای `AttributeError: 'Database' object has no attribute 'get_category'` و اصلاح ارجاعات به `categories` بدون استفاده از `category_type`
+
+**دستورالعمل**:
+
+Replit Agent، این دستور بسیار مهمه و باید با دقت اجرا بشه. ما توی دیتابیس **هیچ جدولی به نام `categories`** نداریم و نباید هیچ ارجاعی بهش توی کد باشه. همچنین، **هیچ مفهومی مثل `category_type` یا متغیر مشابه برای انتخاب جدول نباید وجود داشته باشه**. دسته‌بندی‌های سیستم ما کاملاً جدا هستن و هر کدوم جدول و منطق مستقل خودشون رو دارن:
+- `product_categories` برای دسته‌بندی‌های محصولات
+- `service_categories` برای دسته‌بندی‌های خدمات
+- `educational_categories` برای دسته‌بندی‌های محتوای آموزشی
+
+این جداسازی توی همه لایه‌های سیستم (از دیتابیس تا UI) اعمال شده. هر نوع دسته‌بندی باید با جدول خودش و توابع جداگانه کار کنه، بدون استفاده از متغیر یا پارامتر برای انتخاب جدول.
+
+**مشکل**:
+1. خطای زیر توی `handlers.py` (خط 676) رخ می‌ده:
+   ```
+   AttributeError: 'Database' object has no attribute 'get_category'
+   ```
+   این یعنی تابع `get_category` توی شیء `db` وجود نداره، احتمالاً چون موقع اصلاح ارجاعات به جدول `categories`، این تابع حذف شده یا تغییر کرده بدون آپدیت ارجاعات.
+
+2. ممکنه هنوز ارجاعاتی به جدول غیرموجود `categories` توی کد باشه که باعث خطاهای دیگه‌ای بشه.
+
+**منطق اصلاح**:
+1. **جستجوی ارجاعات به `get_category` و `categories`**:
+   - با `grep -r "get_category" .` یا ابزار جستجوی دلخواهت، تمام ارجاعات به `get_category` رو پیدا کن.
+   - با `grep -r "categories" .` مطمئن شو هیچ ارجاعی به جدول `categories` توی کوئری‌های SQL یا مدل‌ها نیست.
+
+2. **تعریف توابع جدید توی `database.py`**:
+   - تابع `get_category` رو حذف کن یا مطمئن شو که وجود نداره.
+   - به‌جاش، سه تابع جداگانه برای هر نوع دسته‌بندی تعریف کن:
+     ```python
+     def get_product_category(category_id):
+         cursor.execute('SELECT id, name, parent_id FROM product_categories WHERE id = %s', (category_id,))
+         return cursor.fetchone()
+
+     def get_service_category(category_id):
+         cursor.execute('SELECT id, name, parent_id FROM service_categories WHERE id = %s', (category_id,))
+         return cursor.fetchone()
+
+     def get_educational_category(category_id):
+         cursor.execute('SELECT id, name, parent_id FROM educational_categories WHERE id = %s', (category_id,))
+         return cursor.fetchone()
+     ```
+   - این توابع باید توی کلاس `Database` (یا ماژول `database.py`) تعریف بشن تا شیء `db` بهشون دسترسی داشته باشه.
+
+3. **آپدیت ارجاعات توی `handlers.py`**:
+   - توی تابع `show_product_categories` (حدود خط 676)، ارجاع به `db.get_category(parent_id)` رو با `db.get_product_category(parent_id)` جایگزین کن:
+     ```python
+     # قبل
+     parent_category = db.get_category(parent_id)
+     # بعد
+     parent_category = db.get_product_category(parent_id)
+     ```
+   - برای تابع `show_service_categories` (اگه وجود داره)، از `db.get_service_category` استفاده کن:
+     ```python
+     parent_category = db.get_service_category(parent_id)
+     ```
+   - برای توابع مربوط به محتوای آموزشی (مثل `show_educational_categories`)، از `db.get_educational_category` استفاده کن.
+
+4. **اصلاح ارجاعات به `categories`**:
+   فایل‌ها و خطوط زیر قبلاً شناسایی شدن که ارجاعات نادرست به `categories` دارن. مطمئن شو که این‌ها اصلاح شدن و به جدول درست اشاره می‌کنن:
+
+   **فایل `database.py`**:
+   - **خط 214** (اگه هنوز وجود داره):
+     ```python
+     'SELECT id, name, parent_id FROM categories WHERE id = %s'
+     ```
+     - **اصلاح**:
+       - این خط باید توی یکی از توابع جدید (`get_product_category`, `get_service_category`, یا `get_educational_category`) باشه و به جدول درست اشاره کنه.
+   - **خطوط 245, 260, 398, 1590**:
+     - هرجا `categories` هست، به جدول مناسب (`product_categories`, `service_categories`, یا `educational_categories`) تغییر بده.
+     - مثال:
+       ```python
+       # قبل
+       query = 'SELECT id, name, parent_id FROM categories WHERE '
+       # بعد
+       query = 'SELECT id, name, parent_id FROM product_categories WHERE '
+       ```
+
+   **فایل `src/models/database.py`**:
+   - **خطوط 74, 99, 1294, 1478**:
+     - هرجا `FROM categories` هست، به جدول درست تغییر بده:
+       ```python
+       cursor.execute('SELECT * FROM product_categories WHERE ...')  # یا جدول مناسب
+       ```
+
+   **فایل `templates/database.html`**:
+   - **کوئری**:
+     ```python
+     cur.execute("SELECT * FROM categories WHERE id = %s", (category_id,))
+     ```
+     - **اصلاح**:
+       ```python
+       cur.execute("SELECT * FROM product_categories WHERE id = %s", (category_id,))  # یا جدول مناسب
+       ```
+   - **خط 152**:
+     ```html
+     <textarea name="sql_query" rows="5" placeholder="SELECT * FROM categories LIMIT 10;"></textarea>
+     ```
+     - **اصلاح**:
+       ```html
+       <textarea name="sql_query" rows="5" placeholder="SELECT * FROM product_categories LIMIT 10;"></textarea>
+       ```
+   - **خط 200**:
+     ```python
+     'لیست دسته‌بندی‌ها': 'SELECT * FROM categories ORDER BY id LIMIT 20;'
+     ```
+     - **اصلاح**:
+       ```python
+       'لیست دسته‌بندی‌ها': 'SELECT * FROM product_categories ORDER BY id LIMIT 20;'
+       ```
+
+5. **تشخیص جدول از context**:
+   - برای هر ارجاع به `categories` یا `get_category`، از context کد تشخیص بده که کد با کدوم نوع دسته‌بندی کار می‌کنه:
+     - اگه تابع یا فایل به محصولات اشاره داره (مثل `show_product_categories` یا مدل `ProductCategory`)، از `product_categories` و `get_product_category` استفاده کن.
+     - اگه به خدمات اشاره داره (مثل `show_service_categories` یا مدل `ServiceCategory`)، از `service_categories` و `get_service_category` استفاده کن.
+     - اگه به محتوای آموزشی اشاره داره (مثل `educational` یا مدل `EducationalCategory`)، از `educational_categories` و `get_educational_category` استفاده کن.
+   - **هرگز** از متغیر یا پارامتری مثل `category_type` استفاده نکن. اگه تابع چندمنظوره‌ست، به توابع جداگانه تقسیمش کن.
+
+6. **تأیید تغییرات**:
+   - بعد از اصلاح، کل پروژه رو با `grep -r "categories" .` و `grep -r "get_category" .` اسکن کن و مطمئن شو هیچ ارجاع نادرستی باقی نمونده.
+   - بات تلگرام رو تست کن و چک کن که دسته‌بندی‌های محصولات، خدمات، و محتوای آموزشی درست نمایش داده می‌شن.
+   - لاگ‌های کنسول رو بررسی کن تا مطمئن شی خطای `AttributeError: 'Database' object has no attribute 'get_category'` یا خطای مربوط به `categories` رخ نمی‌ده.
+
+**هشدارهای مهم**:
+- **هیچ ارجاعی به `categories` یا تابع `get_category` نباید توی کد بمونه**. جدول `categories` وجود نداره و تابع `get_category` باید با توابع جدید جایگزین بشه.
+- **هیچ متغیر یا پارامتری مثل `category_type` اضافه نکن**. جداسازی دسته‌بندی‌ها باید با توابع جداگانه (مثل `get_product_category`) پیاده‌سازی بشه.
+- اگه context کد مشخص نیست، تابع رو به توابع جداگانه تقسیم کن. **فرض نکن** یه جدول خاص درسته.
+- مطمئن شو که تغییرات توی همه فایل‌های مرتبط (مثل `handlers.py`, `database.py`, `src/models/database.py`) اعمال شدن.
+
+**خروجی مورد انتظار**:
+- تابع `get_category` حذف شده و با توابع `get_product_category`, `get_service_category`, `get_educational_category` جایگزین شده.
+- تمام ارجاعات به `categories` با جدول مناسب (`product_categories`, `service_categories`, یا `educational_categories`) جایگزین شدن.
+- خطای `AttributeError: 'Database' object has no attribute 'get_category'` رفع شده.
+- بات تلگرام بدون خطا کار می‌کنه و دسته‌بندی‌ها رو درست نمایش می‌ده.
+- گزارش کاملی از فایل‌ها، خطوط اصلاح‌شده، و توابع جدید ارائه بشه.
+
+Replit Agent، این تغییرات رو با دقت اعمال کن و گزارش بده که کدوم فایل‌ها، خطوط، و توابع رو اصلاح یا اضافه کردی. اگه context کد مشخص نیست یا نمی‌دونی کدوم جدول یا تابع رو استفاده کنی، قبل از تغییر از من بپرس. این موضوع حیاتیه و نباید فراموش بشه!

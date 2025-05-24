@@ -1,0 +1,64 @@
+عنوان: رفع خطای `AttributeError: 'Database' object has no attribute 'get_category'` و حذف ارجاعات `categories`
+
+دستورالعمل:  
+Replit Agent، جدول `categories` نداریم و ارجاعی بهش نباید باشه. مفهوم `category_type` هم ممنوعه. دسته‌بندی‌ها جداست:  
+- `product_categories` برای محصولات  
+- `service_categories` برای خدمات  
+- `educational_categories` برای محتوای آموزشی  
+هر دسته‌بندی جدول و تابع جدا داره.
+
+مشکل:  
+1. خطا توی `handlers.py` (خط 676): `AttributeError: 'Database' object has no attribute 'get_category'`. تابع `get_category` وجود نداره.  
+2. ممکنه ارجاعات به `categories` باقی مونده باشه.
+
+منطق اصلاح:  
+1. جستجو:  
+   با `grep -r "get_category" .` ارجاعات به `get_category` رو پیدا کن.  
+   با `grep -r "categories" .` ارجاعات به `categories` رو چک کن.
+
+2. توابع جدید توی `database.py`:  
+   `get_category` رو حذف کن. سه تابع تعریف کن:  
+   ```python
+   def get_product_category(category_id):
+       cursor.execute('SELECT id, name, parent_id FROM product_categories WHERE id = %s', (category_id,))
+       return cursor.fetchone()
+   def get_service_category(category_id):
+       cursor.execute('SELECT id, name, parent_id FROM service_categories WHERE id = %s', (category_id,))
+       return cursor.fetchone()
+   def get_educational_category(category_id):
+       cursor.execute('SELECT id, name, parent_id FROM educational_categories WHERE id = %s', (category_id,))
+       return cursor.fetchone()
+   ```  
+   تو کلاس `Database` تعریف بشن.
+
+3. آپدیت `handlers.py`:  
+   توی `show_product_categories` (خط 676)، `db.get_category` رو با `db.get_product_category` عوض کن.  
+   برای `show_service_categories` از `db.get_service_category` و برای آموزشی از `db.get_educational_category` استفاده کن.
+
+4. حذف ارجاعات `categories`:  
+   - `database.py` (خطوط 214, 245, 260, 398, 1590): `categories` رو با جدول درست عوض کن.  
+   - `src/models/database.py` (خطوط 74, 99, 1294, 1478): `FROM categories` رو اصلاح کن.  
+   - `templates/database.html`:  
+     - کوئری: `SELECT * FROM categories` رو با `product_categories` عوض کن.  
+     - خط 152: placeholder رو به `SELECT * FROM product_categories LIMIT 10` تغییر بده.  
+     - خط 200: `'لیست دسته‌بندی‌ها'` رو به `product_categories` عوض کن.
+
+5. تشخیص context:  
+   برای محصولات از `product_categories` و `get_product_category`، برای خدمات از `service_categories` و `get_service_category`، و برای آموزشی از `educational_categories` و `get_educational_category` استفاده کن. توابع چندمنظوره رو جدا کن.
+
+6. تأیید:  
+   با `grep` چک کن `categories` یا `get_category` نباشه. بات رو تست کن تا دسته‌بندی‌ها درست نمایش داده بشن. لاگ رو چک کن.
+
+هشدار:  
+- `categories` یا `get_category` نباید بمونه.  
+- `category_type` اضافه نکن.  
+- اگه context نامشخصه، تابع رو جدا کن.
+
+خروجی:  
+- `get_category` حذف و با توابع جدید جایگزین شده.  
+- ارجاعات `categories` اصلاح شده.  
+- خطای `AttributeError` رفع شده.  
+- بات بدون خطا کار می‌کنه.  
+- گزارش فایل‌ها و خطوط اصلاح‌شده ارائه بشه.
+
+Replit Agent، تغییرات رو دقیق اعمال کن و گزارش بده چی اصلاح کردی. اگه context نامشخصه، بپرس. این حیاتیه!
