@@ -1,8 +1,8 @@
-modules = ["python-3.11", "web", "postgresql-16"]
+modules = ["python-3.11"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["freetype", "killall", "lcms2", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "openssl", "postgresql", "sqlite", "tcl", "tk", "zlib"]
+packages = ["freetype", "lcms2", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "openssl", "postgresql", "tcl", "tk", "zlib"]
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -22,7 +22,7 @@ args = "Start application"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "python"
+args = "telegram_bot"
 
 [[workflows.workflow]]
 name = "Start application"
@@ -34,7 +34,7 @@ args = "gunicorn --bind 0.0.0.0:5000 --reuse-port --reload main:app"
 waitForPort = 5000
 
 [[workflows.workflow]]
-name = "python"
+name = "telegram_bot"
 author = "agent"
 
 [[workflows.workflow.tasks]]
@@ -44,5 +44,3 @@ args = "python bot.py"
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-
