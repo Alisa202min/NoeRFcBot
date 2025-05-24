@@ -699,19 +699,11 @@ if [ -f "$APP_DIR/seed_admin_data.py" ]; then
     else
         print_success "اسکریپت seed_admin_data.py با موفقیت اجرا شد."
     fi
+else
+    print_warning "فایل $script در $APP_DIR یافت نشد."
+fi
 done
-fi
 
-deactivate
-if [ -f "$APP_DIR/seed_categories.py" ]; then
-    print_message "در حال اجرای اسکریپت seed_categories.py (تخمین زمان: کمتر از 1 دقیقه)..."
-    python "$APP_DIR/seed_categories.py" >> "$LOG_FILE" 2>&1
-    if [ $? -ne 0 ]; then
-        print_warning "اجرای seed_categories.py با خطا مواجه شد. جزئیات در $LOG_FILE."
-    else
-        print_success "اسکریپت seed_categories.py با موفقیت اجرا شد."
-    fi
-fi
 
 deactivate >> "$LOG_FILE" 2>&1
 # ===== ایجاد سرویس‌ها =====
