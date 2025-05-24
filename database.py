@@ -410,7 +410,7 @@ class Database:
     def update_category(self, category_id: int, name: str, parent_id: Optional[int] = None, 
                        cat_type: Optional[str] = None) -> bool:
         """Update a category"""
-        category = self.get_category(category_id)
+        category = self.get_product_category(category_id)
         if not category:
             return False
 
