@@ -1,0 +1,77 @@
+
+python
+def get_product_category(self, id):
+    conn=self.get_conn()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as c:
+            c.execute('SELECT id,name,parent_id FROM product_categories WHERE id=%s',(id,))
+            return c.fetchone()
+    except Exception as e:
+        logger.error(f"DB err: {e}")
+        conn.close()
+        raise
+    finally:
+        self.put_conn(conn)
+def get_service_category(self, id):
+    conn=self.get_conn()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as c:
+            c.execute('SELECT id,name,parent_id FROM service_categories WHERE id=%s',(id,))
+            return c.fetchone()
+    except Exception as e:
+        logger.error(f"DB err: {e}")
+        conn.close()
+        raise
+    finally:
+        self.put_conn(conn)
+def get_educational_category(self, id):
+    conn=self.get_conn()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as c:
+            c.execute('SELECT id,name,parent_id FROM educational_categories WHERE id=%s',(id,))
+            return c.fetchone()
+    except Exception as e:
+        logger.error(f"DB err: {e}")
+        conn.close()
+        raise
+    finally:
+        self.put_conn(conn)
+DB conn mgmt:
+In database.py, use psycopg2.pool for stable conn:
+python
+from psycopg2.pool import SimpleConnectionPool
+class Database:
+    def __init__(self,dsn):
+        self.pool=SimpleConnectionPool(1,10,dsn=dsn)
+    def get_conn(self):
+        return self.pool.getconn()
+    def put_conn(self,conn):
+        self.pool.putconn(conn)
+Update handlers.py:
+Line 676 (show_product_categories): db.get_category → db.get_product_category.
+Line 750 (show_service_categories): db.get_category → db.get_service_category.
+Edu fns (e.g., show_educational_categories): use db.get_educational_category.
+Remove categories refs:
+database.py (lines 214,245,260,398,1590): categories → correct table.
+src/models/database.py (lines 74,99,1294,1478): FROM categories → correct table.
+templates/database.html:
+Query: SELECT * FROM categories → product_categories.
+Line 152: placeholder → SELECT * FROM product_categories LIMIT 10.
+Line 200: 'لیست دسته‌بندی‌ها' → product_categories.
+Context check:
+Products: use product_categories & get_product_category. Services: service_categories & get_service_category. Edu: educational_categories & get_educational_category. Split multi-purpose fns.
+Verify:
+grep -r "categories\|get_category" . to ensure no bad refs. Test bot for category display. Check logs for no get_category or SSL errors.
+Warnings:
+
+No categories or get_category refs allowed.
+No category_type.
+Split fns if context unclear.
+Output:
+
+get_category gone, replaced w/ new fns.
+categories refs fixed.
+AttributeError & SSL errors gone.
+Bot works w/o errors.
+Report changed files & lines.
+Replit Agent, apply changes precisely & report fixes. Ask if context unclear. Critical task!

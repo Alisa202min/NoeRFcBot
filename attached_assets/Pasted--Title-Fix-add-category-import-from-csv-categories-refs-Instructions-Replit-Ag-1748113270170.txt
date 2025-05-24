@@ -1,0 +1,43 @@
+
+**Title**: Fix `add_category`, `import_from_csv`, `categories` refs
+
+**Instructions**: Replit Agent, critical. No `categories`/`cat_type`. Use `product/service/educational_categories` w/ separate fns. Update `database.py` (artifact_id: 706f4350-bf98-463f-9df8-ce54dba2a423).
+
+**Issues**:  
+1. `add_category` only for products.  
+2. `import_from_csv` uses `add_category`/`update_category`.  
+3. `initialize`: `products` refs nonexistent `categories`.  
+4. SSL error msg lacks user-friendly text.  
+5. Possible `categories` refs.
+
+**Fixes**:  
+1. **Search**: `grep -r "add_category\|update_category\|categories\|cat_type" .`  
+2. **Update `database.py`**:  
+   - Remove `add_category`. Keep `add_product_category`, `add_service_category`, `add_educational_category`.  
+   - Fix `initialize`: Replace `categories` in `products` w/ `product_categories`. Add `services` & `educational_categories` tables:  
+     - `products`: `FOREIGN KEY (category_id) REFERENCES product_categories(id)`.  
+     - `services`: `FOREIGN KEY (category_id) REFERENCES service_categories(id)`.  
+     - `educational_categories`: `id SERIAL PRIMARY KEY, name TEXT NOT NULL, parent_id INTEGER NULL, FOREIGN KEY (parent_id) REFERENCES educational_categories(id)`.  
+   - Fix `import_from_csv`: Replace `add_category`/`update_category`:  
+     - For `products`: Use `add_product_category` if no `category_id`.  
+     - For `categories`: Map `cat_type` to `add_product/service/educational_category`, update w/ respective `update_*_category`.  
+   - Update `ensure_connection`: Raise `Exception("DB conn failed. Try later.")` on reconnect fail.  
+3. **Verify**:  
+   - `grep -r "categories\|add_category\|update_category\|cat_type" .`  
+   - Test bot: Products, services, edu. Empty cats: "No items yet."  
+   - No `categories`/`add_category` errors in logs.  
+4. **Edu Check**: Ensure `get_educational_categories` uses `educational_categories`.
+
+**Warnings**: No `categories`/`add_category`/`cat_type`. Split fns if unclear.
+
+**Output**:  
+- `add_category` removed.  
+- `import_from_csv` fixed.  
+- `categories` refs gone.  
+- SSL handled.  
+- Bot works.  
+- Report changes.
+
+Replit Agent, apply & report. Ask if unclear. Critical!
+
+---
