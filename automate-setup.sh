@@ -686,22 +686,19 @@ else
 fi
 
 # اجرای اسکریپت‌های اولیه
+print_message "در حال اجرای اسکریپت‌های اولیه..."
 for script in seed_admin_data.py seed_categories.py; do
     if [ -f "$APP_DIR/$script" ]; then
-        print_message "در حال اجرای $script..."
-        python "$APP_DIR/$script" >> "$LOG_FILE" 2>&1 || print_warning "اجرای $script با خطا مواجه شد."
-# اجرای اسکریپت‌های تنظیمات اولیه
-if [ -f "$APP_DIR/seed_admin_data.py" ]; then
-    print_message "در حال اجرای اسکریپت seed_admin_data.py (تخمین زمان: کمتر از 1 دقیقه)..."
-    python "$APP_DIR/seed_admin_data.py" >> "$LOG_FILE" 2>&1
-    if [ $? -ne 0 ]; then
-        print_warning "اجرای seed_admin_data.py با خطا مواجه شد. جزئیات در $LOG_FILE."
+        print_message "اجرای $script (تخمین زمان: کمتر از 1 دقیقه)..."
+        python "$APP_DIR/$script" >> "$LOG_FILE" 2>&1
+        if [ $? -ne 0 ]; then
+            print_warning "اجرای $script با خطا مواجه شد. جزئیات در $LOG_FILE."
+        else
+            print_success "$script با موفقیت اجرا شد."
+        fi
     else
-        print_success "اسکریپت seed_admin_data.py با موفقیت اجرا شد."
+        print_warning "فایل $script در $APP_DIR یافت نشد."
     fi
-else
-    print_warning "فایل $script در $APP_DIR یافت نشد."
-fi
 done
 
 
