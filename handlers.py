@@ -747,7 +747,7 @@ async def show_service_categories(message, state, parent_id=None):
             
         # اضافه کردن دکمه بازگشت
         if parent_id is not None:
-            parent_category = db.get_category(parent_id)
+            parent_category = db.get_service_category(parent_id)
             if parent_category and parent_category.get('parent_id') is not None:
                 kb.button(text="🔙 بازگشت", callback_data=f"category:{parent_category['parent_id']}")
             else:
