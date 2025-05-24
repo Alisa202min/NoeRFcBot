@@ -206,12 +206,32 @@ class Database:
             category_id = cursor.fetchone()[0]
             return category_id
 
-    def get_category(self, category_id: int) -> Optional[Dict]:
-        """Get a category by ID"""
+    def get_product_category(self, category_id: int) -> Optional[Dict]:
+        """Get a product category by ID"""
         self.ensure_connection()  # اطمینان از اتصال فعال به دیتابیس
         with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
             cursor.execute(
-                'SELECT id, name, parent_id FROM categories WHERE id = %s',
+                'SELECT id, name, parent_id FROM product_categories WHERE id = %s',
+                (category_id,)
+            )
+            return cursor.fetchone()
+            
+    def get_service_category(self, category_id: int) -> Optional[Dict]:
+        """Get a service category by ID"""
+        self.ensure_connection()  # اطمینان از اتصال فعال به دیتابیس
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                'SELECT id, name, parent_id FROM service_categories WHERE id = %s',
+                (category_id,)
+            )
+            return cursor.fetchone()
+            
+    def get_educational_category(self, category_id: int) -> Optional[Dict]:
+        """Get an educational category by ID"""
+        self.ensure_connection()  # اطمینان از اتصال فعال به دیتابیس
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                'SELECT id, name, parent_id FROM educational_categories WHERE id = %s',
                 (category_id,)
             )
             return cursor.fetchone()

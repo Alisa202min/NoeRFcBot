@@ -1,0 +1,165 @@
+
+
+ پرامبت اصلاح‌شده برای Replit Agent
+
+عنوان: اصلاح تمام ارجاعات به جدول `categories` به جداول `product_categories`, `service_categories`, `educational_categories` بدون استفاده از `category_type`
+
+دستورالعمل:
+
+Replit Agent، این دستور حیاتیه و باید با دقت اجرا بشه. ما توی دیتابیس هیچ جدولی به نام `categories` نداریم و نباید هیچ ارجاعی بهش توی کد باشه. همچنین، هیچ مفهومی مثل `category_type` یا متغیر مشابه برای انتخاب جدول نباید توی کد وجود داشته باشه. دسته‌بندی‌های سیستم ما کاملاً جدا طراحی شدن و هر کدوم جدول و منطق مستقل خودشون رو دارن:
+- `product_categories` برای دسته‌بندی‌های محصولات
+- `service_categories` برای دسته‌بندی‌های خدمات
+- `educational_categories` برای دسته‌بندی‌های محتوای آموزشی
+
+این جداسازی توی همه لایه‌های سیستم (از دیتابیس تا رابط کاربری) اعمال شده. هر نوع دسته‌بندی (محصولات، خدمات، محتوای آموزشی) ماهیت و جدول جداگونه‌ای داره. به‌جای استفاده از متغیر برای انتخاب جدول، کد باید مستقیماً با جدول مربوطه کار کنه یا از توابع جداگانه برای هر نوع دسته‌بندی استفاده کنه. این موضوع حیاتیه و نباید فراموش بشه!
+
+مشکل:
+کد فعلی به جدول غیرموجود `categories` کوئری می‌زنه، که باعث خطا می‌شه (مثل `relation "categories" does not exist`). این ارجاعات باید با جدول مناسب (`product_categories`, `service_categories`, یا `educational_categories`) جایگزین بشن، بدون استفاده از هیچ متغیر یا پارامتری مثل `category_type`.
+
+منطق اصلاح:
+1. جستجوی ارجاعات:
+   - تمام ارجاعات به `categories` توی پروژه (مثل کوئری‌های SQL یا ارجاعات به مدل) رو پیدا کن. می‌تونی از `grep -r "categories" .` یا هر ابزار جستجوی دیگه‌ای که بلدی استفاده کنی.
+
+2. تشخیص جدول مناسب از context:
+   - برای هر ارجاع به `categories`، از context کد تشخیص بده که کد با کدوم نوع دسته‌بندی کار می‌کنه:
+     - اگه تابع، فایل، یا مدل به محصولات اشاره داره (مثل `show_product_categories`, کلمه `product`, یا مدل `ProductCategory`)، از `product_categories` استفاده کن.
+     - اگه به خدمات اشاره داره (مثل `show_service_categories`, کلمه `service`, یا مدل `ServiceCategory`)، از `service_categories` استفاده کن.
+     - اگه به محتوای آموزشی اشاره داره (مثل کلمه `educational`, `content`, یا مدل `EducationalCategory`)، از `educational_categories` استفاده کن.
+   - هیچ متغیر یا پارامتری مثل `category_type` اضافه نکن. اگه context مشخص نیست، تابع رو به توابع جداگانه برای هر نوع دسته‌بندی (مثل `get_product_category`, `get_service_category`, `get_educational_category`) تقسیم کن.
+
+3. اصلاح ارجاعات:
+   فایل‌ها و خطوط زیر ارجاعات نادرست به `categories` دارن. این‌ها رو اصلاح کن و جدول درست رو مستقیماً استفاده کن:
+
+   فایل `database.py`:
+   - خط 214:
+     python
+     'SELECT id, name, parent_id FROM categories WHERE id = %s'
+     
+     - اصلاح:
+       - اگه تابع برای محصولاته (مثل فراخوانی از `show_product_categories`):
+         python
+         cursor.execute('SELECT id, name, parent_id FROM product_categories WHERE id = %s', (category_id,))
+         
+       - اگه برای خدمات یا محتوای آموزشیه، از `service_categories` یا `educational_categories` استفاده کن.
+       - اگه تابع برای چند نوع دسته‌بندی استفاده می‌شه، تابع رو به توابع جداگانه تقسیم کن:
+         python
+         def get_product_category(category_id):
+             cursor.execute('SELECT id, name, parent_id FROM product_categories WHERE id = %s', (category_id,))
+             return cursor.fetchone()
+
+         def get_service_category(category_id):
+             cursor.execute('SELECT id, name, parent_id FROM service_categories WHERE id = %s', (category_id,))
+             return cursor.fetchone()
+
+         def get_educational_category(category_id):
+             cursor.execute('SELECT id, name, parent_id FROM educational_categories WHERE id = %s', (category_id,))
+             return cursor.fetchone()
+         
+
+   - خط 245:
+     python
+     query = 'SELECT id, name, parent_id FROM categories WHERE '
+     
+     - اصلاح:
+       - به جدول مناسب تغییر بده:
+         python
+         query = 'SELECT id, name, parent_id FROM product_categories WHERE '  # یا service_categories یا educational_categories
+         
+
+   - خط 260:
+     python
+     query = 'SELECT id, name, parent_id FROM categories'
+     
+     - اصلاح:
+       python
+       query = 'SELECT id, name, parent_id FROM service_categories'  # یا جدول مناسب
+       
+
+   - خط 398:
+     python
+     cursor.execute('DELETE FROM categories WHERE id = %s', (category_id,))
+     
+     - اصلاح:
+       python
+       cursor.execute('DELETE FROM product_categories WHERE id = %s', (category_id,))  # یا جدول مناسب
+       
+
+   - خط 1590:
+     - ارجاع به `categories` رو پیدا کن و به جدول مناسب تغییر بده.
+
+   فایل `src/models/database.py`:
+   - خطوط 74, 99, 1294, 1478:
+     - هرجا `FROM categories` هست، به جدول درست تغییر بده:
+       python
+       # قبل
+       cursor.execute('SELECT * FROM categories WHERE ...')
+       # بعد
+       cursor.execute('SELECT * FROM product_categories WHERE ...')  # یا جدول مناسب
+       
+
+   فایل `templates/database.html`:
+   - کوئری:
+     python
+     cur.execute("SELECT * FROM categories WHERE id = %s", (category_id,))
+     
+     - اصلاح:
+       python
+       cur.execute("SELECT * FROM product_categories WHERE id = %s", (category_id,))  # یا جدول مناسب
+       
+
+   - خط 152:
+     html
+     <textarea name="sql_query" rows="5" placeholder="SELECT * FROM categories LIMIT 10;"></textarea>
+     
+     - اصلاح:
+       html
+       <textarea name="sql_query" rows="5" placeholder="SELECT * FROM product_categories LIMIT 10;"></textarea>
+       
+
+   - خط 200:
+     python
+     'لیست دسته‌بندی‌ها': 'SELECT * FROM categories ORDER BY id LIMIT 20;'
+     
+     - اصلاح:
+       python
+       'لیست دسته‌بندی‌ها': 'SELECT * FROM product_categories ORDER BY id LIMIT 20;'  # یا جدول مناسب
+       
+
+4. جداسازی توابع:
+   - هرگز از متغیر یا پارامتری مثل `category_type` یا `category_table` استفاده نکن.
+   - اگه یه تابع (مثل `get_category`) با چند نوع دسته‌بندی کار می‌کنه، اون رو به توابع جداگانه برای هر نوع دسته‌بندی تقسیم کن:
+     python
+     def get_product_category(category_id):
+         cursor.execute('SELECT id, name, parent_id FROM product_categories WHERE id = %s', (category_id,))
+         return cursor.fetchone()
+
+     def get_service_category(category_id):
+         cursor.execute('SELECT id, name, parent_id FROM service_categories WHERE id = %s', (category_id,))
+         return cursor.fetchone()
+
+     def get_educational_category(category_id):
+         cursor.execute('SELECT id, name, parent_id FROM educational_categories WHERE id = %s', (category_id,))
+         return cursor.fetchone()
+     
+
+5. تأیید تغییرات:
+   - بعد از اصلاح، مطمئن شو که هیچ ارجاعی به `categories` یا مفهومی مثل `category_type` توی کد نیست.
+   - بات تلگرام رو تست کن و چک کن که دسته‌بندی‌های محصولات، خدمات، و محتوای آموزشی درست نمایش داده می‌شن.
+   - لاگ‌های کنسول رو بررسی کن تا مطمئن شی خطای `relation "categories" does not exist` رخ نمی‌ده.
+
+هشدارهای مهم:
+- هیچ ارجاعی به `categories` نباید توی کد بمونه. این جدول وجود نداره و استفاده ازش سیستم رو خراب می‌کنه.
+- هیچ متغیر یا پارامتری مثل `category_type` یا `category_table` اضافه نکن. جداسازی دسته‌بندی‌ها باید با ارجاع مستقیم به جدول یا توابع جداگانه پیاده‌سازی بشه.
+- اگه context کد مشخص نیست، تابع رو به توابع جداگانه تقسیم کن. فرض نکن یه جدول خاص (مثل `product_categories`) درسته.
+- کل پروژه رو اسکن کن و مطمئن شو هیچ ارجاع پنهانی به `categories` نیست.
+
+خروجی مورد انتظار:
+- تمام ارجاعات به `categories` حذف شده و با جدول مناسب (`product_categories`, `service_categories`, یا `educational_categories`) جایگزین شدن.
+- توابع چندمنظوره به توابع جداگانه برای هر نوع دسته‌بندی تقسیم شدن.
+- هیچ متغیر یا پارامتری مثل `category_type` توی کد نیست.
+- بات تلگرام بدون خطا کار می‌کنه و دسته‌بندی‌ها رو درست نمایش می‌ده.
+- گزارش کاملی از فایل‌ها، خطوط اصلاح‌شده، و توابع جدید ارائه بشه.
+
+Replit Agent، این تغییرات رو با دقت اعمال کن و گزارش بده که کدوم فایل‌ها، خطوط، و توابع رو اصلاح یا اضافه کردی. اگه context کد مشخص نیست یا نمی‌دونی کدوم جدول رو انتخاب کنی، قبل از تغییر از من بپرس. این موضوع حیاتیه و نباید فراموش بشه!
+
+---
