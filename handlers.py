@@ -330,21 +330,7 @@ async def cmd_inquiry(message: Message, state: FSMContext):
         logging.error(f"Error in cmd_inquiry: {str(e)}\n{traceback.format_exc()}")
         await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
 
-# Search button handler
-@router.message(lambda message: message.text == SEARCH_BTN)
-async def cmd_search(message: Message):
-    """Handle Search button"""
-    try:
-        logging.info(f"Search requested by user: {message.from_user.id}")
-        await message.answer(
-            "🔍 *جستجو*\n\n"
-            "این قابلیت در حال حاضر در دسترس نیست. لطفا بعدا تلاش کنید.",
-            parse_mode="Markdown"
-        )
-        logging.info("Search feature not available message sent")
-    except Exception as e:
-        logging.error(f"Error in cmd_search: {str(e)}\n{traceback.format_exc()}")
-        await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
+# Note: Search handlers are defined earlier in the file (lines 210-306)
 
 # Button callbacks
 @router.callback_query(F.data == "products")
