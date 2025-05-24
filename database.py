@@ -207,11 +207,21 @@ class Database:
                 cursor.execute("INSERT INTO static_content (type, content) VALUES (%s, %s)",
                               ('about', ABOUT_DEFAULT))
 
-    def add_category(self, name: str, parent_id: Optional[int] = None) -> int:
-        """Add a new category"""
+    def add_product_category(self, name: str, parent_id: Optional[int] = None) -> int:
+        """Add a new product category"""
         with self.conn.cursor() as cursor:
             cursor.execute(
                 'INSERT INTO product_categories (name, parent_id) VALUES (%s, %s) RETURNING id',
+                (name, parent_id)
+            )
+            category_id = cursor.fetchone()[0]
+            return category_id
+
+    def add_service_category(self, name: str, parent_id: Optional[int] = None) -> int:
+        """Add a new service category"""
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                'INSERT INTO service_categories (name, parent_id) VALUES (%s, %s) RETURNING id',
                 (name, parent_id)
             )
             category_id = cursor.fetchone()[0]
@@ -1708,7 +1718,7 @@ class Database:
                                         break
 
                                 if not found:
-                                    category_id = self.add_category(category_name, None)
+                                    category_id = self.add_product_category(category_name, None)
 
                             if category_id:
                                 self.add_product(
