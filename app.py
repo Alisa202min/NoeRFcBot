@@ -100,7 +100,6 @@ def index():
                          now=datetime.datetime.now())
 
 @app.route('/admin')
-@login_required
 def admin():
     """پنل مدیریت"""
     if not current_user.is_admin:
@@ -126,7 +125,6 @@ def login():
 
 
 @app.route('/logout')
-@login_required
 def logout():
     """خروج از سیستم"""
     logout_user()
@@ -134,21 +132,18 @@ def logout():
 
 # Routes مورد نیاز برای templates
 @app.route('/control/start', methods=['POST'])
-@login_required
 def control_start():
     """شروع ربات تلگرام"""
     flash('ربات تلگرام در حال اجرا است', 'success')
     return redirect(url_for('index'))
 
 @app.route('/control/stop', methods=['POST'])
-@login_required
 def control_stop():
     """توقف ربات تلگرام"""
     flash('ربات تلگرام متوقف شد', 'info')
     return redirect(url_for('index'))
 
 @app.route('/admin/products')
-@login_required
 def admin_products():
     """مدیریت محصولات"""
     if not current_user.is_admin:
@@ -157,7 +152,6 @@ def admin_products():
     return render_template('admin_products.html')
 
 @app.route('/admin/services')
-@login_required
 def admin_services():
     """مدیریت خدمات"""
     if not current_user.is_admin:
@@ -166,7 +160,6 @@ def admin_services():
     return render_template('admin_services.html')
 
 @app.route('/admin/categories')
-@login_required
 def admin_categories():
     """مدیریت دسته‌بندی‌ها"""
     if not current_user.is_admin:
@@ -189,7 +182,6 @@ def get_status_json():
     })
 
 @app.route('/admin/inquiries')
-@login_required
 def admin_inquiries():
     """مدیریت استعلامات"""
     if not current_user.is_admin:
@@ -198,7 +190,6 @@ def admin_inquiries():
     return render_template('admin_inquiries.html')
 
 @app.route('/admin/education')
-@login_required
 def admin_education():
     """مدیریت محتوای آموزشی"""
     if not current_user.is_admin:
@@ -207,7 +198,6 @@ def admin_education():
     return render_template('admin_education.html')
 
 @app.route('/database')
-@login_required
 def database_view():
     """نمایش دیتابیس"""
     if not current_user.is_admin:
@@ -216,7 +206,6 @@ def database_view():
     return render_template('database.html')
 
 @app.route('/configuration')
-@login_required
 def configuration():
     """تنظیمات سیستم"""
     if not current_user.is_admin:
@@ -225,7 +214,6 @@ def configuration():
     return render_template('configuration.html')
 
 @app.route('/logs')
-@login_required
 def logs():
     """نمایش لاگ‌ها"""
     if not current_user.is_admin:
@@ -234,7 +222,6 @@ def logs():
     return render_template('logs.html')
 
 @app.route('/admin/database')
-@login_required
 def admin_database():
     """نمایش دیتابیس در پنل ادمین"""
     if not current_user.is_admin:
@@ -243,7 +230,6 @@ def admin_database():
     return render_template('admin_database.html')
 
 @app.route('/admin/content')
-@login_required
 def admin_content():
     """مدیریت محتوای ثابت"""
     if not current_user.is_admin:
@@ -252,7 +238,6 @@ def admin_content():
     return render_template('admin_content.html')
 
 @app.route('/admin/import_export')
-@login_required
 def admin_import_export():
     """ورود/خروج داده"""
     if not current_user.is_admin:
