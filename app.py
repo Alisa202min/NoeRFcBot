@@ -1,6 +1,6 @@
 import os
 import logging
-from flask import Flask
+from flask import Flask, render_template
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -40,7 +40,7 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 }
 
 # Configure Flask-Uploads
-from utils_upload import UploadSet, IMAGES, VIDEO, configure_uploads
+from src.utils.utils_upload import UploadSet, IMAGES, VIDEO, configure_uploads
 
 # Add mp4 to allowed formats
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4'} 
@@ -68,8 +68,35 @@ def load_user(user_id):
     # Temporarily disable user loading to fix DB transaction issue
     return None
 
-# Import main routes to register them
-from src.web.main import *
+# Basic routes
+@app.route('/')
+def index():
+    env_status = {
+        'BOT_TOKEN': 'Set' if os.environ.get('BOT_TOKEN') else 'Not Set',
+        'DATABASE_URL': 'Set' if os.environ.get('DATABASE_URL') else 'Not Set',
+    }
+    return render_template('index.html', env_status=env_status)
+
+@app.route('/admin')
+def admin():
+    return render_template('admin_index.html')
+
+@app.route('/control/start', methods=['POST'])
+def control_start():
+    return {"status": "started"}
+
+@app.route('/control/stop', methods=['POST'])  
+def control_stop():
+    return {"status": "stopped"}
+
+@app.route('/control/restart', methods=['POST'])
+def control_restart():
+    return {"status": "restarted"}
+
+@app.route('/api/logs')
+def get_logs_json():
+    return {"logs": []}
+
 
 # Create database tables
 with app.app_context():
