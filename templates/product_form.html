@@ -1,0 +1,302 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ title }} - RFCBot{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_index') }}">داشبورد ادمین</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_products') }}">محصولات</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ title }}</li>
+                </ol>
+            </nav>
+            
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">{{ title }}</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('admin_products') }}?action=save" enctype="multipart/form-data">
+                        {% if product %}
+                        <input type="hidden" name="id" value="{{ product.id }}">
+                        {% endif %}
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">نام محصول</label>
+                                    <input type="text" class="form-control" id="name" name="name" value="{{ product.name if product else '' }}" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="price" class="form-label">قیمت (تومان)</label>
+                                    <input type="number" class="form-control" id="price" name="price" value="{{ product.price if product else 0 }}" min="0">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="category_id" class="form-label">دسته‌بندی</label>
+                                    <select class="form-select" id="category_id" name="category_id">
+                                        <option value="">بدون دسته‌بندی</option>
+                                        {% for category in categories %}
+                                        <option value="{{ category.id }}" {% if product and product.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="brand" class="form-label">برند</label>
+                                    <input type="text" class="form-control" id="brand" name="brand" value="{{ product.brand if product else '' }}">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="model" class="form-label">مدل</label>
+                                    <input type="text" class="form-control" id="model" name="model" value="{{ product.model if product else '' }}">
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="description" class="form-label">توضیحات</label>
+                                    <textarea class="form-control" id="description" name="description" rows="5">{{ product.description if product else '' }}</textarea>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="model_number" class="form-label">شماره مدل</label>
+                                    <input type="text" class="form-control" id="model_number" name="model_number" value="{{ product.model_number if product else '' }}">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="manufacturer" class="form-label">سازنده</label>
+                                    <input type="text" class="form-control" id="manufacturer" name="manufacturer" value="{{ product.manufacturer if product else '' }}">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="tags" class="form-label">برچسب‌ها</label>
+                                    <input type="text" class="form-control" id="tags" name="tags" value="{{ product.tags if product else '' }}" placeholder="برچسب‌ها را با کاما جدا کنید">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="in_stock" name="in_stock" {% if product and product.in_stock %}checked{% endif %}>
+                                        <label class="form-check-label" for="in_stock">موجود در انبار</label>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="featured" name="featured" {% if product and product.featured %}checked{% endif %}>
+                                        <label class="form-check-label" for="featured">محصول ویژه</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="photo" class="form-label">تصویر اصلی محصول</label>
+                            {% if product and product.photo_url %}
+                            <div class="mb-2">
+                                <div class="card">
+                                    <img src="{{ url_for('static', filename=product.photo_url) }}" alt="{{ product.name }}" class="card-img-top" style="max-height: 150px; object-fit: contain;">
+                                    <div class="card-footer d-flex justify-content-end">
+                                        <button type="button" class="btn btn-sm btn-danger" 
+                                                onclick="confirmDeleteMedia('product', {{ product.id }}, {{ product.id }}, 'photo')">
+                                            <i class="bi bi-trash"></i> حذف تصویر
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            <input type="file" class="form-control" id="photo" name="photo" accept="image/*" onchange="previewImage(this)">
+                            <div class="form-text">فرمت‌های مجاز: JPG، PNG، GIF (حداکثر 2MB)</div>
+                            
+                            <!-- پیش نمایش تصویر انتخاب شده -->
+                            <div id="imagePreviewContainer" class="mt-2" style="display: none;">
+                                <div class="card p-2">
+                                    <img id="imagePreview" src="#" alt="پیش نمایش تصویر" class="img-thumbnail" style="max-height: 150px;">
+                                    <div class="progress mt-2" style="height: 5px;">
+                                        <div id="uploadProgress" class="progress-bar bg-success" role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                    <small id="uploadStatus" class="text-muted mt-1">تصویر آماده آپلود است</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- بخش تصاویر اضافی محصول -->
+                        <div class="mb-4">
+                            <label class="form-label">تصاویر اضافی محصول</label>
+                            
+                            {% if product and product.id %}
+                            <!-- نمایش تصاویر اضافی موجود -->
+                            <div class="row mb-3">
+                                {% set product_medias = product_media(product.id) if product_media is defined else [] %}
+                                {% for media in product_medias %}
+                                <div class="col-md-3 col-sm-6 mb-3">
+                                    <div class="card h-100">
+                                        <img src="{{ url_for('static', filename=media.local_path) if media.local_path else media.file_id }}" 
+                                             class="card-img-top" style="height: 150px; object-fit: contain;" 
+                                             alt="تصویر اضافی {{ loop.index }}">
+                                        <div class="card-footer d-flex justify-content-end">
+                                            <button type="button" class="btn btn-sm btn-danger" 
+                                                    onclick="confirmDeleteMedia('product', {{ product.id }}, {{ media.id }}, 'additional')">
+                                                <i class="bi bi-trash"></i> حذف تصویر
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="col-12">
+                                    <div class="alert alert-info">
+                                        هیچ تصویر اضافی برای این محصول وجود ندارد.
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                            
+                            <!-- فرم آپلود تصاویر اضافی -->
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">افزودن تصاویر اضافی</h6>
+                                    <p class="card-text text-muted">تصاویر اضافی را پس از ذخیره محصول می‌توانید از صفحه مدیریت رسانه‌های محصول آپلود کنید.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('admin_products') }}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> بازگشت به لیست
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> ذخیره محصول
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script>
+(function() { // استفاده از یک IIFE برای محدود کردن اسکوپ و جلوگیری از تداخل متغیرها
+    function previewImage(input) {
+        // نمایش پیش‌نمایش تصویر انتخاب شده
+        const container = document.getElementById('imagePreviewContainer');
+        const preview = document.getElementById('imagePreview');
+        const progress = document.getElementById('uploadProgress');
+        const status = document.getElementById('uploadStatus');
+        
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                // نمایش تصویر
+                preview.src = e.target.result;
+                container.style.display = 'block';
+                
+                // نمایش نام فایل و سایز آن
+                const file = input.files[0];
+                const fileSize = (file.size / 1024).toFixed(2) + ' KB';
+                status.textContent = `فایل: ${file.name} (${fileSize})`;
+                
+                // شبیه‌سازی نوار پیشرفت (در آپلود واقعی این مقدار با XMLHttpRequest تنظیم می‌شود)
+                simulateProgress();
+            };
+            
+            reader.readAsDataURL(input.files[0]);
+        } else {
+            container.style.display = 'none';
+        }
+    }
+
+    function simulateProgress() {
+        // نمایش اولیه نوار پیشرفت تا قبل از شروع آپلود واقعی
+        const progress = document.getElementById('uploadProgress');
+        const status = document.getElementById('uploadStatus');
+        let width = 0;
+        
+        const interval = setInterval(() => {
+            if (width >= 100) {
+                clearInterval(interval);
+                status.textContent = 'تصویر آماده آپلود است. برای ذخیره دکمه «ذخیره محصول» را بزنید.';
+            } else {
+                width += 5;
+                progress.style.width = width + '%';
+                status.textContent = 'در حال بارگذاری تصویر... ' + width + '%';
+            }
+        }, 100);
+    }
+
+    // تعریف تابع previewImage برای استفاده توسط HTML
+    window.previewImage = previewImage;
+    
+    // اضافه کردن هشدار برای نمایش نوار پیشرفت در هنگام آپلود
+    document.addEventListener("DOMContentLoaded", function() {
+        const productForm = document.querySelector('form');
+        if (productForm) {
+            productForm.addEventListener('submit', function(e) {
+                const fileInput = document.getElementById('photo');
+                if (fileInput && fileInput.files && fileInput.files[0]) {
+                    // نمایش پیام آپلود در حال انجام
+                    const progress = document.getElementById('uploadProgress');
+                    const status = document.getElementById('uploadStatus');
+                    
+                    if (progress && status) {
+                        // نمایش وضعیت آپلود واقعی
+                        progress.className = 'progress-bar progress-bar-striped progress-bar-animated bg-info';
+                        progress.style.width = '100%';
+                        status.textContent = 'در حال آپلود و ذخیره اطلاعات...';
+                    }
+                    
+                    // غیرفعال کردن دکمه ذخیره برای جلوگیری از کلیک مجدد
+                    const submitBtn = document.querySelector('button[type="submit"]');
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = '<i class="bi bi-hourglass"></i> در حال آپلود و ذخیره...';
+                    }
+                }
+            });
+        }
+    });
+    
+    // تابع تأیید حذف فایل رسانه‌ای
+    window.confirmDeleteMedia = function(contentType, contentId, mediaId, mediaType) {
+        if (confirm('آیا از حذف این فایل رسانه‌ای اطمینان دارید؟ این عملیات غیرقابل بازگشت است.')) {
+            // ارسال درخواست حذف فایل
+            fetch(`/admin/delete_media?type=${contentType}&content_id=${contentId}&media_id=${mediaId}&media_type=${mediaType}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('فایل با موفقیت حذف شد.');
+                    // حذف کارت مربوط به فایل از صفحه یا بارگذاری مجدد صفحه
+                    if (mediaType === 'photo') {
+                        window.location.reload(); // بارگذاری مجدد صفحه برای تصویر اصلی
+                    } else {
+                        const mediaCard = document.querySelector(`button[onclick*="${mediaId}"]`).closest('.col');
+                        if (mediaCard) mediaCard.remove();
+                    }
+                } else {
+                    alert('خطا در حذف فایل: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('خطایی در عملیات حذف رخ داد.');
+            });
+        }
+    }
+})();
+</script>
+{% endblock %}
+
+{% endblock %}
