@@ -1,0 +1,84 @@
+{% extends "admin_layout.html" %}
+{% set active_page = 'products' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4>مدیریت رسانه‌های محصول: {{ product.name }}</h4>
+        <div>
+            <a href="{{ url_for('add_product_media', product_id=product.id) }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> افزودن رسانه جدید
+            </a>
+            <a href="{{ url_for('admin_products') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-right"></i> بازگشت به لیست محصولات
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="text-center">
+                    {% if product.photo_url %}
+                        <img src="{{ product.photo_url }}" alt="{{ product.name }}" class="img-fluid rounded mb-2" style="max-height: 150px;">
+                        <div><small class="text-muted">تصویر اصلی محصول</small></div>
+                    {% else %}
+                        <div class="border rounded p-3 text-center text-muted">
+                            <i class="bi bi-image" style="font-size: 2rem;"></i>
+                            <div>بدون تصویر اصلی</div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-9">
+                <h5>{{ product.name }}</h5>
+                <p class="text-primary">قیمت: {{ '{:,}'.format(product.price) }} تومان</p>
+                <p><strong>دسته‌بندی:</strong> {{ product.category_name }}</p>
+                <p>{{ product.description or 'بدون توضیحات' | truncate(200) }}</p>
+            </div>
+        </div>
+        
+        <hr>
+        
+        <h5 class="mb-3">رسانه‌های محصول</h5>
+        
+        {% if media_files %}
+            <div class="row">
+                {% for media in media_files %}
+                    <div class="col-md-3 mb-4">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                {% if media.file_type == 'photo' %}
+                                    <img src="/static/{{ media.file_id }}" alt="Media {{ media.id }}" class="img-fluid rounded mb-2" style="max-height: 150px;">
+                                {% elif media.file_type == 'video' %}
+                                    <div class="position-relative">
+                                        <video controls class="img-fluid rounded mb-2" style="max-height: 150px;">
+                                            <source src="/static/{{ media.file_id }}" type="video/mp4">
+                                            Your browser does not support the video tag.
+                                        </video>
+                                        <div class="position-absolute top-0 start-0 bg-dark bg-opacity-50 text-white p-1 rounded">
+                                            <i class="bi bi-film"></i> ویدیو
+                                        </div>
+                                    </div>
+                                {% endif %}
+                                <div class="text-muted mb-2">
+                                    <small>نوع: {{ 'تصویر' if media.file_type == 'photo' else 'ویدیو' }}</small>
+                                </div>
+                                <form method="post" action="{{ url_for('delete_product_media', product_id=product.id, media_id=media.id) }}" 
+                                      onsubmit="return confirm('آیا از حذف این رسانه اطمینان دارید؟');">
+                                    <button type="submit" class="btn btn-sm btn-danger">
+                                        <i class="bi bi-trash"></i> حذف
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                هیچ رسانه‌ای برای این محصول ثبت نشده است. برای افزودن رسانه، از دکمه «افزودن رسانه جدید» استفاده کنید.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

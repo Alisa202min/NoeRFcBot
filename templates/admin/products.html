@@ -1,0 +1,146 @@
+{% extends 'admin_layout.html' %}
+{% set active_page = 'products' %}
+
+{% block title %}مدیریت محصولات{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">خانه</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">مدیریت محصولات</li>
+                </ol>
+            </nav>
+            
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">لیست محصولات</h5>
+                    <a href="{{ url_for('admin_products') }}?action=add" class="btn btn-sm btn-light">
+                        <i class="bi bi-plus-circle"></i> افزودن محصول جدید
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                    <div class="messages mb-4">
+                        {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+                    
+                    {% if products|length == 0 %}
+                    <div class="alert alert-info mb-0">
+                        هیچ محصولی یافت نشد. <a href="{{ url_for('admin_products') }}?action=add">افزودن محصول جدید</a>
+                    </div>
+                    {% else %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th scope="col" width="80">#</th>
+                                    <th scope="col" width="100">تصویر</th>
+                                    <th scope="col">نام محصول</th>
+                                    <th scope="col">قیمت (تومان)</th>
+                                    <th scope="col">دسته‌بندی</th>
+                                    <th scope="col" width="180">عملیات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in products %}
+                                <tr class="product-row" data-product-url="{{ url_for('product_detail', product_id=product.id) }}" style="cursor: pointer;">
+                                    <td>{{ product.id }}</td>
+                                    <td>
+                                        {% if product.formatted_photo_url %}
+                                        <img src="{{ url_for('static', filename=product.formatted_photo_url) }}" alt="{{ product.name }}" class="img-thumbnail" style="max-height: 50px;">
+                                        {% else %}
+                                        <div class="bg-light d-flex align-items-center justify-content-center rounded" style="width: 50px; height: 50px;">
+                                            <i class="bi bi-image text-muted"></i>
+                                        </div>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ product.name }}</td>
+                                    <td>{{ "{:,}".format(product.price) }}</td>
+                                    <td>
+                                        {% for category in categories %}
+                                            {% if category.id == product.category_id %}
+                                                {{ category.name }}
+                                            {% endif %}
+                                        {% endfor %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('admin_products') }}?action=edit&id={{ product.id }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-pencil"></i> ویرایش
+                                            </a>
+                                            <a href="{{ url_for('admin_products') }}?action=media&id={{ product.id }}" class="btn btn-sm btn-outline-info">
+                                                <i class="bi bi-images"></i> رسانه‌ها
+                                            </a>
+                                            <a href="{{ url_for('product_detail', product_id=product.id) }}" target="_blank" class="btn btn-sm btn-outline-success">
+                                                <i class="bi bi-eye"></i> مشاهده
+                                            </a>
+                                            <!-- دکمه حذف با مودال تأیید -->
+                                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteProductModal{{ product.id }}">
+                                                <i class="bi bi-trash"></i> حذف
+                                            </button>
+                                        </div>
+                                        
+                                        <!-- مودال تأیید حذف -->
+                                        <div class="modal fade" id="deleteProductModal{{ product.id }}" tabindex="-1" aria-labelledby="deleteProductModalLabel{{ product.id }}" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title" id="deleteProductModalLabel{{ product.id }}">تأیید حذف محصول</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        آیا از حذف محصول "{{ product.name }}" اطمینان دارید؟ این عملیات غیرقابل بازگشت است.
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
+                                                        <form method="post" action="{{ url_for('admin_products', action='delete') }}">
+                                                            <input type="hidden" name="product_id" value="{{ product.id }}">
+                                                            <button type="submit" class="btn btn-danger">حذف</button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination will be added in future -->
+                    <!-- Currently showing all products without pagination -->
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // فعال‌سازی کلیک بر روی سطر محصول
+        document.querySelectorAll('.product-row').forEach(function(row) {
+            row.addEventListener('click', function(e) {
+                // بررسی می‌کنیم که کلیک روی دکمه‌ها یا لینک‌ها نباشد
+                if (!e.target.closest('a') && !e.target.closest('button') && !e.target.closest('form')) {
+                    window.open(this.dataset.productUrl, '_blank');
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}
+{% endblock %}
