@@ -9,9 +9,11 @@ PROJECT_DIR="/var/www/rfbot"
 ENV_FILE="$PROJECT_DIR/.env"
 NGINX_CONF="/etc/nginx/sites-available/rfbot"
 GUNICORN_SERVICE="/etc/systemd/system/rfbot-web.service"
-DB_USER="neondb_owner"
-DB_NAME="neondb"
-DEFAULT_PORT="5000"
+DEF_DB_USER="neondb_owner"
+DEF_DB_NAME="neondb"
+DEF_PORT="5000"
+DEF_ADMIN_PASS="admin123"
+DEF_DB_PASS="npg_nguJUcZGPX83"
 
 echo "Starting RFbot fix script..." | tee -a $LOG_FILE
 echo "Log file: $LOG_FILE"
@@ -23,16 +25,18 @@ log() {
     echo "$1" | tee -a $LOG_FILE
 }
 
-# 1. Get user inputs
-log "Please provide the following details:"
-read -p "Enter PostgreSQL password for user '$DB_USER': " DB_PASSWORD
-read -p "Enter desired port for Gunicorn/Nginx (5000 or 8000) [$DEFAULT_PORT]: " PORT
-PORT=${PORT:-$DEFAULT_PORT}
-read -p "Enter password for admin user: " ADMIN_PASSWORD
+# 1. Get user inputs with defaults
+log "Please provide the following details (press Enter to accept defaults):"
+read -p "DB User [$DEF_DB_USER]: " -e -i "$DEF_DB_USER" DB_USER
+read -p "DB Name [$DEF_DB_NAME]: " -e -i "$DEF_DB_NAME" DB_NAME
+read -p "Port (5000 or 8000) [$DEF_PORT]: " -e -i "$DEF_PORT" PORT
+read -p "Admin Password [$DEF_ADMIN_PASS]: " -e -i "$DEF_ADMIN_PASS" ADMIN_PASSWORD
+read -sp "DB Password [$DEF_DB_PASS]: " -e -i "$DEF_DB_PASS" DB_PASSWORD
+echo
 
 # Validate inputs
-if [ -z "$DB_PASSWORD" ] || [ -z "$ADMIN_PASSWORD" ]; then
-    log "ERROR: Database password and admin password are required!"
+if [ -z "$DB_USER" ] || [ -z "$DB_NAME" ] || [ -z "$DB_PASSWORD" ] || [ -z "$ADMIN_PASSWORD" ]; then
+    log "ERROR: All fields are required!"
     exit 1
 fi
 if [[ "$PORT" != "5000" && "$PORT" != "8000" ]]; then
