@@ -370,11 +370,6 @@ test_admin_panel() {
     fi
 }
 
-# Start the services and test the admin panel
-start_services
-test_admin_panel
-
-print_message "Web panel startup script executed."Note: Search handlers are defined earlier in the file (lines 210-306)
 
 # Button callbacks
 @router.callback_query(F.data == "products")
