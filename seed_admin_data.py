@@ -11,7 +11,7 @@ import sys
 import random
 from datetime import datetime, timedelta
 from app import app, db
-from models import User, Product, ProductMedia, Inquiry, EducationalContent, StaticContent,Product_c
+from models import User, Category, Product, ProductMedia, Inquiry, EducationalContent, StaticContent
 from werkzeug.security import generate_password_hash
 
 def create_test_users():
@@ -58,25 +58,25 @@ def create_test_categories():
     Category.query.delete()
     
     # دسته‌بندی‌های محصولات (سطح ۱)
-    cat_rf_equipment = ProductCategory(name="تجهیزات رادیویی")
-    cat_antennas = ProductCategory(name="آنتن‌های مخابراتی")
-    cat_cables = ProductCategory(name="کابل‌ها و اتصالات")
+    cat_rf_equipment = Category(name="تجهیزات رادیویی", cat_type="product")
+    cat_antennas = Category(name="آنتن‌های مخابراتی", cat_type="product")
+    cat_cables = Category(name="کابل‌ها و اتصالات", cat_type="product")
     
     db.session.add_all([cat_rf_equipment, cat_antennas, cat_cables])
     db.session.flush()  # برای دریافت آی‌دی‌ها
     
     # زیردسته‌های تجهیزات رادیویی (سطح ۲)
-    cat_transmitters = ProductCategory(name="فرستنده‌ها", parent_id=cat_rf_equipment.id)
-    cat_receivers = ProductCategory(name="گیرنده‌ها", parent_id=cat_rf_equipment.id)
-    cat_transceivers = ProductCategory(name="فرستنده-گیرنده‌ها", parent_id=cat_rf_equipment.id)
+    cat_transmitters = Category(name="فرستنده‌ها", parent_id=cat_rf_equipment.id, cat_type="product")
+    cat_receivers = Category(name="گیرنده‌ها", parent_id=cat_rf_equipment.id, cat_type="product")
+    cat_transceivers = Category(name="فرستنده-گیرنده‌ها", parent_id=cat_rf_equipment.id, cat_type="product")
     
     # زیردسته‌های آنتن‌ها (سطح ۲)
-    cat_directional = ProductCategory(name="آنتن‌های جهت‌دار", parent_id=cat_antennas.id)
-    cat_omnidirectional = ProductCategory(name="آنتن‌های همه‌جهته", parent_id=cat_antennas.id)
+    cat_directional = Category(name="آنتن‌های جهت‌دار", parent_id=cat_antennas.id, cat_type="product")
+    cat_omnidirectional = Category(name="آنتن‌های همه‌جهته", parent_id=cat_antennas.id, cat_type="product")
     
     # زیردسته‌های کابل‌ها (سطح ۲)
-    cat_coaxial = ProductCategory(name="کابل‌های کواکسیال", parent_id=cat_cables.id)
-    cat_fiber = ProductCategory(name="فیبر نوری", parent_id=cat_cables.id)
+    cat_coaxial = Category(name="کابل‌های کواکسیال", parent_id=cat_cables.id, cat_type="product")
+    cat_fiber = Category(name="فیبر نوری", parent_id=cat_cables.id, cat_type="product")
     
     db.session.add_all([
         cat_transmitters, cat_receivers, cat_transceivers,
@@ -86,14 +86,14 @@ def create_test_categories():
     db.session.flush()
     
     # زیردسته‌های سطح ۳
-    cat_low_power = ProductCategory(name="فرستنده‌های کم‌توان", parent_id=cat_transmitters.id)
-    cat_high_power = ProductCategory(name="فرستنده‌های پرقدرت", parent_id=cat_transmitters.id)
+    cat_low_power = Category(name="فرستنده‌های کم‌توان", parent_id=cat_transmitters.id, cat_type="product")
+    cat_high_power = Category(name="فرستنده‌های پرقدرت", parent_id=cat_transmitters.id, cat_type="product")
     
-    cat_yagi = ProductCategory(name="آنتن‌های یاگی", parent_id=cat_directional.id)
-    cat_dish = ProductCategory(name="آنتن‌های بشقابی", parent_id=cat_directional.id)
+    cat_yagi = Category(name="آنتن‌های یاگی", parent_id=cat_directional.id, cat_type="product")
+    cat_dish = Category(name="آنتن‌های بشقابی", parent_id=cat_directional.id, cat_type="product")
     
-    cat_rg6 = ProductCategory(name="کابل‌های RG-6", parent_id=cat_coaxial.id)
-    cat_rg11 = ProductCategory(name="کابل‌های RG-11", parent_id=cat_coaxial.id)
+    cat_rg6 = Category(name="کابل‌های RG-6", parent_id=cat_coaxial.id, cat_type="product")
+    cat_rg11 = Category(name="کابل‌های RG-11", parent_id=cat_coaxial.id, cat_type="product")
     
     db.session.add_all([
         cat_low_power, cat_high_power,
@@ -103,11 +103,11 @@ def create_test_categories():
     db.session.flush()
     
     # زیردسته‌های سطح ۴
-    cat_fm_transmitters = ProductCategory(name="فرستنده‌های FM", parent_id=cat_low_power.id)
-    cat_am_transmitters = ProductCategory(name="فرستنده‌های AM", parent_id=cat_low_power.id)
+    cat_fm_transmitters = Category(name="فرستنده‌های FM", parent_id=cat_low_power.id, cat_type="product")
+    cat_am_transmitters = Category(name="فرستنده‌های AM", parent_id=cat_low_power.id, cat_type="product")
     
-    cat_tv_antennas = ProductCategory(name="آنتن‌های تلویزیونی", parent_id=cat_yagi.id)
-    cat_wifi_antennas = ProductCategory(name="آنتن‌های وای‌فای", parent_id=cat_yagi.id)
+    cat_tv_antennas = Category(name="آنتن‌های تلویزیونی", parent_id=cat_yagi.id, cat_type="product")
+    cat_wifi_antennas = Category(name="آنتن‌های وای‌فای", parent_id=cat_yagi.id, cat_type="product")
     
     db.session.add_all([
         cat_fm_transmitters, cat_am_transmitters,
@@ -115,22 +115,22 @@ def create_test_categories():
     ])
     
     # دسته‌بندی‌های خدمات (سطح ۱)
-    cat_installation = ServiceCategory(name="نصب و راه‌اندازی")
-    cat_repair = ServiceCategory(name="تعمیر و نگهداری")
-    cat_consultation = ServiceCategory(name="مشاوره و طراحی")
+    cat_installation = Category(name="نصب و راه‌اندازی", cat_type="service")
+    cat_repair = Category(name="تعمیر و نگهداری", cat_type="service")
+    cat_consultation = Category(name="مشاوره و طراحی", cat_type="service")
     
     db.session.add_all([cat_installation, cat_repair, cat_consultation])
     db.session.flush()
     
     # زیردسته‌های خدمات (سطح ۲)
-    cat_install_transmitter = ServiceCategory(name="نصب فرستنده", parent_id=cat_installation.id)
-    cat_install_antenna = ServiceCategory(name="نصب آنتن", parent_id=cat_installation.id)
+    cat_install_transmitter = Category(name="نصب فرستنده", parent_id=cat_installation.id, cat_type="service")
+    cat_install_antenna = Category(name="نصب آنتن", parent_id=cat_installation.id, cat_type="service")
     
-    cat_repair_transmitter = ServiceCategory(name="تعمیر فرستنده", parent_id=cat_repair.id)
-    cat_repair_antenna = ServiceCategory(name="تعمیر آنتن", parent_id=cat_repair.id)
+    cat_repair_transmitter = Category(name="تعمیر فرستنده", parent_id=cat_repair.id, cat_type="service")
+    cat_repair_antenna = Category(name="تعمیر آنتن", parent_id=cat_repair.id, cat_type="service")
     
-    cat_network_design = ServiceCategory(name="طراحی شبکه مخابراتی", parent_id=cat_consultation.id)
-    cat_frequency_planning = ServiceCategory(name="برنامه‌ریزی فرکانسی", parent_id=cat_consultation.id)
+    cat_network_design = Category(name="طراحی شبکه مخابراتی", parent_id=cat_consultation.id, cat_type="service")
+    cat_frequency_planning = Category(name="برنامه‌ریزی فرکانسی", parent_id=cat_consultation.id, cat_type="service")
     
     db.session.add_all([
         cat_install_transmitter, cat_install_antenna,
@@ -140,11 +140,11 @@ def create_test_categories():
     
     db.session.commit()
     
-    print(f"✓ {ServiceCategory.query.count()} دسته‌بندی خدمات ایجاد شد")
-     print(f"✓ {ProductCategory.query.count()} دسته‌بندی محصولات ایجاد شد")
+    print(f"✓ {Category.query.count()} دسته‌بندی ایجاد شد")
+    
     # لیست تمام دسته‌بندی‌ها برای استفاده در تولید محصولات و خدمات
-    product_categories = ProductCategory.query.all()
-    service_categories = ServiceCategory.query.all()
+    product_categories = Category.query.filter_by(cat_type="product").all()
+    service_categories = Category.query.filter_by(cat_type="service").all()
     
     return product_categories, service_categories
 
@@ -153,7 +153,7 @@ def create_test_products(product_categories):
     print("ایجاد محصولات آزمایشی...")
     
     # حذف محصولات قبلی
-    Product.query.delete()
+    Product.query.filter_by(product_type="product").delete()
     
     products = []
     
@@ -175,6 +175,7 @@ def create_test_products(product_categories):
                 description=f"توضیحات مفصل برای {category.name} {brand} {model_num}. این محصول دارای کیفیت بالا و قابلیت‌های پیشرفته است.",
                 price=price,
                 category_id=category.id,
+                product_type="product",
                 brand=brand,
                 model_number=model_num,
                 in_stock=random.choice([True, True, True, False]),  # ۷۵٪ موجود
@@ -195,7 +196,7 @@ def create_test_services(service_categories):
     print("ایجاد خدمات آزمایشی...")
     
     # حذف خدمات قبلی
-    Product.query.delete()
+    Product.query.filter_by(product_type="service").delete()
     
     services = []
     
@@ -206,11 +207,12 @@ def create_test_services(service_categories):
         for j in range(num_services):
             price = random.randint(500000, 10000000)  # قیمت بین ۵۰۰ هزار تا ۱۰ میلیون تومان
             
-            service = service(
+            service = Product(
                 name=f"خدمات {category.name} پیشرفته",
                 description=f"شرح کامل خدمات {category.name}. این خدمات شامل موارد زیر می‌شود: تحلیل اولیه، اجرا، تست و راه‌اندازی.",
                 price=price,
                 category_id=category.id,
+                product_type="service",
                 brand="",
                 model_number="",
                 in_stock=True,
@@ -294,7 +296,7 @@ def create_test_inquiries(products, services, users):
         inquiry = Inquiry(
             user_id=user.id,
             product_id=product.id,
-           
+            product_type="product",
             name=f"{user.username} {random.choice(['علیزاده', 'محمدی', 'حسینی', 'احمدی'])}",
             phone=f"09{random.randint(10000000, 99999999)}",
             description=f"استعلام قیمت برای {product.name}. نیاز به {random.randint(1, 10)} دستگاه داریم.",
@@ -317,7 +319,7 @@ def create_test_inquiries(products, services, users):
         inquiry = Inquiry(
             user_id=user.id,
             product_id=service.id,
-           
+            product_type="service",
             name=f"{user.username} {random.choice(['کریمی', 'رحیمی', 'فرهادی', 'نجفی'])}",
             phone=f"09{random.randint(10000000, 99999999)}",
             description=f"استعلام قیمت برای {service.name}. نیاز به خدمات در منطقه {random.choice(['تهران', 'اصفهان', 'شیراز', 'مشهد'])} داریم.",
@@ -344,11 +346,11 @@ def create_test_educational_content():
     contents = []
     
     # دسته‌بندی‌های محتوای آموزشی
-    educationalCategory = ["آموزش عمومی", "آموزش فنی", "نکات کاربردی", "مقالات تخصصی", "ویدئوهای آموزشی"]
+    categories = ["آموزش عمومی", "آموزش فنی", "نکات کاربردی", "مقالات تخصصی", "ویدئوهای آموزشی"]
     
     # محتوای آموزشی متنی - کاهش تعداد برای سرعت بیشتر
     for i in range(3):
-        category = random.choice(educationalCategory)
+        category = random.choice(categories)
         
         days_ago = random.randint(0, 60)
         created_at = datetime.now() - timedelta(days=days_ago)
@@ -449,11 +451,9 @@ def main():
             
             print("\n✓ سیدینگ دیتابیس با موفقیت انجام شد!")
             print(f"  • {User.query.count()} کاربر")
-            print(f"  • {ProductCategory.query.count()}محصولات دسته‌بندی")
-            print(f"  • {ServiceCategory.query.count()} دسته‌بندی خدمات")
-            print(f"  • {EducationalCategory.query.count()}  مطلب آموزشی دسته‌بندی")
-            print(f"  • {Product.query.count()} محصول")
-            print(f"  • {Service.query.count()} خدمت")
+            print(f"  • {Category.query.count()} دسته‌بندی")
+            print(f"  • {Product.query.filter_by(product_type='product').count()} محصول")
+            print(f"  • {Product.query.filter_by(product_type='service').count()} خدمت")
             print(f"  • {ProductMedia.query.count()} رسانه")
             print(f"  • {Inquiry.query.count()} استعلام قیمت")
             print(f"  • {EducationalContent.query.count()} محتوای آموزشی")
