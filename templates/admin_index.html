@@ -1,0 +1,90 @@
+{% extends "layout.html" %}
+{% set active_page = 'dashboard' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h4>داشبورد مدیریت</h4>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card bg-primary text-white mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">محصولات</h5>
+                        <h2 class="display-4">0</h2>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <a class="text-white stretched-link" href="{{ url_for('admin_products') }}">مشاهده جزئیات</a>
+                        <div class="small text-white"><i class="bi bi-arrow-left"></i></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card bg-success text-white mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">خدمات</h5>
+                        <h2 class="display-4">0</h2>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <a class="text-white stretched-link" href="{{ url_for('admin_services') }}">مشاهده جزئیات</a>
+                        <div class="small text-white"><i class="bi bi-arrow-left"></i></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card bg-warning text-white mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">استعلام‌های قیمت</h5>
+                        <h2 class="display-4">0</h2>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <a class="text-white stretched-link" href="{{ url_for('admin_inquiries') }}">مشاهده جزئیات</a>
+                        <div class="small text-white"><i class="bi bi-arrow-left"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>وضعیت سیستم</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>وضعیت ربات: <span class="badge bg-success">{{ bot_status }}</span></p>
+                        <p>زمان: {{ now.strftime('%Y/%m/%d %H:%M:%S') }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>عملیات سریع</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group">
+                            <a href="{{ url_for('admin_products') }}" class="list-group-item list-group-item-action">
+                                <i class="bi bi-plus-circle"></i> مدیریت محصولات
+                            </a>
+                            <a href="{{ url_for('admin_services') }}" class="list-group-item list-group-item-action">
+                                <i class="bi bi-plus-circle"></i> مدیریت خدمات
+                            </a>
+                            <a href="{{ url_for('admin_categories') }}" class="list-group-item list-group-item-action">
+                                <i class="bi bi-plus-circle"></i> مدیریت دسته‌بندی‌ها
+                            </a>
+                            <a href="{{ url_for('admin_education') }}" class="list-group-item list-group-item-action">
+                                <i class="bi bi-plus-circle"></i> محتوای آموزشی
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
