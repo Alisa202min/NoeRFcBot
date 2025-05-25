@@ -232,3 +232,12 @@ def logs():
         flash('شما دسترسی به این بخش ندارید', 'error')
         return redirect(url_for('index'))
     return render_template('logs.html')
+
+@app.route('/admin/database')
+@login_required
+def admin_database():
+    """نمایش دیتابیس در پنل ادمین"""
+    if not current_user.is_admin:
+        flash('شما دسترسی به این بخش ندارید', 'error')
+        return redirect(url_for('index'))
+    return render_template('admin_database.html')
