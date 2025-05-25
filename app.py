@@ -92,7 +92,10 @@ def index():
         'DATABASE_URL': 'Set' if os.environ.get('DATABASE_URL') else 'Not Set'
     }
     
-    return render_template('simple_index.html')
+    return render_template('index.html', 
+                         bot_status=bot_status, 
+                         env_status=env_status,
+                         datetime=__import__('datetime'))
 
 @app.route('/admin')
 @login_required
@@ -169,3 +172,64 @@ def admin_categories():
         flash('شما دسترسی به این بخش ندارید', 'error')
         return redirect(url_for('index'))
     return render_template('admin_categories.html')
+
+# اضافه کردن routes مفقوده که در template ها استفاده می‌شوند
+@app.route('/api/logs')
+@login_required
+def get_logs_json():
+    """API برای دریافت لاگ‌ها"""
+    return jsonify({"logs": []})
+
+@app.route('/api/status')
+@login_required
+def get_status_json():
+    """API برای دریافت وضعیت"""
+    return jsonify({
+        "bot_status": "running",
+        "database_status": "connected"
+    })
+
+@app.route('/admin/inquiries')
+@login_required
+def admin_inquiries():
+    """مدیریت استعلامات"""
+    if not current_user.is_admin:
+        flash('شما دسترسی به این بخش ندارید', 'error')
+        return redirect(url_for('index'))
+    return render_template('admin_inquiries.html')
+
+@app.route('/admin/education')
+@login_required
+def admin_education():
+    """مدیریت محتوای آموزشی"""
+    if not current_user.is_admin:
+        flash('شما دسترسی به این بخش ندارید', 'error')
+        return redirect(url_for('index'))
+    return render_template('admin_education.html')
+
+@app.route('/database')
+@login_required
+def database_view():
+    """نمایش دیتابیس"""
+    if not current_user.is_admin:
+        flash('شما دسترسی به این بخش ندارید', 'error')
+        return redirect(url_for('index'))
+    return render_template('database.html')
+
+@app.route('/configuration')
+@login_required
+def configuration():
+    """تنظیمات سیستم"""
+    if not current_user.is_admin:
+        flash('شما دسترسی به این بخش ندارید', 'error')
+        return redirect(url_for('index'))
+    return render_template('configuration.html')
+
+@app.route('/logs')
+@login_required
+def logs():
+    """نمایش لاگ‌ها"""
+    if not current_user.is_admin:
+        flash('شما دسترسی به این بخش ندارید', 'error')
+        return redirect(url_for('index'))
+    return render_template('logs.html')
