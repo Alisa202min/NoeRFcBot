@@ -81,6 +81,34 @@ def index():
 def admin():
     return render_template('admin_index.html')
 
+@app.route('/admin/database')
+def admin_database():
+    return render_template('admin_database.html')
+
+@app.route('/admin/users')
+def admin_users():
+    return render_template('admin_users.html')
+
+@app.route('/admin/products')
+def admin_products():
+    return render_template('admin_products.html')
+
+@app.route('/admin/services')
+def admin_services():
+    return render_template('admin_services.html')
+
+@app.route('/admin/education')
+def admin_education():
+    return render_template('admin_education.html')
+
+@app.route('/admin/categories')
+def admin_categories():
+    return render_template('admin_categories.html')
+
+@app.route('/admin/inquiries')
+def admin_inquiries():
+    return render_template('admin_inquiries.html')
+
 @app.route('/control/start', methods=['POST'])
 def control_start():
     return {"status": "started"}
