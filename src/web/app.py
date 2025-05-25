@@ -72,7 +72,7 @@ def load_user(user_id):
 # Create database tables
 with app.app_context():
     # Import models here to ensure they're registered with SQLAlchemy
-    from src.models import models
+    import models
     
     # Create tables
     try:
