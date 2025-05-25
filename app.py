@@ -1,5 +1,5 @@
 import os
-from flask import Flask
+from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -93,10 +93,11 @@ def index():
         'DATABASE_URL': 'Set' if os.environ.get('DATABASE_URL') else 'Not Set'
     }
     
+    import datetime
     return render_template('index.html', 
                          bot_status=bot_status, 
                          env_status=env_status,
-                         datetime=__import__('datetime'))
+                         now=datetime.datetime.now())
 
 @app.route('/admin')
 @login_required
@@ -107,21 +108,22 @@ def admin():
         return redirect(url_for('index'))
     return render_template('admin_index.html')
 
-@app.route('/login')
+@app.route('/login', methods=['GET', 'POST'])
 def login():
     """صفحه ورود"""
-    return '''<html dir="rtl"><head><meta charset="UTF-8"><title>ورود</title></head><body style="font-family:Arial;padding:50px;text-align:center;"><h2>ورود به پنل مدیریت</h2><form method="POST" action="/login_check" style="max-width:300px;margin:auto;"><p><input type="text" name="username" placeholder="admin" style="width:100%;padding:10px;" required></p><p><input type="password" name="password" placeholder="admin" style="width:100%;padding:10px;" required></p><p><button type="submit" style="width:100%;padding:10px;background:#007bff;color:white;border:none;">ورود</button></p></form><p><a href="/">بازگشت</a></p></body></html>'''
-
-@app.route('/login_check', methods=['POST'])
-def login_check():
-    """بررسی ورود"""
-    username = request.form.get('username')
-    password = request.form.get('password')
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        if username == 'admin' and password == 'admin':
+            session['logged_in'] = True
+            return redirect(url_for('admin'))
+        else:
+            flash('نام کاربری یا رمز عبور اشتباه است', 'error')
     
-    if username == 'admin' and password == 'admin':
-        return redirect('/admin')
-    else:
-        return '<html dir="rtl"><head><meta charset="UTF-8"></head><body style="font-family:Arial;padding:50px;text-align:center;"><h2>خطا در ورود</h2><p style="color:red;">نام کاربری یا رمز عبور اشتباه است</p><p>نام کاربری: admin | رمز عبور: admin</p><a href="/login">تلاش مجدد</a></body></html>'
+    return render_template('login.html')
+
+
 
 @app.route('/logout')
 @login_required
