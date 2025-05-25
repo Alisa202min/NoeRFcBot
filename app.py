@@ -107,58 +107,21 @@ def admin():
         return redirect(url_for('index'))
     return render_template('admin_index.html')
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/login')
 def login():
     """صفحه ورود"""
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
-        from models import User
-        user = User.query.filter_by(username=username).first()
-        
-        if user and user.check_password(password):
-            login_user(user)
-            return redirect(url_for('admin'))
-        else:
-            return '''
-            <!DOCTYPE html>
-            <html>
-            <head><title>خطا</title></head>
-            <body>
-                <h2>نام کاربری یا رمز عبور اشتباه است</h2>
-                <a href="/login">بازگشت</a>
-            </body>
-            </html>
-            '''
+    return '''<html dir="rtl"><head><meta charset="UTF-8"><title>ورود</title></head><body style="font-family:Arial;padding:50px;text-align:center;"><h2>ورود به پنل مدیریت</h2><form method="POST" action="/login_check" style="max-width:300px;margin:auto;"><p><input type="text" name="username" placeholder="admin" style="width:100%;padding:10px;" required></p><p><input type="password" name="password" placeholder="admin" style="width:100%;padding:10px;" required></p><p><button type="submit" style="width:100%;padding:10px;background:#007bff;color:white;border:none;">ورود</button></p></form><p><a href="/">بازگشت</a></p></body></html>'''
+
+@app.route('/login_check', methods=['POST'])
+def login_check():
+    """بررسی ورود"""
+    username = request.form.get('username')
+    password = request.form.get('password')
     
-    # Simple HTML login form
-    return '''
-    <!DOCTYPE html>
-    <html dir="rtl" lang="fa">
-    <head>
-        <meta charset="UTF-8">
-        <title>ورود - RFCBot</title>
-        <style>
-            body { font-family: Arial; padding: 50px; text-align: center; }
-            .login-box { max-width: 400px; margin: auto; border: 1px solid #ddd; padding: 30px; }
-            input { width: 100%; padding: 10px; margin: 10px 0; }
-            button { width: 100%; padding: 10px; background: #007bff; color: white; border: none; }
-        </style>
-    </head>
-    <body>
-        <div class="login-box">
-            <h2>ورود به پنل مدیریت</h2>
-            <form method="POST">
-                <input type="text" name="username" placeholder="نام کاربری" required>
-                <input type="password" name="password" placeholder="رمز عبور" required>
-                <button type="submit">ورود</button>
-            </form>
-            <p><a href="/">بازگشت به صفحه اصلی</a></p>
-        </div>
-    </body>
-    </html>
-    '''
+    if username == 'admin' and password == 'admin':
+        return redirect('/admin')
+    else:
+        return '<html dir="rtl"><head><meta charset="UTF-8"></head><body style="font-family:Arial;padding:50px;text-align:center;"><h2>خطا در ورود</h2><p style="color:red;">نام کاربری یا رمز عبور اشتباه است</p><p>نام کاربری: admin | رمز عبور: admin</p><a href="/login">تلاش مجدد</a></body></html>'
 
 @app.route('/logout')
 @login_required
