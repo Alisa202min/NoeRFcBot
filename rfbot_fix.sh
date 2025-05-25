@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to fix RFbot-web issues (502 Bad Gateway, SQLALCHEMY_DATABASE_URI, DB, ports, admin user)
+# Script to fix 403 Forbidden and ensure admin panel works
 # Save as: /root/rfbot_fix.sh
 # Run: sudo bash /root/rfbot_fix.sh
 
@@ -8,206 +8,135 @@ LOG_FILE="/tmp/rfbot_fix_$(date +%Y%m%d_%H%M%S).log"
 PROJECT_DIR="/var/www/rfbot"
 ENV_FILE="$PROJECT_DIR/.env"
 NGINX_CONF="/etc/nginx/sites-available/rfbot"
+NGINX_LINK="/etc/nginx/sites-enabled/rfbot"
 GUNICORN_SERVICE="/etc/systemd/system/rfbot-web.service"
-DEF_DB_USER="neondb_owner"
-DEF_DB_NAME="neondb"
-DEF_PORT="5000"
-DEF_ADMIN_PASS="admin123"
-DEF_DB_PASS="npg_nguJUcZGPX83"
+DB_USER="neondb_owner"
+DB_NAME="neondb"
+DB_PASS="npg_nguJUcZGPX83"
+ADMIN_PASS="admin123"
+PORT="5000"
 
-echo "Starting RFbot fix script..." | tee -a $LOG_FILE
-echo "Log file: $LOG_FILE"
-echo "Timestamp: $(date)" | tee -a $LOG_FILE
-echo "----------------------------------------" | tee -a $LOG_FILE
+log() { echo "$1" | tee -a $LOG_FILE; }
 
-# Function to log and print messages
-log() {
-    echo "$1" | tee -a $LOG_FILE
-}
+log "Starting RFbot fix script... Log: $LOG_FILE"
 
-# 1. Get user inputs with defaults
-log "Please provide the following details (press Enter to accept defaults):"
-read -p "DB User [$DEF_DB_USER]: " -e -i "$DEF_DB_USER" DB_USER
-read -p "DB Name [$DEF_DB_NAME]: " -e -i "$DEF_DB_NAME" DB_NAME
-read -p "Port (5000 or 8000) [$DEF_PORT]: " -e -i "$DEF_PORT" PORT
-read -p "Admin Password [$DEF_ADMIN_PASS]: " -e -i "$DEF_ADMIN_PASS" ADMIN_PASSWORD
-read -sp "DB Password [$DEF_DB_PASS]: " -e -i "$DEF_DB_PASS" DB_PASSWORD
-echo
-
-# Validate inputs
-if [ -z "$DB_USER" ] || [ -z "$DB_NAME" ] || [ -z "$DB_PASSWORD" ] || [ -z "$ADMIN_PASSWORD" ]; then
-    log "ERROR: All fields are required!"
-    exit 1
-fi
-if [[ "$PORT" != "5000" && "$PORT" != "8000" ]]; then
-    log "ERROR: Port must be 5000 or 8000!"
-    exit 1
-fi
+# 1. Install dependencies
+log "Installing dependencies..."
+apt update
+apt install -y python3 python3-pip python3-venv postgresql-client nginx
+cd $PROJECT_DIR
+[ -d venv ] || python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt bcrypt psycopg2-binary python-dotenv gunicorn flask flask-login flask-wtf
+deactivate
+log "Dependencies installed."
 
 # 2. Update .env file
 log "Updating .env file..."
-if [ ! -f "$ENV_FILE" ]; then
-    log "Creating .env file..."
-    touch $ENV_FILE
-    chown www-data:www-data $ENV_FILE
-    chmod 640 $ENV_FILE
-fi
-
-# Backup .env file
-cp $ENV_FILE ${ENV_FILE}.backup_$(date +%Y%m%d_%H%M%S)
-
-# Update or add variables
+[ -f "$ENV_FILE" ] && cp $ENV_FILE ${ENV_FILE}.backup_$(date +%Y%m%d_%H%M%S)
 cat > $ENV_FILE << EOL
-DATABASE_URL=postgresql://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME
-SQLALCHEMY_DATABASE_URI=postgresql://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME
+DATABASE_URL=postgresql://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
+SQLALCHEMY_DATABASE_URI=postgresql://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
 PORT=$PORT
 HOST=0.0.0.0
 EOL
-log ".env file updated with DATABASE_URL, SQLALCHEMY_DATABASE_URI, and PORT."
+chown www-data:www-data $ENV_FILE
+chmod 640 $ENV_FILE
+log ".env updated."
 
-# 3. Fix PostgreSQL authentication
-log "Configuring PostgreSQL authentication..."
-PG_HBA=$(find /etc/postgresql -name pg_hba.conf 2>/dev/null | head -n 1)
-if [ -z "$PG_HBA" ]; then
-    log "ERROR: pg_hba.conf not found!"
-    log "Suggestion: Ensure PostgreSQL is installed and locate pg_hba.conf."
+# 3. Fix PostgreSQL
+log "Testing DB connection..."
+if echo "SELECT 1;" | PGPASSWORD=$DB_PASS psql -U $DB_USER -d $DB_NAME -h localhost >/dev/null 2>&1; then
+    log "DB connection OK."
+else
+    log "ERROR: DB connection failed!"
     exit 1
 fi
 
-# Backup pg_hba.conf
-cp $PG_HBA ${PG_HBA}.backup_$(date +%Y%m%d_%H%M%S)
-
-# Add or update authentication rule
-if ! grep -q "local\s*$DB_NAME\s*$DB_USER\s*md5" $PG_HBA; then
-    sed -i "/^local\s*all\s*all\s*peer/i local   $DB_NAME   $DB_USER   md5" $PG_HBA
-    log "Added md5 authentication for $DB_USER in $PG_HBA."
-else
-    log "md5 authentication already configured."
-fi
-
-# Restart PostgreSQL
-log "Restarting PostgreSQL..."
-systemctl restart postgresql
+# 4. Create admin user
+log "Creating admin user..."
+cd $PROJECT_DIR
+source venv/bin/activate
+python3 -c "
+import bcrypt
+from app import db
+from models import User
+with app.app_context():
+    hashed = bcrypt.hashpw('$ADMIN_PASS'.encode(), bcrypt.gensalt()).decode()
+    admin = User.query.filter_by(username='admin').first()
+    if not admin:
+        admin = User(username='admin', email='admin@example.com', is_admin=True)
+        admin.password = hashed
+        db.session.add(admin)
+    else:
+        admin.password = hashed
+    db.session.commit()
+" >> $LOG_FILE 2>&1
 if [ $? -eq 0 ]; then
-    log "PostgreSQL restarted successfully."
+    log "Admin user created."
 else
-    log "ERROR: Failed to restart PostgreSQL!"
+    log "ERROR: Failed to create admin user!"
     exit 1
 fi
+deactivate
 
-# Test database connection
-log "Testing database connection..."
-if echo "SELECT 1;" | PGPASSWORD=$DB_PASSWORD psql -U $DB_USER -d $DB_NAME -h localhost >/dev/null 2>&1; then
-    log "Database connection successful."
-else
-    log "ERROR: Database connection failed!"
-    log "Suggestion: Verify DB password and PostgreSQL status."
-    exit 1
-fi
-
-# 4. Align Nginx and Gunicorn ports
-log "Configuring Nginx and Gunicorn to use port $PORT..."
-# Update Gunicorn service
-if [ -f "$GUNICORN_SERVICE" ]; then
-    sed -i "s/--bind [^ ]*/--bind 127.0.0.1:$PORT/" $GUNICORN_SERVICE
-    log "Updated Gunicorn bind to 127.0.0.1:$PORT."
-else
-    log "ERROR: Gunicorn service file $GUNICORN_SERVICE not found!"
-    exit 1
-fi
-
-# Update Nginx config
-if [ -f "$NGINX_CONF" ]; then
-    cat > $NGINX_CONF << EOL
+# 5. Fix Nginx config
+log "Configuring Nginx..."
+cat > $NGINX_CONF << EOL
 upstream rfbot_app {
     server 127.0.0.1:$PORT;
 }
 server {
     listen 80;
-    server_name 185.10.75.180;
+    server_name _;
+    client_max_body_size 20M;
     location / {
         proxy_pass http://rfbot_app;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+    location /static {
+        alias $PROJECT_DIR/static;
     }
 }
 EOL
-    log "Updated Nginx upstream to 127.0.0.1:$PORT."
-else
-    log "ERROR: Nginx config file $NGINX_CONF not found!"
-    exit 1
-fi
-
-# Test Nginx config
-log "Testing Nginx configuration..."
+[ -L "$NGINX_LINK" ] || ln -s $NGINX_CONF $NGINX_LINK
 if nginx -t >> $LOG_FILE 2>&1; then
-    log "Nginx configuration is valid."
+    log "Nginx config valid."
 else
-    log "ERROR: Invalid Nginx configuration!"
+    log "ERROR: Invalid Nginx config!"
     exit 1
 fi
 
-# 5. Create admin user
-log "Creating admin user..."
-# Generate hashed password
-cd $PROJECT_DIR
-source venv/bin/activate
-HASHED_PASSWORD=$(python3 -c "import bcrypt; print(bcrypt.hashpw('$ADMIN_PASSWORD'.encode(), bcrypt.gensalt()).decode())")
-deactivate
-
-# Insert admin user
-if echo "INSERT INTO users (username, password, role) VALUES ('admin', '$HASHED_PASSWORD', 'admin');" | PGPASSWORD=$DB_PASSWORD psql -U $DB_USER -d $DB_NAME -h localhost >> $LOG_FILE 2>&1; then
-    log "Admin user created successfully."
-else
-    log "WARNING: Failed to create admin user!"
-    log "Suggestion: Check database logs or manually insert user."
-fi
-
-# 6. Set permissions
-log "Setting project directory permissions..."
+# 6. Fix permissions
+log "Fixing permissions..."
 chown -R www-data:www-data $PROJECT_DIR
 chmod -R 755 $PROJECT_DIR
-log "Permissions updated."
+find $PROJECT_DIR/static $PROJECT_DIR/templates -type f -exec chmod 644 {} \;
+log "Permissions fixed."
 
 # 7. Restart services
 log "Restarting services..."
 systemctl daemon-reload
-systemctl restart rfbot-web
-systemctl restart nginx
+systemctl restart rfbot-web nginx
 if systemctl is-active --quiet rfbot-web && systemctl is-active --quiet nginx; then
-    log "Services restarted successfully."
+    log "Services restarted."
 else
     log "ERROR: Failed to restart services!"
-    log "Suggestion: Check 'systemctl status rfbot-web' and 'systemctl status nginx'."
     exit 1
 fi
 
-# 8. Test Gunicorn
-log "Testing Gunicorn manually..."
-cd $PROJECT_DIR
-source venv/bin/activate
-gunicorn --bind 127.0.0.1:$PORT app:app >> $LOG_FILE 2>&1 &
-GUNICORN_PID=$!
-sleep 3
-if ps -p $GUNICORN_PID > /dev/null; then
-    log "Gunicorn started successfully on 127.0.0.1:$PORT."
+# 8. Test admin panel
+log "Testing admin panel..."
+SERVER_IP=$(curl -s ifconfig.me || echo "your_server_ip")
+if curl -s -o /dev/null -w "%{http_code}" http://$SERVER_IP/admin | grep -q "200"; then
+    log "Admin panel accessible at http://$SERVER_IP/admin"
 else
-    log "ERROR: Gunicorn failed to start!"
-    log "Suggestion: Check $LOG_FILE for Python errors."
-    kill $GUNICORN_PID 2>/dev/null
-    exit 1
+    log "WARNING: Admin panel not accessible! Check $LOG_FILE, Nginx logs, and Gunicorn."
 fi
-kill $GUNICORN_PID 2>/dev/null
 
-# 9. Final instructions
-SERVER_IP=$(curl -s ifconfig.me)
-log "----------------------------------------"
-log "Fix complete. Review $LOG_FILE for details."
-log "Next steps:"
-log "- Test the panel: http://$SERVER_IP/admin"
-log "- Login with username: admin, password: $ADMIN_PASSWORD"
-log "- If issues persist, share $LOG_FILE and output of:"
-log "  sudo journalctl -u rfbot-web -n 50"
-log "  sudo tail -n 20 /var/log/nginx/error.log"
-
+log "Fix complete. Login: admin, $ADMIN_PASS"
+log "Check logs: tail -n 20 /var/log/nginx/error.log, journalctl -u rfbot-web -n 50"
 exit 0
