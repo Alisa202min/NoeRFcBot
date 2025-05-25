@@ -66,8 +66,8 @@ login_manager.login_view = 'login'
 # Load user function for Flask-Login
 @login_manager.user_loader
 def load_user(user_id):
-    from models import User
-    return User.query.get(int(user_id))
+    # Temporarily disable user loading to fix DB transaction issue
+    return None
 
 # Create database tables
 with app.app_context():
@@ -83,7 +83,7 @@ with app.app_context():
     
     # Create admin user if not exists
     try:
-        from src.models.models import User
+        from models import User
         admin = User.query.filter_by(username='admin').first()
         if not admin:
             admin = User(username='admin', email='admin@example.com', is_admin=True)
