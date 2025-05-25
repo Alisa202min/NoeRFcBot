@@ -70,10 +70,14 @@ with app.app_context():
     db.create_all()
     
     # Create admin user if not exists
-    from models import User
-    admin = User.query.filter_by(username='admin').first()
-    if not admin:
-        admin = User(username='admin', email='admin@example.com', is_admin=True)
-        admin.set_password('admin')  # Set a default password - should be changed immediately
-        db.session.add(admin)
-        db.session.commit()
+    try:
+        from models import User
+        admin = User.query.filter_by(username='admin').first()
+        if not admin:
+            admin = User(username='admin', email='admin@example.com', is_admin=True)
+            admin.set_password('admin')  # Set a default password - should be changed immediately
+            db.session.add(admin)
+            db.session.commit()
+    except ImportError:
+        # Skip admin user creation if models not available
+        pass

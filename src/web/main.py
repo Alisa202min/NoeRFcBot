@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 from sqlalchemy import text
 
 from src.web.app import app, db, media_files
-from src.models.models import (
+from models import (
     User, Product, ProductMedia, Service, ServiceMedia, Inquiry,
     EducationalContent, StaticContent, EducationalCategory, EducationalContentMedia,
     ProductCategory, ServiceCategory
@@ -2755,7 +2755,7 @@ def admin_login():
         else:
             flash('نام کاربری یا رمز عبور اشتباه است', 'danger')
             
-    return render_template('admin/login.html')
+    return render_template('login.html')
 
 # ----- Common error handlers -----
 

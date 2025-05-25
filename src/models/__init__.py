@@ -3,24 +3,17 @@
 این ماژول شامل کلاس‌های مدل SQLAlchemy و لایه انتزاعی دیتابیس است.
 """
 
-from .models import (
-    User, 
-    Category, 
-    Product, 
-    ProductMedia, 
-    Inquiry, 
-    EducationalContent, 
-    StaticContent
-)
-from .database import Database
+# Note: models.py has been moved to the root directory
+# Import Database from root since database.py was also moved to root
+try:
+    from database import Database
+except ImportError:
+    # Fallback for when running from different contexts
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    from database import Database
 
 __all__ = [
-    'User',
-    'Category',
-    'Product',
-    'ProductMedia',
-    'Inquiry',
-    'EducationalContent',
-    'StaticContent',
     'Database'
 ]
