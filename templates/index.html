@@ -3,182 +3,47 @@
 {% block title %}داشبورد مدیریت{% endblock %}
 
 {% block content %}
-<div class="container-fluid px-4">
-    <h1 class="mt-4 mb-4">داشبورد مدیریت</h1>
-    
+<div class="container-fluid">
     <div class="row">
-        <div class="col-xl-3 col-md-6">
-            <div class="card bg-primary text-white mb-4">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="mb-0">{{ product_count }}</h5>
-                            <div class="small">محصولات</div>
-                        </div>
-                        <div>
-                            <i class="bi bi-box-seam fs-1"></i>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer d-flex align-items-center justify-content-between">
-                    <a class="small text-white stretched-link" href="{{ url_for('admin_products') }}">مشاهده جزئیات</a>
-                    <div class="small text-white"><i class="bi bi-chevron-left"></i></div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-xl-3 col-md-6">
-            <div class="card bg-success text-white mb-4">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="mb-0">{{ service_count }}</h5>
-                            <div class="small">خدمات</div>
-                        </div>
-                        <div>
-                            <i class="bi bi-tools fs-1"></i>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer d-flex align-items-center justify-content-between">
-                    <a class="small text-white stretched-link" href="{{ url_for('admin_services') }}">مشاهده جزئیات</a>
-                    <div class="small text-white"><i class="bi bi-chevron-left"></i></div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-xl-3 col-md-6">
-            <div class="card bg-warning text-white mb-4">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="mb-0">{{ category_count }}</h5>
-                            <div class="small">دسته‌بندی‌ها</div>
-                        </div>
-                        <div>
-                            <i class="bi bi-folder fs-1"></i>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer d-flex align-items-center justify-content-between">
-                    <a class="small text-white stretched-link" href="{{ url_for('admin_categories') }}">مشاهده جزئیات</a>
-                    <div class="small text-white"><i class="bi bi-chevron-left"></i></div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-xl-3 col-md-6">
-            <div class="card bg-danger text-white mb-4">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="mb-0">{{ inquiry_count }}</h5>
-                            <div class="small">استعلام‌های قیمت</div>
-                        </div>
-                        <div>
-                            <i class="bi bi-chat-dots fs-1"></i>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer d-flex align-items-center justify-content-between">
-                    <a class="small text-white stretched-link" href="{{ url_for('admin_inquiries') }}">مشاهده جزئیات</a>
-                    <div class="small text-white"><i class="bi bi-chevron-left"></i></div>
-                </div>
+        <div class="col-12">
+            <div class="welcome-section mb-4">
+                <h1 class="display-4 text-primary">خوش آمدید!</h1>
+                <p class="lead">به سیستم مدیریت کاتالوگ RFCBot خوش آمدید</p>
             </div>
         </div>
     </div>
-    
+
     <div class="row">
-        <div class="col-xl-6">
-            <div class="card mb-4">
+        <div class="col-md-6">
+            <div class="card">
                 <div class="card-header">
-                    <i class="bi bi-chat-right-text me-1"></i>
-                    استعلام‌های اخیر
+                    <h5 class="card-title"><i class="fas fa-robot"></i> وضعیت ربات تلگرام</h5>
                 </div>
                 <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-striped table-hover">
-                            <thead>
-                                <tr>
-                                    <th>نام</th>
-                                    <th>تلفن</th>
-                                    <th>وضعیت</th>
-                                    <th>تاریخ</th>
-                                    <th>عملیات</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% if recent_inquiries %}
-                                    {% for inquiry in recent_inquiries %}
-                                    <tr>
-                                        <td>{{ inquiry.name }}</td>
-                                        <td>{{ inquiry.phone }}</td>
-                                        <td>
-                                            {% if inquiry.status == 'pending' %}
-                                            <span class="badge bg-warning">در انتظار بررسی</span>
-                                            {% elif inquiry.status == 'in_progress' %}
-                                            <span class="badge bg-info">در حال بررسی</span>
-                                            {% elif inquiry.status == 'completed' %}
-                                            <span class="badge bg-success">تکمیل شده</span>
-                                            {% elif inquiry.status == 'cancelled' %}
-                                            <span class="badge bg-danger">لغو شده</span>
-                                            {% else %}
-                                            <span class="badge bg-secondary">نامشخص</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>{{ inquiry.created_at.strftime('%Y/%m/%d') if inquiry.created_at else 'نامشخص' }}</td>
-                                        <td>
-                                            <a href="{{ url_for('admin_inquiries', action='view', id=inquiry.id) }}" class="btn btn-sm btn-info">
-                                                <i class="bi bi-eye"></i>
-                                            </a>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                {% else %}
-                                    <tr>
-                                        <td colspan="5" class="text-center">استعلامی یافت نشد</td>
-                                    </tr>
-                                {% endif %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="card-footer small text-muted">
-                    <a href="{{ url_for('admin_inquiries') }}" class="btn btn-sm btn-outline-primary">مشاهده همه استعلام‌ها</a>
+                    <p class="card-text">
+                        وضعیت: <span class="badge bg-success">{{ bot_status }}</span>
+                    </p>
+                    <a href="https://t.me/RFCatalogbot" target="_blank" class="btn btn-primary">
+                        <i class="fab fa-telegram"></i> مشاهده ربات
+                    </a>
                 </div>
             </div>
         </div>
         
-        <div class="col-xl-6">
-            <div class="card mb-4">
+        <div class="col-md-6">
+            <div class="card">
                 <div class="card-header">
-                    <i class="bi bi-info-circle me-1"></i>
-                    وضعیت سیستم
+                    <h5 class="card-title"><i class="fas fa-cogs"></i> تنظیمات سیستم</h5>
                 </div>
                 <div class="card-body">
-                    <dl class="row">
-                        <dt class="col-sm-6">وضعیت ربات تلگرام:</dt>
-                        <dd class="col-sm-6">
-                            <span class="badge bg-success">فعال</span>
-                        </dd>
-                        
-                        <dt class="col-sm-6">وضعیت دیتابیس:</dt>
-                        <dd class="col-sm-6">
-                            <span class="badge bg-success">متصل</span>
-                        </dd>
-                        
-                        <dt class="col-sm-6">زمان آخرین به‌روزرسانی:</dt>
-                        <dd class="col-sm-6">
-                            {{ now.strftime('%Y/%m/%d %H:%M:%S') }}
-                        </dd>
-                    </dl>
+                    <p>تاریخ و زمان: {{ now.strftime('%Y/%m/%d %H:%M:%S') }}</p>
                     
                     <div class="d-grid gap-2 mt-3">
-                        <a href="{{ url_for('admin_database') }}" class="btn btn-outline-primary">
-                            <i class="bi bi-database"></i> مدیریت دیتابیس
+                        <a href="{{ url_for('configuration') }}" class="btn btn-outline-primary">
+                            <i class="bi bi-gear"></i> تنظیمات
                         </a>
-                        <a href="{{ url_for('admin_static_content') }}" class="btn btn-outline-secondary">
-                            <i class="bi bi-file-text"></i> محتوای استاتیک
+                        <a href="{{ url_for('logs') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-file-text"></i> لاگ‌ها
                         </a>
                     </div>
                 </div>
