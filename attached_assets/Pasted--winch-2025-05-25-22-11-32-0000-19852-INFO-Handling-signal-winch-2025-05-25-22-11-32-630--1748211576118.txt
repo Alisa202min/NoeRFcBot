@@ -1,0 +1,116 @@
+ winch
+[2025-05-25 22:11:32 +0000] [19852] [INFO] Handling signal: winch
+2025-05-25 22:11:32,630 - src.web.app - INFO - Database tables created successfully
+2025-05-25 22:11:32,635 - src.web.app - ERROR - Error creating admin user: No module named 'src.models.models'
+[2025-05-25 22:11:32 +0000] [19852] [INFO] Handling signal: winch
+[2025-05-25 22:11:32 +0000] [19852] [INFO] Handling signal: winch
+[2025-05-25 22:11:32 +0000] [19852] [INFO] Handling signal: winch
+2025-05-25 22:11:32,960 - src.web.main - ERROR - Error in index route: (psycopg2.errors.UndefinedColumn) column services.provider does not exist
+LINE 1: ...atured, services.available AS services_available, services.p...
+                                                             ^
+
+[SQL: SELECT services.id AS services_id, services.name AS services_name, services.description AS services_description, services.price AS services_price, services.category_id AS services_category_id, services.photo_url AS services_photo_url, services.file_id AS services_file_id, services.video_url AS services_video_url, services.video_file_id AS services_video_file_id, services.featured AS services_featured, services.available AS services_available, services.provider AS services_provider, services.service_code AS services_service_code, services.duration AS services_duration, services.tags AS services_tags, services.created_at AS services_created_at, services.updated_at AS services_updated_at 
+FROM services 
+WHERE services.featured = true 
+ LIMIT %(param_1)s]
+[parameters: {'param_1': 6}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+[2025-05-25 22:11:33 +0000] [19852] [INFO] Handling signal: winch
+[2025-05-25 22:11:33 +0000] [19852] [INFO] Handling signal: winch
+[2025-05-25 22:11:33 +0000] [19852] [INFO] Handling signal: winch
+[2025-05-25 22:11:33 +0000] [19852] [INFO] Handling signal: winch
+[2025-05-25 22:11:33 +0000] [19852] [INFO] Handling signal: winch
+2025-05-25 22:11:38,593 - src.web.main - ERROR - Error in index route: (psycopg2.errors.UndefinedColumn) column services.provider does not exist
+LINE 1: ...atured, services.available AS services_available, services.p...
+                                                             ^
+
+[SQL: SELECT services.id AS services_id, services.name AS services_name, services.description AS services_description, services.price AS services_price, services.category_id AS services_category_id, services.photo_url AS services_photo_url, services.file_id AS services_file_id, services.video_url AS services_video_url, services.video_file_id AS services_video_file_id, services.featured AS services_featured, services.available AS services_available, services.provider AS services_provider, services.service_code AS services_service_code, services.duration AS services_duration, services.tags AS services_tags, services.created_at AS services_created_at, services.updated_at AS services_updated_at 
+FROM services 
+WHERE services.featured = true 
+ LIMIT %(param_1)s]
+[parameters: {'param_1': 6}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2025-05-25 22:11:39,425 - src.web.main - ERROR - Error in index route: (psycopg2.errors.UndefinedColumn) column services.provider does not exist
+LINE 1: ...atured, services.available AS services_available, services.p...
+                                                             ^
+
+[SQL: SELECT services.id AS services_id, services.name AS services_name, services.description AS services_description, services.price AS services_price, services.category_id AS services_category_id, services.photo_url AS services_photo_url, services.file_id AS services_file_id, services.video_url AS services_video_url, services.video_file_id AS services_video_file_id, services.featured AS services_featured, services.available AS services_available, services.provider AS services_provider, services.service_code AS services_service_code, services.duration AS services_duration, services.tags AS services_tags, services.created_at AS services_created_at, services.updated_at AS services_updated_at 
+FROM services 
+WHERE services.featured = true 
+ LIMIT %(param_1)s]
+[parameters: {'param_1': 6}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2025-05-25 22:13:55,994 - src.web.app - ERROR - Exception on /admin [GET]
+Traceback (most recent call last):
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask_login/utils.py", line 284, in decorated_view
+    elif not current_user.is_authenticated:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/werkzeug/local.py", line 318, in __get__
+    obj = instance._get_current_object()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/werkzeug/local.py", line 526, in _get_current_object
+    return get_name(local())
+                    ^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask_login/utils.py", line 25, in <lambda>
+    current_user = LocalProxy(lambda: _get_user())
+                                      ^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask_login/utils.py", line 370, in _get_user
+    current_app.login_manager._load_user()
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask_login/login_manager.py", line 364, in _load_user
+    user = self._user_callback(user_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/src/web/app.py", line 69, in load_user
+    from src.models.models import User
+ModuleNotFoundError: No module named 'src.models.models'
+[2025-05-25 22:13:55 +0000] [19863] [ERROR] Error handling request /admin
+Traceback (most recent call last):
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask_login/utils.py", line 284, in decorated_view
+    elif not current_user.is_authenticated:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/werkzeug/local.py", line 318, in __get__
+    obj = instance._get_current_object()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/werkzeug/local.py", line 526, in _get_current_object
+    return get_name(local())
+                    ^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask_login/utils.py", line 25, in <lambda>
+    current_user = LocalProxy(lambda: _get_user())
+                                      ^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask_login/utils.py", line 370, in _get_user
+    current_app.login_manager._load_user()
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask_login/login_manager.py", line 364, in _load_user
+    user = self._user_callback(user_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/src/web/app.py", line 69, in load_user
+    from src.models.models import User
+ModuleNotFoundError: No module named 'src.models.models'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/gunicorn/workers/sync.py", line 134, in handle
+    self.handle_request(listener, req, clien
