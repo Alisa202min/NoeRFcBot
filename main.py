@@ -6,8 +6,7 @@
 # Import the unified Flask application and routes
 from app import app
 
-# Import all the routes from src/web/main.py
-from src.web.main import *
+# Routes will be imported through app.py
 
 if __name__ == "__main__":
     # Run the Flask application
