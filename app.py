@@ -110,23 +110,55 @@ def admin():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """صفحه ورود"""
-    try:
-        if request.method == 'POST':
-            username = request.form.get('username')
-            password = request.form.get('password')
-            
-            from models import User
-            user = User.query.filter_by(username=username).first()
-            
-            if user and user.check_password(password):
-                login_user(user)
-                return redirect(url_for('admin'))
-            else:
-                flash('نام کاربری یا رمز عبور اشتباه است', 'error')
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
         
-        return render_template('login.html')
-    except Exception as e:
-        return f"Login Error: {str(e)}", 500
+        from models import User
+        user = User.query.filter_by(username=username).first()
+        
+        if user and user.check_password(password):
+            login_user(user)
+            return redirect(url_for('admin'))
+        else:
+            return '''
+            <!DOCTYPE html>
+            <html>
+            <head><title>خطا</title></head>
+            <body>
+                <h2>نام کاربری یا رمز عبور اشتباه است</h2>
+                <a href="/login">بازگشت</a>
+            </body>
+            </html>
+            '''
+    
+    # Simple HTML login form
+    return '''
+    <!DOCTYPE html>
+    <html dir="rtl" lang="fa">
+    <head>
+        <meta charset="UTF-8">
+        <title>ورود - RFCBot</title>
+        <style>
+            body { font-family: Arial; padding: 50px; text-align: center; }
+            .login-box { max-width: 400px; margin: auto; border: 1px solid #ddd; padding: 30px; }
+            input { width: 100%; padding: 10px; margin: 10px 0; }
+            button { width: 100%; padding: 10px; background: #007bff; color: white; border: none; }
+        </style>
+    </head>
+    <body>
+        <div class="login-box">
+            <h2>ورود به پنل مدیریت</h2>
+            <form method="POST">
+                <input type="text" name="username" placeholder="نام کاربری" required>
+                <input type="password" name="password" placeholder="رمز عبور" required>
+                <button type="submit">ورود</button>
+            </form>
+            <p><a href="/">بازگشت به صفحه اصلی</a></p>
+        </div>
+    </body>
+    </html>
+    '''
 
 @app.route('/logout')
 @login_required
