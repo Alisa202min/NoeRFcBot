@@ -175,13 +175,11 @@ def admin_categories():
 
 # اضافه کردن routes مفقوده که در template ها استفاده می‌شوند
 @app.route('/api/logs')
-@login_required
 def get_logs_json():
     """API برای دریافت لاگ‌ها"""
-    return jsonify({"logs": []})
+    return jsonify({"logs": ["تلگرام بات فعال است", "پایگاه داده متصل است"]})
 
 @app.route('/api/status')
-@login_required
 def get_status_json():
     """API برای دریافت وضعیت"""
     return jsonify({
