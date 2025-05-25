@@ -3,10 +3,8 @@
 این فایل برنامه Flask و بات تلگرام را راه‌اندازی می‌کند.
 """
 
-# Import the Flask application directly from the reorganized structure
-from src.web import app
-# Import main routes to ensure they are registered
-from src.web import main
+# Import the Flask application from root app.py (same as telegram bot uses)
+from app import app
 
 # Export the app object for Gunicorn
 app = app
