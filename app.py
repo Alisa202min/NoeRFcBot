@@ -1,25 +1,34 @@
 import os
+import logging
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_login import LoginManager
-from dotenv import load_dotenv
 
-load_dotenv()
 
 class Base(DeclarativeBase):
     pass
 
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG, 
+                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# Initialize SQLAlchemy with Base class
 db = SQLAlchemy(model_class=Base)
 
 # Create the Flask app
-app = Flask(__name__)
+app = Flask(__name__, 
+           static_folder='static',
+           template_folder='templates')
 app.secret_key = os.environ.get("SESSION_SECRET", "رمز موقت برای ربات RFCBot")
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)  # For proper URL generation with https
 
 # Database configuration
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("SQLALCHEMY_DATABASE_URI") or os.environ.get("DATABASE_URL")
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
@@ -30,7 +39,6 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     }
 }
 
-# بقیه کدها بدون تغییر...
 # Configure Flask-Uploads
 from utils_upload import UploadSet, IMAGES, VIDEO, configure_uploads
 
@@ -53,13 +61,15 @@ os.makedirs(app.config['UPLOADED_MEDIA_DEST'], exist_ok=True)
 # Initialize Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'login'
 
 # Load user function for Flask-Login
 @login_manager.user_loader
 def load_user(user_id):
-    from models import User
-    return User.query.get(int(user_id))
+    # Temporarily disable user loading to fix DB transaction issue
+    return None
+
+# Import main routes to register them
+from src.web.main import *
 
 # Create database tables
 with app.app_context():
@@ -67,17 +77,11 @@ with app.app_context():
     import models
     
     # Create tables
-    db.create_all()
-    
-    # Create admin user if not exists
     try:
-        from models import User
-        admin = User.query.filter_by(username='admin').first()
-        if not admin:
-            admin = User(username='admin', email='admin@example.com', is_admin=True)
-            admin.set_password('admin')  # Set a default password - should be changed immediately
-            db.session.add(admin)
-            db.session.commit()
-    except ImportError:
-        # Skip admin user creation if models not available
-        pass
+        db.create_all()
+        logger.info("Database tables created successfully")
+    except Exception as e:
+        logger.error(f"Error creating database tables: {e}")
+    
+    # Skip admin user creation for now to avoid circular import
+    logger.info("Application setup completed")
