@@ -1,0 +1,188 @@
+{% extends 'layout.html' %}
+
+{% block title %}{{ title }} - RFCBot{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_index') }}">داشبورد ادمین</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_education') }}">محتوای آموزشی</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ title }}</li>
+                </ol>
+            </nav>
+            
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">{{ title }}</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('admin_education') }}?action=save" enctype="multipart/form-data">
+                        {% if content %}
+                        <input type="hidden" name="id" value="{{ content.id }}">
+                        {% endif %}
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="title" class="form-label">عنوان</label>
+                                    <input type="text" class="form-control" id="title" name="title" value="{{ content.title if content else '' }}" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="category" class="form-label">دسته‌بندی</label>
+                                    <select class="form-select" id="category" name="category">
+                                        {% for cat in categories %}
+                                        <option value="{{ cat }}" {% if content and content.category == cat %}selected{% endif %}>{{ cat }}</option>
+                                        {% endfor %}
+                                        <option value="new_category" {% if not categories %}selected{% endif %}>دسته‌بندی جدید</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3" id="newCategoryDiv" style="display: none;">
+                                    <label for="new_category" class="form-label">دسته‌بندی جدید</label>
+                                    <input type="text" class="form-control" id="new_category" name="new_category" placeholder="نام دسته‌بندی جدید">
+                                </div>
+                                
+                                <!-- محتوای آموزشی همیشه متن است و فایل‌ها جداگانه ذخیره می‌شوند -->
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="content_text" class="form-label">محتوا</label>
+                                    <textarea class="form-control" id="content_text" name="content" rows="12">{{ content.content if content else '' }}</textarea>
+                                    <div class="form-text" id="contentHelp">
+                                        متن یا توضیحات محتوای آموزشی را در این قسمت وارد کنید.
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3 upload-section" id="uploadSection">
+                                    <label for="file" class="form-label">آپلود فایل (می‌توانید چند فایل انتخاب کنید)</label>
+                                    <input type="file" class="form-control" id="file" name="file" multiple>
+                                    <div class="form-text text-info">
+                                       برای انتخاب چندین فایل، دکمه Ctrl یا Shift را نگه داشته و فایل‌ها را انتخاب کنید
+                                    </div>
+                                    
+                                    {% if content %}
+                                    <!-- نمایش اطلاعات محتوا (برای اطلاع) -->
+                                    <div class="mt-3 mb-2">
+                                        <div class="alert alert-info">
+                                            <p><strong>عنوان محتوا:</strong> {{ content.title }}</p>
+                                            <p><strong>دسته‌بندی:</strong> {{ content.category }}</p>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <!-- نمایش فایل‌های ضمیمه موجود -->
+                                    {% if media_list %}
+                                    <div class="mt-3">
+                                        <h6 class="text-primary">فایل‌های ضمیمه موجود:</h6>
+                                        <div class="row row-cols-1 row-cols-md-3 g-3">
+                                            {% for media in media_list %}
+                                            <div class="col">
+                                                <div class="card h-100">
+                                                    {% if media.file_type == 'photo' %}
+                                                    <img src="{{ media.redirect_url }}" class="card-img-top" alt="تصویر ضمیمه">
+                                                    {% elif media.file_type == 'video' %}
+                                                    <div class="ratio ratio-16x9">
+                                                        <video controls>
+                                                            <source src="{{ media.redirect_url }}" type="video/mp4">
+                                                        </video>
+                                                    </div>
+                                                    {% elif media.file_type == 'file' %}
+                                                    <div class="card-body">
+                                                        <i class="bi bi-file-earmark-text fs-1 text-primary"></i>
+                                                        <p>فایل ضمیمه</p>
+                                                    </div>
+                                                    {% endif %}
+                                                    <div class="card-footer d-flex justify-content-between">
+                                                        <a href="{{ media.redirect_url }}" class="btn btn-sm btn-primary" target="_blank">
+                                                            <i class="bi bi-download"></i> دانلود
+                                                        </a>
+                                                        <button type="button" class="btn btn-sm btn-danger" 
+                                                                onclick="confirmDeleteMedia('educational', {{ content.id }}, {{ media.id }}, '{{ media.file_type }}')">
+                                                            <i class="bi bi-trash"></i> حذف
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('admin_education') }}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> بازگشت به لیست
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> ذخیره محتوا
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const category = document.getElementById('category');
+        const newCategoryDiv = document.getElementById('newCategoryDiv');
+        const uploadSection = document.getElementById('uploadSection');
+        
+        // نمایش/عدم نمایش فیلد دسته‌بندی جدید
+        function updateCategoryField() {
+            if (category.value === 'new_category') {
+                newCategoryDiv.style.display = 'block';
+            } else {
+                newCategoryDiv.style.display = 'none';
+            }
+        }
+        
+        // بخش آپلود فایل همیشه نمایش داده می‌شود
+        
+        category.addEventListener('change', updateCategoryField);
+        
+        // فراخوانی اولیه برای تنظیم حالت فرم
+        updateCategoryField();
+    });
+    
+    // تابع تأیید حذف فایل رسانه‌ای
+    window.confirmDeleteMedia = function(contentType, contentId, mediaId, mediaType) {
+        if (confirm('آیا از حذف این فایل رسانه‌ای اطمینان دارید؟ این عملیات غیرقابل بازگشت است.')) {
+            // ارسال درخواست حذف فایل
+            fetch(`/admin/delete_media?type=${contentType}&content_id=${contentId}&media_id=${mediaId}&media_type=${mediaType}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('فایل با موفقیت حذف شد.');
+                    // حذف کارت مربوط به فایل از صفحه
+                    const mediaCard = document.querySelector(`button[onclick*="${mediaId}"]`).closest('.col');
+                    mediaCard.remove();
+                } else {
+                    alert('خطا در حذف فایل: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('خطایی در عملیات حذف رخ داد.');
+            });
+        }
+    }
+</script>
+{% endblock %}
