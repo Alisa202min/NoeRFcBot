@@ -1,0 +1,110 @@
+{% extends "admin_layout.html" %}
+{% set active_page = 'categories' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h4>{{ 'ویرایش دسته‌بندی' if category else 'افزودن دسته‌بندی جدید' }}</h4>
+    </div>
+    <div class="card-body">
+        <form method="post" class="needs-validation" novalidate>
+            <div class="mb-3">
+                <label for="name" class="form-label">نام دسته‌بندی <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="name" name="name" value="{{ category.name if category else '' }}" required>
+                <div class="invalid-feedback">
+                    لطفاً نام دسته‌بندی را وارد کنید.
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="cat_type" class="form-label">نوع دسته‌بندی <span class="text-danger">*</span></label>
+                <select class="form-select" id="cat_type" name="cat_type" required>
+                    <option value="product" {% if category and category.cat_type == 'product' %}selected{% endif %}>محصول</option>
+                    <option value="service" {% if category and category.cat_type == 'service' %}selected{% endif %}>خدمت</option>
+                </select>
+                <div class="invalid-feedback">
+                    لطفاً نوع دسته‌بندی را انتخاب کنید.
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="parent_id" class="form-label">دسته‌بندی والد</label>
+                <select class="form-select" id="parent_id" name="parent_id">
+                    <option value="">-- بدون دسته‌بندی والد --</option>
+                    {% for cat in categories %}
+                        <!-- Skip the current category as parent to avoid circular reference -->
+                        {% if not category or cat.id != category.id %}
+                            <option value="{{ cat.id }}" 
+                                    {% if category and category.parent_id == cat.id %}selected{% endif %}
+                                    data-type="{{ cat.cat_type }}">
+                                {{ cat.name }} {% if cat.cat_type %}({{ cat.cat_type }}){% endif %}
+                            </option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+                <div class="form-text">
+                    انتخاب دسته‌بندی والد اختیاری است. در صورت عدم انتخاب، این دسته‌بندی در سطح اول قرار می‌گیرد.
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-between mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i> 
+                    {{ 'به‌روزرسانی دسته‌بندی' if category else 'افزودن دسته‌بندی' }}
+                </button>
+                <a href="{{ url_for('admin_categories') }}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-right"></i> بازگشت
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Form validation
+    const form = document.querySelector('.needs-validation');
+    form.addEventListener('submit', function(event) {
+        if (!form.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        form.classList.add('was-validated');
+    });
+    
+    // Filter parent dropdown based on category type
+    const typeSelect = document.getElementById('cat_type');
+    const parentSelect = document.getElementById('parent_id');
+    
+    function filterParentOptions() {
+        const selectedType = typeSelect.value;
+        
+        // Get all options except the first "empty" option
+        const options = Array.from(parentSelect.options).slice(1);
+        
+        // Hide all options first
+        options.forEach(option => {
+            option.style.display = '';
+        });
+        
+        // Only show parent options that match the selected type
+        if (selectedType) {
+            options.forEach(option => {
+                const optionType = option.getAttribute('data-type');
+                if (optionType && optionType !== selectedType) {
+                    option.style.display = 'none';
+                }
+            });
+        }
+    }
+    
+    // Filter options on type change
+    typeSelect.addEventListener('change', filterParentOptions);
+    
+    // Initial filter on page load
+    filterParentOptions();
+});
+</script>
+{% endblock %}
