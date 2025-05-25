@@ -1,185 +1,195 @@
-{% extends "layout.html" %}
+{% extends 'admin_layout.html' %}
 
-{% block title %}خدمات{% endblock %}
+{% block title %}مدیریت خدمات{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <h1 class="mb-4">خدمات</h1>
-    
-    <!-- نوار دسته‌بندی برای نمایش در موبایل -->
-    <div class="d-md-none mb-3">
-        <div class="card">
-            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">دسته‌بندی‌ها</h5>
-                <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#mobileCategoryCollapse" aria-expanded="false" aria-controls="mobileCategoryCollapse">
-                    <i class="bi bi-list"></i>
-                </button>
-            </div>
-            <div class="collapse" id="mobileCategoryCollapse">
-                <div class="card-body">
-                    <div class="list-group">
-                        <a href="{{ url_for('services') }}" class="list-group-item list-group-item-action {% if not selected_category %}active{% endif %}">
-                            همه خدمات
-                        </a>
-                        
-                        {% for category in categories %}
-                        <a href="{{ url_for('services', category=category.id) }}" class="list-group-item list-group-item-action {% if selected_category == category.id %}active{% endif %}">
-                            {{ category.name }}
-                        </a>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row mb-4">
-        <!-- دسته‌بندی برای دسکتاپ -->
-        <div class="col-md-3 d-none d-md-block">
-            <div class="card sticky-top" style="top: 1rem; z-index: 999;">
-                <div class="card-header bg-success text-white">
-                    دسته‌بندی‌ها
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">خانه</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">مدیریت خدمات</li>
+                </ol>
+            </nav>
+            
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">لیست خدمات</h5>
+                    <a href="{{ url_for('admin_services') }}?action=add" class="btn btn-sm btn-light">
+                        <i class="bi bi-plus-circle"></i> افزودن خدمت جدید
+                    </a>
                 </div>
                 <div class="card-body">
-                    <div class="list-group">
-                        <a href="{{ url_for('services') }}" class="list-group-item list-group-item-action {% if not selected_category %}active{% endif %}">
-                            همه خدمات
-                        </a>
-                        
-                        {% for category in categories %}
-                        <a href="{{ url_for('services', category=category.id) }}" class="list-group-item list-group-item-action {% if selected_category == category.id %}active{% endif %}">
-                            {{ category.name }}
-                        </a>
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                    <div class="messages mb-4">
+                        {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
                         {% endfor %}
                     </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-9">
-            <div class="row">
-                {% if services %}
-                    {% for service in services %}
-                    <div class="col-lg-4 col-md-6 col-sm-6 mb-4">
-                        <div class="card h-100 service-card" onclick="window.location.href='{{ url_for('service_detail', service_id=service.id) }}';" style="cursor: pointer;">
-                            {% if service.formatted_photo_url %}
-                            <img src="{{ url_for('static', filename=service.formatted_photo_url) }}" class="card-img-top service-img" alt="{{ service.name }}" style="height: 200px; object-fit: cover;">
+                    {% endif %}
+                    {% endwith %}
+                    
+                    {% if services.items|length == 0 %}
+                    <div class="alert alert-info mb-0">
+                        هیچ خدمتی یافت نشد. <a href="{{ url_for('admin_services') }}?action=add">افزودن خدمت جدید</a>
+                    </div>
+                    {% else %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th scope="col" width="80">#</th>
+                                    <th scope="col" width="100">تصویر</th>
+                                    <th scope="col">نام خدمت</th>
+                                    <th scope="col">قیمت (تومان)</th>
+                                    <th scope="col">دسته‌بندی</th>
+                                    <th scope="col" width="180">عملیات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for service in services.items %}
+                                <tr class="service-row" data-service-url="{{ url_for('service_detail', service_id=service.id) }}" style="cursor: pointer;">
+                                    <td>{{ service.id }}</td>
+                                    <td>
+                                        {% if service.formatted_photo_url %}
+                                        <img src="{{ url_for('static', filename=service.formatted_photo_url) }}" alt="{{ service.name }}" class="img-thumbnail" style="max-height: 50px;">
+                                        {% else %}
+                                        <div class="bg-light d-flex align-items-center justify-content-center rounded" style="width: 50px; height: 50px;">
+                                            <i class="bi bi-image text-muted"></i>
+                                        </div>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ service.name }}</td>
+                                    <td>{{ "{:,}".format(service.price) }}</td>
+                                    <td>
+                                        {% for category in categories %}
+                                            {% if category.id == service.category_id %}
+                                                {{ category.name }}
+                                            {% endif %}
+                                        {% endfor %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('admin_services') }}?action=edit&id={{ service.id }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-pencil"></i> ویرایش
+                                            </a>
+                                            <a href="{{ url_for('admin_services') }}?action=media&id={{ service.id }}" class="btn btn-sm btn-outline-info">
+                                                <i class="bi bi-images"></i> رسانه‌ها
+                                            </a>
+                                            <a href="{{ url_for('service_detail', service_id=service.id) }}" target="_blank" class="btn btn-sm btn-outline-success">
+                                                <i class="bi bi-eye"></i> مشاهده
+                                            </a>
+                                            <!-- دکمه حذف با مودال تأیید -->
+                                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteServiceModal{{ service.id }}">
+                                                <i class="bi bi-trash"></i> حذف
+                                            </button>
+                                        </div>
+                                        
+                                        <!-- مودال تأیید حذف -->
+                                        <div class="modal fade" id="deleteServiceModal{{ service.id }}" tabindex="-1" aria-labelledby="deleteServiceModalLabel{{ service.id }}" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title" id="deleteServiceModalLabel{{ service.id }}">تأیید حذف خدمت</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        آیا از حذف خدمت "{{ service.name }}" اطمینان دارید؟ این عملیات غیرقابل بازگشت است.
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
+                                                        <form method="post" action="{{ url_for('admin_services', action='delete') }}">
+                                                            <input type="hidden" name="service_id" value="{{ service.id }}">
+                                                            <button type="submit" class="btn btn-danger">حذف</button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    {% if services.pages > 1 %}
+                    <nav aria-label="Page navigation" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if services.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin_services', page=services.prev_num) }}" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
                             {% else %}
-                            <div class="card-img-top service-img bg-light text-center" style="height: 200px;">
-                                <i class="bi bi-tools" style="font-size: 4rem; line-height: 200px;"></i>
-                            </div>
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
                             {% endif %}
                             
-                            <div class="card-body">
-                                <h5 class="card-title">{{ service.name }}</h5>
-                                <p class="card-text text-muted small">{{ service.description|truncate(100) }}</p>
-                                <p class="card-text mb-0">
-                                    <span class="badge bg-success fs-6">{{ "{:,}".format(service.price) }} تومان</span>
-                                </p>
-                                <p class="card-text mt-2">
-                                    {% if service.featured %}
-                                    <span class="badge bg-warning text-dark">ویژه</span>
+                            {% for page_num in services.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                                {% if page_num %}
+                                    {% if page_num == services.page %}
+                                    <li class="page-item active">
+                                        <a class="page-link" href="{{ url_for('admin_services', page=page_num) }}">{{ page_num }}</a>
+                                    </li>
+                                    {% else %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('admin_services', page=page_num) }}">{{ page_num }}</a>
+                                    </li>
                                     {% endif %}
-                                </p>
-                            </div>
-                            <div class="card-footer d-flex justify-content-between">
-                                <a href="{{ url_for('service_detail', service_id=service.id) }}" class="btn btn-sm btn-outline-success">
-                                    <i class="bi bi-eye"></i> مشاهده جزئیات
+                                {% else %}
+                                <li class="page-item disabled">
+                                    <a class="page-link" href="#">...</a>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if services.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin_services', page=services.next_num) }}" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
                                 </a>
-                                <button class="btn btn-sm btn-success inquiry-btn" data-service-id="{{ service.id }}" data-service-name="{{ service.name }}" onclick="event.stopPropagation();">
-                                    <i class="bi bi-chat-dots"></i> استعلام
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                <div class="col-12">
-                    <div class="alert alert-info">
-                        خدمتی یافت نشد
-                    </div>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    {% endif %}
                 </div>
-                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
-<!-- مودال استعلام قیمت -->
-<div class="modal fade" id="inquiryModal" tabindex="-1" aria-labelledby="inquiryModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="inquiryModalLabel">استعلام قیمت خدمات</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form id="inquiryForm" method="post" action="/submit-inquiry">
-                    <input type="hidden" id="service_id" name="product_id">
-                    <input type="hidden" name="product_type" value="service">
-                    
-                    <div class="mb-3">
-                        <label for="service_name" class="form-label">نام خدمت</label>
-                        <input type="text" class="form-control" id="service_name" readonly>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="name" class="form-label">نام شما</label>
-                        <input type="text" class="form-control" id="name" name="name" required>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="phone" class="form-label">شماره تماس</label>
-                        <input type="text" class="form-control" id="phone" name="phone" required>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="description" class="form-label">توضیحات</label>
-                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
-                <button type="button" class="btn btn-success" id="submitInquiry">ارسال درخواست</button>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
+{% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // برای تمام دکمه‌های استعلام قیمت
-        document.querySelectorAll('.inquiry-btn').forEach(button => {
-            button.addEventListener('click', function(e) {
-                // جلوگیری از انتقال کلیک به کارت پدر
-                e.stopPropagation();
-                
-                const serviceId = this.getAttribute('data-service-id');
-                const serviceName = this.getAttribute('data-service-name');
-                
-                document.getElementById('service_id').value = serviceId;
-                document.getElementById('service_name').value = serviceName;
-                
-                const modal = new bootstrap.Modal(document.getElementById('inquiryModal'));
-                modal.show();
-            });
-        });
-        
-        // ارسال فرم استعلام
-        document.getElementById('submitInquiry').addEventListener('click', function() {
-            document.getElementById('inquiryForm').submit();
-        });
-        
-        // کلیک روی کارت‌های خدمات برای مشاهده جزئیات
-        document.querySelectorAll('.service-card').forEach(card => {
-            card.addEventListener('click', function() {
-                const url = this.getAttribute('onclick').match(/'([^']+)'/)[1];
-                window.location.href = url;
+        // فعال‌سازی کلیک بر روی سطر خدمت
+        document.querySelectorAll('.service-row').forEach(function(row) {
+            row.addEventListener('click', function(e) {
+                // بررسی می‌کنیم که کلیک روی دکمه‌ها یا لینک‌ها نباشد
+                if (!e.target.closest('a') && !e.target.closest('button') && !e.target.closest('form')) {
+                    window.open(this.dataset.serviceUrl, '_blank');
+                }
             });
         });
     });
 </script>
+{% endblock %}
 {% endblock %}
