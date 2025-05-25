@@ -1,0 +1,154 @@
+
+{% extends "admin_layout.html" %}
+{% set active_page = 'import_export' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="bi bi-download"></i> دریافت خروجی داده‌ها</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <a href="/admin/export/products" class="list-group-item list-group-item-action">
+                        <i class="bi bi-box"></i> دریافت خروجی محصولات
+                    </a>
+                    <a href="/admin/export/services" class="list-group-item list-group-item-action">
+                        <i class="bi bi-tools"></i> دریافت خروجی خدمات
+                    </a>
+                    <a href="/admin/export/categories" class="list-group-item list-group-item-action">
+                        <i class="bi bi-folder"></i> دریافت خروجی دسته‌بندی‌ها
+                    </a>
+                    <a href="/admin/export/inquiries" class="list-group-item list-group-item-action">
+                        <i class="bi bi-chat-dots"></i> دریافت خروجی استعلام‌ها
+                    </a>
+                    <a href="/admin/export/educational" class="list-group-item list-group-item-action">
+                        <i class="bi bi-book"></i> دریافت خروجی محتوای آموزشی
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-upload"></i> ورود داده‌ها از فایل</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="/admin/import" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">نوع داده:</label>
+                        <select name="entity_type" class="form-select" required>
+                            <option value="">انتخاب کنید...</option>
+                            <option value="products">محصولات</option>
+                            <option value="services">خدمات</option>
+                            <option value="categories">دسته‌بندی‌ها</option>
+                            <option value="inquiries">استعلام‌ها</option>
+                            <option value="educational">محتوای آموزشی</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">فایل CSV:</label>
+                        <input type="file" name="csv_file" class="form-control" accept=".csv" required>
+                        <div class="form-text">فایل CSV با کدگذاری UTF-8</div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-upload"></i> بارگذاری و ورود داده‌ها
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if message %}
+<div class="alert alert-{{ message.type }} mt-4">
+    {{ message.text }}
+</div>
+{% endif %}
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-download"></i> پشتیبان‌گیری از دیتابیس</h5>
+            </div>
+            <div class="card-body">
+                <p>با کلیک روی دکمه زیر می‌توانید از کل دیتابیس پشتیبان بگیرید.</p>
+                <a href="/admin/backup" class="btn btn-primary">
+                    <i class="bi bi-download"></i> دریافت فایل پشتیبان
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-upload"></i> بازیابی دیتابیس</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="/admin/restore" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">انتخاب فایل پشتیبان:</label>
+                        <input type="file" name="backup_file" class="form-control" accept=".zip" required>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="clear_tables" id="clearTablesSwitch" checked>
+                            <label class="form-check-label" for="clearTablesSwitch">پاکسازی داده‌های موجود قبل از بازیابی</label>
+                        </div>
+                        <div class="form-text text-danger" id="restoreWarning">هشدار: با انتخاب این گزینه، تمام داده‌های فعلی پاک شده و با داده‌های پشتیبان جایگزین می‌شوند.</div>
+                    </div>
+                    <button type="submit" class="btn btn-warning" id="restoreButton">
+                        <i class="bi bi-upload"></i> بازیابی از فایل پشتیبان
+                    </button>
+                    
+                    <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const restoreButton = document.getElementById('restoreButton');
+                        const clearTablesSwitch = document.getElementById('clearTablesSwitch');
+                        const restoreWarning = document.getElementById('restoreWarning');
+                        
+                        // تغییر متن هشدار بر اساس وضعیت سوئیچ
+                        function updateWarningText() {
+                            if (clearTablesSwitch.checked) {
+                                restoreWarning.textContent = 'هشدار: با انتخاب این گزینه، تمام داده‌های فعلی پاک شده و با داده‌های پشتیبان جایگزین می‌شوند.';
+                            } else {
+                                restoreWarning.textContent = 'هشدار: بدون پاکسازی، داده‌های پشتیبان به داده‌های موجود اضافه می‌شوند که ممکن است باعث تکراری شدن برخی داده‌ها شود!';
+                            }
+                        }
+                        
+                        // تنظیم پیام تأیید بر اساس وضعیت سوئیچ
+                        restoreButton.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            let confirmMessage = '';
+                            
+                            if (clearTablesSwitch.checked) {
+                                confirmMessage = 'آیا از بازیابی پشتیبان اطمینان دارید؟ تمام داده‌های فعلی حذف خواهند شد. این عملیات غیرقابل برگشت است.';
+                            } else {
+                                confirmMessage = 'آیا از بازیابی پشتیبان اطمینان دارید؟ داده‌های پشتیبان به داده‌های موجود اضافه خواهند شد. این عملیات غیرقابل برگشت است.';
+                            }
+                            
+                            if (confirm(confirmMessage)) {
+                                this.closest('form').submit();
+                            }
+                        });
+                        
+                        // به‌روزرسانی متن هشدار هنگام تغییر وضعیت سوئیچ
+                        clearTablesSwitch.addEventListener('change', updateWarningText);
+                        
+                        // اجرای اولیه برای تنظیم متن هشدار
+                        updateWarningText();
+                    });
+                    </script>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
