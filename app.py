@@ -1,6 +1,6 @@
 import os
 import logging
-from flask import Flask, render_template
+from flask import Flask, render_template, redirect
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -124,6 +124,14 @@ def control_restart():
 @app.route('/api/logs')
 def get_logs_json():
     return {"logs": []}
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    return redirect('/')
 
 
 # Create database tables
