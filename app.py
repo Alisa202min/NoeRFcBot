@@ -241,3 +241,21 @@ def admin_database():
         flash('شما دسترسی به این بخش ندارید', 'error')
         return redirect(url_for('index'))
     return render_template('admin_database.html')
+
+@app.route('/admin/content')
+@login_required
+def admin_content():
+    """مدیریت محتوای ثابت"""
+    if not current_user.is_admin:
+        flash('شما دسترسی به این بخش ندارید', 'error')
+        return redirect(url_for('index'))
+    return render_template('admin_content.html')
+
+@app.route('/admin/import_export')
+@login_required
+def admin_import_export():
+    """ورود/خروج داده"""
+    if not current_user.is_admin:
+        flash('شما دسترسی به این بخش ندارید', 'error')
+        return redirect(url_for('index'))
+    return render_template('admin_import_export.html')
