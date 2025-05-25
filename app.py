@@ -110,20 +110,23 @@ def admin():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """صفحه ورود"""
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+    try:
+        if request.method == 'POST':
+            username = request.form.get('username')
+            password = request.form.get('password')
+            
+            from models import User
+            user = User.query.filter_by(username=username).first()
+            
+            if user and user.check_password(password):
+                login_user(user)
+                return redirect(url_for('admin'))
+            else:
+                flash('نام کاربری یا رمز عبور اشتباه است', 'error')
         
-        from models import User
-        user = User.query.filter_by(username=username).first()
-        
-        if user and user.check_password(password):
-            login_user(user)
-            return redirect(url_for('admin'))
-        else:
-            flash('نام کاربری یا رمز عبور اشتباه است', 'error')
-    
-    return render_template('login.html')
+        return render_template('login.html')
+    except Exception as e:
+        return f"Login Error: {str(e)}", 500
 
 @app.route('/logout')
 @login_required
