@@ -1,51 +1,85 @@
 {% extends "layout.html" %}
 
-{% block title %}داشبورد مدیریت{% endblock %}
-
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="welcome-section mb-4">
-                <h1 class="display-4 text-primary">خوش آمدید!</h1>
-                <p class="lead">به سیستم مدیریت کاتالوگ RFCBot خوش آمدید</p>
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4>وضعیت ربات</h4>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="alert alert-{{ 'success' if bot_status == 'running' else 'warning' }}">
+                            وضعیت فعلی: 
+                            {% if bot_status == 'running' %}
+                                <strong>در حال اجرا</strong>
+                            {% elif bot_status == 'error' %}
+                                <strong>خطا</strong>
+                            {% else %}
+                                <strong>متوقف</strong>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <form action="{{ url_for('control_start') }}" method="post" class="d-inline">
+                            <button type="submit" class="btn btn-success" {{ 'disabled' if bot_status == 'running' else '' }}>
+                                <i class="bi bi-play-fill"></i> شروع
+                            </button>
+                        </form>
+                        <form action="{{ url_for('control_stop') }}" method="post" class="d-inline">
+                            <button type="submit" class="btn btn-danger" {{ 'disabled' if bot_status != 'running' else '' }}>
+                                <i class="bi bi-stop-fill"></i> توقف
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <h5>وضعیت متغیرهای محیطی:</h5>
+                    <ul class="list-group">
+                        <li class="list-group-item">BOT_TOKEN: 
+                            <span class="badge {{ 'bg-success' if env_status.BOT_TOKEN == 'Set' else 'bg-danger' }}">
+                                {{ env_status.BOT_TOKEN }}
+                            </span>
+                        </li>
+                        <li class="list-group-item">DATABASE_URL: 
+                            <span class="badge {{ 'bg-success' if env_status.DATABASE_URL == 'Set' else 'bg-danger' }}">
+                                {{ env_status.DATABASE_URL }}
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h5>زمان سیستم:</h5>
+                    <div class="alert alert-info">
+                        {{ now.strftime('%Y/%m/%d %H:%M:%S') }}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-
-    <div class="row">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title"><i class="fas fa-robot"></i> وضعیت ربات تلگرام</h5>
-                </div>
-                <div class="card-body">
-                    <p class="card-text">
-                        وضعیت: <span class="badge bg-success">{{ bot_status }}</span>
-                    </p>
-                    <a href="https://t.me/RFCatalogbot" target="_blank" class="btn btn-primary">
-                        <i class="fab fa-telegram"></i> مشاهده ربات
-                    </a>
-                </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h4>دسترسی سریع</h4>
             </div>
-        </div>
-        
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title"><i class="fas fa-cogs"></i> تنظیمات سیستم</h5>
-                </div>
-                <div class="card-body">
-                    <p>تاریخ و زمان: {{ now.strftime('%Y/%m/%d %H:%M:%S') }}</p>
-                    
-                    <div class="d-grid gap-2 mt-3">
-                        <a href="{{ url_for('configuration') }}" class="btn btn-outline-primary">
-                            <i class="bi bi-gear"></i> تنظیمات
-                        </a>
-                        <a href="{{ url_for('logs') }}" class="btn btn-outline-secondary">
-                            <i class="bi bi-file-text"></i> لاگ‌ها
-                        </a>
-                    </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('admin_products') }}" class="btn btn-outline-primary">
+                        <i class="bi bi-box"></i> مدیریت محصولات
+                    </a>
+                    <a href="{{ url_for('admin_services') }}" class="btn btn-outline-success">
+                        <i class="bi bi-gear"></i> مدیریت خدمات
+                    </a>
+                    <a href="{{ url_for('admin_categories') }}" class="btn btn-outline-info">
+                        <i class="bi bi-tags"></i> دسته‌بندی‌ها
+                    </a>
+                    <a href="{{ url_for('admin_inquiries') }}" class="btn btn-outline-warning">
+                        <i class="bi bi-envelope"></i> استعلامات
+                    </a>
                 </div>
             </div>
         </div>
