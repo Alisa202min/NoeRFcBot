@@ -19,28 +19,23 @@ APP_DIR="/var/www/rfbot"
 ENV_FILE="$APP_DIR/.env"
 
 # ===== توابع =====
-# تابع نمایش پیام‌ها
 print_message() {
     echo -e "${BLUE}[INFO]${NC} $1" | tee -a "$LOG_FILE"
 }
 
-# تابع نمایش موفقیت
 print_success() {
     echo -e "${GREEN}[SUCCESS]${NC} $1" | tee -a "$LOG_FILE"
 }
 
-# تابع نمایش خطا
 print_error() {
     echo -e "${RED}[ERROR]${NC} $1" | tee -a "$LOG_FILE"
     exit 1
 }
 
-# تابع نمایش هشدار
 print_warning() {
     echo -e "${YELLOW}[WARNING]${NC} $1" | tee -a "$LOG_FILE"
 }
 
-# تابع بررسی خطا
 check_error() {
     if [ $? -ne 0 ]; then
         print_error "$1"
@@ -71,8 +66,8 @@ fi
 # ===== دریافت توکن از کاربر =====
 echo "لطفاً توکن بات تلگرام را وارد کنید:"
 echo "--------------------------------"
-read -p "توکن بات تلگرام: " BOT_TOKEN
-if [ -z "$BOT_TOKEN" ]; then
+read -p "توکن بات تلگرام: " TELEGRAM_BOT_TOKEN
+if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
     print_error "توکن بات تلگرام نمی‌تواند خالی باشد."
 fi
 
@@ -84,15 +79,15 @@ BACKUP_FILE="${ENV_FILE}.backup_$(date +%Y%m%d_%H%M%S)"
 cp "$ENV_FILE" "$BACKUP_FILE" >> "$LOG_FILE" 2>&1
 check_error "ایجاد نسخه پشتیبان از $ENV_FILE با خطا مواجه شد." "نسخه پشتیبان در $BACKUP_FILE ایجاد شد."
 
-# بررسی وجود BOT_TOKEN در فایل .env
-if grep -q "^BOT_TOKEN=" "$ENV_FILE"; then
-    # جایگزینی مقدار BOT_TOKEN
-    sed -i "s|^BOT_TOKEN=.*|BOT_TOKEN=$BOT_TOKEN|" "$ENV_FILE" >> "$LOG_FILE" 2>&1
-    check_error "به‌روزرسانی BOT_TOKEN در $ENV_FILE با خطا مواجه شد." "BOT_TOKEN با موفقیت به‌روزرسانی شد."
+# بررسی وجود TELEGRAM_BOT_TOKEN در فایل .env
+if grep -q "^TELEGRAM_BOT_TOKEN=" "$ENV_FILE"; then
+    # جایگزینی مقدار TELEGRAM_BOT_TOKEN
+    sed -i "s|^TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN|" "$ENV_FILE" >> "$LOG_FILE" 2>&1
+    check_error "به‌روزرسانی TELEGRAM_BOT_TOKEN در $ENV_FILE با خطا مواجه شد." "TELEGRAM_BOT_TOKEN با موفقیت به‌روزرسانی شد."
 else
-    # افزودن BOT_TOKEN به انتهای فایل
-    echo "BOT_TOKEN=$BOT_TOKEN" >> "$ENV_FILE" >> "$LOG_FILE" 2>&1
-    check_error "افزودن BOT_TOKEN به $ENV_FILE با خطا مواجه شد." "BOT_TOKEN با موفقیت اضافه شد."
+    # افزودن TELEGRAM_BOT_TOKEN به انتهای فایل
+    echo "TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN" >> "$ENV_FILE" >> "$LOG_FILE" 2>&1
+    check_error "افزودن TELEGRAM_BOT_TOKEN به $ENV_FILE با خطا مواجه شد." "TELEGRAM_BOT_TOKEN با موفقیت اضافه شد."
 fi
 
 # ===== تنظیم دسترسی‌های فایل .env =====
@@ -121,7 +116,7 @@ echo ""
 echo "================== تنظیم توکن با موفقیت انجام شد! =================="
 echo ""
 echo "🤖 اطلاعات بات تلگرام:"
-echo "   توکن بات: $BOT_TOKEN"
+echo "   توکن بات: $TELEGRAM_BOT_TOKEN"
 echo "   مسیر فایل تنظیمات: $ENV_FILE"
 echo "   فایل لاگ: $LOG_FILE"
 echo ""
