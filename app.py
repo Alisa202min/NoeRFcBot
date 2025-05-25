@@ -79,7 +79,14 @@ def index():
 
 @app.route('/admin')
 def admin():
-    return render_template('admin_index.html')
+    stats = {
+        'products_count': 0,
+        'services_count': 0,
+        'educational_content_count': 0,
+        'users_count': 0,
+        'inquiries_count': 0
+    }
+    return render_template('admin_index.html', stats=stats)
 
 @app.route('/admin/database')
 def admin_database():
