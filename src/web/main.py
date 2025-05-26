@@ -97,32 +97,38 @@ def index():
             logger.warning(f"Error loading about content: {e}")
             about = "خطا در بارگذاری محتوای درباره ما"
         
+        # بررسی وضعیت ربات
+        def check_bot_status():
+            """بررسی وضعیت ربات از طریق فایل لاگ"""
+            try:
+                if os.path.exists('bot.log'):
+                    with open('bot.log', 'r', encoding='utf-8') as f:
+                        lines = f.readlines()
+                        if lines:
+                            recent_lines = lines[-10:]  # آخرین 10 خط
+                            for line in reversed(recent_lines):
+                                if 'Run polling for bot' in line or 'Start polling' in line:
+                                    return 'running'
+                                elif 'ERROR' in line or 'CRITICAL' in line:
+                                    return 'error'
+                return 'stopped'
+            except Exception:
+                return 'unknown'
+        
+        bot_status = check_bot_status()
+        
         # برای نمایش وضعیت متغیرهای محیطی
         env_status = {
             'BOT_TOKEN': 'Set' if os.environ.get('BOT_TOKEN') else 'Not Set',
             'DATABASE_URL': 'Set' if os.environ.get('DATABASE_URL') else 'Not Set',
             'ADMIN_ID': 'Set' if os.environ.get('ADMIN_ID') else 'Not Set'
         }
-            
-        return render_template('index.html', products=products, services=services, 
-                            educational=educational, about=about, env_status=env_status)
-    except Exception as e:
-        logger.error(f"Error in index route: {e}")
-        # برای نمایش وضعیت متغیرهای محیطی
-        env_status = {
-            'BOT_TOKEN': 'Set' if os.environ.get('BOT_TOKEN') else 'Not Set',
-            'DATABASE_URL': 'Set' if os.environ.get('DATABASE_URL') else 'Not Set',
-            'ADMIN_ID': 'Set' if os.environ.get('ADMIN_ID') else 'Not Set'
-        }
-        return render_template('index.html', products=[], services=[], 
-                            educational=[], about="خطا در بارگذاری محتوا", env_status=env_status)
         
         # آماده‌سازی لاگ‌های اولیه برای نمایش
         try:
             log_file = 'bot.log'
             if os.path.exists(log_file):
                 with open(log_file, 'r', encoding='utf-8') as f:
-                    # خواندن آخرین خطوط
                     lines = f.readlines()
                     bot_logs = lines[-50:] if len(lines) > 50 else lines
             else:
@@ -130,25 +136,35 @@ def index():
         except Exception as e:
             logger.warning(f"Error reading log file: {e}")
             bot_logs = [f'خطا در خواندن فایل لاگ: {str(e)}']
-        
+            
         return render_template('index.html', 
                               products=products, 
                               services=services, 
                               educational=educational,
-                              about_text=about_text,
+                              about_text=about,
                               bot_status=bot_status,
                               env_status=env_status,
-                              last_run=last_run,
+                              last_run=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                               datetime=datetime,
                               bot_logs=bot_logs)
     except Exception as e:
         logger.error(f"Error in index route: {e}")
-        # مطمئن شویم که صفحه خطا بدون مشکل نمایش داده می‌شود
-        try:
-            return render_template('500.html'), 500
-        except Exception as template_error:
-            logger.error(f"Error rendering error template: {template_error}")
-            return "Internal Server Error", 500
+        # در صورت خطا، مقادیر پیش‌فرض برگردان
+        env_status = {
+            'BOT_TOKEN': 'Set' if os.environ.get('BOT_TOKEN') else 'Not Set',
+            'DATABASE_URL': 'Set' if os.environ.get('DATABASE_URL') else 'Not Set',
+            'ADMIN_ID': 'Set' if os.environ.get('ADMIN_ID') else 'Not Set'
+        }
+        return render_template('index.html', 
+                              products=[], 
+                              services=[], 
+                              educational=[], 
+                              about_text="خطا در بارگذاری محتوا", 
+                              env_status=env_status,
+                              bot_status='error',
+                              bot_logs=['خطا در بارگذاری لاگ‌ها'],
+                              last_run=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                              datetime=datetime)
             
 @app.route('/api/logs')
 def get_logs_json():
