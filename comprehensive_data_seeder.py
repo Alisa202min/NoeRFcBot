@@ -33,26 +33,27 @@ class ComprehensiveDataSeeder:
         print("- استعلام‌های قیمت")
         print("- تصاویر و فایل‌ها")
         print("- دسته‌بندی‌ها")
-        print("\n✅ تایید شده - شروع پاک کردن و پر کردن مجدد...")
+        print("\nآیا مطمئن هستید؟ (y/N): ", end="")
         
-        return True
+        response = input().lower().strip()
+        return response in ['y', 'yes', 'بله']
     
     def clear_existing_data(self):
         """پاک کردن داده‌های موجود"""
         logger.info("در حال پاک کردن داده‌های موجود...")
         
-        conn = self.db.conn
+        conn = self.db.get_conn()
         try:
-            with conn.cursor() as cursor:
+            with conn:
                 # حذف داده‌ها به ترتیب وابستگی
-                cursor.execute("DELETE FROM product_media;")
-                cursor.execute("DELETE FROM service_media;")
-                cursor.execute("DELETE FROM educational_media;")
-                cursor.execute("DELETE FROM inquiries;")
-                cursor.execute("DELETE FROM products;")
-                cursor.execute("DELETE FROM services;")
-                cursor.execute("DELETE FROM educational_content;")
-                cursor.execute("DELETE FROM categories;")
+                conn.execute("DELETE FROM product_media;")
+                conn.execute("DELETE FROM service_media;")
+                conn.execute("DELETE FROM educational_media;")
+                conn.execute("DELETE FROM inquiries;")
+                conn.execute("DELETE FROM products;")
+                conn.execute("DELETE FROM services;")
+                conn.execute("DELETE FROM educational_content;")
+                conn.execute("DELETE FROM categories;")
                 
                 logger.info("✅ داده‌های موجود پاک شدند")
         except Exception as e:
@@ -122,7 +123,7 @@ class ComprehensiveDataSeeder:
             ("تعمیرات", "educational", "راهنمای تعمیرات"),
         ]
         
-        conn = self.db.conn
+        conn = self.db.get_conn()
         try:
             with conn:
                 for name, category_type, description in categories:
@@ -296,7 +297,7 @@ class ComprehensiveDataSeeder:
             }
         ]
         
-        conn = self.db.conn
+        conn = self.db.get_conn()
         try:
             with conn:
                 for i, product in enumerate(products_data, 1):
@@ -450,7 +451,7 @@ class ComprehensiveDataSeeder:
             }
         ]
         
-        conn = self.db.conn
+        conn = self.db.get_conn()
         try:
             with conn:
                 for i, service in enumerate(services_data, 1):
@@ -925,7 +926,7 @@ U = k × √(u₁² + u₂² + u₃² + ...)
             }
         ]
         
-        conn = self.db.conn
+        conn = self.db.get_conn()
         try:
             with conn:
                 for i, content in enumerate(educational_data, 1):
@@ -1091,7 +1092,7 @@ U = k × √(u₁² + u₂² + u₃² + ...)
             }
         ]
         
-        conn = self.db.conn
+        conn = self.db.get_conn()
         try:
             with conn:
                 for inquiry in inquiries_data:
@@ -1228,7 +1229,7 @@ U = k × √(u₁² + u₂² + u₃² + ...)
 *آماده خدمت‌رسانی به شما عزیزان هستیم*
         """
         
-        conn = self.db.conn
+        conn = self.db.get_conn()
         try:
             with conn:
                 # بررسی وجود اطلاعات قبلی
