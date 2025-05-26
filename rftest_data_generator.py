@@ -259,17 +259,18 @@ def create_educational_content_with_images(db, categories):
             
             content_id = cur.fetchone()[0]
             
-            # ایجاد تصویر آموزشی
-            edu_dir = f"static/uploads/educational/{content_id}"
+            # ایجاد تصویر آموزشی (مسیر جدید)
+            edu_dir = f"static/media/educational"
             os.makedirs(edu_dir, exist_ok=True)
             
-            img_path = f"{edu_dir}/main.jpg"
+            img_name = f"edu_{content_id}_main.jpg"
+            img_path = f"{edu_dir}/{img_name}"
             create_image(img_path, f"آموزش {cat}")
             
             cur.execute("""
-                INSERT INTO educational_content_media (educational_content_id, file_id, file_type) 
-                VALUES (%s, %s, %s)
-            """, (content_id, f"uploads/educational/{content_id}/main.jpg", "photo"))
+                INSERT INTO educational_content_media (educational_content_id, file_id, file_type, local_path) 
+                VALUES (%s, %s, %s, %s)
+            """, (content_id, f"educational_media_{content_id}_main", "photo", f"./static/media/educational/{img_name}"))
         
         db.conn.commit()
     

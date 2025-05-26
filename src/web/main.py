@@ -1461,6 +1461,15 @@ def admin_education():
                     content.category = category
                     content.content = content_text
                     
+                    # تنظیم category_id بر اساس نام دسته
+                    if category:
+                        category_record = db.session.execute(
+                            text("SELECT id FROM educational_categories WHERE name = :name"),
+                            {"name": category}
+                        ).fetchone()
+                        if category_record:
+                            content.category_id = category_record[0]
+                    
                     # همه فایل‌ها را به EducationalContentMedia اضافه می‌کنیم
                     if file_paths:
                         for idx, current_file_path in enumerate(file_paths):
@@ -1497,6 +1506,15 @@ def admin_education():
                 content.title = title
                 content.category = category
                 content.content = content_text
+                
+                # تنظیم category_id بر اساس نام دسته
+                if category:
+                    category_record = db.session.execute(
+                        text("SELECT id FROM educational_categories WHERE name = :name"),
+                        {"name": category}
+                    ).fetchone()
+                    if category_record:
+                        content.category_id = category_record[0]
                 
                 db.session.add(content)
                 db.session.commit()
