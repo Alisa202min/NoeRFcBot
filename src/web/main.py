@@ -12,8 +12,8 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from sqlalchemy import text
 
-from src.web.app import app, db, media_files
-from src.models.models import (
+from app import app, db, media_files
+from models import (
     User, Product, ProductMedia, Service, ServiceMedia, Inquiry,
     EducationalContent, StaticContent, EducationalCategory, EducationalContentMedia,
     ProductCategory, ServiceCategory
