@@ -714,12 +714,45 @@ def initialize_secure_database():
         
         print("🎉 راه‌اندازی پایگاه داده کامل شد")
         
+        # ===== پر کردن دیتابیس با اطلاعات تست =====
+        populate_test_data = os.getenv('SETUP_POPULATE_DATA', 'yes').lower()
+        if populate_test_data in ['yes', 'y', '1', 'true']:
+            print("📥 شروع پر کردن دیتابیس با اطلاعات تست...")
+            
+            # بررسی وجود فایل rftest_data_generator.py
+            data_generator_path = os.path.join(current_dir, 'rftest_data_generator.py')
+            if os.path.exists(data_generator_path):
+                try:
+                    # وارد کردن و اجرای ماژول تولید داده
+                    import importlib.util
+                    spec = importlib.util.spec_from_file_location("rftest_data_generator", data_generator_path)
+                    data_generator = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(data_generator)
+                    
+                    # فراخوانی تابع اصلی تولید داده
+                    if hasattr(data_generator, 'generate_all_data'):
+                        data_generator.generate_all_data()
+                        print("✅ اطلاعات تست با موفقیت وارد شد")
+                    elif hasattr(data_generator, 'main'):
+                        data_generator.main()
+                        print("✅ اطلاعات تست با موفقیت وارد شد")
+                    else:
+                        print("⚠️  تابع تولید داده یافت نشد")
+                        
+                except Exception as e:
+                    print(f"⚠️  خطا در وارد کردن اطلاعات تست: {e}")
+                    print("ℹ️  ادامه بدون اطلاعات تست...")
+            else:
+                print("ℹ️  فایل rftest_data_generator.py یافت نشد")
+        else:
+            print("⏭️  رد شدن از پر کردن اطلاعات تست")
+        
     except Exception as e:
         print(f"❌ خطا در راه‌اندازی: {e}")
         sys.exit(1)
     finally:
         # حذف متغیرهای حساس از حافظه
-        for var in ['SETUP_ADMIN_USER', 'SETUP_ADMIN_PASS']:
+        for var in ['SETUP_ADMIN_USER', 'SETUP_ADMIN_PASS', 'SETUP_POPULATE_DATA']:
             if var in os.environ:
                 del os.environ[var]
 
@@ -734,6 +767,11 @@ chmod 600 "$SECURE_INIT_SCRIPT"
 export SETUP_ADMIN_USER="$ADMIN_USERNAME"
 export SETUP_ADMIN_PASS="$ADMIN_PASSWORD"
 
+# سوال از کاربر برای پر کردن دیتابیس با اطلاعات تست
+read -p "آیا می‌خواهید دیتابیس را با اطلاعات تست RFTEST پر کنید؟ (y/n) [y]: " POPULATE_DATA
+POPULATE_DATA=${POPULATE_DATA:-y}
+export SETUP_POPULATE_DATA="$POPULATE_DATA"
+
 # اجرای اسکریپت امن
 print_message "🔐 اجرای اسکریپت امن راه‌اندازی..."
 python "$SECURE_INIT_SCRIPT" >> "$LOG_FILE" 2>&1
@@ -743,7 +781,7 @@ INIT_RESULT=$?
 rm -f "$SECURE_INIT_SCRIPT" >> "$LOG_FILE" 2>&1
 
 # حذف متغیرهای حساس
-unset SETUP_ADMIN_USER SETUP_ADMIN_PASS TEMP_CRYPT_KEY
+unset SETUP_ADMIN_USER SETUP_ADMIN_PASS TEMP_CRYPT_KEY SETUP_POPULATE_DATA
 
 if [ $INIT_RESULT -ne 0 ]; then
     print_error "راه‌اندازی امن پایگاه داده با خطا مواجه شد. جزئیات در $LOG_FILE"
@@ -752,65 +790,10 @@ fi
 
 print_success "🎉 راه‌اندازی امن پایگاه داده کامل شد"
 
-# بررسی جداول
+# بررسی نهایی جداول دیتابیس
 check_db_tables
-# بررسی وجود فایل app.py
-if [ -f "$APP_DIR/app.py" ]; then
-    python "$APP_DIR/init_db.py" >> "$LOG_FILE" 2>&1
-    if [ $? -ne 0 ]; then
-        print_error "ایجاد جداول پایگاه داده با خطا مواجه شد. جزئیات در $LOG_FILE."
-        print_message "دستور پیشنهادی برای بررسی:"
-        print_message "  cd $APP_DIR"
-        print_message "  source venv/bin/activate"
-        print_message "  python init_db.py"
-        print_message "نکات عیب‌یابی:"
-        print_message "  1) فایل $APP_DIR/.env را بررسی کنید (حاوی SQLALCHEMY_DATABASE_URI)."
-        print_message "  2) مطمئن شوید PostgreSQL در حال اجرا است: sudo systemctl status postgresql"
-        print_message "  3) اتصال به دیتابیس را تست کنید: psql -U $DB_USER -d $DB_NAME -h localhost"
-        deactivate
-        exit 1
-    fi
-    print_success "جداول پایگاه داده با موفقیت ایجاد شدند."
-elif [ -f "$APP_DIR/src/web/app.py" ]; then
-    # اگر از ساختار ماژولار استفاده می‌شود
-    export PYTHONPATH="$APP_DIR"
-    python "$APP_DIR/init_db.py" >> "$LOG_FILE" 2>&1
-    if [ $? -ne 0 ]; then
-        print_error "ایجاد جداول پایگاه داده با خطا مواجه شد. جزئیات در $LOG_FILE."
-        print_message "دستور پیشنهادی برای بررسی:"
-        print_message "  cd $APP_DIR"
-        print_message "  source venv/bin/activate"
-        print_message "  export PYTHONPATH=$APP_DIR"
-        print_message "  python init_db.py"
-        print_message "نکات عیب‌یابی:"
-        print_message "  1) فایل $APP_DIR/.env را بررسی کنید (حاوی SQLALCHEMY_DATABASE_URI)."
-        print_message "  2) مطمئن شوید PostgreSQL در حال اجرا است: sudo systemctl status postgresql"
-        print_message "  3) اتصال به دیتابیس را تست کنید: psql -U $DB_USER -d $DB_NAME -h localhost"
-        deactivate
-        exit 1
-    fi
-    print_success "جداول پایگاه داده با موفقیت ایجاد شدند."
-else
-    print_warning "فایل app.py پیدا نشد. لطفاً به صورت دستی جداول پایگاه داده را ایجاد کنید."
-    deactivate
-    exit 1
-fi
 
-# اجرای اسکریپت‌های اولیه
-print_message "در حال اجرای اسکریپت‌های اولیه..."
-for script in rftest_data_generator.py; do
-    if [ -f "$APP_DIR/$script" ]; then
-        print_message "اجرای $script (تخمین زمان: کمتر از 1 دقیقه)..."
-        python "$APP_DIR/$script" >> "$LOG_FILE" 2>&1
-        if [ $? -ne 0 ]; then
-            print_warning "اجرای $script با خطا مواجه شد. جزئیات در $LOG_FILE."
-        else
-            print_success "$script با موفقیت اجرا شد."
-        fi
-    else
-        print_warning "فایل $script در $APP_DIR یافت نشد."
-    fi
-done
+
 
 
 deactivate >> "$LOG_FILE" 2>&1
