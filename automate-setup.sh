@@ -714,6 +714,13 @@ def initialize_secure_database():
         
         print("🎉 راه‌اندازی پایگاه داده کامل شد")
         
+        # اجرای تولید دیتای تستی
+        if os.path.exists('rftest_data_generator.py'):
+            print("📊 شروع تولید دیتای تستی...")
+            generate_test_data()
+        else:
+            print("⚠️  فایل rftest_data_generator.py یافت نشد")
+        
     except Exception as e:
         print(f"❌ خطا در راه‌اندازی: {e}")
         sys.exit(1)
@@ -722,6 +729,139 @@ def initialize_secure_database():
         for var in ['SETUP_ADMIN_USER', 'SETUP_ADMIN_PASS']:
             if var in os.environ:
                 del os.environ[var]
+
+def generate_test_data():
+    """تولید امن دیتای تستی RFTEST"""
+    try:
+        print("🔧 آماده‌سازی تولید دیتای تستی...")
+        
+        # وارد کردن ماژول‌های مورد نیاز
+        from database import Database
+        import random
+        from datetime import datetime, timedelta
+        
+        # اتصال به دیتابیس
+        db = Database()
+        
+        print("📦 تولید محصولات RF...")
+        create_rf_products(db)
+        
+        print("🔧 تولید خدمات فنی...")
+        create_technical_services(db)
+        
+        print("📚 تولید محتوای آموزشی...")
+        create_educational_content(db)
+        
+        print("💬 تولید استعلامات...")
+        create_price_inquiries(db)
+        
+        print("✅ تولید دیتای تستی کامل شد")
+        
+    except Exception as e:
+        print(f"❌ خطا در تولید دیتا: {e}")
+
+def create_rf_products(db):
+    """ایجاد محصولات RF"""
+    categories = [
+        ("اسپکتروم آنالایزر", None),
+        ("مولد سیگنال", None),
+        ("تجهیزات اندازه‌گیری", None),
+        ("کالیبراتور", None),
+        ("آنتن", None)
+    ]
+    
+    # ایجاد دسته‌بندی‌ها
+    for cat_name, parent_id in categories:
+        try:
+            db.add_product_category(cat_name, parent_id)
+        except:
+            pass  # اگر قبلاً وجود داشت
+    
+    # محصولات نمونه
+    products = [
+        ("اسپکتروم آنالایزر R&S FSW", "Rohde & Schwarz", "FSW26", 1, "فرکانس 2-26.5 GHz", True),
+        ("مولد سیگنال Keysight E8267D", "Keysight", "E8267D", 2, "فرکانس 250kHz-44GHz", True),
+        ("پاور متر Anritsu ML2437A", "Anritsu", "ML2437A", 3, "دقت بالا در اندازه‌گیری توان", False),
+        ("کالیبراتور N4002A", "Keysight", "N4002A", 4, "کالیبراسیون نویز", True),
+        ("آنتن هورن WR-90", "Standard", "WR90-001", 5, "8.2-12.4 GHz", True)
+    ]
+    
+    for name, manufacturer, model, cat_id, desc, in_stock in products:
+        try:
+            db.add_product(name, desc, 0.0, manufacturer, model, cat_id, in_stock)
+        except:
+            pass
+
+def create_technical_services(db):
+    """ایجاد خدمات فنی"""
+    categories = [
+        ("کالیبراسیون", None),
+        ("تعمیرات", None),
+        ("مشاوره فنی", None),
+        ("اجاره تجهیزات", None)
+    ]
+    
+    for cat_name, parent_id in categories:
+        try:
+            db.add_service_category(cat_name, parent_id)
+        except:
+            pass
+    
+    services = [
+        ("کالیبراسیون اسپکتروم آنالایزر", "کالیبراسیون دقیق تجهیزات اندازه‌گیری", 1),
+        ("تعمیر مولد سیگنال", "تعمیر و نگهداری تجهیزات RF", 2),
+        ("مشاوره طراحی RF", "مشاوره در طراحی مدارات RF", 3),
+        ("اجاره VNA", "اجاره تجهیزات اندازه‌گیری", 4)
+    ]
+    
+    for name, desc, cat_id in services:
+        try:
+            db.add_service(name, desc, cat_id)
+        except:
+            pass
+
+def create_educational_content(db):
+    """ایجاد محتوای آموزشی"""
+    categories = [
+        ("مبانی RF", None),
+        ("اندازه‌گیری", None),
+        ("طراحی", None),
+        ("کالیبراسیون", None)
+    ]
+    
+    for cat_name, parent_id in categories:
+        try:
+            db.add_educational_category(cat_name, parent_id)
+        except:
+            pass
+    
+    contents = [
+        ("مبانی اندازه‌گیری RF", "آموزش پایه‌ای اندازه‌گیری فرکانس رادیویی", 1),
+        ("کار با اسپکتروم آنالایزر", "راهنمای کامل استفاده از اسپکتروم آنالایزر", 2),
+        ("طراحی فیلتر RF", "روش‌های طراحی فیلتر در فرکانس‌های بالا", 3),
+        ("کالیبراسیون تجهیزات", "فرآیند کالیبراسیون دقیق", 4)
+    ]
+    
+    for title, desc, cat_id in contents:
+        try:
+            db.add_educational_content(title, desc, cat_id)
+        except:
+            pass
+
+def create_price_inquiries(db):
+    """ایجاد استعلامات قیمت"""
+    inquiries = [
+        ("استعلام قیمت اسپکتروم آنالایزر", "نیاز به قیمت مدل‌های مختلف"),
+        ("هزینه کالیبراسیون", "استعلام هزینه کالیبراسیون سالانه"),
+        ("قیمت مولد سیگنال", "استعلام قیمت مولد سیگنال تا 40GHz"),
+        ("اجاره تجهیزات", "هزینه اجاره ماهانه VNA")
+    ]
+    
+    for title, desc in inquiries:
+        try:
+            db.add_price_inquiry(title, desc, "09123456789", "test@rftest.ir")
+        except:
+            pass
 
 if __name__ == "__main__":
     initialize_secure_database()
