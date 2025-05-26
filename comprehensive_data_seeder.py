@@ -41,18 +41,18 @@ class ComprehensiveDataSeeder:
         """پاک کردن داده‌های موجود"""
         logger.info("در حال پاک کردن داده‌های موجود...")
         
-        conn = self.db.get_conn()
+        conn = self.db.conn
         try:
-            with conn:
+            with conn.cursor() as cursor:
                 # حذف داده‌ها به ترتیب وابستگی
-                conn.execute("DELETE FROM product_media;")
-                conn.execute("DELETE FROM service_media;")
-                conn.execute("DELETE FROM educational_media;")
-                conn.execute("DELETE FROM inquiries;")
-                conn.execute("DELETE FROM products;")
-                conn.execute("DELETE FROM services;")
-                conn.execute("DELETE FROM educational_content;")
-                conn.execute("DELETE FROM categories;")
+                cursor.execute("DELETE FROM product_media;")
+                cursor.execute("DELETE FROM service_media;")
+                cursor.execute("DELETE FROM educational_media;")
+                cursor.execute("DELETE FROM inquiries;")
+                cursor.execute("DELETE FROM products;")
+                cursor.execute("DELETE FROM services;")
+                cursor.execute("DELETE FROM educational_content;")
+                cursor.execute("DELETE FROM categories;")
                 
                 logger.info("✅ داده‌های موجود پاک شدند")
         except Exception as e:
@@ -122,7 +122,7 @@ class ComprehensiveDataSeeder:
             ("تعمیرات", "educational", "راهنمای تعمیرات"),
         ]
         
-        conn = self.db.get_conn()
+        conn = self.db.conn
         try:
             with conn:
                 for name, category_type, description in categories:
@@ -296,7 +296,7 @@ class ComprehensiveDataSeeder:
             }
         ]
         
-        conn = self.db.get_conn()
+        conn = self.db.conn
         try:
             with conn:
                 for i, product in enumerate(products_data, 1):
@@ -450,7 +450,7 @@ class ComprehensiveDataSeeder:
             }
         ]
         
-        conn = self.db.get_conn()
+        conn = self.db.conn
         try:
             with conn:
                 for i, service in enumerate(services_data, 1):
@@ -925,7 +925,7 @@ U = k × √(u₁² + u₂² + u₃² + ...)
             }
         ]
         
-        conn = self.db.get_conn()
+        conn = self.db.conn
         try:
             with conn:
                 for i, content in enumerate(educational_data, 1):
@@ -1091,7 +1091,7 @@ U = k × √(u₁² + u₂² + u₃² + ...)
             }
         ]
         
-        conn = self.db.get_conn()
+        conn = self.db.conn
         try:
             with conn:
                 for inquiry in inquiries_data:
@@ -1228,7 +1228,7 @@ U = k × √(u₁² + u₂² + u₃² + ...)
 *آماده خدمت‌رسانی به شما عزیزان هستیم*
         """
         
-        conn = self.db.get_conn()
+        conn = self.db.conn
         try:
             with conn:
                 # بررسی وجود اطلاعات قبلی
