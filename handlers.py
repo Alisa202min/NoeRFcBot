@@ -1842,22 +1842,43 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
                         media_found = True
                         break
             
-            # If not found yet, try using file_id as Telegram file_id
-            if not media_found:
-                logging.info(f"Assuming file_id is a Telegram file_id: {file_id}")
-                if file_type == 'photo':
-                    media_object = InputMediaPhoto(
-                        media=file_id,
-                        caption=item_caption,
-                        parse_mode="Markdown"
-                    )
-                elif file_type == 'video':
-                    media_object = InputMediaVideo(
-                        media=file_id,
-                        caption=item_caption,
-                        parse_mode="Markdown"
-                    )
-                media_found = True
+            # If not found yet, try to construct proper file path
+            if not media_found and file_id:
+                # تبدیل مسیر فایل به مسیر کامل
+                if file_id.startswith('uploads/'):
+                    full_path = f"./static/{file_id}"
+                    if os.path.exists(full_path) and os.path.isfile(full_path):
+                        logging.info(f"Found media at constructed path: {full_path}")
+                        if file_type == 'photo':
+                            media_object = InputMediaPhoto(
+                                media=FSInputFile(full_path),
+                                caption=item_caption,
+                                parse_mode="Markdown"
+                            )
+                        elif file_type == 'video':
+                            media_object = InputMediaVideo(
+                                media=FSInputFile(full_path),
+                                caption=item_caption,
+                                parse_mode="Markdown"
+                            )
+                        media_found = True
+                
+                # اگر هنوز پیدا نشد، تلاش برای Telegram file_id (فقط اگر شبیه file_id واقعی باشد)
+                if not media_found and len(file_id) > 20 and not '/' in file_id:
+                    logging.info(f"Trying as Telegram file_id: {file_id}")
+                    if file_type == 'photo':
+                        media_object = InputMediaPhoto(
+                            media=file_id,
+                            caption=item_caption,
+                            parse_mode="Markdown"
+                        )
+                    elif file_type == 'video':
+                        media_object = InputMediaVideo(
+                            media=file_id,
+                            caption=item_caption,
+                            parse_mode="Markdown"
+                        )
+                    media_found = True
             
             # Add to media group if found
             if media_found and media_object:
@@ -2234,22 +2255,43 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
                         if media_found:
                             break
                 
-                # If not found yet, try using file_id as Telegram file_id only if it looks valid
-                if not media_found and not file_id.startswith('default_media_'):
-                    logging.info(f"Assuming file_id is a Telegram file_id: {file_id}")
-                    if file_type == 'photo':
-                        media_object = InputMediaPhoto(
-                            media=file_id,
-                            caption=item_caption,
-                            parse_mode="Markdown"
-                        )
-                    elif file_type == 'video':
-                        media_object = InputMediaVideo(
-                            media=file_id,
-                            caption=item_caption,
-                            parse_mode="Markdown"
-                        )
-                    media_found = True
+                # If not found yet, try to construct proper file path
+                if not media_found and file_id and not file_id.startswith('default_media_'):
+                    # تبدیل مسیر فایل به مسیر کامل
+                    if file_id.startswith('uploads/'):
+                        full_path = f"./static/{file_id}"
+                        if os.path.exists(full_path) and os.path.isfile(full_path):
+                            logging.info(f"Found media at constructed path: {full_path}")
+                            if file_type == 'photo':
+                                media_object = InputMediaPhoto(
+                                    media=FSInputFile(full_path),
+                                    caption=item_caption,
+                                    parse_mode="Markdown"
+                                )
+                            elif file_type == 'video':
+                                media_object = InputMediaVideo(
+                                    media=FSInputFile(full_path),
+                                    caption=item_caption,
+                                    parse_mode="Markdown"
+                                )
+                            media_found = True
+                    
+                    # اگر هنوز پیدا نشد، تلاش برای Telegram file_id (فقط اگر شبیه file_id واقعی باشد)
+                    if not media_found and len(file_id) > 20 and not '/' in file_id:
+                        logging.info(f"Trying as Telegram file_id: {file_id}")
+                        if file_type == 'photo':
+                            media_object = InputMediaPhoto(
+                                media=file_id,
+                                caption=item_caption,
+                                parse_mode="Markdown"
+                            )
+                        elif file_type == 'video':
+                            media_object = InputMediaVideo(
+                                media=file_id,
+                                caption=item_caption,
+                                parse_mode="Markdown"
+                            )
+                        media_found = True
                 
                 # Add to media group if found
                 if media_found and media_object:
