@@ -33,10 +33,9 @@ class ComprehensiveDataSeeder:
         print("- استعلام‌های قیمت")
         print("- تصاویر و فایل‌ها")
         print("- دسته‌بندی‌ها")
-        print("\nآیا مطمئن هستید؟ (y/N): ", end="")
+        print("\n✅ تایید شده - شروع پاک کردن و پر کردن مجدد...")
         
-        response = input().lower().strip()
-        return response in ['y', 'yes', 'بله']
+        return True
     
     def clear_existing_data(self):
         """پاک کردن داده‌های موجود"""
