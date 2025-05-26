@@ -99,39 +99,60 @@ class ComprehensiveDataSeeder:
         """ایجاد دسته‌بندی‌ها"""
         logger.info("در حال ایجاد دسته‌بندی‌ها...")
         
-        categories = [
-            # دسته‌بندی محصولات
-            ("اسیلوسکوپ", "products", "دستگاه‌های اسیلوسکوپ آنالوگ و دیجیتال"),
-            ("اسپکتروم آنالایزر", "products", "تحلیل‌گرهای طیف فرکانسی"),
-            ("سیگنال ژنراتور", "products", "تولیدکننده‌های سیگنال"),
-            ("نتورک آنالایزر", "products", "تحلیل‌گرهای شبکه"),
-            ("پاور متر", "products", "اندازه‌گیری توان RF"),
-            ("رادیوتستر", "products", "تستر رادیوهای دوطرفه"),
-            ("فرکانس متر", "products", "اندازه‌گیری فرکانس دقیق"),
-            ("سایت مستر", "products", "تجهیزات تست آنتن و کابل"),
-            
-            # دسته‌بندی خدمات
-            ("کالیبراسیون", "services", "کالیبراسیون تجهیزات اندازه‌گیری"),
-            ("تعمیرات", "services", "تعمیر و نگهداری تجهیزات"),
-            ("مشاوره فنی", "services", "مشاوره در انتخاب تجهیزات"),
-            ("آموزش", "services", "دوره‌های آموزشی تخصصی"),
-            
-            # دسته‌بندی آموزشی
-            ("مبانی اندازه‌گیری", "educational", "اصول پایه اندازه‌گیری RF"),
-            ("کار با دستگاه‌ها", "educational", "آموزش کار با تجهیزات"),
-            ("کالیبراسیون", "educational", "آموزش کالیبراسیون"),
-            ("تعمیرات", "educational", "راهنمای تعمیرات"),
+        # دسته‌بندی محصولات
+        product_categories = [
+            "اسیلوسکوپ",
+            "اسپکتروم آنالایزر", 
+            "سیگنال ژنراتور",
+            "نتورک آنالایزر",
+            "پاور متر",
+            "رادیوتستر",
+            "فرکانس متر",
+            "سایت مستر"
+        ]
+        
+        # دسته‌بندی خدمات
+        service_categories = [
+            "کالیبراسیون",
+            "تعمیرات",
+            "مشاوره فنی",
+            "آموزش"
+        ]
+        
+        # دسته‌بندی آموزشی
+        educational_categories = [
+            "مبانی اندازه‌گیری",
+            "کار با دستگاه‌ها",
+            "کالیبراسیون",
+            "تعمیرات"
         ]
         
         conn = self.db.get_conn()
         try:
             with conn:
-                for name, category_type, description in categories:
+                # اضافه کردن دسته‌بندی محصولات
+                for name in product_categories:
                     conn.execute(
-                        "INSERT INTO categories (name, type, description) VALUES (?, ?, ?)",
-                        (name, category_type, description)
+                        "INSERT INTO product_categories (name) VALUES (?)",
+                        (name,)
                     )
-            logger.info(f"✅ {len(categories)} دسته‌بندی ایجاد شد")
+                
+                # اضافه کردن دسته‌بندی خدمات
+                for name in service_categories:
+                    conn.execute(
+                        "INSERT INTO service_categories (name) VALUES (?)",
+                        (name,)
+                    )
+                
+                # اضافه کردن دسته‌بندی آموزشی
+                for name in educational_categories:
+                    conn.execute(
+                        "INSERT INTO educational_categories (name) VALUES (?)",
+                        (name,)
+                    )
+                
+            total_categories = len(product_categories) + len(service_categories) + len(educational_categories)
+            logger.info(f"✅ {total_categories} دسته‌بندی ایجاد شد")
         except Exception as e:
             logger.error(f"خطا در ایجاد دسته‌بندی‌ها: {e}")
             raise
@@ -303,7 +324,7 @@ class ComprehensiveDataSeeder:
                 for i, product in enumerate(products_data, 1):
                     # دریافت category_id
                     category_result = conn.execute(
-                        "SELECT id FROM categories WHERE name = ? AND type = 'products'",
+                        "SELECT id FROM product_categories WHERE name = ?",
                         (product["category"],)
                     ).fetchone()
                     
