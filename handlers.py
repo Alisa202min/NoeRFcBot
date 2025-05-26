@@ -1863,8 +1863,8 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
                             )
                         media_found = True
                 
-                # اگر هنوز پیدا نشد، تلاش برای Telegram file_id (فقط اگر شبیه file_id واقعی باشد)
-                if not media_found and len(file_id) > 20 and not '/' in file_id:
+                # اگر هنوز پیدا نشد، فقط اگر file_id واقعاً شبیه Telegram file_id باشد (بدون /)
+                if not media_found and len(file_id) > 20 and not '/' in file_id and not file_id.startswith('uploads'):
                     logging.info(f"Trying as Telegram file_id: {file_id}")
                     if file_type == 'photo':
                         media_object = InputMediaPhoto(
@@ -1879,6 +1879,10 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
                             parse_mode="Markdown"
                         )
                     media_found = True
+                else:
+                    # اگر file_id مسیر محلی است ولی فایل وجود ندارد
+                    if not media_found and file_id.startswith('uploads/'):
+                        logging.warning(f"Local file not found: ./static/{file_id}")
             
             # Add to media group if found
             if media_found and media_object:
