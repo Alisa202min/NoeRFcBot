@@ -720,6 +720,7 @@ def initialize_secure_database():
             print("📥 شروع پر کردن دیتابیس با اطلاعات تست...")
             
             # بررسی وجود فایل rftest_data_generator.py
+            current_dir = os.path.dirname(os.path.abspath(__file__))
             data_generator_path = os.path.join(current_dir, 'rftest_data_generator.py')
             if os.path.exists(data_generator_path):
                 try:
