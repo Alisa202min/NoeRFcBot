@@ -1,0 +1,1967 @@
+سنجش ابزار نوین RFTEST
+19 February 2017
+Channel «RF Test Iran» created
+14:25
+سنجش ابزار نوین RFTEST
+تجهیزات اندازه گیری مخابراتی
+14:27
+معرفی تجهیزات اندازه گیری و کاربردها
+21:14
+سنجش ابزار نوین RFTEST
+معرفی رادیوتستر :
+رادیوتستر برای تست پارامترهای فرستندگی و گیرندگی رادیوهایی مانند بیسیم کاربرد دارد و ترکیبی از دستگاه های زیر است :
+فرکانس متر
+پاورمتر
+مدولاسیون متر
+سیگنال ژنراتور
+فانکشن ژنراتور
+دیستروشن متر
+سیناد متر و ...
+... 
+👍
+1
+21:20
+Photo
+Not included, change data exporting settings to download.
+295×171, 13.5 KB
+رادیوتستر آنالوگ مدل 2955 ساخت شرکت مارکنی سال1986
+rfequipment
+21:22
+Photo
+Not included, change data exporting settings to download.
+480×274, 31.7 KB
+رادیوتستر آنالوگ مدل 2955B ساخت شرکت مارکنی سال 1990
+
+21:25
+Photo
+Not included, change data exporting settings to download.
+480×281, 22.8 KB
+رادیوتستر سری 296Xساخت شرکت IFR سال1995 تا 2005
+مدل 2965 تست رادیوی آنالوگ
+مدل 2966 تست 900 GSM
+مدل 2967 تست 900 و 1800 GSM
+مدل 2968 تست Tetra
+
+20 February 2017
+21:59
+سنجش ابزار نوین RFTEST
+مهمترین تفاوت رادیوتستر خانواده 296X با خانواده 2955 افزودن اسپکتروم آنالایز به همراه تراک ژنراتور و قابلیت تست بیسیم های دیجیتال است .
+
+22:02
+Photo
+Not included, change data exporting settings to download.
+309×163, 9.5 KB
+رادیوتستر خانواده 294X با قابلیت های مشابه رادیوتستر های خانواده 296X ساخت شرکت IFR / Aeroflex
+
+22:04
+مهمترین تفاوت های رادیوتستر خانواده 294X با خانواده 296X عبارتند از :
+1-وزن سبکتر ( پرتابل)
+2-بهبود پارامترهایی همچون نویز فاز
+
+22:11
+Photo
+Not included, change data exporting settings to download.
+225×225, 6.9 KB
+رادیوتستر خانواده 3900 آخرین مدل ساخت شرکت Aeroflex
+
+22:14
+قابلیت های رادیوتستر مدل 3920 ساخت شرکت Aeroflex با توجه به آبشن ها :
+1- تست آنالوگ بعنوان مثال بیسیم های آنالوگ موتورولا مانند GP338
+2- تست دیجیتال - DMR
+3-تست دیجیتال - Tetra
+4-تست دیجیتال -P25
+5-تست دیجیتال - DPMR
+
+22:39
+سنجش ابزار نوین RFTEST
+شرکت Marconi یک شرکت انگلیسی بود که در سال 1998 توسط شرکت آمریکایی IFR خریداری شد اما بعد از 4 سال این شرکت هم توسط یک شرکت آمریکایی بنام Aeroflex خریداری شد. بنابراین ممکن است شما یک مدل دستگاه مشخص را با برندهای متفاوت در بازار مشاهده کنید بعنوان مثال رادیوتستر های
+Marconi 2945
+IFR 2945
+Aeroflex 2945
+
+
+22:51
+Photo
+Not included, change data exporting settings to download.
+300×345, 20.9 KB
+22:52
+Aeroflex 3515AR 
+رادیوتستر پرتابل با استاندارد های نظامی
+21 February 2017
+17:17
+سنجش ابزار نوین RFTEST
+دفترچه راهنمای کاربری رادیوتستر مارکنی مدل Marconi 2955B
+17:22
+Marconi 2955B Operating Manual.pdf
+Not included, change data exporting settings to download.
+7.4 MB
+22 February 2017
+18:56
+سنجش ابزار نوین RFTEST
+تاریخچه شرکت HP
+شرکت هیولت پاکارد توسط دو دانش‌آموخته از دانشگاه آستنفورد به نام‌های دیوید پاکارد و ویلیام ردینگتون هیولت و با سرمایه ابتدایی ۵۳۸۸ دلار  پایه‌گذاری شد. تلاش این دو نفر باعث شد که سرمایه اندک آنها بعد از حدود هفتاد سال به ۹۰ میلیارد دلار برسد. 
+هیولت و پاکارد تصمیم گرفتند نامی برای کمپانی خود انتخاب نمایند که تصمیم گرفتند نام‌های خود را بر روی کمپانی قرار دهند و قرعه انداختند که نام هر کدام اول افتاد شروع نام شرکت با حرف اول صاحب نام خواهد بود که بالاخره نام هیولت اول افتاد و بدین ترتیب نام شرکت HP شد.
+18:59
+Photo
+Not included, change data exporting settings to download.
+463×251, 27.0 KB
+18:59
+گاراژ کوچکی که هیولت و پکارد در آن اولین محصول خود را تولید کردند به عنوان تنها نماد شرکت و محل تولد دره سیلیکون شناخته می‌شود. 
+19:01
+Photo
+Not included, change data exporting settings to download.
+282×178, 9.6 KB
+19:03
+Photo
+Not included, change data exporting settings to download.
+638×359, 51.2 KB
+21:00
+سنجش ابزار نوین RFTEST
+شرکت HP در سال 1999 بخش تجهیزات اندازه‌گیری گیری خود را به شرکت Agilent واگذار کرد و بصورت تخصصی در حوزه کسب و کار کامپیوتر و پرینتر تا امروز ادامه داد. مجددا شرکت Agilent بخش تجهیزات اندازه گیری خود در سال 2014 به شرکت تازه تاسیس Keysight واگذار کرد و خودش بصورت تخصصی در حوزه تجهیزات بیولوژی و شیمیایی ادامه فعالیت می دهد.
+21:02
+Photo
+Not included, change data exporting settings to download.
+236×214, 4.3 KB
+21:03
+Photo
+Not included, change data exporting settings to download.
+312×162, 7.6 KB
+21:05
+بنابراین ممکن است شما یک مدل دستگاه را با هر سه لوگو در بازار مشاهده کنید .
+23 February 2017
+18:17
+سنجش ابزار نوین RFTEST
+کالیبراسیون(calibration)  در اصل  از کلمه caliber یا calibre که به معنای قطرداخلی لوله تفنگ یا توپ یا قطر خارجی گلوله یا فشنگ، اقتباس شده است. درفارسی به این واژه برسنجیدن می گویند.
+
+تعریف کالیبراسیون دراستاندارد ملی ایران عبارتست از :
+
+مقایسه ابزار دقیق با یک مرجع استاندارد آزمایشگاهی در شرایط استاندارد ، جهت اطمینان از دقت و سلامت آن و تعیین میزان خطای این وسیله نسبت به آن استاندارد وتنظیم آن در مقایسه با استاندارد .
+تعریف دیگری که برای کالیبره کردن در 10012  ISOآمده است چنین است: مجموعه ای ازعملیات که تحت شرایط مشخصی برقرار می شود و رابطه ی بین مقادیر نشان داده شده توسط وسیله اندازه گیری و مقادیر متناظر آن کمیت توسط استاندارد مرجع را مشخص می نماید. 
+
+تعاریف بسیار دیگری نیز برای کالیبراسیون آورده شده است از جمله :
+
+* مجموعه عملیاتی که تحت شرایط مشخص دما ورطوبت، میان نشاندهی یک دستگاه یا سیستم اندازه گیری یا مقدار یک مقیاس مادی یا ماده مرجع و مقدار متناظر آن که از استانداردها حاصل میشود، رابطه ای برقرار می کند.
+
+* مقایسه یک وسیله اندازه گیری با یک مرجع استاندارد که در رده صحت بالاتری قرار دارد.
+
+* مقایسه یک پارامتر با یک استاندارد مرجع و سنجش میزان اختلاف. 
+18:18
+نقطه مشترک تمامی تعاریف کالیبراسیون : مقایسه یه مقدار مجهول با مقدار معلوم و گزارش میزان خطا است
+18:20
+Photo
+Not included, change data exporting settings to download.
+276×183, 14.5 KB
+18:28
+نتیجه کالیبراسیون گزارش مقدار خطا است .اگر مقدار خطا از محدوده مجاز که در کاتالوگ دستگاه آمده است کمتر باشد می توانید از آن دستگاه برای اندازه‌گیری استفاده نمایید در غیر اینصورت نیاز به تنظیم و یا تعمیر دستگاه خواهد بود
+
+تنظیم و یا تعمیرات در شرکت سازنده و یا شرکت های تایید صلاحیت شده انجام می شود .
+18:32
+Photo
+Not included, change data exporting settings to download.
+239×211, 9.5 KB
+18:32
+RF Test Iran:
+نکته :
+در هنگام خرید تجهیزات اندازه‌گیری بخصوص تجهیزات دست دوم از کالیبره بودن آن اطمینان حاصل کنید.
+برای اینکار کافیست برگه گواهی کالیبراسیون و یا وجود برچسب آن در روی دستگاه را چک نمایید .
+19:50
+سنجش ابزار نوین RFTEST
+چگونگی کارکرد اسیلوسکوپ آنالوگ در دو محور زمان و ولتاژ
+19:52
+Animation
+Not included, change data exporting settings to download.
+14.1 KB
+25 February 2017
+17:15
+سنجش ابزار نوین RFTEST
+کاربرد اصلی اسیلوسکوپ :
+نمایش سیگنال در حوزه زمان است .
+
+انواع اسیلوسکوپ :
+1- آنالوگ
+2- دیجیتال
+3- ترکیب آنالوگ و دیجیتال (حافظه دار )
+18:48
+سنجش ابزار نوین RFTEST
+اسیلوسکوپ های دیجیتال با آبشن نرم‌افزاری‌ FFT قابلیت نمایش سیگنال در حوزه فرکانس را دارند چیزی شبیه به اسپکتروم آنالایزر
+18:52
+Photo
+Not included, change data exporting settings to download.
+259×194, 9.8 KB
+خط زرد رنگ نمایش سیگنال در حوزه زمان
+خط قرمز نمایش همان سیگنال در حوزه فرکانس (قابلیت FFT)
+26 February 2017
+10:06
+سنجش ابزار نوین RFTEST
+معرفی لاجیک آنالایزر :
+دستگاهی است شبیه به اسیلوسکوپ با کاربرد اختصاصی برای نمایش سیگنال دیجیتال ( مدار منطقی ) با تعداد کانال حداقل هشت .
+
+این دستگاه بصورت جداگانه و یا ترکیبی با اسیلوسکوپ در بازار عرضه شده است.
+10:07
+Photo
+Not included, change data exporting settings to download.
+290×173, 13.7 KB
+10:08
+اسیلوسکوپ با قابلیت لاجیک آنالایزر
+11:33
+سنجش ابزار نوین RFTEST
+لاجیک آنالایزر
+1 March 2017
+20:40
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+486×297, 17.2 KB
+نمودار پهنای باند اسیلوسکوپ
+20:42
+یکی از مهمترین پارمترها در هنگام انتخاب اسیلوسکوپ BW یا همان پهنای باند 3dB است . بعنوان مثال اسیلوسکوپ 100MHz دامنه سیگنال سینوسی 100MHz و 1V را حدود 0.7 ولت نمایش می دهد .
+20:45
+Photo
+Not included, change data exporting settings to download.
+501×303, 36.5 KB
+نحوه نمایش شکل موج سیگنال 100MHz مربعی در اسیلوسکوپ با پهنای باند 100MHz
+همانطور که مشاهده می کنید سیگنال مربعی به شکل سینوسی نشان داده می شود !
+20:46
+Photo
+Not included, change data exporting settings to download.
+1280×769, 135.1 KB
+نحوه نمایش شکل موج سیگنال 100MHz مربعی در اسیلوسکوپ با پهنای باند500MHz
+
+همانطور که مشاهده می کنید تصویر مربعی است.
+👍
+1
+20:49
+نتیجه گیری : انتخاب اسیلوسکوپ با پهنای باند حداقل 5 برابر فرکانس سیگنال دیجیتال مورد استفاده توسط شما
+8 March 2017
+22:14
+سنجش ابزار نوین RFTEST
+اندازه گیری پارامترهای آنتن.pdf
+Not included, change data exporting settings to download.
+2.0 MB
+9 March 2017
+10:07
+سنجش ابزار نوین RFTEST
+معرفی اسپکتروم آنالایزر :
+دستگاهی است شبیه به اسیلوسکوپ برای نمایش سیگنال در حوزه فرکانس در حالیکه اسیلوسکوپ سیگنال را در حوزه زمان نمایش می دهد .
+10:08
+Photo
+Not included, change data exporting settings to download.
+284×177, 10.0 KB
+5 April 2017
+16:10
+سنجش ابزار نوین RFTEST
+پارامترهای اساسی کابل های کواکسیال ( هم محور ) مخابراتی :
+1 - فرکانس کاری
+2 - تلفات توان Insertion Loss
+3 - حداکثر توان قابل تحمل
+4 - امپدانس 50 یا 75 اهم
+
+16:11
+Photo
+Not included, change data exporting settings to download.
+240×168, 7.5 KB
+16:12
+Photo
+Not included, change data exporting settings to download.
+301×139, 8.1 KB
+16:18
+علت انتخاب امپدانس 50 یا 75 اهم :
+
+در امپدانس 75 اهم حداقل تلفات توان وجود دارد لذا برای گیرنده های تلویزیونی بسیار مناسب است.
+
+در امپدانس 30 اهم حداکثر توان قابل تحمل بدست می آید بنابراین برای فرستنده ها توان بالا بسیار مناسب است .
+
+برای اینکه بتوان از یک کابل بصورت مشترک در مسیر ارسال و یا دریافت سیگنال استفاده نمود از امپدانس 50 اهم استفاده می نمایند تا بین تلفات توان و حداکثر توان قابل تحمل موازنه بوجود آید لذا بصورت استاندارد تجهیزات اندازه‌گیری مخابراتی 50 اهم هستند .
+
+16:20
+Photo
+Not included, change data exporting settings to download.
+378×133, 9.9 KB
+16:20
+مبدل 50 اهم به 75 اهم
+
+11 April 2017
+15:25
+سنجش ابزار نوین RFTEST
+Appilication Note.pdf
+Not included, change data exporting settings to download.
+8.4 MB
+راهنمای تست و اندازه گیری رادار 
+15:33
+Photo
+Not included, change data exporting settings to download.
+392×128, 10.7 KB
+
+15:53
+سنجش ابزار نوین RFTEST
+راهنماي تعيين فواصل كاليبراسيون.pdf
+Not included, change data exporting settings to download.
+3.6 MB
+
+15:54
+استاندارد_تعیین_دوره_های_کالیبراسیون.pdf
+Not included, change data exporting settings to download.
+140.0 KB
+
+4 May 2017
+13:28
+سنجش ابزار نوین RFTEST
+Video file
+Not included, change data exporting settings to download.
+11:29, 39.2 MB
+ویدیوی معرفی رادیوتستر 2955
+
+
+13:29
+Video file
+Not included, change data exporting settings to download.
+08:13, 19.2 MB
+ویدیوی معرفی پنل جلو و عقب رادیوتستر 2955
+
+
+13:40
+راهنمای_نگهداری_کانکتورهای_مایکرویو.pdf
+Not included, change data exporting settings to download.
+623.3 KB
+
+راهنمای نگهداری کانکتور
+11 May 2017
+08:05
+سنجش ابزار نوین RFTEST
+Frequency Tolerance :
+مقدار انحراف فرکانس اسیلاتور کریستالی در دمای 25 درجه سانتی‌گراد نسبت به فرکانس اصلی آن 
+08:05
+Frequency Stability :
+مقدار انحراف فرکانس اسیلاتور کریستالی در محدوده دمای کاری آن مثلا 40- تا 60+ نسبت به فرکانس اصلی آن که با فرمت PPM نمایش داده می شود .
+
+08:06
+دو پارامتر مهم برای اسیلاتور ها :
+نویز فاز و پایداری فرکانس
+19 May 2017
+16:34
+سنجش ابزار نوین RFTEST
+پارامترهای انتخاب پاورسنسور عبارتند از :
+1 - محدوده فرکانس کاری
+2 - محدوده توان قابل اندازه‌گیری
+3 - نوع توان اندازه‌گیری : Peak یا Average
+
+معمولا از نوع Average استفاده می شود مگر موارد خاص مثل سیگنال های پالسی مانند رادار یا TDMA از نوع Peak استفاده می شود .
+
+16:40
+مثال :
+Features Measurement type
+– Average power measurements
+– Frequency range: 10 MHz to 18 GHz
+– Dynamic range: –70 dBm to -20 dBm
+16:43
+Photo
+Not included, change data exporting settings to download.
+480×364, 17.2 KB
+19:05
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+809×242, 26.3 KB
+بلوک دیاگرام پاور متر
+
+19:07
+انواع پاور سنسور بر اساس تکنولوژی ساخت :
+1- ترمیستور
+2- ترموکوپل
+3-دتکتور دیود
+
+19:28
+سنجش ابزار نوین RFTEST
+پاورپوینت معرفی پاورمتر.pdf
+Not included, change data exporting settings to download.
+4.9 MB
+معرفی پاورمتر
+
+26 May 2017
+18:03
+سنجش ابزار نوین RFTEST
+معرفی نتورک آنالایزر.pdf
+Not included, change data exporting settings to download.
+8.6 MB
+معرفی Network Analyzer
+18:04
+Photo
+Not included, change data exporting settings to download.
+700×403, 58.3 KB
+نتورک آنالایزر دو پورت
+1 June 2017
+16:55
+سنجش ابزار نوین RFTEST
+DMR Option Manual.pdf
+Not included, change data exporting settings to download.
+817.2 KB
+راهنمای اندازه گیری پارامترهای رادیو DMR با استفاده از رادیوتستر 3920 ساخت Aeroflex
+16:55
+TETRA Option Manual.pdf
+Not included, change data exporting settings to download.
+4.4 MB
+راهنمای اندازه گیری پارامترهای رادیو TETRA با استفاده از رادیوتستر 3920 ساخت Aeroflex
+17:15
+سنجش ابزار نوین RFTEST
+Video file
+Not included, change data exporting settings to download.
+10:28, 31.0 MB
+ویدیو آموزش رادیوتستر 3920 - بخش آنالوگ
+15 June 2017
+13:24
+سنجش ابزار نوین RFTEST
+RF_and_uW_Analysis_Basics.pdf
+Not included, change data exporting settings to download.
+4.5 MB
+RF_and_uW_Analysis_Basics
+3 August 2017
+09:15
+سنجش ابزار نوین RFTEST
+10 Fundamentals You Need to Know About Your DC Power Supply.pdf
+Not included, change data exporting settings to download.
+507.2 KB
+10 اصل ای که نیاز دارید درباره منابع تغذیه بدانید :
+09:16
+Coax_Cable_Specification_Chart.pdf
+Not included, change data exporting settings to download.
+23.3 KB
+جدول مشخصات فنی کابل های استاندارد رادیویی
+09:18
+اصول_نگهداری_از_کانکتور_های_رادیویی.pdf
+Not included, change data exporting settings to download.
+496.8 KB
+اصول نگهداری از کانکتور های رادیویی
+09:18
+معرفی_کانکتور_های_رادیویی_استاندارد.pdf
+Not included, change data exporting settings to download.
+51.8 KB
+کانکتور های رادیویی
+09:22
+برنامه ریزی نگهداری وتعمیرات(نت).pptx
+Not included, change data exporting settings to download.
+2.2 MB
+نگهداری و تعمیرات
+1 September 2017
+10:22
+سنجش ابزار نوین RFTEST
+Fundamentals of RF Design.pdf
+Not included, change data exporting settings to download.
+3.3 MB
+08:55
+Photo
+Not included, change data exporting settings to download.
+1280×591, 87.7 KB
+RF Test Iran
+3 April 2024
+09:45
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×853, 98.1 KB
+کابل نتورک آنالایزر 18Ghz , کارکرده
+قیمت هر عدد : ۱۲۵۰ دلار
+تعداد موجود : ۴ عدد
+P/N : 0UD01D01060.0
+
+
+RF Test Iran
+09:45
+Photo
+Not included, change data exporting settings to download.
+1280×853, 148.3 KB
+RF Test Iran
+09:45
+Photo
+Not included, change data exporting settings to download.
+1280×853, 108.4 KB
+RF Test Iran
+09:45
+Photo
+Not included, change data exporting settings to download.
+1280×853, 58.6 KB
+RF Test Iran
+09:45
+Photo
+Not included, change data exporting settings to download.
+1280×853, 32.5 KB
+RF Test Iran
+09:45
+Photo
+Not included, change data exporting settings to download.
+1280×853, 26.7 KB
+RF Test Iran
+09:45
+Photo
+Not included, change data exporting settings to download.
+1280×853, 39.9 KB
+RF Test Iran
+09:45
+Photo
+Not included, change data exporting settings to download.
+1280×853, 57.9 KB
+RF Test Iran
+09:45
+Photo
+Not included, change data exporting settings to download.
+1280×853, 124.8 KB
+RF Test Iran
+09:45
+GORE_Phaseflex_10_18_13_app-461044.pdf
+Not included, change data exporting settings to download.
+343.1 KB
+RF Test Iran
+09:56
+E4407B : Performance Test
+RF Test Iran
+8 April 2024
+12:07
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+960×1280, 201.7 KB
+GPIB USB Interface ADLINK
+New , 700$
+
+
+RF Test Iran
+12:09
+Photo
+Not included, change data exporting settings to download.
+1280×1213, 259.4 KB
+Original Keysight GPIB USB Interface 82357B , 600$
+
+
+RF Test Iran
+17:21
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×960, 139.4 KB
+Agilent 53132A Frequency Counter 225Mhz , 700$
+
+
+RF Test Iran
+12 May 2024
+18:48
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×605, 117.6 KB
+Agilent 8482A power sensor
+850$
+
+
+RF Test Iran
+13 May 2024
+13:56
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×927, 207.5 KB
+Keysight Power Sensor wide dynamic range 80dB , with certificate
+Units Price : 3300$
+
+
+RF Test Iran
+9 June 2024
+06:44
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+851×638, 104.0 KB
+Agilent Signal Generator
+E8257D 40Ghz with options 007 , 1E1 , 1EA , 540 ,UNT , UNU
+With Calibration Certificate ISO17025
+38000$
+
+
+
+RF Test Iran
+06:44
+Photo
+Not included, change data exporting settings to download.
+1280×960, 169.9 KB
+Self Test Pass
+RF Test Iran
+06:45
+Agilent Signal Generator
+E8257D 40Ghz with options 007 , 1E1 , 1EA , 540 ,UNT , UNU
+With Calibration Certificate ISO17025
+38000$
+
+
+
+RF Test Iran
+06:52
+Photo
+Not included, change data exporting settings to download.
+1280×960, 120.9 KB
+Agilent Vector Network Analyzer 8722ES 40Ghz without calibration kit
+32000$
+
+
+
+RF Test Iran
+06:52
+Photo
+Not included, change data exporting settings to download.
+1280×960, 162.2 KB
+RF Test Iran
+06:52
+Photo
+Not included, change data exporting settings to download.
+1280×960, 167.6 KB
+RF Test Iran
+06:52
+Photo
+Not included, change data exporting settings to download.
+1280×960, 171.5 KB
+RF Test Iran
+14 June 2024
+17:35
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×557, 105.0 KB
+Power Meter 437B
+350$
+
+
+
+RF Test Iran
+17:39
+Photo
+Not included, change data exporting settings to download.
+1080×865, 108.0 KB
+راهنمای کانکتور
+
+
+RF Test Iran
+17:42
+Photo
+Not included, change data exporting settings to download.
+1280×542, 115.8 KB
+Power Meter 438A
+400$
+
+
+RF Test Iran
+17:43
+Photo
+Not included, change data exporting settings to download.
+1058×1280, 385.9 KB
+National Instrument
+GPIB PCI 2007
+300$
+
+
+RF Test Iran
+17:45
+Photo
+Not included, change data exporting settings to download.
+1280×960, 100.4 KB
+Power Metet Agilent E4419B
+1700$
+
+
+RF Test Iran
+17:58
+Photo
+Not included, change data exporting settings to download.
+1280×720, 114.2 KB
+2.92mm Male to 3.5mm Female Adapter
+70$
+
+
+RF Test Iran
+17:58
+Photo
+Not included, change data exporting settings to download.
+1280×720, 106.3 KB
+RF Test Iran
+17:58
+Photo
+Not included, change data exporting settings to download.
+720×1280, 222.5 KB
+RF Test Iran
+17 June 2024
+08:13
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×905, 134.2 KB
+Agilent Manual Step Attenuator
+10dB and 1dB step to 110dB
+DC ~ 18Ghz , 1W
+8494B + 8496B
+
+1700$
+
+
+
+RF Test Iran
+18 June 2024
+11:33
+سنجش ابزار نوین RFTEST
+سنجش ابزار نوین RFTEST 03.11.2020 11:19:25
+Photo
+Not included, change data exporting settings to download.
+1280×960, 126.2 KB
+فروش پاور سنسور Anritsu MA72B
+09378455988
+
+RF Test Iran
+11:33
+سنجش ابزار نوین RFTEST 03.11.2020 11:19:25
+Photo
+Not included, change data exporting settings to download.
+1280×960, 126.9 KB
+RF Test Iran
+11:33
+سنجش ابزار نوین RFTEST
+In reply to this message
+قیمت فروش : ۲۰۰ دلار
+تخفیف ویژه :۱۲۵ دلار 🙏🙏🙏🙏
+RF Test Iran
+11:34
+سنجش ابزار نوین RFTEST
+سنجش ابزار نوین RFTEST 03.11.2020 11:20:12
+Photo
+Not included, change data exporting settings to download.
+1280×960, 109.2 KB
+فروش پاور سنسور Anritsu MA73A
+09378455988
+
+RF Test Iran
+11:34
+سنجش ابزار نوین RFTEST 03.11.2020 11:20:12
+Photo
+Not included, change data exporting settings to download.
+1280×960, 111.1 KB
+RF Test Iran
+11:35
+سنجش ابزار نوین RFTEST
+In reply to this message
+قیمت فروش : ۲۰۰ دلار
+تخفیف ویژه :۱۲۵ دلار 🙏🙏🙏🙏
+RF Test Iran
+11:37
+سنجش ابزار نوین RFTEST
+سنجش ابزار نوین RFTEST 26.04.2023 14:00:34
+Photo
+Not included, change data exporting settings to download.
+1280×720, 139.0 KB
+فروش رادیوتستر IFR 2966A
+
+
+
+RF Test Iran
+11:37
+سنجش ابزار نوین RFTEST 26.04.2023 14:00:34
+Photo
+Not included, change data exporting settings to download.
+1280×659, 138.6 KB
+RF Test Iran
+11:37
+سنجش ابزار نوین RFTEST 26.04.2023 14:00:35
+Photo
+Not included, change data exporting settings to download.
+1280×934, 120.8 KB
+RF Test Iran
+11:37
+سنجش ابزار نوین RFTEST 26.04.2023 14:00:35
+Photo
+Not included, change data exporting settings to download.
+1280×720, 130.4 KB
+RF Test Iran
+11:37
+سنجش ابزار نوین RFTEST 26.04.2023 14:00:35
+Photo
+Not included, change data exporting settings to download.
+1280×814, 148.2 KB
+RF Test Iran
+11:37
+سنجش ابزار نوین RFTEST 26.04.2023 14:00:35
+Photo
+Not included, change data exporting settings to download.
+1280×808, 117.2 KB
+RF Test Iran
+11:38
+سنجش ابزار نوین RFTEST
+In reply to this message
+قیمت فروش : ۵۰۰۰ دلار
+تخفیف ویژه : ۳۵۰۰ دلار 🙏🙏🙏🙏
+RF Test Iran
+19:06
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×541, 63.1 KB
+مفهوم پایداری فرکانس
+RF Test Iran
+👍
+1
+4 July 2024
+08:35
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+960×1280, 201.6 KB
+Agilent 8485A & 8485D 50Mhz to 26.5Ghz power sensor
+2pcs : 3000$
+
+
+RF Test Iran
+08:35
+Photo
+Not included, change data exporting settings to download.
+960×1280, 160.9 KB
+RF Test Iran
+08:37
+Photo
+Not included, change data exporting settings to download.
+1280×960, 159.0 KB
+Agilent 82357B GPIB USB Adapter
+High Copy
+350$
+
+
+RF Test Iran
+5 July 2024
+14:33
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×960, 148.1 KB
+Agilent E4402B
+#SpectrumAnalyzer 3Ghz
+2300$
+
+
+RF Test Iran
+👍
+1
+7 July 2024
+12:13
+سنجش ابزار نوین RFTEST
+Ceyear 20209FB.pdf
+Not included, change data exporting settings to download.
+143.0 KB
+RF Test Iran
+12:14
+#CalKit Economic 2.92mm
+DC~40Ghz
+New
+Ceyear China
+
+4250$
+
+
+
+RF Test Iran
+👍
+1
+12:14
+Photo
+Not included, change data exporting settings to download.
+1280×720, 129.2 KB
+RF Test Iran
+12:14
+Photo
+Not included, change data exporting settings to download.
+1280×720, 59.1 KB
+RF Test Iran
+9 July 2024
+16:29
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+960×1280, 250.3 KB
+RF Test Iran
+16:29
+Photo
+Not included, change data exporting settings to download.
+1116×1279, 271.5 KB
+#GPIB USB Adapter
+Keysight 82357B
+Original , Used
+500$
+
+
+
+RF Test Iran
+10 July 2024
+Channel photo changed
+14 July 2024
+09:59
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+540×960, 82.3 KB
+#GPIB USB HS National Instruments
+Original
+800$
+
+
+
+RF Test Iran
+15:36
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1126×1080, 143.3 KB
+#CalKit Economic 8.5GHz 8 PCS calibration kit , Made In China
+160$
+
+
+RF Test Iran
+15:45
+Photo
+Not included, change data exporting settings to download.
+1280×580, 115.3 KB
+#FunctionGenerator
+Agilent 33250A 80Mhz
+2650$
+
+
+
+RF Test Iran
+17:15
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×720, 129.7 KB
+Agilent 33250A Self Test PASS
+RF Test Iran
+15 July 2024
+11:58
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×762, 128.7 KB
+
+RF Test Iran
+Not included, change data exporting settings to download.
+1034×1148, 108.4 KB
+RF Test Iran
+22:17
+Photo
+Not included, change data exporting settings to download.
+1280×698, 145.8 KB
+#Power Meter
+Agilent E4418B + Agilent 8481A 18Ghz Power Sensor = 2600$
+
+
+
+RF Test Iran
+12 December 2024
+Photo
+Not included, change data exporting settings to download.
+1080×886, 94.3 KB
+#Waveguide Dummy Load
+WR28 , 26.3 ~ 40Ghz , 100W
+
+Price: 650$
+
+
+
+RF Test Iran
+25 January 2025
+19:48
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1238×1148, 283.5 KB
+#Calibration Kit
+New
+1- 3.5mm Y type Calibration kit Ceyear 31121MB
+2- Armored Test Cable 33Ghz 3.5mm Female to Male 70cm 2pcs
+
+Price: 2000$
+Available in Tehran office
+4 Months Guarantee
+
+
+
+
+RF Test Iran
+26 January 2025
+15:01
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×542, 102.4 KB
+#Signal Analyzer
+N9020A 26.5Ghz Window 7
+with options...
+
+Price: 15400$
+Guarantee : 6 Months
+With Calibration Certificate
+
+Available in Tehran office
+
+
+
+
+RF Test Iran
+19:56
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×540, 109.5 KB
+RF Test Iran
+27 January 2025
+17:43
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1080×762, 92.4 KB
+#LNA 18GHZ
+
+Price : 400$
+
+
+
+
+RF Test Iran
+30 January 2025
+16:11
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×720, 162.0 KB
+#Spectrum Analyzer
+Agilent E4402B + Tracking Generator + Fast Sweep Options with DC Block and Calibration Certificate
+
+Price: 3600$
+Warranty: 6 Months
+Available in Tehran office
+
+
+
+
+RF Test Iran
+21:52
+سنجش ابزار نوین RFTEST
+VNA 87XXes Software.zip
+Not included, change data exporting settings to download.
+18.3 MB
+نرم افزار اسکرین کپچر با استفاده از مبدل GPIB
+Agilent 8720Es 8722Es 8753Es ...
+RF Test Iran
+21:53
+ESA PSA Spectrum Software.zip
+Not included, change data exporting settings to download.
+22.3 MB
+نرم افزار اسکرین کپچر با استفاده از مبدل GPIB
+E4402B E4404B E4405B E4407B
+E4440A ....
+RF Test Iran
+👍
+2
+5 February 2025
+19:01
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+737×491, 22.9 KB
+سوال : تفاوت اصلی کابل های مخصوص نتورک آنالایزر با سایر کابل های دیگر چیست که باعث قیمت های بسیار بالای کابل های نتورک می شود ؟
+
+
+پاسخ : مهمترین ویژگی کابل های مخصوص نتورک آنالایزر این است که در عین قابلیت انعطاف پذیری بالا بتواند پایداری دامنه و فاز داشته باشد در برابر
+۱ _تغییرات وضعیت مکانیکی کابل مانند خمش
+۲ - تغییرات دمای محیط
+و از طول عمر بالایی نیز برخوردار باشد مانند تعداد دفعات خمیدگی کابل بدون تاثیر در عملکرد کابل مانند ۵۰۰۰ بار خمش با قطر مثلا ۱۰ سانتی متر
+
+
+
+RF Test Iran
+19:05
+In reply to this message
+همچین از پاسخ فرکانسی بسیار فلت با کمترین افت توان بعلاوه اتصالات مستحکم کانکتورهای سر کابل
+RF Test Iran
+19:28
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+388×374, 45.2 KB
+به اطلاع اعضای گروه می رساند با توجه به نزدیکی به ماه مبارک رمضان تصمیم گرفته ایم که جهت آزادی زندانیان جرایم غیر عمد اقدام نماییم و برای موضوع مبلغ ۳۰۰ میلیون تومان از طرف RFTEST اختصاص یافته است . افرادی که تمایل به مشارکت در این امر خیر دارند می توانند برای اینجانب پیام ارسال نمایند تا بتوان با مبلغ بالاتری اقدام نمود . با تشکر
+و من الله توفیق
+RF Test Iran
+6 February 2025
+20:33
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+590×1080, 88.3 KB
+به اطلاع می رساند نمایندگی فروش محصولات شرکت چینی RFONE.CN در ایران توسط RFTEST انجام می شود. شما می توانید محصول مورد نظر خود را برای استعلام قیمت ارسال نمایید . تحویل ۲ الی ۴ هفته ای .
+
+امکان تولید سفارشی انواع کابل با متراژ و کانکتور مورد نظر نیز وجود دارد .
+
+www.rfone.cn
+
+
+
+
+@rftestiran
+RF Test Iran
+👍
+1
+8 February 2025
+22:38
+سنجش ابزار نوین RFTEST
+Wideband Streaming Solutions.pdf
+Not included, change data exporting settings to download.
+710.8 KB
+Keysight
+RF Record and Playback Solution
+
+
+
+
+RF Test Iran
+11 February 2025
+10:43
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+893×1033, 90.3 KB
+#Microwave Analyzer
+Used Keysight N9917A 18Ghz with options + New Calibration Kit Y type N type Ceyear + New Armored cables + New original Bag
+
+
+Price: 32,000 $
+Warranty: 6 Months
+Delivery Time : 3 ~ 4 Weeks
+
+
+
+
+RF Test Iran
+👍
+1
+10:43
+Photo
+Not included, change data exporting settings to download.
+893×1039, 54.4 KB
+RF Test Iran
+10:43
+Photo
+Not included, change data exporting settings to download.
+930×1183, 62.6 KB
+RF Test Iran
+10:43
+Photo
+Not included, change data exporting settings to download.
+642×1147, 41.5 KB
+RF Test Iran
+10:43
+Photo
+Not included, change data exporting settings to download.
+1112×886, 139.8 KB
+RF Test Iran
+10:43
+Photo
+Not included, change data exporting settings to download.
+1112×1202, 179.3 KB
+RF Test Iran
+10:43
+Photo
+Not included, change data exporting settings to download.
+1082×1026, 149.0 KB
+RF Test Iran
+10:43
+Photo
+Not included, change data exporting settings to download.
+1125×1057, 146.2 KB
+RF Test Iran
+10:43
+Photo
+Not included, change data exporting settings to download.
+558×1122, 38.6 KB
+RF Test Iran
+14:31
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+762×773, 75.5 KB
+مبدل فلاپی درایو به USB جهت استفاده در نتورک آنالایزر مدل 8720ES 8753ES
+نصب رایگان
+
+Price : 150$
+
+
+
+RF Test Iran
+13 February 2025
+20:44
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+976×1280, 150.8 KB
+#Test Lead
+Keysight 34138A
+New
+
+Price: 35$
+
+
+
+
+RF Test Iran
+14 February 2025
+19:59
+سنجش ابزار نوین RFTEST
+Power Meter Basics.pdf
+Not included, change data exporting settings to download.
+4.9 MB
+راهنمای اصول پایه سنسور های RF
+RF Test Iran
+17 February 2025
+19:47
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×720, 177.5 KB
+#Technical Services
+Repair and Adjustment of ESA E4407B
+
+
+
+RF Test Iran
+19:47
+Photo
+Not included, change data exporting settings to download.
+1280×720, 198.2 KB
+#Technical Services
+Repair and Adjustment of ESA E4407B
+
+
+
+RF Test Iran
+20:04
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1080×528, 103.2 KB
+#Power Meter
+Keysight N1914A , 2 Channels
+
+
+Price : 4850$
+Warranty : 6 Months
+
+
+
+
+RF Test Iran
+19 February 2025
+11:56
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×478, 97.6 KB
+#Signal Generator
+Agilent E4422B 4Ghz
+Used
+
+Price : 3500$
+Warranty: 6 Months
+Location: on the shipping
+
+
+
+
+RF Test Iran
+15:32
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×960, 73.0 KB
+#Economic Network Analyzer
+Portable , N type , Touch Screen , 50khz ~ 4.4Ghz , S11 & S21 , with Cal Kit and Test Cable ,
+
+
+Price : 600$
+Warranty : N/A
+Location: on the shipping
+
+
+
+RF Test Iran
+15:32
+Photo
+Not included, change data exporting settings to download.
+1280×959, 243.6 KB
+RF Test Iran
+15:32
+Photo
+Not included, change data exporting settings to download.
+1280×1059, 223.1 KB
+RF Test Iran
+24 February 2025
+09:00
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×720, 198.6 KB
+نمایش فیز نویز سیگنال ژنراتور N5183A 20Ghz با اسپکتروم آنالایزر E4440A
+
+
+
+
+RF Test Iran
+09:01
+Photo
+Not included, change data exporting settings to download.
+1280×720, 183.9 KB
+نمایش فیز نویز سیگنال ژنراتور N5183A 20Ghz با استفاده از اسپکتروم آنالایزر E4407B
+
+
+
+
+RF Test Iran
+25 February 2025
+11:55
+سنجش ابزار نوین RFTEST
+با سلام
+تحلیل تصاویر بالا : سیگنال ژنراتور N5183A از فیز نویز بسیار خوبی برخوردار است اما اگر بخواهید آن را با اسپکتروم آنالایزر E4407B تست کنید نمی توانید فیز نویز عالی را بخوبی مشاهده کنید برای این کار لازم است که از اسپکتروم آنالایزر E4440A استفاده کنید .
+
+
+
+RF Test Iran
+12:02
+Photo
+Not included, change data exporting settings to download.
+1280×652, 118.2 KB
+#Signal Analyzer
+Agilent N9000A 7.5Ghz with software options and 6Ghz Tracking Generator
+
+
+Price : 7600$
+Warranty : 6 Months
+Location : China Office
+Delivery Time : 3 ~ 4 weeks
+
+
+
+
+
+RF Test Iran
+26 February 2025
+10:37
+سنجش ابزار نوین RFTEST
+In reply to this message
+به اطلاع می رساند پرداخت مبلغ ۳۲۰ میلیون جهت آزادی ۴ زندانی غیر عمد از طرف سنجش ابزار نوین کارسازی گردید.
+و من الله توفیق
+RF Test Iran
+👍
+3
+1 March 2025
+22:45
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+800×557, 43.4 KB
+RF Test Iran
+3 March 2025
+20:50
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×528, 118.5 KB
+#Signal Generator
+Agilent E4422B 250khz ~ 4Ghz
+
+Price : 3400$
+Warranty : 6 Months
+
+
+
+
+RF Test Iran
+4 March 2025
+10:20
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×783, 207.1 KB
+#Calibration Kit
+N Type , Ceyear 20201 , DC ~ 9Ghz
+New
+
+
+Price: 1700$
+Warranty: 3 Months
+
+
+
+RF Test Iran
+10:20
+Photo
+Not included, change data exporting settings to download.
+1280×833, 227.8 KB
+RF Test Iran
+5 March 2025
+11:05
+سنجش ابزار نوین RFTEST
+سنجش ابزار نوین RFTEST 23.12.2024 22:41:13
+Photo
+Not included, change data exporting settings to download.
+1280×1233, 202.6 KB
+#Power Splitter
+Keysight 11667B , 26.5Ghz , 3.5mm
+
+Price : 1500$
+Available in Tehran Office
+
+www,rftest.ir
+
+RF Test Iran
+11:05
+سنجش ابزار نوین RFTEST 23.12.2024 22:41:13
+Photo
+Not included, change data exporting settings to download.
+1280×1236, 214.5 KB
+RF Test Iran
+18:59
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×720, 186.2 KB
+#Technical Services
+Repair and Calibration of Agilent N9030A Signal Analyzer By RFTEST
+
+
+
+RF Test Iran
+6 March 2025
+12:12
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1229×1148, 226.3 KB
+#Test Cable
+33Ghz , 3.5mm Male to 3.5mm Male , IL 1.75dB @ 33Ghz , 63cm . Brand RFONE
+
+
+Price: 150$
+
+
+
+RF Test Iran
+12:12
+Photo
+Not included, change data exporting settings to download.
+1280×767, 136.3 KB
+RF Test Iran
+14:46
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×720, 179.1 KB
+اندازه گیری و مقایسه فیز نویز سیگنال ژنراتور N5183A و 83650B در افست ۱۰ کیلوهرتز توسط سیگنال آنالایزر
+N9030A
+
+
+
+
+
+The Best Measurement with RFTEST
+RF Test Iran
+👍
+1
+14:46
+Photo
+Not included, change data exporting settings to download.
+1280×720, 171.8 KB
+RF Test Iran
+👍
+1
+14:53
+Photo
+Not included, change data exporting settings to download.
+1280×859, 184.4 KB
+#Test Cable
+18Ghz , N Male to SMA Male , IL : 1.69dB @18Ghz , 100cm , Brand RFONE
+
+Price : 120$
+
+
+
+
+The Best Measurement With RFTEST
+RF Test Iran
+7 March 2025
+11:58
+سنجش ابزار نوین RFTEST
+PL360P.pdf
+Not included, change data exporting settings to download.
+161.1 KB
+کاتالوگ کابل ۵۰ گیگ
+RF Test Iran
+12:01
+UF520.pdf
+Not included, change data exporting settings to download.
+166.5 KB
+کاتالوگ کابل ۲۶.۵ گیگ
+RF Test Iran
+9 March 2025
+22:03
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+600×402, 27.8 KB
+#Probe
+Tektronix P5100A
+500 MHz 100X High Voltage Probe , New and Original
+
+Price : 1200$
+Warranty: 3 months
+
+
+
+
+RF Test Iran
+22:03
+Photo
+Not included, change data exporting settings to download.
+1051×1280, 197.0 KB
+RF Test Iran
+10 March 2025
+10:56
+سنجش ابزار نوین RFTEST
+لیست اسیلوسکوپ های تکترونیکس موجود در دفتر چین . جهت اطلاع از قیمت مدل مورد نظر را پیام کنید
+
+Tektronix MDO32
+Tektronix MDO34
+Tektronix MDO3012
+Tektronix MDO3014
+Tektronix MDO3024
+Tektronix MDO3022
+Tektronix MDO3032
+Tektronix MDO3052
+Tektronix MDO3034
+Tektronix MDO3102
+Tektronix MDO3054
+Tektronix MDO3104
+Tektronix MDO3012
+Tektronix MDO3014
+Tektronix MDO3024
+Tektronix MDO3022
+Tektronix MDO3032
+Tektronix MDO3052
+Tektronix MDO3034
+Tektronix MDO3102
+Tektronix MDO3054
+Tektronix MDO3104
+Tektronix MDO4024C
+Tektronix MDO4034C
+Tektronix MDO4054C
+Tektronix MDO4104C
+Tektronix DPO5034B
+Tektronix DPO5054B
+Tektronix MSO5034B
+Tektronix MSO5054B
+Tektronix DPO5104B
+Tektronix DPO5204B
+In reply to this message
+Available in Tehran office
+Price : 15$
+RF Test Iran
+7 April 2025
+11:23
+سنجش ابزار نوین RFTEST
+با سلام و احترام
+به اطلاع می رساند بخاطر اعمال تعرفه های جدید آمریکا قیمت فروش محصولات شرکت Keysight در حال افزایش است حداقل ۳۰ تا ۴۰ درصد
+RF Test Iran
+17:45
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×636, 153.7 KB
+#Digital Oscilloscope
+Tektronix TDS3052C 500 MHz, 2-Channel, 5 GS/s with 2 new 500Mhz probes
+
+
+
+Price : 3100$
+Warranty: 6 Months
+
+
+
+
+RF Test Iran
+16 April 2025
+19:34
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×1139, 110.6 KB
+#Network Analyzer
+Lite VNA 50Khz ~ 6.2Ghz
+
+Not usable for professional purposes 👀 only simple testing
+
+Price : 350$
+No warranty 😢
+No after sale service 😢
+
+
+
+
+RF Test Iran
+19:34
+Photo
+Not included, change data exporting settings to download.
+720×1280, 81.4 KB
+RF Test Iran
+19:34
+Photo
+Not included, change data exporting settings to download.
+720×1280, 85.0 KB
+RF Test Iran
+19:34
+Photo
+Not included, change data exporting settings to download.
+720×1280, 101.3 KB
+RF Test Iran
+19:35
+LiteVNA_User-Guide.pdf
+Not included, change data exporting settings to download.
+1.0 MB
+RF Test Iran
+26 April 2025
+15:56
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×629, 160.3 KB
+#Spectrum Analyzer
+Agilent E4440A 3Hz ~ 26.5Ghz , Used
+6 months warranty , with calibration certification
+Options :
+219 : Noise Figure Measurement
+226 : Phase Noise Measurement
+
+
+
+Price : 13700$
+
+Available in Tehran office
+
+
+
+RF Test Iran
+15:58
+E4440A 26.5Ghz Data Sheet.pdf
+Not included, change data exporting settings to download.
+648.5 KB
+RF Test Iran
+15:58
+Photo
+Not included, change data exporting settings to download.
+1280×811, 150.0 KB
+RF Test Iran
+15:59
+In reply to this message
+جدول مقایسه اسپکتروم آنالایزر E4440A با سایر مدل ها
+RF Test Iran
+16:11
+Photo
+Not included, change data exporting settings to download.
+1280×395, 90.6 KB
+#Spectrum Analyzer
+ESA-E Spectrum Analyzer - 9 kHz to 26.5 GHz
+Options:
+1DR: Narrow Resolution Bandwidths
+1DS: RF Preamplifier
+1D6: Time-gated SA
+B72: Expansion Memory
+1D5: High Stability Frequency Reference
+A4H: GPIB & Parallel
+AYX: Fast Sweep & Ports
+226: Phase Noise Measurement Personality
+
+Refurbished
+Price : 8500$
+Guruntee : 6 Months
+With Calibration Certificate
+
+Available in Tehran office
+
+
+
+RF Test Iran
+27 April 2025
+11:20
+سنجش ابزار نوین RFTEST
+ESA E4407B Datasheet.pdf
+Not included, change data exporting settings to download.
+183.6 KB
+RF Test Iran
+11:22
+Photo
+Not included, change data exporting settings to download.
+1148×1221, 164.6 KB
+@Test Cable
+PL360P Cable
+50Ghz , 2.4mm Male to 2.4mm Male , I.L : 2.2dB @ 50Ghz
+RFONE
+
+Price : 200$
+
+
+
+RF Test Iran
+11:22
+Photo
+Not included, change data exporting settings to download.
+1280×592, 104.5 KB
+RF Test Iran
+11:22
+PL360P Datasheet.pdf
+Not included, change data exporting settings to download.
+161.1 KB
+RF Test Iran
+11:24
+Photo
+Not included, change data exporting settings to download.
+1229×1148, 226.3 KB
+#Test Cable
+PL360P Cable
+33Ghz , 3.5mm Male to 3.5mm Male , IL 1.75dB @ 33Ghz , 63cm . Brand RFONE
+
+
+Price: 150$
+
+
+
+RF Test Iran
+11:24
+Photo
+Not included, change data exporting settings to download.
+1280×767, 136.3 KB
+RF Test Iran
+28 April 2025
+08:01
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+720×1054, 68.8 KB
+RF Test Iran
+08:01
+Photo
+Not included, change data exporting settings to download.
+720×1033, 69.4 KB
+RF Test Iran
+08:02
+1_HM30 User Manual EN v1.6.pdf
+Not included, change data exporting settings to download.
+4.7 MB
+RF Test Iran
+08:04
+In reply to this message
+# FULL HD TRANSMISSION
+
+Price : 450$
+Delivery Time : 3 ~ 4 weeks
+Warranty : 1 Month
+
+
+
+RF Test Iran
+08:04
+Photo
+Not included, change data exporting settings to download.
+1079×1044, 62.6 KB
+RF Test Iran
+16:46
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1020×574, 78.5 KB
+#Vector Network Analyzer
+Agilent HP 8753ES 6GHZ
+
+Price: 7500$
+Warranty: 6 Months
+Available in Tehran office
+Economic Cal Kit : FOC
+Calibration Certificate : FOC
+
+
+
+
+RF Test Iran
+16:52
+Agilent 8753ES Datasheet.pdf
+Not included, change data exporting settings to download.
+3.4 MB
+RF Test Iran
+29 April 2025
+20:53
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×1044, 209.4 KB
+#Power Sensor
+Agilent 8487A 50Mhz ~ 50Ghz 2.4mm
+-30 ~ +20 dBm
+Price : 3300$
+Available in Tehran office
+
+
+
+RF Test Iran
+2 May 2025
+10:37
+سنجش ابزار نوین RFTEST
+Signal Generation Solutions Catalog.pdf
+Not included, change data exporting settings to download.
+11.1 MB
+کاتالوگ سیگنال ژنراتور های ۲۰۲۵ شرکت Keysight
+RF Test Iran
+5 May 2025
+18:13
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×762, 141.4 KB
+نصب مبدل فلاپی به USB بر روی نتورک آنالایزر Agilent 8753ES
+
+200$
+
+
+
+
+RF Test Iran
+14 May 2025
+22:28
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×960, 186.2 KB
+مقایسه کف نویز در E4407B و E4440A در پهنای باند 10Mhz
+
+
+
+
+
+
+
+چرا کف نویز مهم است؟
+
+چون تعیین می‌کند که کوچک‌ترین سیگنالی که می‌توان با دقت تشخیص داد، چقدر باید از آن بیشتر باشد. اگر سیگنال شما ضعیف‌تر از کف نویز باشد، ممکن است در نویز گم شود.
+RF Test Iran
+22:28
+Photo
+Not included, change data exporting settings to download.
+1280×960, 173.7 KB
+RF Test Iran
+22:36
+Photo
+Not included, change data exporting settings to download.
+1280×853, 57.1 KB
+RF Test Iran
+15 May 2025
+17:42
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×806, 227.8 KB
+فروش سنسور توان Anritsu مدل های MA72A , MA72B , MA73A
+
+مجموعا ۵ عدد
+وضعیت سالم در حد نو
+
+قیمت فروش هر ۵ عدد سنسور بصورت یکجا ۵۰۰ دلار
+
+اعتبار پیشنهاد تا روز ۳ خرداد
+
+
+
+
+RF Test Iran
+18:14
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1280×720, 179.0 KB
+#Accessories
+Torque wrench ceyear N-Type
+12lb-in
+
+Price : 150$
+Available in Tehran office
+
+
+
+
+RF Test Iran
+19 May 2025
+10:01
+سنجش ابزار نوین RFTEST
+Photo
+Not included, change data exporting settings to download.
+1080×582, 102.9 KB
+#VNA
+Agilent N5230A 50Ghz
+
+Price : 85k$
+Available in Tehran office
+
+
+
+RF Test Iran
+24 May 2025
+21:45
+سنجش ابزار نوین RFTEST
+تاريخچه شر‌کت HP
+1. Hewlett-Packard (HP): (1939–1999)
+
+2.Agilent Technologies : (1999–2014)
+
+3.Keysight
+( since 2014 )
+
+
+
+
+RF Test Iran
+21:47
+Photo
+Not included, change data exporting settings to download.
+475×106, 10.3 KB
+RF Test Iran
+26 May 2025
+15:24
+سنجش ابزار نوین RFTEST
+1_RFH06XXND100.pdf
+Not included, change data exporting settings to download.
+198.9 KB
+👆👆👆👆
+Datasheet
+RF Test Iran
+15:24
+Photo
+Not included, change data exporting settings to download.
+1280×960, 129.7 KB
+#Fix Attenuator
+6Ghz , N type , 40dB , 100W
+Unit Price : 200$
+
+
+
+RF Test Iran
+15:24
+Photo
+Not included, change data exporting settings to download.
+1280×960, 124.3 KB
+RF Test Iran
+15:24
+Photo
+Not included, change data exporting settings to download.
+1280×960, 138.7 KB
+RF Test Iran
