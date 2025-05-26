@@ -1124,15 +1124,15 @@ async def send_educational_media(chat_id, media_files):
     # Define possible paths to check
     media_paths = [
         './', 
-        './static/', 
-        './static/images/', 
-        './static/photos/',
-        './static/uploads/',
-        './static/media/',
-        './static/media/educational/',
-        './static/products/',
-        './attached_assets/',
-        './data/',
+        'static/', 
+        'static/images/', 
+        'static/photos/',
+        'static/uploads/',
+        'static/media/',
+        'static/media/educational/',
+        'static/products/',
+        'attached_assets/',
+        'data/',
     ]
     
     for media in media_files:
