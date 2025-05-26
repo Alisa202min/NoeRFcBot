@@ -98,7 +98,7 @@ def save_uploaded_file(file, upload_folder: str, filename: Optional[str] = None)
             full_path = ''
             if upload_folder == 'educational':
                 # برای محتوای آموزشی، استفاده از مسیر استاندارد
-                full_path = os.path.join('static', 'media', 'educational')
+                full_path = os.path.join('static', 'uploads', 'educational')
                 create_directory(full_path)
                 file_path = os.path.join('media', 'educational', safe_filename)
             else:
