@@ -330,8 +330,7 @@ async def cmd_inquiry(message: Message, state: FSMContext):
         logging.error(f"Error in cmd_inquiry: {str(e)}\n{traceback.format_exc()}")
         await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
 
-
-
+# Note: Search handlers are defined earlier in the file (lines 210-306)
 
 # Button callbacks
 @router.callback_query(F.data == "products")
