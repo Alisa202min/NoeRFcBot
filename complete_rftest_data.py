@@ -332,9 +332,9 @@ def create_services(db, categories):
             shutil.copy("static/uploads/default/service.jpg", main_image)
             
             cur.execute("""
-                INSERT INTO service_media (service_id, file_id, file_type, )
-                VALUES (%s, %s, %s, %s, %s)
-            """, (service_id, f"uploads/services/{service_id}/main.jpg"))
+                INSERT INTO service_media (service_id, file_id, file_type)
+                VALUES (%s, %s, %s)
+            """, (service_id, f"uploads/services/{service_id}/main.jpg", "photo"))
             
             logger.info(f"✅ خدمت {i}/25: {service['name']}")
         
@@ -409,9 +409,9 @@ def create_educational_content(db, categories):
             shutil.copy("static/uploads/default/educational.jpg", main_image)
             
             cur.execute("""
-                INSERT INTO educational_content_media (content_id, file_id, file_type, )
-                VALUES (%s, %s, %s, %s, %s)
-            """, (content_id, f"uploads/educational/{content_id}/main.jpg"))
+                INSERT INTO educational_content_media (content_id, file_id, file_type)
+                VALUES (%s, %s, %s)
+            """, (content_id, f"uploads/educational/{content_id}/main.jpg", "photo"))
             
             logger.info(f"✅ مطلب آموزشی {i}/20: {content['title']}")
         
