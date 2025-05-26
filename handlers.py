@@ -1218,35 +1218,12 @@ async def send_educational_media_group(chat_id, media_files, caption="", keyboar
         except Exception as e:
             logging.error(f"Error processing educational media {i+1}: {str(e)}")
     
-    # Send media files individually instead of as a group to avoid EXTERNAL_URL_INVALID error
+    # Send media group if we have valid media
     try:
         if found_valid_media and media_group:
-            # Send each media file individually
-            for i, media_item in enumerate(media_group):
-                try:
-                    if hasattr(media_item, 'media') and hasattr(media_item.media, 'path'):
-                        # It's a local file, send it directly
-                        file_path = media_item.media.path
-                        caption_text = media_item.caption if hasattr(media_item, 'caption') else ""
-                        
-                        if file_path.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')):
-                            await bot.send_photo(
-                                chat_id=chat_id,
-                                photo=FSInputFile(file_path),
-                                caption=caption_text,
-                                parse_mode="Markdown" if caption_text else None
-                            )
-                        elif file_path.lower().endswith(('.mp4', '.avi', '.mov')):
-                            await bot.send_video(
-                                chat_id=chat_id,
-                                video=FSInputFile(file_path),
-                                caption=caption_text,
-                                parse_mode="Markdown" if caption_text else None
-                            )
-                except Exception as e:
-                    logging.error(f"Error sending individual educational media {i+1}: {str(e)}")
+            await bot.send_media_group(chat_id=chat_id, media=media_group)
             
-            # Send keyboard separately if provided
+            # Send keyboard separately if provided (can't attach to media group)
             if keyboard:
                 await bot.send_message(
                     chat_id=chat_id,
@@ -1254,7 +1231,7 @@ async def send_educational_media_group(chat_id, media_files, caption="", keyboar
                     reply_markup=keyboard
                 )
             
-            logging.info(f"Sent {len(media_group)} educational media files individually")
+            logging.info(f"Sent educational media group with {len(media_group)} files")
         else:
             logging.warning("No valid educational media files found to send")
             # Send caption with keyboard if no media found
