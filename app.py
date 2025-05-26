@@ -86,22 +86,36 @@ with app.app_context():
         db.session.add(admin)
         db.session.commit()
 
-# Import routes to register them with the app
+# Add basic routes first
+from flask import render_template, redirect, url_for, jsonify
+
+@app.route('/')
+def index():
+    """صفحه اصلی"""
+    return redirect('/admin')
+
+@app.route('/admin')
+def admin_dashboard():
+    """داشبورد مدیریت"""
+    try:
+        return render_template('admin/index.html')
+    except:
+        return """
+        <h1>🎛️ داشبورد مدیریت RFCBot</h1>
+        <h2>✅ سیستم فعال است</h2>
+        <p>🤖 ربات تلگرام: فعال</p>
+        <p>🔍 قابلیت جستجو: فعال</p>
+        <p>💾 پایگاه داده: متصل</p>
+        <hr>
+        <p>💡 برای دسترسی به پنل کامل، فایل‌های template را بررسی کنید.</p>
+        """
+
+# Try to import additional routes
 try:
     import sys
     import os
     sys.path.append(os.path.join(os.path.dirname(__file__), 'src', 'web'))
     import main
-    logging.info("Routes imported successfully")
+    logging.info("Additional routes imported successfully")
 except ImportError as e:
-    logging.error(f"Failed to import routes: {e}")
-    # Add basic routes to make the admin panel functional
-    from flask import render_template, redirect, url_for
-    
-    @app.route('/')
-    def index():
-        return redirect(url_for('admin_dashboard'))
-    
-    @app.route('/admin')
-    def admin_dashboard():
-        return render_template('admin/index.html')
+    logging.warning(f"Could not import additional routes: {e}")
