@@ -603,9 +603,9 @@ async def callback_educational_content(callback: CallbackQuery):
                         if local_path:
                             # Try with static prefix
                             if not local_path.startswith('static/'):
-                                full_path = f"./static/{local_path}"
+                                full_path = f"static/{local_path}"
                             else:
-                                full_path = f"./{local_path}"
+                                full_path = local_path
                                 
                             if os.path.exists(full_path) and os.path.isfile(full_path):
                                 logging.info(f"Found media file using local_path: {full_path}")
@@ -615,7 +615,7 @@ async def callback_educational_content(callback: CallbackQuery):
                         # If no file found yet, try with different glob patterns
                         if not found_file:
                             # Try all jpg files in the educational directory
-                            possible_files = glob.glob(f"./static/media/educational/*.jpg")
+                            possible_files = glob.glob(f"static/media/educational/*.jpg")
                             if possible_files:
                                 # Use first media file found as fallback
                                 media_path = possible_files[0]
@@ -1801,9 +1801,9 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
                 full_path = None
                 # Check if it's a relative path or starts with static
                 if not local_path.startswith('static/'):
-                    full_path = f"./static/{local_path}"
+                    full_path = f"static/{local_path}"
                 else:
-                    full_path = f"./{local_path}"
+                    full_path = local_path
                     
                 if os.path.exists(full_path) and os.path.isfile(full_path):
                     logging.info(f"Found media file using local_path: {full_path}")
