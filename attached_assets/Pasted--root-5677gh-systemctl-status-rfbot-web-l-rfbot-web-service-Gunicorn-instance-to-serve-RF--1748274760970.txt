@@ -1,0 +1,65 @@
+
+root@5677gh:~# systemctl status rfbot-web -l
+● rfbot-web.service - Gunicorn instance to serve RF Web Panel
+     Loaded: loaded (/etc/systemd/system/rfbot-web.service; enabled; preset: ena>
+     Active: active (running) since Mon 2025-05-26 15:48:13 UTC; 2s ago
+   Main PID: 222997 (gunicorn)
+      Tasks: 4 (limit: 2272)
+     Memory: 69.5M (peak: 69.7M)
+        CPU: 1.122s
+     CGroup: /system.slice/rfbot-web.service
+             ├─222997 /var/www/rfbot/venv/bin/python3.11 /var/www/rfbot/venv/bin>
+             ├─222998 /var/www/rfbot/venv/bin/python3.11 /var/www/rfbot/venv/bin>
+             ├─222999 /var/www/rfbot/venv/bin/python3.11 /var/www/rfbot/venv/bin>
+             └─223000 /var/www/rfbot/venv/bin/python3.11 /var/www/rfbot/venv/bin>
+
+May 26 15:48:13 5677gh.com systemd[1]: rfbot-web.service: Failed with result 'ex>
+May 26 15:48:13 5677gh.com systemd[1]: rfbot-web.service: Consumed 3.061s CPU ti>
+May 26 15:48:13 5677gh.com systemd[1]: rfbot-web.service: Scheduled restart job,>
+May 26 15:48:13 5677gh.com systemd[1]: Started rfbot-web.service - Gunicorn inst>
+
+
+
+
+
+
+lines 1-23/23 (END)...skipping...
+● rfbot-web.service - Gunicorn instance to serve RF Web Panel
+     Loaded: loaded (/etc/systemd/system/rfbot-web.service; enabled; preset: enabled)
+     Active: active (running) since Mon 2025-05-26 15:48:13 UTC; 2s ago
+   Main PID: 222997 (gunicorn)
+      Tasks: 4 (limit: 2272)
+     Memory: 69.5M (peak: 69.7M)
+        CPU: 1.122s
+     CGroup: /system.slice/rfbot-web.service
+             ├─222997 /var/www/rfbot/venv/bin/python3.11 /var/www/rfbot/venv/bin/gunicorn --workers 3 --bind 0.0.0.0:5000 --time>
+             ├─222998 /var/www/rfbot/venv/bin/python3.11 /var/www/rfbot/venv/bin/gunicorn --workers 3 --bind 0.0.0.0:5000 --time>
+             ├─222999 /var/www/rfbot/venv/bin/python3.11 /var/www/rfbot/venv/bin/gunicorn --workers 3 --bind 0.0.0.0:5000 --time>
+             └─223000 /var/www/rfbot/venv/bin/python3.11 /var/www/rfbot/venv/bin/gunicorn --workers 3 --bind 0.0.0.0:5000 --time>
+
+ rfbot-web.service: Failed with result 'exit-code'.
+ rfbot-web.service: Consumed 3.061s CPU time.
+ rfbot-web.service: Scheduled restart job, restart counter is at 109.
+ Started rfbot-web.service - Gunicorn instance to serve RF Web Panel.
+ Starting gunicorn 23.0.0
+ Listening at: http://0.0.0.0:5000 (2229>
+ Using worker: sync
+ Booting worker with pid: 222998
+ Booting worker with pid: 222999
+ Booting worker with pid: 223000
+
+lines 1-23/23 (END)
+root@5677gh:~# cd /var/www/rfbot
+root@5677gh:/var/www/rfbot# source venv/bin/activate
+(venv) root@5677gh:/var/www/rfbot# python main.py
+Traceback (most recent call last):
+  File "/var/www/rfbot/main.py", line 7, in <module>
+    from src.web import app
+  File "/var/www/rfbot/src/web/__init__.py", line 6, in <module>
+    from .app import app, db, media_files
+  File "/var/www/rfbot/src/web/app.py", line 55, in <module>
+    db.init_app(app)
+  File "/var/www/rfbot/venv/lib/python3.11/site-packages/flask_sqlalchemy/extension.py", line 355, in init_app
+    raise RuntimeError(
+RuntimeError: Either 'SQLALCHEMY_DATABASE_URI' or 'SQLALCHEMY_BINDS' must be set.
+(venv) root@5677gh:/var/www/rfbot#

@@ -3,6 +3,12 @@
 این فایل برنامه Flask و بات تلگرام را راه‌اندازی می‌کند.
 """
 
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
 # Import the Flask application directly from the reorganized structure
 from src.web import app
 # Import main routes to ensure they are registered
