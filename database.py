@@ -1133,7 +1133,7 @@ class Database:
         if where_clauses:
             query += ' WHERE ' + ' AND '.join(where_clauses)
 
-        query += ' ORDER BY ec.category, ec.title'
+        query += ' ORDER BY ec.id DESC'
 
         with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
             cursor.execute(query, params)
