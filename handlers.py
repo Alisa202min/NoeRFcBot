@@ -1305,14 +1305,14 @@ async def send_educational_media_group(chat_id, media_files, caption="", keyboar
     # Define possible paths to check
     media_paths = [
         './', 
-        './static/', 
-        './static/images/', 
-        './static/photos/',
-        './static/uploads/',
-        './static/media/',
-        './static/media/educational/',
-        './static/products/',
-        './static/services/',
+        'static/', 
+        'static/images/', 
+        'static/photos/',
+        'static/uploads/',
+        'static/media/',
+        'static/media/educational/',
+        'static/products/',
+        'static/services/',
     ]
     
     # Process media files to create a media group
@@ -1417,17 +1417,17 @@ async def send_educational_media_group(chat_id, media_files, caption="", keyboar
                     if file_id == "educational_content_image_56_1747350587":
                         # This is our problem file, directly use the known correct path
                         file_found = True
-                        file_path = "./static/media/educational/image_7.jpg"
+                        file_path = "static/media/educational/image_7.jpg"
                         logging.info(f"Using hardcoded path for problem file: {file_path}")
                     else:
                         # Try common paths for educational content images
                         test_paths = [
-                            f"./static/media/educational/image_{content_id}.jpg",
-                            f"./media/educational/image_{content_id}.jpg",
-                            f"./static/media/educational/content_{content_id}.jpg",
-                            f"./media/educational/content_{content_id}.jpg",
-                            "./static/media/educational/image_7.jpg",  # Specific path from logs
-                            "./media/educational/image_7.jpg"         # Alternative path
+                            f"static/media/educational/image_{content_id}.jpg",
+                            f"media/educational/image_{content_id}.jpg",
+                            f"static/media/educational/content_{content_id}.jpg",
+                            f"media/educational/content_{content_id}.jpg",
+                            "static/media/educational/image_7.jpg",  # Specific path from logs
+                            "media/educational/image_7.jpg"         # Alternative path
                         ]
                     
                     # Try each possible path
