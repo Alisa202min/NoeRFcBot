@@ -1349,11 +1349,11 @@ async def send_educational_media_group(chat_id, media_files, caption="", keyboar
             
             # If file not found and the file_id looks like a path (has slashes)
             if not file_found and ('/' in file_id):
-                # Handle common path patterns by checking root and with './static/' prefix
+                # Handle common path patterns by checking root and with 'static/' prefix
                 possible_paths = [
                     file_id,                # As is
                     f"./{file_id}",         # With ./ prefix
-                    f"./static/{file_id}",  # With ./static/ prefix
+                    f"static/{file_id}",    # With static/ prefix
                 ]
                 
                 # Check all paths in our list
