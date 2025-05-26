@@ -1535,7 +1535,10 @@ def admin_education():
                 flash('محتوای آموزشی جدید با موفقیت ایجاد شد.', 'success')
         
         except Exception as e:
-            db.session.rollback()
+            try:
+                db.session.rollback()
+            except:
+                pass
             logger.error(f"Error saving educational content: {e}")
             flash(f'خطا در ذخیره محتوا: {str(e)}', 'danger')
         
