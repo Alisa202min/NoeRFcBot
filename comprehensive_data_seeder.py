@@ -42,23 +42,27 @@ class ComprehensiveDataSeeder:
         """پاک کردن داده‌های موجود"""
         logger.info("در حال پاک کردن داده‌های موجود...")
         
-        conn = self.db.get_conn()
+        conn = self.db.get_connection()
         try:
-            with conn:
+            with conn.cursor() as cursor:
                 # حذف داده‌ها به ترتیب وابستگی
-                conn.execute("DELETE FROM product_media;")
-                conn.execute("DELETE FROM service_media;")
-                conn.execute("DELETE FROM educational_media;")
-                conn.execute("DELETE FROM inquiries;")
-                conn.execute("DELETE FROM products;")
-                conn.execute("DELETE FROM services;")
-                conn.execute("DELETE FROM educational_content;")
-                conn.execute("DELETE FROM categories;")
-                
-                logger.info("✅ داده‌های موجود پاک شدند")
+                cursor.execute("DELETE FROM product_media;")
+                cursor.execute("DELETE FROM service_media;")
+                cursor.execute("DELETE FROM educational_media;")
+                cursor.execute("DELETE FROM inquiries;")
+                cursor.execute("DELETE FROM products;")
+                cursor.execute("DELETE FROM services;")
+                cursor.execute("DELETE FROM educational_content;")
+                cursor.execute("DELETE FROM product_categories;")
+                cursor.execute("DELETE FROM service_categories;")
+                cursor.execute("DELETE FROM educational_categories;")
+            conn.commit()
+            logger.info("✅ داده‌های موجود پاک شدند")
         except Exception as e:
             logger.error(f"خطا در پاک کردن داده‌ها: {e}")
             raise
+        finally:
+            conn.close()
     
     def create_default_image(self, filename, text, width=800, height=600, bg_color=(240, 240, 240)):
         """ساخت تصویر پیش‌فرض"""
