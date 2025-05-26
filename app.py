@@ -1,4 +1,5 @@
 import os
+import logging
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
@@ -11,6 +12,12 @@ load_dotenv()
 class Base(DeclarativeBase):
     pass
 
+# Configure logging
+logging.basicConfig(level=logging.DEBUG, 
+                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# Initialize SQLAlchemy with Base class
 db = SQLAlchemy(model_class=Base)
 
 # Create the Flask app
@@ -20,6 +27,7 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Database configuration
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("SQLALCHEMY_DATABASE_URI") or os.environ.get("DATABASE_URL")
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
@@ -77,3 +85,23 @@ with app.app_context():
         admin.set_password('admin')  # Set a default password - should be changed immediately
         db.session.add(admin)
         db.session.commit()
+
+# Import routes to register them with the app
+try:
+    import sys
+    import os
+    sys.path.append(os.path.join(os.path.dirname(__file__), 'src', 'web'))
+    import main
+    logging.info("Routes imported successfully")
+except ImportError as e:
+    logging.error(f"Failed to import routes: {e}")
+    # Add basic routes to make the admin panel functional
+    from flask import render_template, redirect, url_for
+    
+    @app.route('/')
+    def index():
+        return redirect(url_for('admin_dashboard'))
+    
+    @app.route('/admin')
+    def admin_dashboard():
+        return render_template('admin/index.html')
