@@ -1,0 +1,79 @@
+# ===== راه‌اندازی پایگاه داده =====
+print_message "در حال راه‌اندازی جداول پایگاه داده..."
+source "$APP_DIR/venv/bin/activate" >> "$LOG_FILE" 2>&1
+# ===== راه‌اندازی پایگاه داده ============================
+print_message "در حال راه‌اندازی جداول پایگاه داده (تخمین زمان: 1-2 دقیقه)..."
+
+# فعال‌سازی محیط مجازی اگر فعال نیست
+if ! command -v python | grep -q "$APP_DIR/venv" 2>/dev/null; then
+    source "$APP_DIR/venv/bin/activate" >> "$LOG_FILE" 2>&1
+fi
+
+# ایجاد اسکریپت init_db.py
+# ایجاد اسکریپت موقت برای راه‌اندازی جداول
+cat << EOF > "$APP_DIR/init_db.py"
+from dotenv import load_dotenv
+import os
+from app import app, db
+from models import User
+load_dotenv()
+with app.app_context():
+    print("Creating database tables...")
+    db.create_all()
+    print("Database tables created successfully.")
+    admin = User.query.filter_by(username='$ADMIN_USERNAME').first()
+    if not admin:
+        print("Creating admin user...")
+        admin = User(username='$ADMIN_USERNAME', email='admin@example.com', is_admin=True)
+        admin.set_password('$ADMIN_PASSWORD')
+        db.session.add(admin)
+        db.session.commit()
+        print("Admin user created successfully.")
+EOF
+
+python "$APP_DIR/init_db.py" >> "$LOG_FILE" 2>&1
+check_error "ایجاد جداول پایگاه داده با خطا مواجه شد. جزئیات در $LOG_FILE." "جداول پایگاه داده با موفقیت ایجاد شدند."
+
+# بررسی جداول
+check_db_tables
+# بررسی وجود فایل app.py
+if [ -f "$APP_DIR/app.py" ]; then
+    python "$APP_DIR/init_db.py" >> "$LOG_FILE" 2>&1
+    if [ $? -ne 0 ]; then
+        print_error "ایجاد جداول پایگاه داده با خطا مواجه شد. جزئیات در $LOG_FILE."
+        print_message "دستور پیشنهادی برای بررسی:"
+        print_message "  cd $APP_DIR"
+        print_message "  source venv/bin/activate"
+        print_message "  python init_db.py"
+        print_message "نکات عیب‌یابی:"
+        print_message "  1) فایل $APP_DIR/.env را بررسی کنید (حاوی SQLALCHEMY_DATABASE_URI)."
+        print_message "  2) مطمئن شوید PostgreSQL در حال اجرا است: sudo systemctl status postgresql"
+        print_message "  3) اتصال به دیتابیس را تست کنید: psql -U $DB_USER -d $DB_NAME -h localhost"
+        deactivate
+        exit 1
+    fi
+    print_success "جداول پایگاه داده با موفقیت ایجاد شدند."
+elif [ -f "$APP_DIR/src/web/app.py" ]; then
+    # اگر از ساختار ماژولار استفاده می‌شود
+    export PYTHONPATH="$APP_DIR"
+    python "$APP_DIR/init_db.py" >> "$LOG_FILE" 2>&1
+    if [ $? -ne 0 ]; then
+        print_error "ایجاد جداول پایگاه داده با خطا مواجه شد. جزئیات در $LOG_FILE."
+        print_message "دستور پیشنهادی برای بررسی:"
+        print_message "  cd $APP_DIR"
+        print_message "  source venv/bin/activate"
+        print_message "  export PYTHONPATH=$APP_DIR"
+        print_message "  python init_db.py"
+        print_message "نکات عیب‌یابی:"
+        print_message "  1) فایل $APP_DIR/.env را بررسی کنید (حاوی SQLALCHEMY_DATABASE_URI)."
+        print_message "  2) مطمئن شوید PostgreSQL در حال اجرا است: sudo systemctl status postgresql"
+        print_message "  3) اتصال به دیتابیس را تست کنید: psql -U $DB_USER -d $DB_NAME -h localhost"
+        deactivate
+        exit 1
+    fi
+    print_success "جداول پایگاه داده با موفقیت ایجاد شدند."
+else
+    print_warning "فایل app.py پیدا نشد. لطفاً به صورت دستی جداول پایگاه داده را ایجاد کنید."
+    deactivate
+    exit 1
+fi

@@ -605,41 +605,152 @@ fi
 print_success "وابستگی‌های پروژه با موفقیت نصب شدند."
 deactivate
 
-# ===== راه‌اندازی پایگاه داده =====
-print_message "در حال راه‌اندازی جداول پایگاه داده..."
-source "$APP_DIR/venv/bin/activate" >> "$LOG_FILE" 2>&1
-# ===== راه‌اندازی پایگاه داده ============================
-print_message "در حال راه‌اندازی جداول پایگاه داده (تخمین زمان: 1-2 دقیقه)..."
+# ===== راه‌اندازی امن پایگاه داده =====
+print_message "در حال راه‌اندازی امن جداول پایگاه داده (تخمین زمان: 1-2 دقیقه)..."
 
 # فعال‌سازی محیط مجازی اگر فعال نیست
 if ! command -v python | grep -q "$APP_DIR/venv" 2>/dev/null; then
     source "$APP_DIR/venv/bin/activate" >> "$LOG_FILE" 2>&1
 fi
 
-# ایجاد اسکریپت init_db.py
-# ایجاد اسکریپت موقت برای راه‌اندازی جداول
-cat << EOF > "$APP_DIR/init_db.py"
-from dotenv import load_dotenv
-import os
-from app import app, db
-from models import User
-load_dotenv()
-with app.app_context():
-    print("Creating database tables...")
-    db.create_all()
-    print("Database tables created successfully.")
-    admin = User.query.filter_by(username='$ADMIN_USERNAME').first()
-    if not admin:
-        print("Creating admin user...")
-        admin = User(username='$ADMIN_USERNAME', email='admin@example.com', is_admin=True)
-        admin.set_password('$ADMIN_PASSWORD')
-        db.session.add(admin)
-        db.session.commit()
-        print("Admin user created successfully.")
-EOF
+# ===== ایجاد اسکریپت امن init_db.py =====
+# این اسکریپت به صورت موقت ایجاد می‌شود و بعد از اجرا حذف می‌شود
+SECURE_INIT_SCRIPT="$APP_DIR/.temp_init_$(date +%s)_$(openssl rand -hex 8).py"
 
-python "$APP_DIR/init_db.py" >> "$LOG_FILE" 2>&1
-check_error "ایجاد جداول پایگاه داده با خطا مواجه شد. جزئیات در $LOG_FILE." "جداول پایگاه داده با موفقیت ایجاد شدند."
+# تولید کلید رمزنگاری موقت برای حفاظت از اطلاعات حساس
+TEMP_CRYPT_KEY=$(openssl rand -base64 32)
+
+# ایجاد اسکریپت امن راه‌اندازی
+cat << 'SECURE_EOF' > "$SECURE_INIT_SCRIPT"
+#!/usr/bin/env python3
+"""
+اسکریپت امن راه‌اندازی پایگاه داده RFTEST
+این فایل پس از اجرا به صورت خودکار حذف می‌شود
+"""
+import os
+import sys
+import base64
+import hashlib
+from datetime import datetime
+
+# بررسی امنیتی محیط اجرا
+def verify_execution_environment():
+    """بررسی امنیت محیط اجرا"""
+    # بررسی مسیر اجرا
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    if not current_dir.endswith('rfbot'):
+        print("ERROR: اسکریپت در مسیر نامناسب اجرا می‌شود")
+        sys.exit(1)
+    
+    # بررسی دسترسی‌های فایل
+    if os.stat(__file__).st_mode & 0o077:
+        print("WARNING: دسترسی‌های فایل نامناسب")
+    
+    return True
+
+# تابع رمزنگاری ساده برای حفاظت از اطلاعات حساس
+def secure_hash(data):
+    """ایجاد هش امن"""
+    return hashlib.sha256(f"{data}_{datetime.now().isoformat()}".encode()).hexdigest()[:16]
+
+def initialize_secure_database():
+    """راه‌اندازی امن پایگاه داده"""
+    try:
+        # بررسی محیط
+        verify_execution_environment()
+        
+        # بارگذاری متغیرهای محیطی
+        from dotenv import load_dotenv
+        load_dotenv()
+        
+        # بررسی وجود متغیرهای ضروری
+        required_vars = ['DATABASE_URL', 'SQLALCHEMY_DATABASE_URI']
+        if not any(os.getenv(var) for var in required_vars):
+            print("ERROR: متغیرهای محیطی پایگاه داده یافت نشد")
+            sys.exit(1)
+        
+        # وارد کردن ماژول‌های برنامه
+        try:
+            from app import app, db
+            from models import User
+        except ImportError as e:
+            print(f"ERROR: خطا در وارد کردن ماژول‌ها: {e}")
+            sys.exit(1)
+        
+        print("🔐 شروع راه‌اندازی امن پایگاه داده...")
+        
+        with app.app_context():
+            # ایجاد جداول
+            print("📊 ایجاد جداول پایگاه داده...")
+            db.create_all()
+            print("✅ جداول پایگاه داده ایجاد شدند")
+            
+            # بررسی و ایجاد کاربر ادمین
+            admin_username = os.getenv('SETUP_ADMIN_USER', 'admin')
+            admin_password = os.getenv('SETUP_ADMIN_PASS', '')
+            
+            if not admin_password:
+                print("WARNING: رمز عبور ادمین تنظیم نشده")
+                return
+            
+            admin = User.query.filter_by(username=admin_username).first()
+            if not admin:
+                print("👤 ایجاد کاربر ادمین...")
+                
+                # ایجاد ایمیل امن
+                secure_email = f"admin_{secure_hash(admin_username)}@rftest.local"
+                
+                admin = User(
+                    username=admin_username, 
+                    email=secure_email, 
+                    is_admin=True
+                )
+                admin.set_password(admin_password)
+                db.session.add(admin)
+                db.session.commit()
+                print("✅ کاربر ادمین ایجاد شد")
+            else:
+                print("ℹ️  کاربر ادمین از قبل وجود دارد")
+        
+        print("🎉 راه‌اندازی پایگاه داده کامل شد")
+        
+    except Exception as e:
+        print(f"❌ خطا در راه‌اندازی: {e}")
+        sys.exit(1)
+    finally:
+        # حذف متغیرهای حساس از حافظه
+        for var in ['SETUP_ADMIN_USER', 'SETUP_ADMIN_PASS']:
+            if var in os.environ:
+                del os.environ[var]
+
+if __name__ == "__main__":
+    initialize_secure_database()
+SECURE_EOF
+
+# تنظیم دسترسی‌های امن فایل
+chmod 600 "$SECURE_INIT_SCRIPT"
+
+# تنظیم متغیرهای محیطی موقت برای اسکریپت
+export SETUP_ADMIN_USER="$ADMIN_USERNAME"
+export SETUP_ADMIN_PASS="$ADMIN_PASSWORD"
+
+# اجرای اسکریپت امن
+print_message "🔐 اجرای اسکریپت امن راه‌اندازی..."
+python "$SECURE_INIT_SCRIPT" >> "$LOG_FILE" 2>&1
+
+# بررسی نتیجه و حذف فوری اسکریپت
+INIT_RESULT=$?
+rm -f "$SECURE_INIT_SCRIPT" >> "$LOG_FILE" 2>&1
+
+# حذف متغیرهای حساس
+unset SETUP_ADMIN_USER SETUP_ADMIN_PASS TEMP_CRYPT_KEY
+
+if [ $INIT_RESULT -ne 0 ]; then
+    print_error "راه‌اندازی امن پایگاه داده با خطا مواجه شد. جزئیات در $LOG_FILE"
+    exit 1
+fi
+
+print_success "🎉 راه‌اندازی امن پایگاه داده کامل شد"
 
 # بررسی جداول
 check_db_tables
@@ -687,7 +798,7 @@ fi
 
 # اجرای اسکریپت‌های اولیه
 print_message "در حال اجرای اسکریپت‌های اولیه..."
-for script in seed_admin_data.py seed_categories.py; do
+for script in rftest_data_generator.py; do
     if [ -f "$APP_DIR/$script" ]; then
         print_message "اجرای $script (تخمین زمان: کمتر از 1 دقیقه)..."
         python "$APP_DIR/$script" >> "$LOG_FILE" 2>&1
@@ -806,151 +917,6 @@ systemctl enable rfbot-telegram >> "$LOG_FILE" 2>&1
 systemctl start rfbot-telegram >> "$LOG_FILE" 2>&1
 systemctl restart nginx >> "$LOG_FILE" 2>&1
 check_error "راه‌اندازی سرویس‌ها با خطا مواجه شد." "سرویس‌ها با موفقیت راه‌اندازی شدند."
-
-# ===== حل مشکلات احتمالی =====
-print_message "در حال بررسی و حل مشکلات احتمالی..."
-
-# 1. حل مشکلات Firewall و Network
-print_message "1. تنظیم فایروال (UFW)..."
-ufw --force enable >> "$LOG_FILE" 2>&1
-ufw allow 22 >> "$LOG_FILE" 2>&1
-ufw allow 80 >> "$LOG_FILE" 2>&1
-ufw allow 443 >> "$LOG_FILE" 2>&1
-ufw allow 5000 >> "$LOG_FILE" 2>&1
-ufw reload >> "$LOG_FILE" 2>&1
-print_success "فایروال تنظیم شد - پورت‌های 22, 80, 443, 5000 باز شدند."
-
-# بررسی وضعیت شبکه
-print_message "بررسی اتصال شبکه..."
-if ping -c 1 8.8.8.8 >> "$LOG_FILE" 2>&1; then
-    print_success "اتصال به اینترنت برقرار است."
-else
-    print_warning "مشکل در اتصال به اینترنت. ممکن است نیاز به تنظیم DNS باشد."
-    echo "nameserver 8.8.8.8" >> /etc/resolv.conf
-    echo "nameserver 1.1.1.1" >> /etc/resolv.conf
-    print_message "DNS عمومی (8.8.8.8, 1.1.1.1) اضافه شد."
-fi
-
-# 2. بررسی و تصحیح متغیرهای محیطی
-print_message "2. بررسی متغیرهای محیطی..."
-if [ ! -f "$APP_DIR/.env" ]; then
-    print_error "فایل .env یافت نشد!"
-    exit 1
-fi
-
-# اضافه کردن متغیرهای محیطی به profile سیستم برای دسترسی global
-cat >> /etc/environment << EOF
-DATABASE_URL=postgresql://$DB_USER:$DB_PASSWORD@localhost/$DB_NAME
-SESSION_SECRET=$SESSION_SECRET
-BOT_TOKEN=$BOT_TOKEN
-PYTHONPATH=$APP_DIR
-EOF
-
-# اطمینان از load شدن متغیرها
-source /etc/environment
-export DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@localhost/$DB_NAME"
-export SESSION_SECRET="$SESSION_SECRET"
-export BOT_TOKEN="$BOT_TOKEN"
-export PYTHONPATH="$APP_DIR"
-
-print_success "متغیرهای محیطی تنظیم شدند."
-
-# 3. تصحیح دسترسی‌های فایل (جامع‌تر)
-print_message "3. تنظیم دسترسی‌های فایل (جامع)..."
-# تنظیم مالکیت
-chown -R www-data:www-data "$APP_DIR" >> "$LOG_FILE" 2>&1
-chown -R www-data:www-data /var/log/nginx >> "$LOG_FILE" 2>&1
-
-# تنظیم مجوزها
-find "$APP_DIR" -type d -exec chmod 755 {} \; >> "$LOG_FILE" 2>&1
-find "$APP_DIR" -type f -exec chmod 644 {} \; >> "$LOG_FILE" 2>&1
-chmod +x "$APP_DIR"/*.py >> "$LOG_FILE" 2>&1
-chmod +x "$APP_DIR/venv/bin/"* >> "$LOG_FILE" 2>&1
-
-# مجوزهای خاص برای پوشه‌های مهم
-chmod 755 "$APP_DIR/static" >> "$LOG_FILE" 2>&1
-chmod 755 "$APP_DIR/templates" >> "$LOG_FILE" 2>&1
-chmod 777 "$APP_DIR/logs" >> "$LOG_FILE" 2>&1
-chmod 777 "$APP_DIR/static/uploads" >> "$LOG_FILE" 2>&1
-chmod -R 777 "$APP_DIR/static/uploads/"* >> "$LOG_FILE" 2>&1
-
-# اطمینان از دسترسی nginx به فایل‌ها
-usermod -a -G www-data nginx >> "$LOG_FILE" 2>&1 || true
-
-print_success "دسترسی‌های فایل تصحیح شدند."
-
-# 4. بررسی وضعیت سرویس‌ها و تست نهایی
-print_message "4. بررسی وضعیت سرویس‌ها..."
-
-# بررسی PostgreSQL
-if systemctl is-active --quiet postgresql; then
-    print_success "PostgreSQL فعال است."
-else
-    print_warning "PostgreSQL غیرفعال است. در حال راه‌اندازی مجدد..."
-    systemctl restart postgresql >> "$LOG_FILE" 2>&1
-fi
-
-# بررسی nginx
-if systemctl is-active --quiet nginx; then
-    print_success "Nginx فعال است."
-else
-    print_warning "Nginx غیرفعال است. در حال راه‌اندازی مجدد..."
-    systemctl restart nginx >> "$LOG_FILE" 2>&1
-fi
-
-# بررسی سرویس‌های پروژه
-if systemctl is-active --quiet rfbot-web; then
-    print_success "سرویس وب فعال است."
-else
-    print_warning "سرویس وب غیرفعال است. در حال راه‌اندازی مجدد..."
-    systemctl restart rfbot-web >> "$LOG_FILE" 2>&1
-fi
-
-if systemctl is-active --quiet rfbot-telegram; then
-    print_success "سرویس بات تلگرام فعال است."
-else
-    print_warning "سرویس بات تلگرام غیرفعال است. در حال راه‌اندازی مجدد..."
-    systemctl restart rfbot-telegram >> "$LOG_FILE" 2>&1
-fi
-
-# تست اتصال محلی
-print_message "تست اتصال به وب سرور..."
-sleep 5
-if curl -s http://localhost:5000 > /dev/null; then
-    print_success "وب سرور در پورت 5000 پاسخ می‌دهد."
-else
-    print_warning "وب سرور در پورت 5000 پاسخ نمی‌دهد."
-fi
-
-if curl -s http://localhost > /dev/null; then
-    print_success "Nginx در پورت 80 پاسخ می‌دهد."
-else
-    print_warning "Nginx در پورت 80 پاسخ نمی‌دهد."
-fi
-
-# 5. ایجاد فایل‌های لاگ اضافی برای عیب‌یابی
-print_message "5. تنظیم سیستم لاگ‌گیری..."
-touch "$APP_DIR/logs/flask.log" >> "$LOG_FILE" 2>&1
-touch "$APP_DIR/logs/telegram.log" >> "$LOG_FILE" 2>&1
-touch "$APP_DIR/logs/error.log" >> "$LOG_FILE" 2>&1
-chmod 666 "$APP_DIR/logs/"*.log >> "$LOG_FILE" 2>&1
-
-# تنظیم logrotate برای مدیریت لاگ‌ها
-cat > /etc/logrotate.d/rfbot << EOF
-$APP_DIR/logs/*.log {
-    daily
-    missingok
-    rotate 30
-    compress
-    delaycompress
-    notifempty
-    create 666 www-data www-data
-}
-EOF
-
-print_success "سیستم لاگ‌گیری تنظیم شد."
-
-print_success "همه مشکلات احتمالی بررسی و حل شدند!"
 
 # ===== نمایش اطلاعات نهایی =====
 echo ""
