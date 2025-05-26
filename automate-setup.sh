@@ -807,6 +807,151 @@ systemctl start rfbot-telegram >> "$LOG_FILE" 2>&1
 systemctl restart nginx >> "$LOG_FILE" 2>&1
 check_error "راه‌اندازی سرویس‌ها با خطا مواجه شد." "سرویس‌ها با موفقیت راه‌اندازی شدند."
 
+# ===== حل مشکلات احتمالی =====
+print_message "در حال بررسی و حل مشکلات احتمالی..."
+
+# 1. حل مشکلات Firewall و Network
+print_message "1. تنظیم فایروال (UFW)..."
+ufw --force enable >> "$LOG_FILE" 2>&1
+ufw allow 22 >> "$LOG_FILE" 2>&1
+ufw allow 80 >> "$LOG_FILE" 2>&1
+ufw allow 443 >> "$LOG_FILE" 2>&1
+ufw allow 5000 >> "$LOG_FILE" 2>&1
+ufw reload >> "$LOG_FILE" 2>&1
+print_success "فایروال تنظیم شد - پورت‌های 22, 80, 443, 5000 باز شدند."
+
+# بررسی وضعیت شبکه
+print_message "بررسی اتصال شبکه..."
+if ping -c 1 8.8.8.8 >> "$LOG_FILE" 2>&1; then
+    print_success "اتصال به اینترنت برقرار است."
+else
+    print_warning "مشکل در اتصال به اینترنت. ممکن است نیاز به تنظیم DNS باشد."
+    echo "nameserver 8.8.8.8" >> /etc/resolv.conf
+    echo "nameserver 1.1.1.1" >> /etc/resolv.conf
+    print_message "DNS عمومی (8.8.8.8, 1.1.1.1) اضافه شد."
+fi
+
+# 2. بررسی و تصحیح متغیرهای محیطی
+print_message "2. بررسی متغیرهای محیطی..."
+if [ ! -f "$APP_DIR/.env" ]; then
+    print_error "فایل .env یافت نشد!"
+    exit 1
+fi
+
+# اضافه کردن متغیرهای محیطی به profile سیستم برای دسترسی global
+cat >> /etc/environment << EOF
+DATABASE_URL=postgresql://$DB_USER:$DB_PASSWORD@localhost/$DB_NAME
+SESSION_SECRET=$SESSION_SECRET
+BOT_TOKEN=$BOT_TOKEN
+PYTHONPATH=$APP_DIR
+EOF
+
+# اطمینان از load شدن متغیرها
+source /etc/environment
+export DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@localhost/$DB_NAME"
+export SESSION_SECRET="$SESSION_SECRET"
+export BOT_TOKEN="$BOT_TOKEN"
+export PYTHONPATH="$APP_DIR"
+
+print_success "متغیرهای محیطی تنظیم شدند."
+
+# 3. تصحیح دسترسی‌های فایل (جامع‌تر)
+print_message "3. تنظیم دسترسی‌های فایل (جامع)..."
+# تنظیم مالکیت
+chown -R www-data:www-data "$APP_DIR" >> "$LOG_FILE" 2>&1
+chown -R www-data:www-data /var/log/nginx >> "$LOG_FILE" 2>&1
+
+# تنظیم مجوزها
+find "$APP_DIR" -type d -exec chmod 755 {} \; >> "$LOG_FILE" 2>&1
+find "$APP_DIR" -type f -exec chmod 644 {} \; >> "$LOG_FILE" 2>&1
+chmod +x "$APP_DIR"/*.py >> "$LOG_FILE" 2>&1
+chmod +x "$APP_DIR/venv/bin/"* >> "$LOG_FILE" 2>&1
+
+# مجوزهای خاص برای پوشه‌های مهم
+chmod 755 "$APP_DIR/static" >> "$LOG_FILE" 2>&1
+chmod 755 "$APP_DIR/templates" >> "$LOG_FILE" 2>&1
+chmod 777 "$APP_DIR/logs" >> "$LOG_FILE" 2>&1
+chmod 777 "$APP_DIR/static/uploads" >> "$LOG_FILE" 2>&1
+chmod -R 777 "$APP_DIR/static/uploads/"* >> "$LOG_FILE" 2>&1
+
+# اطمینان از دسترسی nginx به فایل‌ها
+usermod -a -G www-data nginx >> "$LOG_FILE" 2>&1 || true
+
+print_success "دسترسی‌های فایل تصحیح شدند."
+
+# 4. بررسی وضعیت سرویس‌ها و تست نهایی
+print_message "4. بررسی وضعیت سرویس‌ها..."
+
+# بررسی PostgreSQL
+if systemctl is-active --quiet postgresql; then
+    print_success "PostgreSQL فعال است."
+else
+    print_warning "PostgreSQL غیرفعال است. در حال راه‌اندازی مجدد..."
+    systemctl restart postgresql >> "$LOG_FILE" 2>&1
+fi
+
+# بررسی nginx
+if systemctl is-active --quiet nginx; then
+    print_success "Nginx فعال است."
+else
+    print_warning "Nginx غیرفعال است. در حال راه‌اندازی مجدد..."
+    systemctl restart nginx >> "$LOG_FILE" 2>&1
+fi
+
+# بررسی سرویس‌های پروژه
+if systemctl is-active --quiet rfbot-web; then
+    print_success "سرویس وب فعال است."
+else
+    print_warning "سرویس وب غیرفعال است. در حال راه‌اندازی مجدد..."
+    systemctl restart rfbot-web >> "$LOG_FILE" 2>&1
+fi
+
+if systemctl is-active --quiet rfbot-telegram; then
+    print_success "سرویس بات تلگرام فعال است."
+else
+    print_warning "سرویس بات تلگرام غیرفعال است. در حال راه‌اندازی مجدد..."
+    systemctl restart rfbot-telegram >> "$LOG_FILE" 2>&1
+fi
+
+# تست اتصال محلی
+print_message "تست اتصال به وب سرور..."
+sleep 5
+if curl -s http://localhost:5000 > /dev/null; then
+    print_success "وب سرور در پورت 5000 پاسخ می‌دهد."
+else
+    print_warning "وب سرور در پورت 5000 پاسخ نمی‌دهد."
+fi
+
+if curl -s http://localhost > /dev/null; then
+    print_success "Nginx در پورت 80 پاسخ می‌دهد."
+else
+    print_warning "Nginx در پورت 80 پاسخ نمی‌دهد."
+fi
+
+# 5. ایجاد فایل‌های لاگ اضافی برای عیب‌یابی
+print_message "5. تنظیم سیستم لاگ‌گیری..."
+touch "$APP_DIR/logs/flask.log" >> "$LOG_FILE" 2>&1
+touch "$APP_DIR/logs/telegram.log" >> "$LOG_FILE" 2>&1
+touch "$APP_DIR/logs/error.log" >> "$LOG_FILE" 2>&1
+chmod 666 "$APP_DIR/logs/"*.log >> "$LOG_FILE" 2>&1
+
+# تنظیم logrotate برای مدیریت لاگ‌ها
+cat > /etc/logrotate.d/rfbot << EOF
+$APP_DIR/logs/*.log {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 666 www-data www-data
+}
+EOF
+
+print_success "سیستم لاگ‌گیری تنظیم شد."
+
+print_success "همه مشکلات احتمالی بررسی و حل شدند!"
+
 # ===== نمایش اطلاعات نهایی =====
 echo ""
 echo "================== نصب با موفقیت انجام شد! =================="
