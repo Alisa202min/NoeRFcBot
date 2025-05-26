@@ -650,13 +650,35 @@ async def callback_educational_content(callback: CallbackQuery):
                         logging.error(f"Error adding media: {str(e)}")
             
             if found_valid_media and media_group:
-                logging.info(f"Sending media group with {len(media_group)} items")
+                logging.info(f"Sending {len(media_group)} educational media files individually")
                 try:
-                    # Send media group
-                    await bot.send_media_group(
-                        chat_id=callback.message.chat.id,
-                        media=media_group
-                    )
+                    # Send each media file individually to avoid EXTERNAL_URL_INVALID error
+                    for i, media_item in enumerate(media_group):
+                        try:
+                            if hasattr(media_item, 'media') and hasattr(media_item.media, 'path'):
+                                # It's a local file, send it directly
+                                file_path = media_item.media.path
+                                caption_text = media_item.caption if hasattr(media_item, 'caption') else ""
+                                
+                                await bot.send_photo(
+                                    chat_id=callback.message.chat.id,
+                                    photo=FSInputFile(file_path),
+                                    caption=caption_text,
+                                    parse_mode="Markdown" if caption_text else None
+                                )
+                            else:
+                                # Try as regular media
+                                caption_text = media_item.caption if hasattr(media_item, 'caption') else ""
+                                if hasattr(media_item, 'media'):
+                                    await bot.send_photo(
+                                        chat_id=callback.message.chat.id,
+                                        photo=media_item.media,
+                                        caption=caption_text,
+                                        parse_mode="Markdown" if caption_text else None
+                                    )
+                        except Exception as e:
+                            logging.error(f"Error sending individual educational media {i+1}: {str(e)}")
+                            continue
                     
                     # Send keyboard in separate message if needed
                     if keyboard:
