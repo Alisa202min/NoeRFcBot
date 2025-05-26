@@ -48,9 +48,11 @@ class RFTestDataSeeder:
         """پاک کردن دیتای موجود (بجز کاربران و ادمین‌ها)"""
         logger.info("در حال پاک کردن دیتای موجود...")
         
-        conn = self.db.get_conn()
+        # اطمینان از اتصال جدید
+        self.db.connect()
+        
         try:
-            with conn.cursor() as cur:
+            with self.db.conn.cursor() as cur:
                 # پاک کردن رسانه‌ها
                 cur.execute("DELETE FROM product_media")
                 cur.execute("DELETE FROM service_media") 
@@ -69,15 +71,13 @@ class RFTestDataSeeder:
                 # پاک کردن استعلام‌ها
                 cur.execute("DELETE FROM inquiries")
                 
-                conn.commit()
+                self.db.self.db.conn.commit()
                 logger.info("✅ دیتای قبلی با موفقیت پاک شد")
                 
         except Exception as e:
-            conn.rollback()
+            self.db.self.db.conn.rollback()
             logger.error(f"❌ خطا در پاک کردن دیتا: {e}")
             raise
-        finally:
-            conn.close()
 
     def create_product_categories(self):
         """ایجاد دسته‌بندی‌های محصولات"""
@@ -96,11 +96,12 @@ class RFTestDataSeeder:
             "تجهیزات کالیبراسیون"
         ]
         
-        conn = self.db.get_conn()
+        # اطمینان از اتصال جدید
+        self.db.connect()
         category_mapping = {}
         
         try:
-            with conn.cursor() as cur:
+            with self.db.conn.cursor() as cur:
                 for category_name in main_categories:
                     cur.execute("""
                         INSERT INTO product_categories (name, parent_id, created_at)
@@ -115,15 +116,16 @@ class RFTestDataSeeder:
                     else:
                         logger.error(f"❌ خطا در دریافت ID برای دسته: {category_name}")
                 
-                conn.commit()
+                self.db.conn.commit()
                 logger.info(f"✅ کل دسته‌بندی‌های محصولات: {category_mapping}")
                 
         except Exception as e:
-            conn.rollback()
+            self.db.conn.rollback()
             logger.error(f"❌ خطا در ایجاد دسته‌بندی محصولات: {e}")
             raise
         finally:
-            conn.close()
+            pass
+            pass
             
         return category_mapping
 
@@ -141,7 +143,7 @@ class RFTestDataSeeder:
             "پشتیبانی فنی"
         ]
         
-        conn = self.db.get_conn()
+        conn = self.db.conn
         category_ids = []
         
         try:
@@ -156,14 +158,15 @@ class RFTestDataSeeder:
                     category_ids.append(category_id)
                     logger.info(f"✅ دسته خدمات ایجاد شد: {category_name}")
                 
-                conn.commit()
+                self.db.conn.commit()
                 
         except Exception as e:
-            conn.rollback()
+            self.db.conn.rollback()
             logger.error(f"❌ خطا در ایجاد دسته‌بندی خدمات: {e}")
             raise
         finally:
-            conn.close()
+            pass
+            
             
         return category_ids
 
@@ -181,7 +184,7 @@ class RFTestDataSeeder:
             "پروژه‌های عملی"
         ]
         
-        conn = self.db.get_conn()
+        conn = self.db.conn
         category_ids = []
         
         try:
@@ -196,14 +199,15 @@ class RFTestDataSeeder:
                     category_ids.append(category_id)
                     logger.info(f"✅ دسته آموزشی ایجاد شد: {category_name}")
                 
-                conn.commit()
+                self.db.conn.commit()
                 
         except Exception as e:
-            conn.rollback()
+            self.db.conn.rollback()
             logger.error(f"❌ خطا در ایجاد دسته‌بندی آموزشی: {e}")
             raise
         finally:
-            conn.close()
+            pass
+            
             
         return category_ids
 
@@ -404,7 +408,7 @@ class RFTestDataSeeder:
             }
         ]
         
-        conn = self.db.get_conn()
+        conn = self.db.conn
         try:
             with conn.cursor() as cur:
                 for product in products_data:
@@ -456,14 +460,15 @@ class RFTestDataSeeder:
                     
                     logger.info(f"✅ محصول ایجاد شد: {product['name']}")
                 
-                conn.commit()
+                self.db.conn.commit()
                 
         except Exception as e:
-            conn.rollback()
+            self.db.conn.rollback()
             logger.error(f"❌ خطا در ایجاد محصولات: {e}")
             raise
         finally:
-            conn.close()
+            pass
+            
 
     def create_services(self, category_ids):
         """ایجاد خدمات نمونه"""
@@ -508,7 +513,7 @@ class RFTestDataSeeder:
             }
         ]
         
-        conn = self.db.get_conn()
+        conn = self.db.conn
         try:
             with conn.cursor() as cur:
                 for service in services_data:
@@ -529,14 +534,15 @@ class RFTestDataSeeder:
                     service_id = cur.fetchone()[0]
                     logger.info(f"✅ خدمت ایجاد شد: {service['name']}")
                 
-                conn.commit()
+                self.db.conn.commit()
                 
         except Exception as e:
-            conn.rollback()
+            self.db.conn.rollback()
             logger.error(f"❌ خطا در ایجاد خدمات: {e}")
             raise
         finally:
-            conn.close()
+            pass
+            
 
     def create_educational_content(self, category_ids):
         """ایجاد محتوای آموزشی نمونه"""
@@ -566,7 +572,7 @@ class RFTestDataSeeder:
             }
         ]
         
-        conn = self.db.get_conn()
+        conn = self.db.conn
         try:
             with conn.cursor() as cur:
                 for content in educational_data:
@@ -585,14 +591,15 @@ class RFTestDataSeeder:
                     content_id = cur.fetchone()[0]
                     logger.info(f"✅ محتوای آموزشی ایجاد شد: {content['title']}")
                 
-                conn.commit()
+                self.db.conn.commit()
                 
         except Exception as e:
-            conn.rollback()
+            self.db.conn.rollback()
             logger.error(f"❌ خطا در ایجاد محتوای آموزشی: {e}")
             raise
         finally:
-            conn.close()
+            pass
+            
 
     def create_sample_inquiries(self):
         """ایجاد استعلام‌های نمونه"""
@@ -622,7 +629,7 @@ class RFTestDataSeeder:
             }
         ]
         
-        conn = self.db.get_conn()
+        conn = self.db.conn
         try:
             with conn.cursor() as cur:
                 for inquiry in inquiries_data:
@@ -637,14 +644,15 @@ class RFTestDataSeeder:
                     
                     logger.info(f"✅ استعلام ایجاد شد: {inquiry['name']}")
                 
-                conn.commit()
+                self.db.conn.commit()
                 
         except Exception as e:
-            conn.rollback()
+            self.db.conn.rollback()
             logger.error(f"❌ خطا در ایجاد استعلام‌ها: {e}")
             raise
         finally:
-            conn.close()
+            pass
+            
 
     def create_sample_inquiries(self):
         """ایجاد استعلام‌های نمونه"""
@@ -683,7 +691,7 @@ class RFTestDataSeeder:
             }
         ]
         
-        conn = self.db.get_conn()
+        conn = self.db.conn
         try:
             with conn.cursor() as cur:
                 for inquiry in inquiries_data:
@@ -698,14 +706,15 @@ class RFTestDataSeeder:
                     
                     logger.info(f"✅ استعلام ایجاد شد: {inquiry['name']}")
                 
-                conn.commit()
+                self.db.conn.commit()
                 
         except Exception as e:
-            conn.rollback()
+            self.db.conn.rollback()
             logger.error(f"❌ خطا در ایجاد استعلام‌ها: {e}")
             raise
         finally:
-            conn.close()
+            pass
+            
 
     def run(self):
         """اجرای کامل فرآیند تولید دیتا"""
