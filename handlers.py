@@ -1610,15 +1610,53 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
             logging.error(f"Error processing media file: {str(e)}")
             continue
     
-    # Send the media group if we have valid media
+    # Send each media file individually to avoid EXTERNAL_URL_INVALID error
     if found_valid_media and media_group:
-        logging.info(f"Sending media group with {len(media_group)} items")
+        logging.info(f"Sending {len(media_group)} educational media files individually")
         try:
-            # First send media group
-            await bot.send_media_group(
-                chat_id=chat_id,
-                media=media_group
-            )
+            # Send each media file individually
+            for i, media_item in enumerate(media_group):
+                try:
+                    if hasattr(media_item, 'media') and hasattr(media_item.media, 'path'):
+                        # It's a local file, send it directly
+                        file_path = media_item.media.path
+                        caption_text = media_item.caption if hasattr(media_item, 'caption') else ""
+                        
+                        if file_path.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')):
+                            await bot.send_photo(
+                                chat_id=chat_id,
+                                photo=FSInputFile(file_path),
+                                caption=caption_text,
+                                parse_mode="Markdown" if caption_text else None
+                            )
+                        elif file_path.lower().endswith(('.mp4', '.avi', '.mov')):
+                            await bot.send_video(
+                                chat_id=chat_id,
+                                video=FSInputFile(file_path),
+                                caption=caption_text,
+                                parse_mode="Markdown" if caption_text else None
+                            )
+                    else:
+                        # Try as regular media (for Telegram file_ids)
+                        caption_text = media_item.caption if hasattr(media_item, 'caption') else ""
+                        if hasattr(media_item, 'media'):
+                            if 'photo' in str(type(media_item)).lower():
+                                await bot.send_photo(
+                                    chat_id=chat_id,
+                                    photo=media_item.media,
+                                    caption=caption_text,
+                                    parse_mode="Markdown" if caption_text else None
+                                )
+                            elif 'video' in str(type(media_item)).lower():
+                                await bot.send_video(
+                                    chat_id=chat_id,
+                                    video=media_item.media,
+                                    caption=caption_text,
+                                    parse_mode="Markdown" if caption_text else None
+                                )
+                except Exception as e:
+                    logging.error(f"Error sending individual educational media {i+1}: {str(e)}")
+                    continue
             
             # Then send inquiry button and back in a separate message
             if reply_markup:
