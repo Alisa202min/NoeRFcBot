@@ -102,64 +102,124 @@ def clear_data(db):
         db.conn.commit()
 
 def create_categories(db):
-    """ایجاد دسته‌بندی‌ها"""
-    logger.info("ایجاد دسته‌بندی‌ها...")
-    
-    # دسته‌بندی محصولات
-    product_cats = [
-        "اسیلوسکوپ", "اسپکتروم آنالایزر", "سیگنال ژنراتور", "نتورک آنالایزر",
-        "پاورمتر و سنسور", "رادیوتستر", "فرکانس متر", "مالتی متر", 
-        "تجهیزات کالیبراسیون", "آنتن آنالایزر", "نویز فیگور متر", "VNA کالیبراتور"
-    ]
-    
-    # دسته‌بندی خدمات
-    service_cats = [
-        "کالیبراسیون تجهیزات", "تعمیرات تخصصی", "آموزش فنی", "مشاوره تخصصی",
-        "نگهداری دوره‌ای", "پشتیبانی فنی", "طراحی آزمایشگاه"
-    ]
-    
-    # دسته‌بندی آموزشی
-    educational_cats = [
-        "راهنمای کاربری", "اصول اندازه‌گیری RF", "کالیبراسیون", "تست و عیب‌یابی",
-        "نکات فنی", "تکنولوژی‌های جدید", "پروژه‌های عملی"
-    ]
+    """ایجاد دسته‌بندی‌های سلسله مراتبی"""
+    logger.info("ایجاد دسته‌بندی‌های سلسله مراتبی...")
     
     categories = {}
     
     with db.conn.cursor() as cur:
-        # محصولات
-        for cat in product_cats:
+        # دسته‌بندی محصولات - سلسله مراتبی
+        # دسته اصلی: تجهیزات اندازه‌گیری
+        cur.execute("""
+            INSERT INTO product_categories (name, parent_id, created_at)
+            VALUES (%s, %s, %s) RETURNING id
+        """, ("تجهیزات اندازه‌گیری", None, datetime.now()))
+        main_product_cat = cur.fetchone()[0]
+        categories["product_main"] = main_product_cat
+        
+        # زیردسته‌های محصولات
+        product_subcats = [
+            ("تجهیزات اسیلوسکوپی", ["اسیلوسکوپ دیجیتال", "اسیلوسکوپ آنالوگ", "اسیلوسکوپ میکسد سیگنال"]),
+            ("تجهیزات تحلیل طیف", ["اسپکتروم آنالایزر", "نویز فیگور متر"]),
+            ("تجهیزات تولید سیگنال", ["سیگنال ژنراتور", "فانکشن ژنراتور", "آربیتری ژنراتور"]),
+            ("تجهیزات شبکه", ["نتورک آنالایزر", "VNA کالیبراتور"]),
+            ("تجهیزات اندازه‌گیری توان", ["پاورمتر", "سنسور توان"]),
+            ("تجهیزات تست رادیو", ["رادیوتستر", "آنتن آنالایزر"]),
+            ("ابزار اندازه‌گیری عمومی", ["فرکانس متر", "مالتی متر"])
+        ]
+        
+        for parent_name, children in product_subcats:
+            # ایجاد دسته والد
             cur.execute("""
                 INSERT INTO product_categories (name, parent_id, created_at)
                 VALUES (%s, %s, %s) RETURNING id
-            """, (cat, None, datetime.now()))
-            result = cur.fetchone()
-            if result:
-                categories[f"product_{cat}"] = result[0]
+            """, (parent_name, main_product_cat, datetime.now()))
+            parent_id = cur.fetchone()[0]
+            categories[f"product_{parent_name}"] = parent_id
+            
+            # ایجاد زیردسته‌ها
+            for child_name in children:
+                cur.execute("""
+                    INSERT INTO product_categories (name, parent_id, created_at)
+                    VALUES (%s, %s, %s) RETURNING id
+                """, (child_name, parent_id, datetime.now()))
+                child_id = cur.fetchone()[0]
+                categories[f"product_{child_name}"] = child_id
         
-        # خدمات
-        for cat in service_cats:
+        # دسته‌بندی خدمات - سلسله مراتبی
+        # دسته اصلی: خدمات RFTEST
+        cur.execute("""
+            INSERT INTO service_categories (name, parent_id, created_at)
+            VALUES (%s, %s, %s) RETURNING id
+        """, ("خدمات RFTEST", None, datetime.now()))
+        main_service_cat = cur.fetchone()[0]
+        categories["service_main"] = main_service_cat
+        
+        # زیردسته‌های خدمات
+        service_subcats = [
+            ("خدمات کالیبراسیون", ["کالیبراسیون اسیلوسکوپ", "کالیبراسیون طیف‌سنج", "کالیبراسیون ژنراتور"]),
+            ("خدمات تعمیرات", ["تعمیر تجهیزات", "بازسازی دستگاه", "آپگرید نرم‌افزار"]),
+            ("خدمات آموزشی", ["آموزش فنی", "دوره‌های تخصصی", "مشاوره آموزشی"]),
+            ("خدمات مشاوره", ["مشاوره فنی", "طراحی آزمایشگاه", "انتخاب تجهیزات"]),
+            ("خدمات پشتیبانی", ["نگهداری دوره‌ای", "پشتیبانی فنی", "خدمات اورژانسی"])
+        ]
+        
+        for parent_name, children in service_subcats:
+            # ایجاد دسته والد
             cur.execute("""
                 INSERT INTO service_categories (name, parent_id, created_at)
                 VALUES (%s, %s, %s) RETURNING id
-            """, (cat, None, datetime.now()))
-            result = cur.fetchone()
-            if result:
-                categories[f"service_{cat}"] = result[0]
+            """, (parent_name, main_service_cat, datetime.now()))
+            parent_id = cur.fetchone()[0]
+            categories[f"service_{parent_name}"] = parent_id
+            
+            # ایجاد زیردسته‌ها
+            for child_name in children:
+                cur.execute("""
+                    INSERT INTO service_categories (name, parent_id, created_at)
+                    VALUES (%s, %s, %s) RETURNING id
+                """, (child_name, parent_id, datetime.now()))
+                child_id = cur.fetchone()[0]
+                categories[f"service_{child_name}"] = child_id
         
-        # آموزشی
-        for cat in educational_cats:
+        # دسته‌بندی آموزشی - سلسله مراتبی
+        # دسته اصلی: محتوای آموزشی
+        cur.execute("""
+            INSERT INTO educational_categories (name, parent_id, created_at)
+            VALUES (%s, %s, %s) RETURNING id
+        """, ("محتوای آموزشی RFTEST", None, datetime.now()))
+        main_edu_cat = cur.fetchone()[0]
+        categories["educational_main"] = main_edu_cat
+        
+        # زیردسته‌های آموزشی
+        educational_subcats = [
+            ("راهنماها و دستورالعمل‌ها", ["راهنمای کاربری", "دستورالعمل نصب", "راهنمای عیب‌یابی"]),
+            ("مفاهیم فنی", ["اصول اندازه‌گیری RF", "تئوری کالیبراسیون", "مبانی طیف‌سنجی"]),
+            ("آموزش عملی", ["تست و عیب‌یابی", "پروژه‌های عملی", "نکات کاربردی"]),
+            ("تکنولوژی‌های نوین", ["تکنولوژی‌های جدید", "استانداردهای نوین", "نوآوری‌ها"])
+        ]
+        
+        for parent_name, children in educational_subcats:
+            # ایجاد دسته والد
             cur.execute("""
                 INSERT INTO educational_categories (name, parent_id, created_at)
                 VALUES (%s, %s, %s) RETURNING id
-            """, (cat, None, datetime.now()))
-            result = cur.fetchone()
-            if result:
-                categories[f"educational_{cat}"] = result[0]
+            """, (parent_name, main_edu_cat, datetime.now()))
+            parent_id = cur.fetchone()[0]
+            categories[f"educational_{parent_name}"] = parent_id
+            
+            # ایجاد زیردسته‌ها
+            for child_name in children:
+                cur.execute("""
+                    INSERT INTO educational_categories (name, parent_id, created_at)
+                    VALUES (%s, %s, %s) RETURNING id
+                """, (child_name, parent_id, datetime.now()))
+                child_id = cur.fetchone()[0]
+                categories[f"educational_{child_name}"] = child_id
         
         db.conn.commit()
     
-    logger.info(f"✅ {len(categories)} دسته‌بندی ایجاد شد")
+    logger.info(f"✅ {len(categories)} دسته‌بندی سلسله مراتبی ایجاد شد")
     return categories
 
 def create_products(db, categories):
@@ -168,7 +228,7 @@ def create_products(db, categories):
     
     products_data = [
         # اسیلوسکوپ‌ها (8 محصول)
-        {"name": "اسیلوسکوپ دیجیتال Keysight DSOX2002A", "cat": "اسیلوسکوپ", "price": 45000000, "brand": "Keysight", "model": "DSOX2002A", "featured": True},
+        {"name": "اسیلوسکوپ دیجیتال Keysight DSOX2002A", "cat": "اسیلوسکوپ دیجیتال", "price": 45000000, "brand": "Keysight", "model": "DSOX2002A", "featured": True},
         {"name": "اسیلوسکوپ دیجیتال Keysight DSOX3024T", "cat": "اسیلوسکوپ", "price": 85000000, "brand": "Keysight", "model": "DSOX3024T", "featured": True},
         {"name": "اسیلوسکوپ آنالوگ Tektronix 2235", "cat": "اسیلوسکوپ", "price": 18000000, "brand": "Tektronix", "model": "2235", "featured": False},
         {"name": "اسیلوسکوپ دیجیتال Rigol DS1054Z", "cat": "اسیلوسکوپ", "price": 22000000, "brand": "Rigol", "model": "DS1054Z", "featured": False},
