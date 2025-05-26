@@ -1846,7 +1846,8 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
             if not media_found and file_id:
                 # تبدیل مسیر فایل به مسیر کامل
                 if file_id.startswith('uploads/'):
-                    full_path = f"./static/{file_id}"
+                    full_path = f"static/{file_id}"
+                    logging.info(f"Checking path: {full_path}")
                     if os.path.exists(full_path) and os.path.isfile(full_path):
                         logging.info(f"Found media at constructed path: {full_path}")
                         if file_type == 'photo':
@@ -1862,6 +1863,8 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
                                 parse_mode="Markdown"
                             )
                         media_found = True
+                    else:
+                        logging.warning(f"File not found at: {full_path}")
                 
                 # اگر هنوز پیدا نشد، فقط اگر file_id واقعاً شبیه Telegram file_id باشد (بدون /)
                 if not media_found and len(file_id) > 20 and not '/' in file_id and not file_id.startswith('uploads'):
@@ -2263,7 +2266,8 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
                 if not media_found and file_id and not file_id.startswith('default_media_'):
                     # تبدیل مسیر فایل به مسیر کامل
                     if file_id.startswith('uploads/'):
-                        full_path = f"./static/{file_id}"
+                        full_path = f"static/{file_id}"
+                        logging.info(f"Checking path: {full_path}")
                         if os.path.exists(full_path) and os.path.isfile(full_path):
                             logging.info(f"Found media at constructed path: {full_path}")
                             if file_type == 'photo':
@@ -2279,6 +2283,8 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
                                     parse_mode="Markdown"
                                 )
                             media_found = True
+                        else:
+                            logging.warning(f"File not found at: {full_path}")
                     
                     # اگر هنوز پیدا نشد، تلاش برای Telegram file_id (فقط اگر شبیه file_id واقعی باشد)
                     if not media_found and len(file_id) > 20 and not '/' in file_id:
