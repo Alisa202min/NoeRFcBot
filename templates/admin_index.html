@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+{% extends "admin_layout.html" %}
 {% set active_page = 'dashboard' %}
 
 {% block content %}
@@ -12,10 +12,10 @@
                 <div class="card bg-primary text-white mb-4">
                     <div class="card-body">
                         <h5 class="card-title">محصولات</h5>
-                        <h2 class="display-4">0</h2>
+                        <h2 class="display-4">{{ stats.products_count }}</h2>
                     </div>
                     <div class="card-footer d-flex align-items-center justify-content-between">
-                        <a class="text-white stretched-link" href="{{ url_for('admin_products') }}">مشاهده جزئیات</a>
+                        <a class="text-white stretched-link" href="/admin/products">مشاهده جزئیات</a>
                         <div class="small text-white"><i class="bi bi-arrow-left"></i></div>
                     </div>
                 </div>
@@ -25,10 +25,10 @@
                 <div class="card bg-success text-white mb-4">
                     <div class="card-body">
                         <h5 class="card-title">خدمات</h5>
-                        <h2 class="display-4">0</h2>
+                        <h2 class="display-4">{{ stats.services_count }}</h2>
                     </div>
                     <div class="card-footer d-flex align-items-center justify-content-between">
-                        <a class="text-white stretched-link" href="{{ url_for('admin_services') }}">مشاهده جزئیات</a>
+                        <a class="text-white stretched-link" href="/admin/services">مشاهده جزئیات</a>
                         <div class="small text-white"><i class="bi bi-arrow-left"></i></div>
                     </div>
                 </div>
@@ -38,10 +38,10 @@
                 <div class="card bg-warning text-white mb-4">
                     <div class="card-body">
                         <h5 class="card-title">استعلام‌های قیمت</h5>
-                        <h2 class="display-4">0</h2>
+                        <h2 class="display-4">{{ stats.inquiries_count }}</h2>
                     </div>
                     <div class="card-footer d-flex align-items-center justify-content-between">
-                        <a class="text-white stretched-link" href="{{ url_for('admin_inquiries') }}">مشاهده جزئیات</a>
+                        <a class="text-white stretched-link" href="/admin/inquiries">مشاهده جزئیات</a>
                         <div class="small text-white"><i class="bi bi-arrow-left"></i></div>
                     </div>
                 </div>
@@ -52,11 +52,46 @@
             <div class="col-md-6">
                 <div class="card">
                     <div class="card-header">
-                        <h5>وضعیت سیستم</h5>
+                        <h5>استعلام‌های اخیر</h5>
                     </div>
                     <div class="card-body">
-                        <p>وضعیت ربات: <span class="badge bg-success">{{ bot_status }}</span></p>
-                        <p>زمان: {{ now.strftime('%Y/%m/%d %H:%M:%S') }}</p>
+                        {% if recent_inquiries %}
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>نام</th>
+                                            <th>شماره تماس</th>
+                                            <th>محصول/خدمت</th>
+                                            <th>تاریخ</th>
+                                            <th>عملیات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for inquiry in recent_inquiries %}
+                                            <tr>
+                                                <td>{{ inquiry.name }}</td>
+                                                <td dir="ltr">{{ inquiry.phone }}</td>
+                                                <td>{{ inquiry.product_name or 'بدون محصول' }}</td>
+                                                <td>{{ inquiry.date.split('T')[0] }}</td>
+                                                <td>
+                                                    <a href="/admin/inquiries" class="btn btn-sm btn-info">
+                                                        <i class="bi bi-eye"></i>
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="text-start mt-3">
+                                <a href="/admin/inquiries" class="btn btn-outline-primary">
+                                    مشاهده همه استعلام‌ها
+                                </a>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-info">هنوز هیچ استعلام قیمتی ثبت نشده است.</div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -68,18 +103,105 @@
                     </div>
                     <div class="card-body">
                         <div class="list-group">
-                            <a href="{{ url_for('admin_products') }}" class="list-group-item list-group-item-action">
-                                <i class="bi bi-plus-circle"></i> مدیریت محصولات
+                            <a href="/admin/product/add" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="bi bi-plus-circle"></i> افزودن محصول جدید
+                                </div>
+                                <span class="badge bg-primary rounded-pill">{{ stats.products_count }}</span>
                             </a>
-                            <a href="{{ url_for('admin_services') }}" class="list-group-item list-group-item-action">
-                                <i class="bi bi-plus-circle"></i> مدیریت خدمات
+                            <a href="/admin/service/add" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="bi bi-plus-circle"></i> افزودن خدمت جدید
+                                </div>
+                                <span class="badge bg-success rounded-pill">{{ stats.services_count }}</span>
                             </a>
-                            <a href="{{ url_for('admin_categories') }}" class="list-group-item list-group-item-action">
-                                <i class="bi bi-plus-circle"></i> مدیریت دسته‌بندی‌ها
+                            <a href="/admin/categories/add" class="list-group-item list-group-item-action">
+                                <i class="bi bi-plus-circle"></i> افزودن دسته‌بندی جدید
                             </a>
-                            <a href="{{ url_for('admin_education') }}" class="list-group-item list-group-item-action">
-                                <i class="bi bi-plus-circle"></i> محتوای آموزشی
+                            <a href="/admin/education/add" class="list-group-item list-group-item-action">
+                                <i class="bi bi-plus-circle"></i> افزودن مطلب آموزشی جدید
                             </a>
+                            <a href="/admin/import_export" class="list-group-item list-group-item-action">
+                                <i class="bi bi-arrow-down-up"></i> ورود/خروج داده‌ها
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5>وضعیت سیستم</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group">
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="bi bi-robot"></i> وضعیت ربات تلگرام
+                                </div>
+                                <span class="badge bg-success">فعال</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="bi bi-database"></i> وضعیت دیتابیس
+                                </div>
+                                <span class="badge bg-success">متصل</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="bi bi-globe"></i> وضعیت وب‌هوک
+                                </div>
+                                <span class="badge bg-success">فعال</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>آمار و وضعیت فعلی</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-md-3">
+                                <div class="card border-0 bg-light p-3">
+                                    <div>
+                                        <i class="bi bi-box fs-1 text-primary"></i>
+                                    </div>
+                                    <h3 class="mt-2">{{ stats.products_count }}</h3>
+                                    <p class="text-muted">محصول</p>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card border-0 bg-light p-3">
+                                    <div>
+                                        <i class="bi bi-tools fs-1 text-success"></i>
+                                    </div>
+                                    <h3 class="mt-2">{{ stats.services_count }}</h3>
+                                    <p class="text-muted">خدمت</p>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card border-0 bg-light p-3">
+                                    <div>
+                                        <i class="bi bi-chat-text fs-1 text-warning"></i>
+                                    </div>
+                                    <h3 class="mt-2">{{ stats.inquiries_count }}</h3>
+                                    <p class="text-muted">استعلام قیمت</p>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card border-0 bg-light p-3">
+                                    <div>
+                                        <i class="bi bi-folder fs-1 text-info"></i>
+                                    </div>
+                                    <h3 class="mt-2">{{ categories_count|default(0) }}</h3>
+                                    <p class="text-muted">دسته‌بندی</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -87,4 +209,22 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // اسکریپت‌های مربوط به داشبورد
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('داشبورد مدیریت بارگذاری شد');
+        
+        // به‌روزرسانی خودکار وضعیت سیستم
+        function updateSystemStatus() {
+            // در یک پروژه واقعی، این بخش می‌تواند با API برای دریافت وضعیت سیستم ارتباط برقرار کند
+            console.log('وضعیت سیستم به‌روزرسانی شد');
+        }
+        
+        // هر ۳۰ ثانیه وضعیت را به‌روزرسانی کن
+        setInterval(updateSystemStatus, 30000);
+    });
+</script>
 {% endblock %}

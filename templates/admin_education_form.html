@@ -1,0 +1,129 @@
+{% extends "admin_layout.html" %}
+{% set active_page = 'education' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h4>{{ 'ویرایش محتوای آموزشی' if content else 'افزودن محتوای آموزشی جدید' }}</h4>
+    </div>
+    <div class="card-body">
+        <form method="post" class="needs-validation" novalidate>
+            <div class="mb-3">
+                <label for="title" class="form-label">عنوان <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="title" name="title" value="{{ content.title if content else '' }}" required>
+                <div class="invalid-feedback">
+                    لطفاً عنوان را وارد کنید.
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="category" class="form-label">دسته‌بندی <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="category" name="category" value="{{ content.category if content else '' }}" 
+                       list="categoryOptions" required>
+                <datalist id="categoryOptions">
+                    <option value="آموزش عمومی">
+                    <option value="آموزش فنی">
+                    <option value="نکات کاربردی">
+                    <option value="مقالات تخصصی">
+                    <option value="ویدئوهای آموزشی">
+                </datalist>
+                <div class="invalid-feedback">
+                    لطفاً دسته‌بندی را وارد کنید.
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="content_type" class="form-label">نوع محتوا <span class="text-danger">*</span></label>
+                <select class="form-select" id="content_type" name="content_type" required>
+                    <option value="text" {% if content and content.content_type == 'text' %}selected{% endif %}>متن</option>
+                    <option value="video" {% if content and content.content_type == 'video' %}selected{% endif %}>ویدیو</option>
+                    <option value="image" {% if content and content.content_type == 'image' %}selected{% endif %}>تصویر</option>
+                </select>
+                <div class="invalid-feedback">
+                    لطفاً نوع محتوا را انتخاب کنید.
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="content_text" class="form-label">محتوا <span class="text-danger">*</span></label>
+                <textarea class="form-control" id="content_text" name="content" rows="12" required>{{ content.content if content else '' }}</textarea>
+                <div class="form-text">
+                    می‌توانید از تگ‌های HTML برای قالب‌بندی محتوا استفاده کنید. مثال:
+                    <code>&lt;h2&gt;عنوان&lt;/h2&gt; &lt;p&gt;متن پاراگراف&lt;/p&gt;</code>
+                </div>
+                <div class="invalid-feedback">
+                    لطفاً محتوا را وارد کنید.
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">پیش‌نمایش</div>
+                <div class="card-body">
+                    <div id="contentPreview">
+                        {{ content.content|safe if content else '<div class="alert alert-info">محتوایی برای نمایش وجود ندارد.</div>' }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-between">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i> 
+                    {{ 'به‌روزرسانی محتوا' if content else 'افزودن محتوا' }}
+                </button>
+                <a href="{{ url_for('admin_education') }}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-right"></i> بازگشت
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Form validation
+    const form = document.querySelector('.needs-validation');
+    form.addEventListener('submit', function(event) {
+        if (!form.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        form.classList.add('was-validated');
+    });
+    
+    // Live preview
+    const contentTextarea = document.getElementById('content_text');
+    const contentPreview = document.getElementById('contentPreview');
+    
+    contentTextarea.addEventListener('input', function() {
+        if (this.value) {
+            contentPreview.innerHTML = this.value;
+        } else {
+            contentPreview.innerHTML = '<div class="alert alert-info">محتوایی برای نمایش وجود ندارد.</div>';
+        }
+    });
+    
+    // Change content editor based on content type
+    const contentTypeSelect = document.getElementById('content_type');
+    
+    contentTypeSelect.addEventListener('change', function() {
+        const contentType = this.value;
+        let placeholder = '';
+        
+        if (contentType === 'text') {
+            placeholder = 'متن محتوا را وارد کنید. می‌توانید از تگ‌های HTML استفاده کنید.';
+        } else if (contentType === 'video') {
+            placeholder = 'لینک ویدیو یا کد امبد ویدیو را وارد کنید. مثال:\n<iframe src="https://www.example.com/embed/VIDEO_ID" frameborder="0" allowfullscreen></iframe>';
+        } else if (contentType === 'image') {
+            placeholder = 'لینک تصویر یا کد HTML تصویر را وارد کنید. مثال:\n<img src="https://www.example.com/image.jpg" alt="توضیحات تصویر" class="img-fluid">';
+        }
+        
+        contentTextarea.placeholder = placeholder;
+    });
+    
+    // Trigger the change event to set the initial placeholder
+    contentTypeSelect.dispatchEvent(new Event('change'));
+});
+</script>
+{% endblock %}
