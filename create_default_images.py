@@ -15,7 +15,7 @@ def create_default_image(output_path, text, width=800, height=600, bg_color=(240
     # سعی در بارگذاری فونت
     try:
         # بارگذاری فونت فارسی اگر موجود باشد
-        font = ImageFont.truetype('static/fonts/Vazir.ttf', 36)
+        font = ImageFont.truetype('static/fonts/Vazirmatn-VariableFont_wght.ttf', 36)
     except IOError:
         # استفاده از فونت پیش‌فرض
         font = ImageFont.load_default()
@@ -47,13 +47,13 @@ def create_all_default_images():
     for product_id in range(712, 717):
         create_default_image(
             f"{base_path}/products/product_image_{product_id}_1.jpg",
-            f"تصویر محصول {product_id}",
+            f"product image {product_id}",
             bg_color=(230, 240, 255),
             text_color=(50, 50, 150)
         )
         create_default_image(
             f"{base_path}/products/product_image_{product_id}_2.jpg",
-            f"تصویر دوم محصول {product_id}",
+            f"product_image_2 {product_id}",
             bg_color=(220, 230, 255),
             text_color=(50, 50, 150)
         )
@@ -62,13 +62,13 @@ def create_all_default_images():
     for service_id in range(18, 24):
         create_default_image(
             f"{base_path}/services/service_image_{service_id}_1.jpg",
-            f"تصویر خدمت {service_id}",
+            f"service_image_1  {service_id}",
             bg_color=(255, 240, 230),
             text_color=(150, 50, 50)
         )
         create_default_image(
             f"{base_path}/services/service_image_{service_id}_2.jpg",
-            f"تصویر دوم خدمت {service_id}",
+            f"service_image_2 {service_id}",
             bg_color=(255, 230, 220),
             text_color=(150, 50, 50)
         )
