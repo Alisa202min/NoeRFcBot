@@ -1,0 +1,120 @@
+{% extends "layout.html" %}
+
+{% block title %}محتوای آموزشی{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">محتوای آموزشی</h1>
+    
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    دسته‌بندی‌ها
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <a href="{{ url_for('educational') }}" class="list-group-item list-group-item-action {% if not selected_category %}active{% endif %}">
+                            همه محتوا
+                        </a>
+                        
+                        {% for category in categories %}
+                        <a href="{{ url_for('educational', category=category) }}" class="list-group-item list-group-item-action {% if selected_category == category %}active{% endif %}">
+                            {{ category }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-9">
+            <div class="row">
+                {% if contents %}
+                    {% for content in contents %}
+                    <div class="col-12 mb-4">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">{{ content.title }}</h5>
+                                <span class="badge bg-info">{{ content.category }}</span>
+                            </div>
+                            <div class="card-body">
+                                <!-- متن محتوا -->
+                                {% if content.content_type == 'text' or content.content %}
+                                    <div class="mb-4">
+                                        {{ content.content|safe }}
+                                    </div>
+                                {% endif %}
+                                
+                                <!-- نمایش فایل اصلی -->
+                                {% if content.content_type == 'video' and content.content and content.content.startswith('http') %}
+                                    <div class="ratio ratio-16x9 mb-4">
+                                        <iframe src="{{ content.content }}" title="{{ content.title }}" allowfullscreen></iframe>
+                                    </div>
+                                {% elif content.content_type == 'image' and content.content %}
+                                    <div class="mb-4">
+                                        <img src="{{ content.content }}" alt="{{ content.title }}" class="img-fluid rounded">
+                                    </div>
+                                {% elif content.content_type == 'file' and content.content %}
+                                    <div class="mb-4">
+                                        <a href="{{ content.content }}" class="btn btn-outline-primary" target="_blank">
+                                            <i class="bi bi-download me-2"></i>دانلود فایل
+                                        </a>
+                                    </div>
+                                {% endif %}
+                                
+                                <!-- نمایش مدیا های دیگر -->
+                                {% if content.id in content_media_map and content_media_map[content.id]|length > 0 %}
+                                    <div class="mt-4">
+                                        <h6 class="border-bottom pb-2">فایل‌های ضمیمه:</h6>
+                                        <div class="row row-cols-1 row-cols-md-3 g-3 mt-2">
+                                            {% for media in content_media_map[content.id] %}
+                                            <div class="col">
+                                                <div class="card h-100">
+                                                    {% if media.file_type == 'photo' %}
+                                                        <img src="{{ url_for('telegram_file', file_id=media.file_id) }}" 
+                                                             class="card-img-top" alt="تصویر ضمیمه"
+                                                             style="height: 200px; object-fit: cover;">
+                                                    {% elif media.file_type == 'video' %}
+                                                        <div class="ratio ratio-16x9">
+                                                            <video controls>
+                                                                <source src="{{ url_for('telegram_file', file_id=media.file_id) }}" type="video/mp4">
+                                                            </video>
+                                                        </div>
+                                                    {% elif media.file_type == 'file' %}
+                                                        <div class="card-body text-center">
+                                                            <i class="bi bi-file-earmark-text fs-1 text-primary"></i>
+                                                            <p class="mt-2">فایل ضمیمه</p>
+                                                        </div>
+                                                    {% endif %}
+                                                    <div class="card-footer text-center">
+                                                        <a href="{{ url_for('telegram_file', file_id=media.file_id) }}" 
+                                                           class="btn btn-sm btn-primary" target="_blank">
+                                                            <i class="bi bi-download me-1"></i> دانلود
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="card-footer text-muted">
+                                <small>تاریخ انتشار: {{ content.created_at.strftime('%Y/%m/%d') if content.created_at else 'نامشخص' }}</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        محتوای آموزشی یافت نشد
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

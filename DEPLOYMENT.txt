@@ -1,0 +1,366 @@
+# راهنمای استقرار سیستم رادیو فرکانس
+
+این راهنما به شما کمک می‌کند تا سیستم رادیو فرکانس (شامل پنل وب و بات تلگرام) را روی سرور اوبونتو نصب و راه‌اندازی کنید.
+
+## روش 1: نصب خودکار (توصیه شده)
+
+برای نصب خودکار، می‌توانید از اسکریپت `automate-setup.sh` استفاده کنید.
+
+1. **دانلود اسکریپت**:
+   ```
+   wget https://raw.githubusercontent.com/your-username/rf-bot/main/automate-setup.sh
+   ```
+   یا فایل `automate-setup.sh` را از این مخزن کپی کنید.
+
+2. **اعطای دسترسی اجرا**:
+   ```
+   chmod +x automate-setup.sh
+   ```
+
+3. **اجرای اسکریپت**:
+   ```
+   sudo ./automate-setup.sh
+   ```
+
+4. **پاسخ به سؤالات**:
+   اسکریپت به صورت تعاملی اطلاعات مورد نیاز را از شما می‌پرسد:
+   - رمز عبور پایگاه داده
+   - توکن بات تلگرام
+   - حالت بات (polling یا webhook)
+   - در صورت استفاده از webhook، آدرس دامنه
+   - نام کاربری و رمز عبور ادمین
+
+5. **اتمام نصب**:
+   اسکریپت به طور خودکار تمام مراحل نصب را انجام می‌دهد و در انتها آدرس‌های دسترسی را نمایش می‌دهد.
+
+## روش 2: نصب دستی (گام به گام)
+
+اگر مایل به نصب دستی هستید، مراحل زیر را دنبال کنید.
+
+### بخش 1: آماده‌سازی سرور
+
+1. **به‌روزرسانی سیستم**:
+   ```
+   sudo apt update
+   sudo apt upgrade -y
+   ```
+
+2. **نصب نیازمندی‌ها**:
+   ```
+   sudo apt install -y python3 python3-pip python3-venv postgresql postgresql-contrib nginx git
+   ```
+
+### بخش 2: راه‌اندازی پایگاه داده
+
+1. **ایجاد کاربر و پایگاه داده**:
+   ```
+   sudo -u postgres psql -c "CREATE USER rfuser WITH PASSWORD 'رمز-عبور-امن';"
+   sudo -u postgres psql -c "CREATE DATABASE rfbot_db OWNER rfuser;"
+   sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE rfbot_db TO rfuser;"
+   ```
+   (کلمه "رمز-عبور-امن" را با رمز دلخواه جایگزین کنید)
+
+### بخش 3: کلون و راه‌اندازی پروژه
+
+1. **ایجاد پوشه برنامه**:
+   ```
+   sudo mkdir -p /var/www/rfbot
+   sudo chown -R $USER:$USER /var/www/rfbot
+   cd /var/www/rfbot
+   ```
+
+2. **کلون کردن مخزن گیت** (اگر مخزن گیت دارید):
+   ```
+   git clone https://github.com/your-username/rfbot.git .
+   ```
+
+   یا **کپی کردن فایل‌ها**:
+   ```
+   # فایل‌ها را به پوشه /var/www/rfbot منتقل کنید
+   ```
+
+3. **ایجاد پوشه‌های مورد نیاز**:
+   ```
+   mkdir -p static/uploads/products
+   mkdir -p static/uploads/services
+   mkdir -p static/uploads/services/main
+   mkdir -p static/media/products
+   mkdir -p logs
+   ```
+
+4. **ایجاد محیط مجازی پایتون**:
+   ```
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+
+5. **نصب وابستگی‌ها**:
+   ```
+   pip install flask flask-sqlalchemy aiogram gunicorn psycopg2-binary python-dotenv pillow flask-login flask-wtf email_validator
+   ```
+   یا اگر فایل `requirements.txt` دارید:
+   ```
+   pip install -r requirements.txt
+   ```
+
+### بخش 4: تنظیمات محیطی
+
+1. **ایجاد فایل .env**:
+   ```
+   nano .env
+   ```
+   و محتوای زیر را در آن قرار دهید:
+   ```
+   DATABASE_URL=postgresql://rfuser:رمز-عبور-امن@localhost/rfbot_db
+   SESSION_SECRET=یک-کلید-تصادفی-طولانی
+   BOT_TOKEN=1234567890:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+   BOT_MODE=polling
+   # برای استفاده از webhook، خطوط زیر را از حالت کامنت خارج کنید
+   # WEBHOOK_HOST=https://your-domain.com
+   # WEBHOOK_PATH=/webhook/telegram
+   ADMIN_USERNAME=admin
+   ADMIN_PASSWORD=رمز-عبور-ادمین
+   UPLOAD_FOLDER=/var/www/rfbot/static/uploads
+   ```
+
+### بخش 5: راه‌اندازی پایگاه داده
+
+1. **ایجاد جداول پایگاه داده**:
+   ```
+   source venv/bin/activate
+   python -c "from app import db; db.create_all()"
+   ```
+
+2. **اجرای اسکریپت‌های اولیه** (اختیاری):
+   ```
+   python seed_admin_data.py
+   python seed_categories.py
+   ```
+
+### بخش 6: پیکربندی Gunicorn و سرویس‌ها
+
+1. **ایجاد سرویس وب**:
+   ```
+   sudo nano /etc/systemd/system/rfbot-web.service
+   ```
+   و محتوای زیر را در آن قرار دهید:
+   ```
+   [Unit]
+   Description=Gunicorn instance to serve RF Web Panel
+   After=network.target
+
+   [Service]
+   User=www-data
+   Group=www-data
+   WorkingDirectory=/var/www/rfbot
+   Environment="PATH=/var/www/rfbot/venv/bin"
+   ExecStart=/var/www/rfbot/venv/bin/gunicorn --workers 3 --bind 0.0.0.0:5000 --timeout 120 main:app
+   Restart=always
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+2. **ایجاد سرویس بات تلگرام**:
+   ```
+   sudo nano /etc/systemd/system/rfbot-telegram.service
+   ```
+   و محتوای زیر را در آن قرار دهید:
+   ```
+   [Unit]
+   Description=RF Telegram Bot
+   After=network.target
+
+   [Service]
+   User=www-data
+   Group=www-data
+   WorkingDirectory=/var/www/rfbot
+   Environment="PATH=/var/www/rfbot/venv/bin"
+   ExecStart=/var/www/rfbot/venv/bin/python bot.py
+   Restart=always
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+### بخش 7: پیکربندی Nginx
+
+1. **ایجاد پیکربندی Nginx**:
+   ```
+   sudo nano /etc/nginx/sites-available/rfbot
+   ```
+   و محتوای زیر را در آن قرار دهید:
+   ```
+   server {
+       listen 80;
+       server_name your-domain.com;  # دامنه یا IP خود را وارد کنید
+
+       client_max_body_size 20M;  # افزایش حداکثر اندازه آپلود
+
+       location /static {
+           alias /var/www/rfbot/static;
+       }
+
+       location /webhook/telegram {
+           proxy_pass http://127.0.0.1:5000;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
+       }
+
+       location / {
+           proxy_pass http://127.0.0.1:5000;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
+       }
+   }
+   ```
+
+2. **فعال‌سازی پیکربندی**:
+   ```
+   sudo ln -s /etc/nginx/sites-available/rfbot /etc/nginx/sites-enabled/
+   sudo nginx -t
+   ```
+
+### بخش 8: تنظیم دسترسی‌ها و راه‌اندازی سرویس‌ها
+
+1. **تنظیم دسترسی‌ها**:
+   ```
+   sudo chown -R www-data:www-data /var/www/rfbot
+   ```
+
+2. **راه‌اندازی سرویس‌ها**:
+   ```
+   sudo systemctl daemon-reload
+   sudo systemctl enable rfbot-web
+   sudo systemctl start rfbot-web
+   sudo systemctl enable rfbot-telegram
+   sudo systemctl start rfbot-telegram
+   sudo systemctl restart nginx
+   ```
+
+### بخش 9: نصب SSL (اختیاری)
+
+1. **نصب Certbot**:
+   ```
+   sudo apt install -y certbot python3-certbot-nginx
+   ```
+
+2. **دریافت گواهی SSL**:
+   ```
+   sudo certbot --nginx -d your-domain.com
+   ```
+   و دستورالعمل‌های نمایش داده شده را دنبال کنید.
+
+## استفاده از Ngrok برای Webhook (اختیاری)
+
+اگر دامنه ندارید اما می‌خواهید از webhook استفاده کنید، می‌توانید از Ngrok استفاده کنید:
+
+1. **نصب Ngrok**:
+   ```
+   sudo apt install -y unzip
+   wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
+   tar xvzf ngrok-v3-stable-linux-amd64.tgz
+   sudo mv ngrok /usr/local/bin/
+   ```
+
+2. **پیکربندی Ngrok**:
+   ```
+   ngrok config add-authtoken YOUR_NGROK_AUTH_TOKEN
+   ```
+
+3. **اجرای Ngrok**:
+   ```
+   ngrok http 5000
+   ```
+
+4. **به‌روزرسانی فایل .env**:
+   آدرس webhook که Ngrok به شما می‌دهد را در فایل .env در متغیر WEBHOOK_HOST قرار دهید.
+
+5. **ری‌استارت سرویس بات**:
+   ```
+   sudo systemctl restart rfbot-telegram
+   ```
+
+## عیب‌یابی
+
+### مشکل: سرویس‌ها شروع به کار نمی‌کنند
+**راه حل**: لاگ‌ها را بررسی کنید:
+```
+sudo journalctl -u rfbot-web -n 50
+sudo journalctl -u rfbot-telegram -n 50
+```
+
+### مشکل: وب‌سایت باز نمی‌شود
+**راه حل**: بررسی لاگ‌های Nginx:
+```
+sudo journalctl -u nginx -n 50
+sudo nginx -t
+```
+
+### مشکل: خطای دسترسی به فایل‌ها
+**راه حل**: بررسی دسترسی‌ها:
+```
+sudo chown -R www-data:www-data /var/www/rfbot
+sudo chmod -R 755 /var/www/rfbot/static
+```
+
+## دستورات مفید
+
+- **ری‌استارت سرویس وب**:
+  ```
+  sudo systemctl restart rfbot-web
+  ```
+
+- **ری‌استارت سرویس بات**:
+  ```
+  sudo systemctl restart rfbot-telegram
+  ```
+
+- **مشاهده لاگ‌های وب**:
+  ```
+  sudo journalctl -u rfbot-web -f
+  ```
+
+- **مشاهده لاگ‌های بات**:
+  ```
+  sudo journalctl -u rfbot-telegram -f
+  ```
+
+- **پشتیبان‌گیری از پایگاه داده**:
+  ```
+  sudo -u postgres pg_dump rfbot_db > /path/to/backup/rfbot_$(date +%Y%m%d).sql
+  ```
+
+## به‌روزرسانی سیستم
+
+برای به‌روزرسانی کد:
+
+1. **رفتن به پوشه پروژه**:
+   ```
+   cd /var/www/rfbot
+   ```
+
+2. **به‌روزرسانی کد** (اگر از گیت استفاده می‌کنید):
+   ```
+   git pull
+   ```
+
+3. **به‌روزرسانی وابستگی‌ها**:
+   ```
+   source venv/bin/activate
+   pip install --upgrade -r requirements.txt
+   ```
+
+4. **ری‌استارت سرویس‌ها**:
+   ```
+   sudo systemctl restart rfbot-web
+   sudo systemctl restart rfbot-telegram
+   ```
+
+---
+
+اگر در هر مرحله‌ای از نصب به مشکلی برخوردید، لطفاً با تیم پشتیبانی تماس بگیرید.

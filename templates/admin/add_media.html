@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+
+{% block title %}افزودن رسانه جدید{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">خانه</a></li>
+                    {% if item_type == 'product' %}
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_products') }}">مدیریت محصولات</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('edit_product', product_id=item.id) }}">ویرایش محصول</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('product_media', product_id=item.id) }}">مدیریت رسانه‌ها</a></li>
+                    {% else %}
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_services') }}">مدیریت خدمات</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('edit_service', service_id=item.id) }}">ویرایش خدمت</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('service_media', service_id=item.id) }}">مدیریت رسانه‌ها</a></li>
+                    {% endif %}
+                    <li class="breadcrumb-item active" aria-current="page">افزودن رسانه جدید</li>
+                </ol>
+            </nav>
+            
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">افزودن رسانه جدید برای {{ 'محصول' if item_type == 'product' else 'خدمت' }}: {{ item.name }}</h5>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                    <div class="messages">
+                        {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+                    
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="mb-4">
+                            <label for="media" class="form-label">انتخاب فایل‌های رسانه</label>
+                            <input type="file" class="form-control" id="media" name="media" accept="image/*,video/mp4" multiple required>
+                            <div class="form-text">
+                                <ul class="mb-0 mt-2">
+                                    <li>می‌توانید چندین فایل تصویر یا ویدیو را همزمان انتخاب کنید.</li>
+                                    <li>فرمت‌های مجاز: JPG، PNG، GIF و MP4</li>
+                                    <li>حداکثر اندازه هر فایل: 16 مگابایت</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div id="preview" class="row mt-4 mb-4 d-none">
+                            <div class="col-12">
+                                <h6>پیش‌نمایش فایل‌های انتخاب شده:</h6>
+                            </div>
+                            <div id="preview-container" class="d-flex flex-wrap">
+                                <!-- Preview images will be inserted here -->
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> توجه:
+                            <ul class="mb-0 mt-2">
+                                <li>فایل‌های انتخاب شده هم در سرور ذخیره می‌شوند و هم به تلگرام ارسال می‌شوند تا file_id دریافت کنند.</li>
+                                <li>در صورتی که file_id دریافت نشود، از آدرس لوکال استفاده خواهد شد.</li>
+                                <li>برای بهترین نتیجه، از تصاویر با کیفیت بالا و نسبت تصویر مناسب استفاده کنید.</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-cloud-upload"></i> آپلود فایل‌ها
+                            </button>
+                            {% if item_type == 'product' %}
+                            <a href="{{ url_for('product_media', product_id=item.id) }}" class="btn btn-secondary">انصراف</a>
+                            {% else %}
+                            <a href="{{ url_for('service_media', service_id=item.id) }}" class="btn btn-secondary">انصراف</a>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Preview multiple images before upload
+    document.addEventListener('DOMContentLoaded', function() {
+        const mediaInput = document.getElementById('media');
+        const previewDiv = document.getElementById('preview');
+        const previewContainer = document.getElementById('preview-container');
+        
+        mediaInput.addEventListener('change', function() {
+            // Clear previous previews
+            previewContainer.innerHTML = '';
+            
+            if (this.files.length > 0) {
+                previewDiv.classList.remove('d-none');
+                
+                for (let i = 0; i < this.files.length; i++) {
+                    const file = this.files[i];
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        const previewItem = document.createElement('div');
+                        previewItem.className = 'preview-item m-2 text-center';
+                        
+                        if (file.type.startsWith('image/')) {
+                            // Image preview
+                            const img = document.createElement('img');
+                            img.src = e.target.result;
+                            img.className = 'img-thumbnail';
+                            img.style.maxHeight = '150px';
+                            img.style.maxWidth = '150px';
+                            previewItem.appendChild(img);
+                        } else if (file.type.startsWith('video/')) {
+                            // Video preview
+                            const video = document.createElement('div');
+                            video.className = 'video-preview bg-dark d-flex align-items-center justify-content-center rounded';
+                            video.style.width = '150px';
+                            video.style.height = '150px';
+                            
+                            const icon = document.createElement('i');
+                            icon.className = 'bi bi-play-circle-fill text-white';
+                            icon.style.fontSize = '3rem';
+                            
+                            video.appendChild(icon);
+                            previewItem.appendChild(video);
+                        }
+                        
+                        // Add file name and size
+                        const fileNameDiv = document.createElement('div');
+                        fileNameDiv.className = 'small mt-1 text-truncate';
+                        fileNameDiv.style.maxWidth = '150px';
+                        fileNameDiv.textContent = file.name;
+                        
+                        // Add file size
+                        const fileSizeDiv = document.createElement('div');
+                        fileSizeDiv.className = 'small text-muted';
+                        
+                        // Format file size
+                        const fileSize = file.size;
+                        let sizeText = '';
+                        if (fileSize < 1024) {
+                            sizeText = fileSize + ' B';
+                        } else if (fileSize < 1024 * 1024) {
+                            sizeText = (fileSize / 1024).toFixed(1) + ' KB';
+                        } else {
+                            sizeText = (fileSize / (1024 * 1024)).toFixed(1) + ' MB';
+                        }
+                        
+                        fileSizeDiv.textContent = sizeText;
+                        
+                        previewItem.appendChild(fileNameDiv);
+                        previewItem.appendChild(fileSizeDiv);
+                        
+                        previewContainer.appendChild(previewItem);
+                    };
+                    
+                    reader.readAsDataURL(file);
+                }
+            } else {
+                previewDiv.classList.add('d-none');
+            }
+        });
+    });
+</script>
+{% endblock %}
