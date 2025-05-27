@@ -126,9 +126,10 @@ def main():
             # === ایجاد 5 مطلب آموزشی ===
             print("📚 ایجاد 5 مطلب آموزشی...")
             
-            # دریافت ID دسته تئوری
-            cur.execute("SELECT id FROM educational_categories WHERE name = 'تئوری'")
-            theory_id = cur.fetchone()[0]
+            # دریافت ID اولین دسته آموزشی
+            cur.execute("SELECT id FROM educational_categories LIMIT 1")
+            theory_result = cur.fetchone()
+            theory_id = theory_result[0] if theory_result else 1
             
             # مطالب آموزشی
             educational_data = [
