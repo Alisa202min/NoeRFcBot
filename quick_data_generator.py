@@ -32,7 +32,7 @@ def main():
         
         # بررسی وجود دسته‌بندی‌ها
         with db.conn.cursor() as cur:
-            cur.execute("SELECT COUNT(*) FROM educational_categories WHERE name = 'تئوری'")
+            cur.execute("SELECT COUNT(*) FROM educational_categories")
             if cur.fetchone()[0] == 0:
                 print("❌ دسته‌بندی‌ها وجود ندارن! ابتدا seed_categories.py اجرا کنید")
                 return
@@ -41,7 +41,7 @@ def main():
             print("📦 ایجاد 5 محصول با تصاویر...")
             
             # دریافت ID دسته محصولات
-            cur.execute("SELECT id FROM product_categories WHERE name = 'اسیلوسکوپ' LIMIT 1")
+            cur.execute("SELECT id FROM product_categories LIMIT 1")
             product_cat_result = cur.fetchone()
             if product_cat_result:
                 product_cat_id = product_cat_result[0]
@@ -195,8 +195,8 @@ def main():
         return False
     
     finally:
-        if 'db' in locals():
-            db.close()
+        if 'db' in locals() and hasattr(db, 'connection') and db.connection:
+            db.connection.close()
     
     return True
 
