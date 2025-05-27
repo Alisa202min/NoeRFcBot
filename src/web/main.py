@@ -755,7 +755,15 @@ def admin_products():
                 photo = request.files.get('photo')
                 if photo and photo.filename:
                     # مسیر فایل‌های آپلودی
+                    current_dir = os.getcwd()
+                    logger.info(f"Current working directory: {current_dir}")
+                    
                     upload_dir = os.path.join('static', 'uploads', 'products', 'main')
+                    full_upload_dir = os.path.join(current_dir, upload_dir)
+                    logger.info(f"Trying to create upload directory: {full_upload_dir}")
+                    logger.info(f"Static directory exists: {os.path.exists('static')}")
+                    logger.info(f"Full static path: {os.path.join(current_dir, 'static')}")
+                    
                     os.makedirs(upload_dir, exist_ok=True)
                     
                     # استفاده از تابع handle_media_upload برای مدیریت آپلود
