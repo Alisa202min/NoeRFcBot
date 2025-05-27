@@ -1,19 +1,34 @@
 #!/usr/bin/env python3
 """
-تولیدکننده دیتای کامل RFTEST
-فایل واحد و بهینه برای تولید همه دیتا
+تولیدکننده دیتای کامل RFTEST - ویرایش بهبود یافته
+استفاده از توابع اصلی برنامه بجای SQL مستقیم برای حفظ یکپارچگی دیتا
 15 محصول + 15 خدمات + 15 مطلب آموزشی + 15 استعلام
 """
 
 import os
+import sys
 from datetime import datetime, timedelta
 import random
-from database import Database
 from PIL import Image, ImageDraw, ImageFont
 import shutil
 
+# اضافه کردن مسیر اصلی برنامه
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# وارد کردن کلاس‌های اصلی برنامه
+from src.web.app import app, db
+from src.models.models import (
+    Product, Service, EducationalContent, Inquiry,
+    ProductCategory, ServiceCategory, EducationalCategory,
+    ProductMedia, ServiceMedia, EducationalContentMedia,
+    User
+)
+
 def create_image(path, text):
     """ساخت تصویر با متن مشخص"""
+    # اطمینان از وجود پوشه
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    
     img = Image.new('RGB', (800, 600), (245, 245, 245))
     draw = ImageDraw.Draw(img)
     try:
@@ -24,84 +39,107 @@ def create_image(path, text):
     draw.text((300, 280), text, fill=(60, 60, 60), font=font)
     draw.text((50, 50), "RFTEST.IR", fill=(0, 102, 204), font=font)
     img.save(path)
+    print(f"✅ تصویر ایجاد شد: {path}")
 
-def clear_all_data(db):
-    """پاک کردن تمام دیتای قبلی"""
+def clear_all_data():
+    """پاک کردن تمام دیتای قبلی با استفاده از ORM"""
     print("🗑️ پاک کردن دیتای قبلی...")
     
-    with db.conn.cursor() as cur:
-        tables = [
-            "product_media", "service_media", "educational_content_media",
-            "products", "services", "educational_content", 
-            "product_categories", "service_categories", "educational_categories", 
-            "inquiries"
-        ]
-        
-        for table in tables:
-            try:
-                cur.execute(f"DELETE FROM {table}")
-            except Exception as e:
-                pass
-        
-        db.conn.commit()
-    print("✅ دیتای قبلی پاک شد")
+    with app.app_context():
+        try:
+            # حذف رسانه‌ها (به ترتیب وابستگی)
+            ProductMedia.query.delete()
+            ServiceMedia.query.delete()
+            EducationalContentMedia.query.delete()
+            
+            # حذف محتوا
+            Product.query.delete()
+            Service.query.delete()
+            EducationalContent.query.delete()
+            Inquiry.query.delete()
+            
+            # حذف دسته‌بندی‌ها
+            ProductCategory.query.delete()
+            ServiceCategory.query.delete()
+            EducationalCategory.query.delete()
+            
+            db.session.commit()
+            print("✅ دیتای قبلی پاک شد")
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ خطا در پاک کردن دیتا: {e}")
 
-def create_hierarchical_categories(db):
-    """ایجاد دسته‌بندی‌های سلسله مراتبی"""
-    print("🗂️ ایجاد دسته‌بندی‌های سلسله مراتبی...")
+def create_hierarchical_categories():
+    """ایجاد دسته‌بندی‌های سلسله مراتبی با استفاده از ORM"""
+    print("📂 ایجاد دسته‌بندی‌های سلسله مراتبی...")
     
     categories = {}
     
-    with db.conn.cursor() as cur:
-        # === دسته‌های محصولات ===
-        cur.execute("""
-            INSERT INTO product_categories (name, parent_id, created_at) 
-            VALUES (%s, %s, %s) RETURNING id
-        """, ("تجهیزات اندازه‌گیری", None, datetime.now()))
-        main_prod = cur.fetchone()[0]
-        
-        prod_subcats = ["اسیلوسکوپ", "اسپکتروم آنالایزر", "سیگنال ژنراتور"]
-        for cat in prod_subcats:
-            cur.execute("""
-                INSERT INTO product_categories (name, parent_id, created_at) 
-                VALUES (%s, %s, %s) RETURNING id
-            """, (cat, main_prod, datetime.now()))
-            categories[f"product_{cat}"] = cur.fetchone()[0]
-        
-        # === دسته‌های خدمات ===
-        cur.execute("""
-            INSERT INTO service_categories (name, parent_id, created_at) 
-            VALUES (%s, %s, %s) RETURNING id
-        """, ("خدمات RFTEST", None, datetime.now()))
-        main_service = cur.fetchone()[0]
-        
-        service_subcats = ["کالیبراسیون", "تعمیرات", "آموزش"]
-        for cat in service_subcats:
-            cur.execute("""
-                INSERT INTO service_categories (name, parent_id, created_at) 
-                VALUES (%s, %s, %s) RETURNING id
-            """, (cat, main_service, datetime.now()))
-            categories[f"service_{cat}"] = cur.fetchone()[0]
-        
-        # === دسته‌های آموزشی ===
-        cur.execute("""
-            INSERT INTO educational_categories (name, parent_id, created_at) 
-            VALUES (%s, %s, %s) RETURNING id
-        """, ("محتوای آموزشی", None, datetime.now()))
-        main_edu = cur.fetchone()[0]
-        
-        edu_subcats = ["راهنما", "تئوری", "عملی"]
-        for cat in edu_subcats:
-            cur.execute("""
-                INSERT INTO educational_categories (name, parent_id, created_at) 
-                VALUES (%s, %s, %s) RETURNING id
-            """, (cat, main_edu, datetime.now()))
-            categories[f"educational_{cat}"] = cur.fetchone()[0]
-        
-        db.conn.commit()
-    
-    print("✅ دسته‌بندی‌های سلسله مراتبی ایجاد شد")
-    return categories
+    with app.app_context():
+        try:
+            # دسته‌بندی محصولات
+            product_categories = [
+                ("اسیلوسکوپ", "تجهیزات اندازه‌گیری شکل موج"),
+                ("اسپکتروم آنالایزر", "تجهیزات آنالیز فرکانسی"),
+                ("سیگنال ژنراتور", "تجهیزات تولید سیگنال"),
+                ("نتورک آنالایزر", "تجهیزات آنالیز شبکه"),
+                ("پاورمتر", "تجهیزات اندازه‌گیری توان")
+            ]
+            
+            for name, description in product_categories:
+                category = ProductCategory()
+                category.name = name
+                category.description = description
+                category.created_at = datetime.now()
+                db.session.add(category)
+                db.session.flush()  # برای گرفتن ID
+                categories[f"product_{name}"] = category.id
+            
+            # دسته‌بندی خدمات
+            service_categories = [
+                ("کالیبراسیون", "خدمات کالیبراسیون تجهیزات"),
+                ("تعمیرات", "خدمات تعمیر و نگهداری"),
+                ("آموزش", "خدمات آموزشی و مشاوره"),
+                ("طراحی", "خدمات طراحی و پیاده‌سازی"),
+                ("مشاوره", "خدمات مشاوره تخصصی")
+            ]
+            
+            for name, description in service_categories:
+                category = ServiceCategory()
+                category.name = name
+                category.description = description
+                category.created_at = datetime.now()
+                db.session.add(category)
+                db.session.flush()
+                categories[f"service_{name}"] = category.id
+            
+            # دسته‌بندی آموزشی
+            educational_categories = [
+                ("RF و میکروویو", "آموزش تکنولوژی RF"),
+                ("اندازه‌گیری", "آموزش تجهیزات اندازه‌گیری"),
+                ("کالیبراسیون", "آموزش فرآیندهای کالیبراسیون"),
+                ("تعمیرات", "آموزش تعمیر تجهیزات"),
+                ("استانداردها", "آموزش استانداردهای صنعتی")
+            ]
+            
+            for name, description in educational_categories:
+                category = EducationalCategory()
+                category.name = name
+                category.description = description
+                category.created_at = datetime.now()
+                db.session.add(category)
+                db.session.flush()
+                categories[f"educational_{name}"] = category.id
+            
+            db.session.commit()
+            print("✅ دسته‌بندی‌های سلسله مراتبی ایجاد شد")
+            return categories
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ خطا در ایجاد دسته‌بندی‌ها: {e}")
+            return {}
 
 def create_products_with_images(db, categories):
     """ایجاد 15 محصول با تصاویر کامل"""
@@ -363,23 +401,27 @@ def generate_final_report(db):
     print("🚀 سیستم RFTEST آماده استفاده!")
 
 def main():
-    """تابع اصلی - تولید کامل دیتای RFTEST"""
-    print("🚀 تولیدکننده دیتای کامل RFTEST")
-    print("15 محصول + 15 خدمات + 15 مطلب آموزشی + 15 استعلام")
+    """تابع اصلی - تولید کامل دیتای RFTEST با استفاده از ORM"""
+    print("🚀 تولیدکننده دیتای کامل RFTEST - ویرایش بهبود یافته")
+    print("15 محصول + 15 خدمات + 15 مطلب آموزشی")
+    print("استفاده از توابع اصلی برنامه برای حفظ یکپارچگی دیتا")
     print("="*60)
     
     try:
-        # اتصال به دیتابیس
-        db = Database()
-        
         # ایجاد پوشه پیش‌فرض
         os.makedirs("static/uploads/default", exist_ok=True)
         create_image("static/uploads/default/default.jpg", "RFTEST")
         
-        # مراحل تولید دیتا
-        clear_all_data(db)
-        categories = create_hierarchical_categories(db)
-        create_products_with_images(db, categories)
+        # مراحل تولید دیتا با استفاده از ORM
+        clear_all_data()
+        categories = create_hierarchical_categories()
+        
+        if not categories:
+            print("❌ خطا در ایجاد دسته‌بندی‌ها. متوقف شد.")
+            return
+            
+        create_products_with_images(categories)
+        create_services_with_images(categories)
         create_services_with_images(db, categories)
         create_educational_content_with_images(db, categories)
         create_inquiries(db)
