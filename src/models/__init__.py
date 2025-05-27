@@ -5,22 +5,26 @@
 
 from .models import (
     User, 
-    Category, 
     Product, 
     ProductMedia, 
     Inquiry, 
     EducationalContent, 
-    StaticContent
+    StaticContent,
+    ProductCategory,
+    ServiceCategory,
+    EducationalCategory
 )
 from .database import Database
 
 __all__ = [
     'User',
-    'Category',
     'Product',
     'ProductMedia',
     'Inquiry',
     'EducationalContent',
     'StaticContent',
+    'ProductCategory',
+    'ServiceCategory',
+    'EducationalCategory',
     'Database'
 ]
