@@ -7,7 +7,7 @@
     <div class="row mb-4">
         <div class="col-12">
             <h2 class="mb-4">
-                <i class="bi bi-folder"></i> مدیریت دسته‌بندی‌ها
+                <i class="bi bi-folder"></i> مدیریت طبقه‌بندی
             </h2>
             
             <!-- تب‌های مدیریت دسته‌بندی -->
@@ -43,7 +43,7 @@
                         <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                             <h5 class="mb-0">دسته‌بندی‌های محصولات</h5>
                             <button type="button" class="btn btn-light" data-bs-toggle="modal" data-bs-target="#addCategoryModal" 
-                                   onclick="setFormType('product')">
+                                    onclick="setFormType('ProductCategory')">
                                 <i class="bi bi-plus-circle"></i> افزودن دسته‌بندی جدید
                             </button>
                         </div>
@@ -74,11 +74,11 @@
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <button type="button" class="btn btn-sm btn-warning" 
-                                                            onclick="editCategory({{ category.id }}, '{{ category.name }}', 'product', {% if category.parent_id %}{{ category.parent_id }}{% else %}null{% endif %})">
+                                                            onclick="editCategory({{ category.id }}, '{{ category.name | e }}', 'ProductCategory', {% if category.parent_id %}{{ category.parent_id }}{% else %}null{% endif %})">
                                                         <i class="bi bi-pencil"></i>
                                                     </button>
                                                     <button type="button" class="btn btn-sm btn-danger" 
-                                                            onclick="confirmDelete({{ category.id }}, '{{ category.name }}', 'product')">
+                                                            onclick="confirmDelete({{ category.id }}, '{{ category.name | e }}', 'ProductCategory')">
                                                         <i class="bi bi-trash"></i>
                                                     </button>
                                                 </div>
@@ -101,7 +101,7 @@
                         <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
                             <h5 class="mb-0">دسته‌بندی‌های خدمات</h5>
                             <button type="button" class="btn btn-light" data-bs-toggle="modal" data-bs-target="#addCategoryModal"
-                                   onclick="setFormType('service')">
+                                    onclick="setFormType('ServiceCategory')">
                                 <i class="bi bi-plus-circle"></i> افزودن دسته‌بندی جدید
                             </button>
                         </div>
@@ -132,11 +132,11 @@
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <button type="button" class="btn btn-sm btn-warning" 
-                                                            onclick="editCategory({{ category.id }}, '{{ category.name }}', 'service', {% if category.parent_id %}{{ category.parent_id }}{% else %}null{% endif %})">
+                                                            onclick="editCategory({{ category.id }}, '{{ category.name | e }}', 'ServiceCategory', {% if category.parent_id %}{{ category.parent_id }}{% else %}null{% endif %})">
                                                         <i class="bi bi-pencil"></i>
                                                     </button>
                                                     <button type="button" class="btn btn-sm btn-danger" 
-                                                            onclick="confirmDelete({{ category.id }}, '{{ category.name }}', 'service')">
+                                                            onclick="confirmDelete({{ category.id }}, '{{ category.name | e }}', 'ServiceCategory')">
                                                         <i class="bi bi-trash"></i>
                                                     </button>
                                                 </div>
@@ -159,7 +159,7 @@
                         <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
                             <h5 class="mb-0">دسته‌بندی‌های محتوای آموزشی</h5>
                             <button type="button" class="btn btn-light" data-bs-toggle="modal" data-bs-target="#addCategoryModal"
-                                   onclick="setFormType('education')">
+                                    onclick="setFormType('EducationalCategory')">
                                 <i class="bi bi-plus-circle"></i> افزودن دسته‌بندی جدید
                             </button>
                         </div>
@@ -190,11 +190,11 @@
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <button type="button" class="btn btn-sm btn-warning" 
-                                                            onclick="editCategory({{ category.id }}, '{{ category.name }}', 'educational', {% if category.parent_id %}{{ category.parent_id }}{% else %}null{% endif %})">
+                                                            onclick="editCategory({{ category.id }}, '{{ category.name | e }}', 'EducationalCategory', {% if category.parent_id %}{{ category.parent_id }}{% else %}null{% endif %})">
                                                         <i class="bi bi-pencil"></i>
                                                     </button>
                                                     <button type="button" class="btn btn-sm btn-danger" 
-                                                            onclick="confirmDelete({{ category.id }}, '{{ category.name }}', 'educational')">
+                                                            onclick="confirmDelete({{ category.id }}, '{{ category.name | e }}', 'EducationalCategory')">
                                                         <i class="bi bi-trash"></i>
                                                     </button>
                                                 </div>
@@ -329,16 +329,15 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form id="categoryForm" action="{{ url_for('admin_add_category') }}" method="post">
+                <form id="categoryForm" method="post">
                     <input type="hidden" id="categoryId" name="id">
-                    <input type="hidden" id="formAction" name="_action" value="add">
+                    <input type="hidden" id="formAction" name="action" value="add">
+                    <input type="hidden" id="categoryType" name="categoryType" value="ProductCategory">
                     
                     <div class="mb-3">
                         <label for="categoryName" class="form-label">نام دسته‌بندی</label>
                         <input type="text" class="form-control" id="categoryName" name="name" required>
                     </div>
-                    
-                    <input type="hidden" id="categoryType" name="category_type" value="product">
                     
                     <div class="mb-3">
                         <label for="parentCategory" class="form-label">دسته‌بندی والد (اختیاری)</label>
@@ -347,19 +346,19 @@
                             <!-- لیست دسته‌بندی‌های محصول -->
                             <optgroup label="دسته‌بندی‌های محصول" id="product-parent-options">
                                 {% for category in product_categories %}
-                                <option value="{{ category.id }}" data-type="product">{{ category.name }}</option>
+                                <option value="{{ category.id }}" data-type="ProductCategory">{{ category.name }}</option>
                                 {% endfor %}
                             </optgroup>
                             <!-- لیست دسته‌بندی‌های خدمات -->
                             <optgroup label="دسته‌بندی‌های خدمات" id="service-parent-options">
                                 {% for category in service_categories %}
-                                <option value="{{ category.id }}" data-type="service">{{ category.name }}</option>
+                                <option value="{{ category.id }}" data-type="ServiceCategory">{{ category.name }}</option>
                                 {% endfor %}
                             </optgroup>
                             <!-- لیست دسته‌بندی‌های محتوای آموزشی -->
                             <optgroup label="دسته‌بندی‌های محتوای آموزشی" id="education-parent-options">
                                 {% for category in educational_categories %}
-                                <option value="{{ category.id }}" data-type="educational">{{ category.name }}</option>
+                                <option value="{{ category.id }}" data-type="EducationalCategory">{{ category.name }}</option>
                                 {% endfor %}
                             </optgroup>
                         </select>
@@ -368,7 +367,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
-                <button type="button" class="btn btn-primary" onclick="submitCategoryForm()">ذخیره</button>
+                <button type="submit" class="btn btn-primary" form="categoryForm">ذخیره</button>
             </div>
         </div>
     </div>
@@ -384,146 +383,134 @@
             </div>
             <div class="modal-body">
                 <p>آیا از حذف دسته‌بندی "<span id="deleteCategoryName"></span>" اطمینان دارید؟</p>
-                <p class="text-danger">توجه: با حذف این دسته‌بندی، تمام زیردسته‌های آن بی‌والد خواهند شد.</p>
+                <p class="text-danger">توجه: با حذف این دسته‌بندی، تمام زیردسته‌های آن بی‌والد و اشیاء مرتبط بدون دسته‌بندی خواهند شد.</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
-                <form id="deleteCategoryForm" action="{{ url_for('admin_add_category') }}" method="post">
+                <form id="deleteCategoryForm" method="post">
                     <input type="hidden" id="deleteCategoryId" name="id">
-                    <input type="hidden" id="deleteCategoryType" name="category_type" value="product">
-                    <input type="hidden" name="_action" value="delete">
-                    <button type="button" class="btn btn-danger" onclick="submitDeleteForm()">حذف</button>
+                    <input type="hidden" id="deleteCategoryType" name="categoryType" value="ProductCategory">
+                    <button type="submit" class="btn btn-danger">حذف</button>
                 </form>
             </div>
         </div>
     </div>
 </div>
+
+<!-- نمایش پیام‌های فلش -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // تنظیم نوع فرم (محصول یا خدمات)
+    // تنظیم نوع فرم و مسیر action
     function setFormType(type) {
-        document.getElementById('categoryType').value = type;
+        const categoryTypeInput = document.getElementById('categoryType');
+        const categoryForm = document.getElementById('categoryForm');
+        const formActionInput = document.getElementById('formAction');
+        categoryTypeInput.value = type;
+
+        // تنظیم مسیر action بر اساس نوع دسته‌بندی
+        if (type === 'ProductCategory') {
+            categoryForm.action = formActionInput.value === 'add' 
+                ? "{{ url_for('add_product_categories') }}" 
+                : "{{ url_for('update_product_categories') }}";
+        } else if (type === 'ServiceCategory') {
+            categoryForm.action = formActionInput.value === 'add' 
+                ? "{{ url_for('add_service_categories') }}" 
+                : "{{ url_for('update_service_categories') }}";
+        } else if (type === 'EducationalCategory') {
+            categoryForm.action = formActionInput.value === 'add' 
+                ? "{{ url_for('add_education_categories') }}" 
+                : "{{ url_for('update_education_categories') }}";
+        }
+
         updateParentCategoryOptions();
     }
-    
-    // به‌روزرسانی گزینه‌های دسته‌بندی والد بر اساس نوع انتخاب شده
+
+    // به‌روزرسانی گزینه‌های دسته‌بندی والد بر اساس نوع انتخاب‌شده
     function updateParentCategoryOptions() {
         const categoryType = document.getElementById('categoryType').value;
         const parentSelect = document.getElementById('parentCategory');
         const options = parentSelect.querySelectorAll('option[data-type]');
-        
-        // نمایش/عدم نمایش گزینه‌ها بر اساس نوع
+        const categoryId = document.getElementById('categoryId').value;
+
         options.forEach(option => {
-            if (option.getAttribute('data-type') === categoryType) {
+            // فقط گزینه‌هایی که هم‌نوع هستند و خود دسته‌بندی (در حالت ویرایش) نیست رو نمایش بده
+            if (option.getAttribute('data-type') === categoryType && option.value !== categoryId) {
                 option.style.display = '';
             } else {
                 option.style.display = 'none';
-                // اگر یک گزینه پنهان انتخاب شده، آن را حذف کنید
                 if (option.selected) {
                     parentSelect.value = '';
                 }
             }
         });
     }
-    
-    // رویداد تغییر نوع دسته‌بندی
-    document.getElementById('categoryType').addEventListener('change', updateParentCategoryOptions);
-    
+
     // ویرایش دسته‌بندی
     function editCategory(id, name, type, parentId) {
-        // تنظیم عنوان مودال
         document.getElementById('categoryModalTitle').textContent = 'ویرایش دسته‌بندی';
-        
-        // تنظیم فرم
         const form = document.getElementById('categoryForm');
-        form.action = "{{ url_for('admin_add_category') }}";
         document.getElementById('formAction').value = 'edit';
         document.getElementById('categoryId').value = id;
         document.getElementById('categoryName').value = name;
         document.getElementById('categoryType').value = type;
-        
-        // تنظیم والد
+
+        // تنظیم مسیر action بر اساس نوع و ویرایش
+        setFormType(type);
+
         if (parentId) {
             document.getElementById('parentCategory').value = parentId;
         } else {
             document.getElementById('parentCategory').value = '';
         }
-        
-        // به‌روزرسانی گزینه‌های والد
+
         updateParentCategoryOptions();
-        
-        // نمایش مودال
         new bootstrap.Modal(document.getElementById('addCategoryModal')).show();
     }
-    
+
     // تایید حذف دسته‌بندی
-    function confirmDelete(id, name, category_type) {
+    function confirmDelete(id, name, type) {
         document.getElementById('deleteCategoryName').textContent = name;
         document.getElementById('deleteCategoryId').value = id;
-        document.getElementById('deleteCategoryType').value = category_type;
-        
+        document.getElementById('deleteCategoryType').value = type;
+        const deleteForm = document.getElementById('deleteCategoryForm');
+
+        // تنظیم مسیر action برای حذف
+        if (type === 'ProductCategory') {
+            deleteForm.action = "{{ url_for('delete_product_categories') }}";
+        } else if (type === 'ServiceCategory') {
+            deleteForm.action = "{{ url_for('delete_service_categories') }}";
+        } else if (type === 'EducationalCategory') {
+            deleteForm.action = "{{ url_for('delete_education_categories') }}";
+        }
+
         new bootstrap.Modal(document.getElementById('deleteCategoryModal')).show();
     }
-    
-    // ارسال فرم دسته‌بندی و بستن مودال
-    function submitCategoryForm() {
-        // اضافه کردن یک event listener برای فرم
-        const form = document.getElementById('categoryForm');
-        const modalElement = document.getElementById('addCategoryModal');
-        const modal = bootstrap.Modal.getInstance(modalElement);
-        
-        form.addEventListener('submit', function(event) {
-            // از ذخیره‌سازی پیش‌فرض جلوگیری می‌کنیم
-            event.preventDefault();
-            
-            // ارسال فرم با AJAX
-            fetch(form.action, {
-                method: 'POST',
-                body: new FormData(form)
-            })
-            .then(response => {
-                // بستن مودال بعد از ارسال موفق
-                modal.hide();
-                
-                // بارگذاری مجدد صفحه برای نمایش تغییرات
-                window.location.reload();
-            })
-            .catch(error => {
-                console.error('خطا در ارسال فرم:', error);
-            });
-        });
-        
-        // ارسال فرم
-        form.requestSubmit();
-    }
-    
-    // ارسال فرم حذف دسته‌بندی و بستن مودال
-    function submitDeleteForm() {
-        // دریافت فرم و مودال
-        const form = document.getElementById('deleteCategoryForm');
-        const modalElement = document.getElementById('deleteCategoryModal');
-        const modal = bootstrap.Modal.getInstance(modalElement);
-        
-        // ارسال فرم با AJAX
-        fetch(form.action, {
-            method: 'POST',
-            body: new FormData(form)
-        })
-        .then(response => {
-            // بستن مودال بعد از ارسال موفق
-            modal.hide();
-            
-            // بارگذاری مجدد صفحه برای نمایش تغییرات
-            window.location.reload();
-        })
-        .catch(error => {
-            console.error('خطا در حذف دسته‌بندی:', error);
-        });
-    }
-    
-    // اجرای به‌روزرسانی گزینه‌های والد در هنگام بارگیری صفحه
+
+    // بستن مودال بعد از ارسال موفق
+    document.getElementById('categoryForm').addEventListener('submit', function(event) {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('addCategoryModal'));
+        modal.hide();
+    });
+
+    document.getElementById('deleteCategoryForm').addEventListener('submit', function(event) {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('deleteCategoryModal'));
+        modal.hide();
+    });
+
+    // به‌روزرسانی گزینه‌های والد در هنگام بارگیری صفحه
     document.addEventListener('DOMContentLoaded', function() {
         updateParentCategoryOptions();
     });

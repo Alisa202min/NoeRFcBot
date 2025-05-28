@@ -2,7 +2,7 @@ from src.web.app import db
 from datetime import datetime
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-
+from flask_sqlalchemy import SQLAlchemy
 
 class User(UserMixin, db.Model):
     """User model for admin authentication and Telegram users"""
@@ -35,47 +35,43 @@ class User(UserMixin, db.Model):
         return check_password_hash(self.password_hash, password)
 
 
+
+
+
+
 class ProductCategory(db.Model):
-    """Category model for products"""
     __tablename__ = 'product_categories'
-    
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64), nullable=False)
+    name = db.Column(db.String(255), nullable=False)
     parent_id = db.Column(db.Integer, db.ForeignKey('product_categories.id'), nullable=True)
-    
-    # Relationships
-    children = db.relationship('ProductCategory', backref=db.backref('parent', remote_side=[id]))
-    products = db.relationship('Product', backref='category', lazy='dynamic')
-    
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+    parent = db.relationship('ProductCategory', remote_side=[id], backref=db.backref('children', lazy='dynamic'))
+
     def __repr__(self):
         return f'<ProductCategory {self.name}>'
 
-
 class ServiceCategory(db.Model):
-    """Category model for services"""
     __tablename__ = 'service_categories'
-    
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64), nullable=False)
+    name = db.Column(db.String(255), nullable=False)
     parent_id = db.Column(db.Integer, db.ForeignKey('service_categories.id'), nullable=True)
-    
-    # Relationships
-    children = db.relationship('ServiceCategory', backref=db.backref('parent', remote_side=[id]))
-    services = db.relationship('Service', backref='category', lazy='dynamic')
-    
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+    parent = db.relationship('ServiceCategory', remote_side=[id], backref=db.backref('children', lazy='dynamic'))
+
     def __repr__(self):
         return f'<ServiceCategory {self.name}>'
 
+class EducationalCategory(db.Model):
+    __tablename__ = 'educational_categories'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    parent_id = db.Column(db.Integer, db.ForeignKey('educational_categories.id'), nullable=True)
+    parent = db.relationship('EducationalCategory', remote_side=[id], backref=db.backref('children', lazy='dynamic'))
 
-# Legacy Category model - kept for backward compatibility during migration
-# Category model removed - now using ProductCategory, ServiceCategory, and EducationalCategory
+    def __repr__(self):
+        return f'<EducationalCategory {self.name}>'
 
+    
+  
+   
 
 class Product(db.Model):
     """Product model - now separate from services"""
@@ -253,21 +249,6 @@ class Inquiry(db.Model):
 
 
 
-class EducationalCategory(db.Model):
-    """Category model for educational content"""
-    __tablename__ = 'educational_categories'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.Text, nullable=False)
-    parent_id = db.Column(db.Integer, db.ForeignKey('educational_categories.id'), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    children = db.relationship('EducationalCategory', backref=db.backref('parent', remote_side=[id]))
-    contents = db.relationship('EducationalContent', backref='educational_category', lazy='dynamic')
-    
-    def __repr__(self):
-        return f'<EducationalCategory {self.name}>'
 
 
 class EducationalContent(db.Model):

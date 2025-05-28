@@ -1,30 +1,36 @@
 """
-ماژول مدل‌های پایگاه داده
-این ماژول شامل کلاس‌های مدل SQLAlchemy و لایه انتزاعی دیتابیس است.
+ماژول مدل‌های دیتابیس
+این ماژول شامل مدل‌های SQLAlchemy برای برنامه است.
 """
 
 from .models import (
-    User, 
-    Product, 
-    ProductMedia, 
-    Inquiry, 
-    EducationalContent, 
+    db,
+    User,
+    Product,
+    ProductMedia,
+    Service,
+    ServiceMedia,
+    Inquiry,
+    EducationalContent,
+    EducationalContentMedia,
     StaticContent,
     ProductCategory,
     ServiceCategory,
     EducationalCategory
 )
-from .database import Database
 
 __all__ = [
+    'db',
     'User',
     'Product',
     'ProductMedia',
+    'Service',
+    'ServiceMedia',
     'Inquiry',
     'EducationalContent',
+    'EducationalContentMedia',
     'StaticContent',
     'ProductCategory',
     'ServiceCategory',
-    'EducationalCategory',
-    'Database'
+    'EducationalCategory'
 ]

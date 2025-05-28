@@ -33,6 +33,8 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
+
+
 # ----- Utility Functions for Media Management -----
 
 def delete_media_file(file_path):
@@ -407,127 +409,6 @@ def admin_index():
                             error=str(e),
                             traceback=traceback.format_exc())
 
-@app.route('/admin/categories')
-@login_required
-def admin_categories():
-    """پنل مدیریت - دسته‌بندی‌ها"""
-    # دریافت دسته‌بندی‌های محصول
-    product_categories = ProductCategory.query.all()
-    product_tree = build_category_tree(product_categories)
-    
-    # دریافت دسته‌بندی‌های خدمات
-    service_categories = ServiceCategory.query.all()
-    service_tree = build_category_tree(service_categories)
-    
-    # دریافت دسته‌بندی‌های محتوای آموزشی
-    educational_categories = EducationalCategory.query.all()
-    educational_tree = build_category_tree(educational_categories)
-    
-    # دسته‌بندی‌های قدیمی دیگر استفاده نمی‌شوند
-    categories = []
-    category_tree = []
-    
-    return render_template('admin/categories.html', 
-                          product_categories=product_categories,
-                          service_categories=service_categories,
-                          educational_categories=educational_categories,
-                          product_tree=product_tree,
-                          service_tree=service_tree,
-                          educational_tree=educational_tree,
-                          # برای سازگاری با سیستم قدیمی
-                          categories=categories,
-                          category_tree=category_tree)
-
-def build_category_tree(categories, parent_id=None):
-    """ساخت ساختار درختی از دسته‌بندی‌ها"""
-    tree = []
-    for category in categories:
-        if category.parent_id == parent_id:
-            children = build_category_tree(categories, category.id)
-            category_data = {
-                'id': category.id,
-                'name': category.name,
-                'children': children
-            }
-            # افزودن cat_type فقط اگر در مدل موجود باشد (برای سازگاری با مدل قدیمی Category)
-            if hasattr(category, 'cat_type'):
-                category_data['cat_type'] = category.cat_type
-            
-            tree.append(category_data)
-    return tree
-
-@app.route('/admin/categories/add', methods=['POST'])
-@login_required
-def admin_add_category():
-    """اضافه کردن، ویرایش یا حذف دسته‌بندی"""
-    try:
-        # بررسی نوع عملیات و نوع دسته‌بندی
-        action = request.form.get('_action', 'add')
-        category_type = request.form.get('category_type')
-        
-        # دریافت پارامترهای مشترک برای اضافه کردن و ویرایش
-        name = request.form.get('name')
-        parent_id = request.form.get('parent_id')
-        
-        # تبدیل parent_id به None اگر خالی باشد
-        if parent_id and parent_id != '':
-            parent_id = int(parent_id)
-        else:
-            parent_id = None
-        
-        # تعیین مدل دسته‌بندی بر اساس نوع
-        if category_type == 'product':
-            CategoryModel = ProductCategory
-        elif category_type == 'service':
-            CategoryModel = ServiceCategory
-        elif category_type == 'educational':
-            CategoryModel = EducationalCategory
-        else:
-            # اگر نوع نامشخص باشد، محصول در نظر گرفته می‌شود
-            CategoryModel = ProductCategory
-        
-        # عملیات حذف
-        if action == 'delete':
-            category_id = request.form.get('id')
-            if category_id:
-                category = CategoryModel.query.get_or_404(int(category_id))
-                name = category.name
-                db.session.delete(category)
-                db.session.commit()
-                flash(f'دسته‌بندی {name} با موفقیت حذف شد.', 'success')
-        
-        # عملیات ویرایش
-        elif action == 'edit':
-            category_id = request.form.get('id')
-            if category_id and name:
-                category = CategoryModel.query.get_or_404(int(category_id))
-                category.name = name
-                category.parent_id = parent_id
-                
-                # فیلد cat_type دیگر استفاده نمی‌شود
-                
-                db.session.commit()
-                flash(f'دسته‌بندی {name} با موفقیت ویرایش شد.', 'success')
-        
-        # عملیات اضافه کردن
-        else:  # action == 'add'
-            if name:
-                # ایجاد دسته‌بندی جدید
-                category = CategoryModel()
-                category.name = name
-                category.parent_id = parent_id
-                
-                db.session.add(category)
-                db.session.commit()
-                flash(f'دسته‌بندی {name} با موفقیت اضافه شد.', 'success')
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error in admin_add_category: {e}")
-        flash(f'خطا در عملیات دسته‌بندی: {str(e)}', 'danger')
-    
-    return redirect(url_for('admin_categories'))
-
 # ... Routes for products, services, inquiries, etc. ...
 
 # تابع کمکی برای تبدیل مسیر فایل تصویر
@@ -893,6 +774,377 @@ def admin_products():
                           products=products,
                           categories=categories)
 
+
+# توابع کمکی
+def build_category_tree(categories, parent_id=None):
+    """ساخت ساختار درختی از دسته‌بندی‌ها"""
+    tree = []
+    for category in categories:
+        if category.parent_id == parent_id:
+            children = build_category_tree(categories, category.id)
+            category_data = {
+                'id': category.id,
+                'name': category.name,
+                'children': children
+            }
+            tree.append(category_data)
+    return tree
+
+def get_all_subcategories(category_model, category_id, subcategories=None):
+    """دریافت تمام زیردسته‌ها به‌صورت بازگشتی"""
+    if subcategories is None:
+        subcategories = []
+    
+    direct_subcategories = category_model.query.filter_by(parent_id=category_id).all()
+    for subcategory in direct_subcategories:
+        subcategories.append(subcategory.id)
+        get_all_subcategories(category_model, subcategory.id, subcategories)
+    
+    return subcategories
+
+def unlink_subcategories(category_model, category_id):
+    """تنظیم parent_id زیردسته‌ها به None"""
+    subcategories = get_all_subcategories(category_model, category_id)
+    count = 0
+    for subcategory_id in subcategories:
+        subcategory = category_model.query.get(subcategory_id)
+        if subcategory:
+            subcategory.parent_id = None
+            count += 1
+    return count
+
+def unlink_objects(model, category_model, category_id):
+    """تنظیم category_id اشیاء مرتبط به None"""
+    category_ids = [category_id] + get_all_subcategories(category_model, category_id)
+    count = model.query.filter(model.category_id.in_(category_ids)).update({model.category_id: None})
+    return count
+
+# مسیرهای مدیریت دسته‌بندی‌ها
+@app.route('/admin-categories')
+@login_required
+def admin_categories():
+    """نمایش صفحه مدیریت دسته‌بندی‌ها با سه تب"""
+    try:
+        # دریافت دسته‌بندی‌ها
+        product_categories = ProductCategory.query.all()
+        service_categories = ServiceCategory.query.all()
+        educational_categories = EducationalCategory.query.all()
+
+        # ساخت درخت دسته‌بندی‌ها
+        product_tree = build_category_tree(product_categories)
+        service_tree = build_category_tree(service_categories)
+        educational_tree = build_category_tree(educational_categories)
+
+        return render_template('admin/categories.html',
+                              product_categories=product_categories,
+                              service_categories=service_categories,
+                              educational_categories=educational_categories,
+                              product_tree=product_tree,
+                              service_tree=service_tree,
+                              educational_tree=educational_tree,
+                              active_page='categories')
+    except Exception as e:
+        logger.error(f"Error in admin_categories: {e}")
+        flash(f'خطا در بارگذاری دسته‌بندی‌ها: {str(e)}', 'danger')
+        return render_template('admin/categories.html',
+                              product_categories=[],
+                              service_categories=[],
+                              educational_categories=[],
+                              product_tree=[],
+                              service_tree=[],
+                              educational_tree=[],
+                              active_page='categories')
+
+# Product Category Management
+@app.route('/admin-categories/add_product_categories', methods=['POST'])
+@login_required
+def add_product_categories():
+    """اضافه کردن دسته‌بندی محصولات"""
+    try:
+        name = request.form.get('name')
+        parent_id = request.form.get('parent_id')
+        
+        if not name:
+            flash('نام دسته‌بندی الزامی است.', 'danger')
+            return redirect(url_for('admin_categories'))
+        
+        if parent_id and parent_id != '':
+            parent_id = int(parent_id)
+        else:
+            parent_id = None
+        
+        category = ProductCategory(name=name, parent_id=parent_id)
+        db.session.add(category)
+        db.session.commit()
+        flash(f'دسته‌بندی محصول "{name}" با موفقیت اضافه شد.', 'success')
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in add_product_categories: {e}")
+        flash(f'خطا در افزودن دسته‌بندی محصول: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin_categories'))
+
+@app.route('/admin-categories/update_product_categories', methods=['POST'])
+@login_required
+def update_product_categories():
+    """ویرایش دسته‌بندی محصولات"""
+    try:
+        category_id = request.form.get('id')
+        name = request.form.get('name')
+        parent_id = request.form.get('parent_id')
+        
+        if not category_id or not name:
+            flash('شناسه و نام دسته‌بندی الزامی هستند.', 'danger')
+            return redirect(url_for('admin_categories'))
+        
+        category = ProductCategory.query.get_or_404(int(category_id))
+        
+        if parent_id and parent_id != '':
+            parent_id = int(parent_id)
+        else:
+            parent_id = None
+        
+        # جلوگیری از تنظیم خود دسته‌بندی به عنوان والد
+        if parent_id == category.id:
+            flash('دسته‌بندی نمی‌تواند والد خودش باشد.', 'danger')
+            return redirect(url_for('admin_categories'))
+        
+        category.name = name
+        category.parent_id = parent_id
+        db.session.commit()
+        flash(f'دسته‌بندی محصول "{name}" با موفقیت ویرایش شد.', 'success')
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in update_product_categories: {e}")
+        flash(f'خطا در ویرایش دسته‌بندی محصول: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin_categories'))
+
+@app.route('/admin-categories/delete_product_categories', methods=['POST'])
+@login_required
+def delete_product_categories():
+    """حذف دسته‌بندی محصولات"""
+    try:
+        category_id = request.form.get('id')
+        if not category_id:
+            flash('شناسه دسته‌بندی نامعتبر است.', 'danger')
+            return redirect(url_for('admin_categories'))
+        
+        category = ProductCategory.query.get_or_404(int(category_id))
+        name = category.name
+        
+        with db.session.begin_nested():
+            subcategories_count = unlink_subcategories(ProductCategory, category_id)
+            products_count = unlink_objects(Product, ProductCategory, category_id)
+            db.session.delete(category)
+        
+        db.session.commit()
+        flash(f'دسته‌بندی محصول "{name}" با موفقیت حذف شد. '
+              f'{subcategories_count} زیردسته بدون والد شدند و '
+              f'{products_count} محصول بدون دسته‌بندی شدند.', 'success')
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in delete_product_categories: {e}")
+        flash(f'خطا در حذف دسته‌بندی محصول: {str(e)}', 'danger')
+
+    return redirect(url_for('admin_categories'))
+
+# Service Category Management
+@app.route('/admin-categories/add_service_categories', methods=['POST'])
+@login_required
+def add_service_categories():
+    """اضافه کردن دسته‌بندی خدمات"""
+    try:
+        name = request.form.get('name')
+        parent_id = request.form.get('parent_id')
+        
+        if not name:
+            flash('نام دسته‌بندی الزامی است.', 'danger')
+            return redirect(url_for('admin_categories'))
+        
+        if parent_id and parent_id != '':
+            parent_id = int(parent_id)
+        else:
+            parent_id = None
+        
+        category = ServiceCategory(name=name, parent_id=parent_id)
+        db.session.add(category)
+        db.session.commit()
+        flash(f'دسته‌بندی خدمات "{name}" با موفقیت اضافه شد.', 'success')
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in add_service_categories: {e}")
+        flash(f'خطا در افزودن دسته‌بندی خدمات: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin_categories'))
+
+@app.route('/admin-categories/update_service_categories', methods=['POST'])
+@login_required
+def update_service_categories():
+    """ویرایش دسته‌بندی خدمات"""
+    try:
+        category_id = request.form.get('id')
+        name = request.form.get('name')
+        parent_id = request.form.get('parent_id')
+        
+        if not category_id or not name:
+            flash('شناسه و نام دسته‌بندی الزامی هستند.', 'danger')
+            return redirect(url_for('admin_categories'))
+        
+        category = ServiceCategory.query.get_or_404(int(category_id))
+        
+        if parent_id and parent_id != '':
+            parent_id = int(parent_id)
+        else:
+            parent_id = None
+        
+        if parent_id == category.id:
+            flash('دسته‌بندی نمی‌تواند والد خودش باشد.', 'danger')
+            return redirect(url_for('admin_categories'))
+        
+        category.name = name
+        category.parent_id = parent_id
+        db.session.commit()
+        flash(f'دسته‌بندی خدمات "{name}" با موفقیت ویرایش شد.', 'success')
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in update_service_categories: {e}")
+        flash(f'خطا در ویرایش دسته‌بندی خدمات: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin_categories'))
+
+@app.route('/admin-categories/delete_service_categories', methods=['POST'])
+@login_required
+def delete_service_categories():
+    """حذف دسته‌بندی خدمات"""
+    try:
+        category_id = request.form.get('id')
+        if not category_id:
+            flash('شناسه دسته‌بندی نامعتبر است.', 'danger')
+            return redirect(url_for('admin_categories'))
+        
+        category = ServiceCategory.query.get_or_404(int(category_id))
+        name = category.name
+        
+        with db.session.begin_nested():
+            subcategories_count = unlink_subcategories(ServiceCategory, category_id)
+            services_count = unlink_objects(Service, ServiceCategory, category_id)
+            db.session.delete(category)
+        
+        db.session.commit()
+        flash(f'دسته‌بندی خدمات "{name}" با موفقیت حذف شد. '
+              f'{subcategories_count} زیردسته بدون والد شدند و '
+              f'{services_count} خدمت بدون دسته‌بندی شدند.', 'success')
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in delete_service_categories: {e}")
+        flash(f'خطا در حذف دسته‌بندی خدمات: {str(e)}', 'danger')
+
+    return redirect(url_for('admin_categories'))
+
+# Educational Category Management
+@app.route('/admin-categories/add_education_categories', methods=['POST'])
+@login_required
+def add_education_categories():
+    """اضافه کردن دسته‌بندی آموزشی"""
+    try:
+        name = request.form.get('name')
+        parent_id = request.form.get('parent_id')
+        
+        if not name:
+            flash('نام دسته‌بندی الزامی است.', 'danger')
+            return redirect(url_for('admin_categories'))
+        
+        if parent_id and parent_id != '':
+            parent_id = int(parent_id)
+        else:
+            parent_id = None
+        
+        category = EducationalCategory(name=name, parent_id=parent_id)
+        db.session.add(category)
+        db.session.commit()
+        flash(f'دسته‌بندی آموزشی "{name}" با موفقیت اضافه شد.', 'success')
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in add_education_categories: {e}")
+        flash(f'خطا در افزودن دسته‌بندی آموزشی: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin_categories'))
+
+@app.route('/admin-categories/update_education_categories', methods=['POST'])
+@login_required
+def update_education_categories():
+    """ویرایش دسته‌بندی آموزشی"""
+    try:
+        category_id = request.form.get('id')
+        name = request.form.get('name')
+        parent_id = request.form.get('parent_id')
+        
+        if not category_id or not name:
+            flash('شناسه و نام دسته‌بندی الزامی هستند.', 'danger')
+            return redirect(url_for('admin_categories'))
+        
+        category = EducationalCategory.query.get_or_404(int(category_id))
+        
+        if parent_id and parent_id != '':
+            parent_id = int(parent_id)
+        else:
+            parent_id = None
+        
+        if parent_id == category.id:
+            flash('دسته‌بندی نمی‌تواند والد خودش باشد.', 'danger')
+            return redirect(url_for('admin_categories'))
+        
+        category.name = name
+        category.parent_id = parent_id
+        db.session.commit()
+        flash(f'دسته‌بندی آموزشی "{name}" با موفقیت ویرایش شد.', 'success')
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in update_education_categories: {e}")
+        flash(f'خطا در ویرایش دسته‌بندی آموزشی: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin_categories'))
+
+@app.route('/admin-categories/delete_education_categories', methods=['POST'])
+@login_required
+def delete_education_categories():
+    """حذف دسته‌بندی آموزشی"""
+    try:
+        category_id = request.form.get('id')
+        if not category_id:
+            flash('شناسه دسته‌بندی نامعتبر است.', 'danger')
+            return redirect(url_for('admin_categories'))
+        
+        category = EducationalCategory.query.get_or_404(int(category_id))
+        name = category.name
+        
+        with db.session.begin_nested():
+            subcategories_count = unlink_subcategories(EducationalCategory, category_id)
+            contents_count = unlink_objects(EducationalContent, EducationalCategory, category_id)
+            db.session.delete(category)
+        
+        db.session.commit()
+        flash(f'دسته‌بندی آموزشی "{name}" با موفقیت حذف شد. '
+              f'{subcategories_count} زیردسته بدون والد شدند و '
+              f'{contents_count} محتوای آموزشی بدون دسته‌بندی شدند.', 'success')
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in delete_education_categories: {e}")
+        flash(f'خطا در حذف دسته‌بندی آموزشی: {str(e)}', 'danger')
+
+    return redirect(url_for('admin_categories'))
+
+# ... (بقیه مسیرها و توابع main.py بدون تغییر)
 # روت‌های مربوط به خدمات
 @app.route('/service/<int:service_id>')
 def service_detail(service_id):
