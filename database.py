@@ -216,7 +216,16 @@ class Database:
             )
             category_id = cursor.fetchone()[0]
             return category_id
-
+    def add_education_category(self, name: str, parent_id: Optional[int] = None) -> int:
+        """Add a new product category"""
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                'INSERT INTO educational_categories (name, parent_id) VALUES (%s, %s) RETURNING id',
+                (name, parent_id)
+            )
+            category_id = cursor.fetchone()[0]
+            return category_id
+            
     def add_service_category(self, name: str, parent_id: Optional[int] = None) -> int:
         """Add a new service category"""
         with self.conn.cursor() as cursor:
