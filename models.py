@@ -156,9 +156,7 @@ class Service(db.Model):
     available = db.Column(db.Boolean, default=True)  # وضعیت در دسترس بودن
     
     # Service-specific fields
-    provider = db.Column(db.String(255), nullable=True)
-    service_code = db.Column(db.String(255), nullable=True)
-    duration = db.Column(db.String(255), nullable=True)
+    
     tags = db.Column(db.Text, nullable=True)
     
     # Relationships
