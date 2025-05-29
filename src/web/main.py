@@ -695,13 +695,13 @@ def admin_products():
                 if product_id:
                     # در صورت خطا در ویرایش، به فرم ویرایش برمی‌گردیم
                     product = Product.query.get(int(product_id))
-                    return render_template('admin/product_form.html',
+                    return render_template('admin_product_form.html',
                                           title="ویرایش محصول",
                                           product=product,
                                           categories=categories)
                 else:
                     # در صورت خطا در افزودن، به فرم افزودن برمی‌گردیم
-                    return render_template('admin/product_form.html',
+                    return render_template('admin_product_form.html',
                                           title="افزودن محصول جدید",
                                           categories=categories)
         
@@ -739,13 +739,13 @@ def admin_products():
     # اگر action برابر با 'add' یا 'edit' باشد، فرم نمایش داده می‌شود
     if action == 'add':
         categories = ProductCategory.query.all()
-        return render_template('admin/product_form.html',
+        return render_template('admin_product_form.html',
                               title="افزودن محصول جدید",
                               categories=categories)
     elif action == 'edit' and product_id:
         product = Product.query.get_or_404(int(product_id))
         categories = ProductCategory.query.all()
-        return render_template('admin/product_form.html',
+        return render_template('admin_product_form.html',
                               title="ویرایش محصول",
                               product=product,
                               categories=categories)
@@ -757,7 +757,7 @@ def admin_products():
             
         product = Product.query.get_or_404(int(product_id))
         media = ProductMedia.query.filter_by(product_id=product.id).all()
-        return render_template('admin/product_media.html',
+        return render_template('admin_product_media.html',
                               product=product,
                               media=media,
                               active_page='products')
@@ -820,7 +820,7 @@ def unlink_objects(model, category_model, category_id):
     return count
 
 # مسیرهای مدیریت دسته‌بندی‌ها
-@app.route('/admin-categories')
+@app.route('/admin/categories')
 @login_required
 def admin_categories():
     """نمایش صفحه مدیریت دسته‌بندی‌ها با سه تب"""
@@ -835,7 +835,7 @@ def admin_categories():
         service_tree = build_category_tree(service_categories)
         educational_tree = build_category_tree(educational_categories)
 
-        return render_template('admin/categories.html',
+        return render_template('admin_categories.html',
                               product_categories=product_categories,
                               service_categories=service_categories,
                               educational_categories=educational_categories,
@@ -846,7 +846,7 @@ def admin_categories():
     except Exception as e:
         logger.error(f"Error in admin_categories: {e}")
         flash(f'خطا در بارگذاری دسته‌بندی‌ها: {str(e)}', 'danger')
-        return render_template('admin/categories.html',
+        return render_template('admin_categories.html',
                               product_categories=[],
                               service_categories=[],
                               educational_categories=[],
@@ -1653,7 +1653,7 @@ def admin_education():
             logger.error(f"خطا در دریافت دسته‌بندی‌ها: {str(e)}")
             categories = []
             
-        return render_template('admin/education_form.html',
+        return render_template('admin_education_form.html',
                               title="افزودن محتوای آموزشی جدید",
                               categories=categories,
                               active_page='admin')
@@ -1678,7 +1678,7 @@ def admin_education():
         categories = db.session.query(EducationalContent.category).distinct().all()
         categories = [cat[0] for cat in categories if cat[0]]
         
-        return render_template('admin/education_form.html',
+        return render_template('admin_education_form.html',
                               title="ویرایش محتوای آموزشی",
                               content=content,
                               media_list=media_list,
@@ -1862,7 +1862,7 @@ def admin_education():
     categories = db.session.query(EducationalContent.category).distinct().all()
     categories = [cat[0] for cat in categories if cat[0]]
     
-    return render_template('admin/education.html',
+    return render_template('admin_education.html',
                           educational_content=educational_content,
                           pagination=pagination,
                           categories=categories,
@@ -2642,7 +2642,7 @@ def admin_database():
             'static_content': db.session.query(StaticContent).count(),
         }
         
-        return render_template('admin/database.html', tables=tables)
+        return render_template('admin_database.html', tables=tables)
     except Exception as e:
         logger.error(f"Error in admin_database: {e}")
         return render_template('error.html', error=str(e))
@@ -2967,13 +2967,13 @@ def products():
         for product in products_list:
             product.formatted_photo_url = get_photo_url(product.photo_url)
         
-        return render_template('products.html', 
+        return render_template('admin_products.html', 
                               products=products_list,
                               categories=categories,
                               selected_category=category_id)
     except Exception as e:
         flash(f'خطا در نمایش صفحه محصولات: {str(e)}', 'danger')
-        return render_template('products.html', products=[], categories=[], selected_category=None)
+        return render_template('admin_products.html', products=[], categories=[], selected_category=None)
 
 @app.route('/services')
 def services():
