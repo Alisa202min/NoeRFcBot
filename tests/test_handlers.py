@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 # Import project modules
 from src.web.app import app, db
-from src.models.models import Product, Service, Inquiry, User, Category, ProductMedia, ServiceMedia
+from models import Product, Service, Inquiry, User, ProductMedia, ServiceMedia
 from aiogram import Bot
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.context import FSMContext

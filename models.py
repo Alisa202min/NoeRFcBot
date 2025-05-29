@@ -1,8 +1,8 @@
-from app import db
+from extensions import db
 from datetime import datetime
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-
+from flask_sqlalchemy import SQLAlchemy
 
 class User(UserMixin, db.Model):
     """User model for admin authentication and Telegram users"""
@@ -22,6 +22,7 @@ class User(UserMixin, db.Model):
     phone = db.Column(db.String(15), nullable=True)
     language_code = db.Column(db.String(10), nullable=True)
     
+    # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -34,65 +35,43 @@ class User(UserMixin, db.Model):
         return check_password_hash(self.password_hash, password)
 
 
+
+
+
+
 class ProductCategory(db.Model):
-    """Category model for products"""
     __tablename__ = 'product_categories'
-    
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64), nullable=False)
+    name = db.Column(db.String(255), nullable=False)
     parent_id = db.Column(db.Integer, db.ForeignKey('product_categories.id'), nullable=True)
-    
-    # Relationships
-    children = db.relationship('ProductCategory', backref=db.backref('parent', remote_side=[id]))
-    products = db.relationship('Product', backref='category', lazy='dynamic')
-    
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+    parent = db.relationship('ProductCategory', remote_side=[id], backref=db.backref('children', lazy='dynamic'))
+
     def __repr__(self):
         return f'<ProductCategory {self.name}>'
 
-
 class ServiceCategory(db.Model):
-    """Category model for services"""
     __tablename__ = 'service_categories'
-    
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64), nullable=False)
+    name = db.Column(db.String(255), nullable=False)
     parent_id = db.Column(db.Integer, db.ForeignKey('service_categories.id'), nullable=True)
-    
-    # Relationships
-    children = db.relationship('ServiceCategory', backref=db.backref('parent', remote_side=[id]))
-    services = db.relationship('Service', backref='category', lazy='dynamic')
-    
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+    parent = db.relationship('ServiceCategory', remote_side=[id], backref=db.backref('children', lazy='dynamic'))
+
     def __repr__(self):
         return f'<ServiceCategory {self.name}>'
 
-
 class EducationalCategory(db.Model):
-    """Category model for educational content"""
     __tablename__ = 'educational_categories'
-    
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.Text, nullable=False)
+    name = db.Column(db.String(255), nullable=False)
     parent_id = db.Column(db.Integer, db.ForeignKey('educational_categories.id'), nullable=True)
-    
-    # Relationships
-    children = db.relationship('EducationalCategory', backref=db.backref('parent', remote_side=[id]))
-    contents = db.relationship('EducationalContent', backref='educational_category', lazy='dynamic')
-    
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+    parent = db.relationship('EducationalCategory', remote_side=[id], backref=db.backref('children', lazy='dynamic'))
+
     def __repr__(self):
         return f'<EducationalCategory {self.name}>'
 
-
-# Legacy Category model has been removed - now using ProductCategory and ServiceCategory instead
-
+    
+  
+   
 
 class Product(db.Model):
     """Product model - now separate from services"""
@@ -104,6 +83,8 @@ class Product(db.Model):
     price = db.Column(db.Integer, default=0)
     category_id = db.Column(db.Integer, db.ForeignKey('product_categories.id'))
     photo_url = db.Column(db.Text, nullable=True)
+    
+    # Type field removed in new database structure
     
     # Extended fields for better search
     brand = db.Column(db.Text, nullable=True)
@@ -154,15 +135,12 @@ class Service(db.Model):
     # Service status columns
     featured = db.Column(db.Boolean, default=False)  # برای نمایش در صفحه اصلی
     available = db.Column(db.Boolean, default=True)  # وضعیت در دسترس بودن
-    
-    # Service-specific fields
-    
-    tags = db.Column(db.Text, nullable=True)
+    tags = db.Column(db.Text, nullable=True)  # برچسب‌های خدمت
     
     # Relationships
     media = db.relationship('ServiceMedia', backref='service', lazy='dynamic', cascade='all, delete-orphan')
     
-    # Timestamps
+    # Timestamps - adding for consistency with other models
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -195,26 +173,29 @@ class ServiceMedia(db.Model):
     service_id = db.Column(db.Integer, db.ForeignKey('services.id', ondelete='CASCADE'))
     file_id = db.Column(db.String(255), nullable=False)  # Telegram file_id
     file_type = db.Column(db.String(10), default='photo')  # photo, video, etc.
-    local_path = db.Column(db.String(255), nullable=True)  # Local path to file
+      # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
     def __repr__(self):
         return f'<Media {self.id} for Service {self.service_id}>'
 
 
 class Inquiry(db.Model):
-    """Customer price inquiries for products and services"""
+    """Price inquiries from users for products"""
     __tablename__ = 'inquiries'
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.BigInteger, nullable=False)  # Telegram user_id
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=True)
+    service_id = db.Column(db.Integer, db.ForeignKey('services.id'), nullable=True)
     name = db.Column(db.String(100), nullable=False)
     phone = db.Column(db.String(20), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=True)
-    service_id = db.Column(db.Integer, db.ForeignKey('services.id'), nullable=True)
-    date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)  # Required in database
     status = db.Column(db.String(20), nullable=False, default='new')  # 'new', 'in_progress', 'completed'
+    
+    # Date field that exists in the database but was missing in the model
+    date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    
+    # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -235,16 +216,16 @@ class Inquiry(db.Model):
         elif self.service_id:
             return f'<ServiceInquiry {self.id} - {self.name}>'
         else:
-            return f'<GeneralInquiry {self.id} - {self.name}>'
+            return f'<Inquiry {self.id} from {self.name}>'
     
     def is_product_inquiry(self):
         """Check if this is a product inquiry"""
-        return self.product_id is not None
+        return self.product_id is not None and self.service_id is None
     
     def is_service_inquiry(self):
         """Check if this is a service inquiry"""
-        return self.service_id is not None
-    
+        return self.service_id is not None and self.product_id is None
+            
     @property
     def related_product(self):
         """For backward compatibility"""
@@ -254,6 +235,21 @@ class Inquiry(db.Model):
     def related_service(self):
         """For backward compatibility"""
         return self.service
+    
+    @property
+    def product_type(self):
+        """نوع محصول یا خدمت را برای استفاده در خروجی CSV برمی‌گرداند"""
+        if self.product_id:
+            return 'محصول'
+        elif self.service_id:
+            return 'خدمت'
+        else:
+            return 'نامشخص'
+
+
+
+
+
 
 
 class EducationalContent(db.Model):
@@ -270,7 +266,7 @@ class EducationalContent(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
-    media = db.relationship('EducationalContentMedia', backref='content', lazy='dynamic', cascade='all, delete-orphan')
+    media = db.relationship('EducationalContentMedia', backref='educational_content', lazy='dynamic', cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<EducationalContent {self.title}>'
@@ -284,7 +280,7 @@ class EducationalContentMedia(db.Model):
     educational_content_id = db.Column(db.Integer, db.ForeignKey('educational_content.id', ondelete='CASCADE'), nullable=False)
     file_id = db.Column(db.Text, nullable=False)  # Telegram file_id
     file_type = db.Column(db.String(10), default='photo')  # photo, video, etc.
-    local_path = db.Column(db.Text, nullable=True)  # Local path to file
+    local_path = db.Column(db.Text, nullable=True)  # مسیر محلی برای فایل‌ها
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):
@@ -298,7 +294,6 @@ class StaticContent(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     content_type = db.Column(db.String(20), nullable=False, unique=True)  # about, contact, etc.
     content = db.Column(db.Text, nullable=False)
-    type = db.Column(db.Text)  # Duplicate of content_type for backward compatibility
     
     # Timestamps
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

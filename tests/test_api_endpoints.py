@@ -12,6 +12,9 @@ import sys
 import os
 import logging
 from urllib.parse import urlencode
+# Import project modules
+from src.web.app import app, db
+from models import User,  Product, Service, Inquiry, EducationalContent, StaticContent
 
 # اضافه کردن مسیر پروژه به PYTHONPATH برای دسترسی به ماژول‌های پروژه
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -20,9 +23,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Import project modules
-from src.web.app import app, db
-from src.models.models import User, Category, Product, Service, Inquiry, EducationalContent, StaticContent
 
 class TestAPIEndpoints(unittest.TestCase):
     """کلاس تست برای بررسی مسیرهای API و وب‌سایت"""

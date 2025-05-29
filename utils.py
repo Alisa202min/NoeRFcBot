@@ -5,6 +5,7 @@ import aiohttp
 import json
 from typing import Dict, List, Optional, Any, Tuple, Union
 from datetime import datetime
+from werkzeug.utils import secure_filename
 
 def format_price(price: int) -> str:
     """
@@ -411,3 +412,47 @@ async def create_telegraph_page(title: str, content: str, author: str = "RFCatal
     except Exception as e:
         logging.error(f"Error creating Telegraph page: {str(e)}")
         return None
+
+
+
+
+def allowed_file(filename):
+    """
+    بررسی مجاز بودن پسوند فایل
+
+    Args:
+        filename: نام فایل
+
+    Returns:
+        bool: آیا فایل مجاز است
+    """
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4'}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def save_uploaded_file(file, upload_dir):
+    """
+    ذخیره فایل آپلودشده
+
+    Args:
+        file: فایل آپلودشده
+        upload_dir: دایرکتوری مقصد
+
+    Returns:
+        str: مسیر فایل ذخیره‌شده یا None
+    """
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        os.makedirs(upload_dir, exist_ok=True)
+        file_path = os.path.join(upload_dir, filename)
+        file.save(file_path)
+        return file_path
+    return None
+
+def create_directory(directory):
+    """
+    ایجاد دایرکتوری
+
+    Args:
+        directory: مسیر دایرکتوری
+    """
+    os.makedirs(directory, exist_ok=True)

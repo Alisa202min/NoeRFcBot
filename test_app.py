@@ -8,8 +8,8 @@
 import os
 import sys
 import logging
-from src.web.app import app, db
-from src.models.models import Category, Product, Service, Inquiry, EducationalContent, StaticContent
+from app import app
+from models import  Product, Service, Inquiry, EducationalContent, StaticContent
 
 # تنظیم لاگر
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

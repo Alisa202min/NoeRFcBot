@@ -17,7 +17,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # واردسازی مدل‌های دیتابیس
 from src.web.app import db
-from src.models.models import User, Category, Product, Service, Inquiry, EducationalContent
+from models import User, Product, Service, Inquiry, EducationalContent
 
 # تنظیم لاگر
 logging.basicConfig(level=logging.INFO)
@@ -251,7 +251,7 @@ def seed_database():
                 ]
                 
                 for media_data in product_media:
-                    from src.models.models import ProductMedia
+                    from models import ProductMedia
                     media = ProductMedia(
                         product_id=product.id,
                         file_id=media_data['file_id'],
@@ -287,7 +287,7 @@ def seed_database():
                 ]
                 
                 for media_data in service_media:
-                    from src.models.models import ServiceMedia
+                    from models import ServiceMedia
                     media = ServiceMedia(
                         service_id=service.id,
                         file_id=media_data['file_id'],
