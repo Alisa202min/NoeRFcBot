@@ -1,471 +1,69 @@
-{% extends 'admin_layout.html' %}
-{% set active_page = 'products' %}
-
-{% block title %}
-مدیریت محصول - {{ 'ویرایش محصول' if product else 'افزودن محصول جدید' }}
-{% endblock %}
+{% extends "layout.html" %}
 
 {% block content %}
-<div class="container py-4">
-    <div class="row">
-        <div class="col-md-12">
-            <!-- نوار نان -->
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ url_for('admin_index') }}">داشبورد ادمین</a></li>
-                    <li class="breadcrumb-item"><a href="{{ url_for('admin_products') }}">محصولات</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">
-                        {{ 'ویرایش محصول' if product else 'افزودن محصول جدید' }}
-                    </li>
-                </ol>
-            </nav>
-
-            <!-- کارت اصلی -->
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">
-                        {{ 'ویرایش محصول' if product else 'افزودن محصول جدید' }}
-                    </h5>
-                    <a href="{{ url_for('admin_products') }}" class="btn btn-sm btn-outline-light">
-                        <i class="bi bi-arrow-left"></i> بازگشت به لیست
-                    </a>
-                </div>
-                <div class="card-body">
-                    <!-- پیام‌های فلش -->
-                    {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                    <div class="messages mb-4">
-                        {% for category, message in messages %}
-                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                    {% endwith %}
-
-                    <!-- فرم محصول -->
-                    <form method="post" action="{{ url_for('admin_products', action='save') }}" enctype="multipart/form-data">
-                        {% if product %}
-                        <input type="hidden" name="id" value="{{ product.id }}">
-                        {% endif %}
-
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="name" class="form-label">نام محصول <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="name" name="name" value="{{ product.name if product else '' }}" required>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="price" class="form-label">قیمت (تومان) <span class="text-danger">*</span></label>
-                                    <input type="number" class="form-control" id="price" name="price" value="{{ product.price if product else 0 }}" min="0" required>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="category_id" class="form-label">دسته‌بندی</label>
-                                    <select class="form-select" id="category_id" name="category_id">
-                                        <option value="">بدون دسته‌بندی</option>
-                                        {% for category in categories %}
-                                        <option value="{{ category.id }}" {% if product and product.category_id == category.id %}selected{% endif %}>
-                                            {{ category.name }}
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="brand" class="form-label">برند</label>
-                                    <input type="text" class="form-control" id="brand" name="brand" value="{{ product.brand if product else '' }}">
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="model" class="form-label">مدل</label>
-                                    <input type="text" class="form-control" id="model" name="model" value="{{ product.model if product else '' }}">
-                                </div>
-                            </div>
-
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="description" class="form-label">توضیحات</label>
-                                    <textarea class="form-control" id="description" name="description" rows="5" maxlength="1000">{{ product.description if product else '' }}</textarea>
-                                    <small class="form-text text-muted">حداکثر 1000 کاراکتر (<span id="descriptionCount">0</span> کاراکتر وارد شده)</small>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="model_number" class="form-label">شماره مدل</label>
-                                    <input type="text" class="form-control" id="model_number" name="model_number" value="{{ product.model_number if product else '' }}">
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="manufacturer" class="form-label">سازنده</label>
-                                    <input type="text" class="form-control" id="manufacturer" name="manufacturer" value="{{ product.manufacturer if product else '' }}">
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="tags" class="form-label">برچسب‌ها</label>
-                                    <input type="text" class="form-control" id="tags" name="tags" value="{{ product.tags if product else '' }}" placeholder="برچسب‌ها را با کاما جدا کنید" maxlength="200">
-                                    <small class="form-text text-muted">حداکثر 200 کاراکتر (<span id="tagsCount">0</span> کاراکتر وارد شده)</small>
-                                </div>
-
-                                <div class="mb-3">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="in_stock" name="in_stock" {% if product and product.in_stock %}checked{% endif %}>
-                                        <label class="form-check-label" for="in_stock">موجود در انبار</label>
-                                    </div>
-                                </div>
-
-                                <div class="mb-3">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="featured" name="featured" {% if product and product.featured %}checked{% endif %}>
-                                        <label class="form-check-label" for="featured">محصول ویژه</label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- تصویر اصلی -->
-                        <div class="mb-4">
-                            <label for="photo" class="form-label">تصویر اصلی محصول</label>
-                            {% if product and product.photo_url %}
-                            <div class="mb-2">
-                                <div class="card">
-                                    <img src="{{ url_for('static', filename=product.photo_url) }}" alt="{{ product.name }}" class="card-img-top" style="max-height: 150px; object-fit: contain;">
-                                    <div class="card-footer d-flex justify-content-end">
-                                        <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteMediaModal" data-media-id="{{ product.id }}" data-media-name="{{ product.name }}" data-media-type="photo">
-                                            <i class="bi bi-trash"></i> حذف تصویر
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            {% endif %}
-                            <input type="file" class="form-control" id="photo" name="photo" accept="image/*" onchange="previewImage(this)">
-                            <div class="form-text">فرمت‌های مجاز: JPG, PNG, GIF (حداکثر 2MB)</div>
-                            <div id="imagePreviewContainer" class="mt-2" style="display: none;">
-                                <div class="card p-2">
-                                    <img id="imagePreview" src="#" alt="پیش نمایش تصویر" class="img-thumbnail" style="max-height: 150px;">
-                                    <div class="progress mt-2" style="height: 5px;">
-                                        <div id="uploadProgress" class="progress-bar bg-success" role="progressbar" style="width: 0%"></div>
-                                    </div>
-                                    <small id="uploadStatus" class="text-muted mt-1">تصویر آماده آپلود است</small>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- تصاویر و ویدئوهای اضافی -->
-                        <div class="mb-4">
-                            <label class="form-label">تصاویر و ویدئوهای اضافی</label>
-                            {% if product and product.id %}
-                            <div class="row mb-3">
-                                {% set product_medias = product_media(product.id) if product_media is defined else [] %}
-                                {% for media in product_medias %}
-                                <div class="col-md-3 col-sm-6 mb-3">
-                                    <div class="card h-100">
-                                        <img src="{{ url_for('static', filename=media.local_path) if media.local_path else media.file_id }}" 
-                                             class="card-img-top" style="height: 150px; object-fit: contain;" 
-                                             alt="تصویر اضافی {{ loop.index }}">
-                                        <div class="card-footer d-flex justify-content-end">
-                                            <button type="button" class="btn btn-sm btn-danger" 
-                                                    data-bs-toggle="modal" data-bs-target="#deleteMediaModal" 
-                                                    data-media-id="{{ media.id }}" data-media-name="{{ media.name or 'تصویر اضافی' }}" data-media-type="additional">
-                                                <i class="bi bi-trash"></i> حذف
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                {% else %}
-                                <div class="col-12">
-                                    <div class="alert alert-info">
-                                        هیچ تصویر یا ویدئوی اضافی برای این محصول وجود ندارد.
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            </div>
-                            {% endif %}
-                            <input type="file" class="form-control" id="media" name="media" accept="image/*,video/mp4" multiple onchange="previewMultipleMedia(this)">
-                            <div class="form-text">فرمت‌های مجاز: JPG, PNG, GIF, MP4 (حداکثر 10MB برای هر فایل)</div>
-                            <div id="mediaPreviewContainer" class="row mt-2"></div>
-                        </div>
-
-                        <!-- دکمه‌ها -->
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <a href="{{ url_for('admin_products') }}" class="btn btn-secondary">
-                                    <i class="bi bi-arrow-left"></i> بازگشت به لیست
-                                </a>
-                                {% if product %}
-                                <a href="{{ url_for('admin_media', id=product.id) }}" class="btn btn-info">
-                                    <i class="bi bi-images"></i> مدیریت رسانه‌ها
-                                </a>
-                                {% endif %}
-                            </div>
-                            <div>
-                                <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#previewProductModal">
-                                    <i class="bi bi-eye"></i> پیش‌نمایش
-                                </button>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="bi bi-save"></i> ذخیره محصول
-                                </button>
-                            </div>
-                        </div>
-                    </form>
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4>{% if product %}ویرایش محصول{% else %}افزودن محصول جدید{% endif %}</h4>
+        <a href="{{ url_for('admin_products') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> بازگشت
+        </a>
+    </div>
+    <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label for="name" class="form-label">نام محصول</label>
+                <input type="text" class="form-control" id="name" name="name" 
+                       value="{{ product.name if product else '' }}" required>
+            </div>
+            
+            <div class="mb-3">
+                <label for="price" class="form-label">قیمت (تومان)</label>
+                <input type="number" class="form-control" id="price" name="price" 
+                       value="{{ product.price if product else '' }}" required>
+            </div>
+            
+            <div class="mb-3">
+                <label for="category_id" class="form-label">دسته‌بندی</label>
+                <select class="form-select" id="category_id" name="category_id" required>
+                    <option value="">انتخاب دسته‌بندی...</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}" {% if product and product.category_id == category.id %}selected{% endif %}>
+                        {{ category.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="mb-3">
+                <label for="description" class="form-label">توضیحات</label>
+                <textarea class="form-control" id="description" name="description" rows="4">{{ product.description if product else '' }}</textarea>
+            </div>
+            
+            <div class="mb-3">
+                <label for="media" class="form-label">تصاویر و ویدئوها</label>
+                <input type="file" class="form-control" id="media" name="media" 
+                       accept="image/*,video/mp4" multiple>
+                <div class="form-text text-muted">
+                    می‌توانید چندین فایل تصویر یا ویدئو انتخاب کنید. فرمت‌های مجاز: JPG, PNG, GIF, MP4
                 </div>
             </div>
-        </div>
-    </div>
-</div>
-
-<!-- مودال حذف رسانه -->
-<div class="modal fade" id="deleteMediaModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">تأیید حذف رسانه</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>آیا از حذف "<span id="mediaNameSpan"></span>" اطمینان دارید؟</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
-                <form id="deleteMediaForm" action="{{ url_for('admin_media_delete') }}" method="post">
-                    <input type="hidden" name="media_id" id="mediaIdInput">
-                    <input type="hidden" name="content_id" id="contentIdInput">
-                    <input type="hidden" name="media_type" id="mediaTypeInput">
-                    <button type="submit" class="btn btn-danger">حذف</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- مودال پیش‌نمایش محصول -->
-<div class="modal fade" id="previewProductModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">پیش‌نمایش محصول</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <h6 id="previewName"></h6>
-                <img id="previewImage" src="" alt="" class="img-fluid mb-3" style="max-height: 200px;">
-                <p id="previewPrice"></p>
-                <p id="previewCategory"></p>
-                <p id="previewDescription"></p>
-                <p id="previewBrand"></p>
-                <p id="previewModel"></p>
-                <p id="previewManufacturer"></p>
-                <p id="previewTags"></p>
-                <p id="previewStock"></p>
-                <p id="previewFeatured"></p>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-(function() {
-    // شمارش کاراکترهای توضیحات و برچسب‌ها
-    function updateCharCount(input, counter) {
-        if (input && counter) {
-            counter.textContent = input.value.length;
-        }
-    }
-
-    const description = document.getElementById('description');
-    const tags = document.getElementById('tags');
-    const descriptionCount = document.getElementById('descriptionCount');
-    const tagsCount = document.getElementById('tagsCount');
-
-    if (description && descriptionCount) {
-        updateCharCount(description, descriptionCount);
-        description.addEventListener('input', () => updateCharCount(description, descriptionCount));
-    }
-    if (tags && tagsCount) {
-        updateCharCount(tags, tagsCount);
-        tags.addEventListener('input', () => updateCharCount(tags, tagsCount));
-    }
-
-    // پیش‌نمایش تصویر اصلی
-    window.previewImage = function(input) {
-        const container = document.getElementById('imagePreviewContainer');
-        const preview = document.getElementById('imagePreview');
-        const progress = document.getElementById('uploadProgress');
-        const status = document.getElementById('uploadStatus');
-
-        if (!container || !preview || !progress || !status) return;
-
-        if (input.files && input.files[0]) {
-            const file = input.files[0];
-            if (file.size > 2 * 1024 * 1024) {
-                alert('حجم فایل باید کمتر از 2 مگابایت باشد.');
-                input.value = '';
-                return;
-            }
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                preview.src = e.target.result;
-                container.style.display = 'block';
-                const fileSize = (file.size / 1024).toFixed(2) + ' KB';
-                status.textContent = `فایل: ${file.name} (${fileSize})`;
-                simulateProgress(progress, status);
-            };
-            reader.readAsDataURL(file);
-        } else {
-            container.style.display = 'none';
-        }
-    };
-
-    // پیش‌نمایش تصاویر و ویدئوهای اضافی
-    window.previewMultipleMedia = function(input) {
-        const container = document.getElementById('mediaPreviewContainer');
-        if (!container) return;
-
-        container.innerHTML = '';
-        if (input.files && input.files.length > 0) {
-            Array.from(input.files).forEach((file, index) => {
-                if (file.size > 10 * 1024 * 1024) {
-                    alert(`حجم فایل ${file.name} باید کمتر از 10 مگابایت باشد.`);
-                    return;
-                }
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const col = document.createElement('div');
-                    col.className = 'col-md-3 col-sm-6 mb-3';
-                    col.innerHTML = `
-                        <div class="card h-100">
-                            <${file.type.startsWith('video/') ? 'video' : 'img'} 
-                              src="${e.target.result}" 
-                              class="card-img-top" 
-                              style="height: 150px; object-fit: contain;" 
-                              ${file.type.startsWith('video/') ? 'controls' : ''}>
-                            <div class="card-footer">
-                                <small class="text-muted">${file.name} (${(file.size / 1024).toFixed(2)} KB)</small>
-                            </div>
-                        </div>
-                    `;
-                    container.appendChild(col);
-                };
-                reader.readAsDataURL(file);
-            });
-        }
-    };
-
-    // شبیه‌سازی نوار پیشرفت
-    function simulateProgress(progress, status) {
-        let width = 0;
-        const interval = setInterval(() => {
-            if (width >= 100) {
-                clearInterval(interval);
-                status.textContent = 'فایل آماده آپلود است.';
-            } else {
-                width += 5;
-                progress.style.width = width + '%';
-                status.textContent = 'در حال بارگذاری... ' + width + '%';
-            }
-        }, 100);
-    }
-
-    // مدیریت حذف رسانه
-    document.body.addEventListener('click', function(event) {
-        const button = event.target.closest('button[data-media-id]');
-        if (button) {
-            const mediaId = button.getAttribute('data-media-id');
-            const mediaName = button.getAttribute('data-media-name') || 'نامشخص';
-            const mediaType = button.getAttribute('data-media-type');
-            const contentId = mediaType === 'photo' ? mediaId : button.closest('.col')?.querySelector('button')?.getAttribute('data-media-id') || '';
-
-            if (mediaId) {
-                const deleteMediaModal = new bootstrap.Modal(document.getElementById('deleteMediaModal'));
-                const mediaIdInput = document.getElementById('mediaIdInput');
-                const contentIdInput = document.getElementById('contentIdInput');
-                const mediaTypeInput = document.getElementById('mediaTypeInput');
-                const mediaNameSpan = document.getElementById('mediaNameSpan');
-
-                if (mediaIdInput && contentIdInput && mediaTypeInput && mediaNameSpan) {
-                    mediaIdInput.value = mediaId;
-                    contentIdInput.value = contentId;
-                    mediaTypeInput.value = mediaType;
-                    mediaNameSpan.textContent = mediaName;
-                    deleteMediaModal.show();
-                }
-            } else {
-                console.error('ویژگی data-media-id یافت نشد');
-            }
-        }
-    });
-
-    // پیش‌نمایش محصول
-    const previewModal = document.getElementById('previewProductModal');
-    if (previewModal) {
-        previewModal.addEventListener('show.bs.modal', function() {
-            const name = document.getElementById('name')?.value || 'نامشخص';
-            const price = document.getElementById('price')?.value || '0';
-            const categoryId = document.getElementById('category_id')?.value;
-            const description = document.getElementById('description')?.value || 'بدون توضیحات';
-            const brand = document.getElementById('brand')?.value || 'نامشخص';
-            const model = document.getElementById('model')?.value || 'نامشخص';
-            const manufacturer = document.getElementById('manufacturer')?.value || 'نامشخص';
-            const tags = document.getElementById('tags')?.value || 'بدون برچسب';
-            const inStock = document.getElementById('in_stock')?.checked ? 'موجود' : 'ناموجود';
-            const featured = document.getElementById('featured')?.checked ? 'بله' : 'خیر';
-
-            const category = categoryId ? document.querySelector(`#category_id option[value="${categoryId}"]`)?.textContent || 'بدون دسته‌بندی' : 'بدون دسته‌بندی';
-            const imagePreview = document.getElementById('imagePreview');
-            let imageSrc = imagePreview?.src || '';
-
-            // بررسی ایمن برای product.photo_url
-            {% if product and product.photo_url %}
-            if (!imageSrc) {
-                imageSrc = '{{ url_for('static', filename=product.photo_url) | safe }}';
-            }
+            
+            {% if product %}
+            <input type="hidden" name="product_id" value="{{ product.id }}">
             {% endif %}
-
-            const previewName = document.getElementById('previewName');
-            const previewPrice = document.getElementById('previewPrice');
-            const previewCategory = document.getElementById('previewCategory');
-            const previewDescription = document.getElementById('previewDescription');
-            const previewBrand = document.getElementById('previewBrand');
-            const previewModel = document.getElementById('previewModel');
-            const previewManufacturer = document.getElementById('previewManufacturer');
-            const previewTags = document.getElementById('previewTags');
-            const previewStock = document.getElementById('previewStock');
-            const previewFeatured = document.getElementById('previewFeatured');
-            const previewImage = document.getElementById('previewImage');
-
-            if (previewName) previewName.textContent = name;
-            if (previewPrice) previewPrice.textContent = 'قیمت: ' + price + ' تومان';
-            if (previewCategory) previewCategory.textContent = 'دسته‌بندی: ' + category;
-            if (previewDescription) previewDescription.textContent = 'توضیحات: ' + description;
-            if (previewBrand) previewBrand.textContent = 'برند: ' + brand;
-            if (previewModel) previewModel.textContent = 'مدل: ' + model;
-            if (previewManufacturer) previewManufacturer.textContent = 'سازنده: ' + manufacturer;
-            if (previewTags) previewTags.textContent = 'برچسب‌ها: ' + tags;
-            if (previewStock) previewStock.textContent = 'وضعیت موجودی: ' + inStock;
-            if (previewFeatured) previewFeatured.textContent = 'محصول ویژه: ' + featured;
-            if (previewImage) previewImage.src = imageSrc;
-        });
-    }
-
-    // غیرفعال کردن دکمه ذخیره هنگام آپلود
-    const form = document.querySelector('form');
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            const fileInput = document.getElementById('photo');
-            const mediaInput = document.getElementById('media');
-            if ((fileInput && fileInput.files.length > 0) || (mediaInput && mediaInput.files.length > 0)) {
-                const submitBtn = document.querySelector('button[type="submit"]');
-                if (submitBtn) {
-                    submitBtn.disabled = true;
-                    submitBtn.innerHTML = '<i class="bi bi-hourglass"></i> در حال ذخیره...';
-                }
-            }
-        });
-    }
-})();
-</script>
+            
+            <div class="d-flex justify-content-between">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save"></i> {% if product %}ویرایش{% else %}ذخیره{% endif %}
+                </button>
+                
+                {% if product %}
+                <a href="{{ url_for('product_media', product_id=product.id) }}" class="btn btn-info">
+                    <i class="bi bi-images"></i> مدیریت تصاویر
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}

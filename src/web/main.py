@@ -695,13 +695,13 @@ def admin_products():
                 if product_id:
                     # در صورت خطا در ویرایش، به فرم ویرایش برمی‌گردیم
                     product = Product.query.get(int(product_id))
-                    return render_template('admin_product_form.html',
+                    return render_template('admin/product_form.html',
                                           title="ویرایش محصول",
                                           product=product,
                                           categories=categories)
                 else:
                     # در صورت خطا در افزودن، به فرم افزودن برمی‌گردیم
-                    return render_template('admin_product_form.html',
+                    return render_template('admin/product_form.html',
                                           title="افزودن محصول جدید",
                                           categories=categories)
         
@@ -739,13 +739,13 @@ def admin_products():
     # اگر action برابر با 'add' یا 'edit' باشد، فرم نمایش داده می‌شود
     if action == 'add':
         categories = ProductCategory.query.all()
-        return render_template('admin_product_form.html',
+        return render_template('admin/product_form.html',
                               title="افزودن محصول جدید",
                               categories=categories)
     elif action == 'edit' and product_id:
         product = Product.query.get_or_404(int(product_id))
         categories = ProductCategory.query.all()
-        return render_template('admin_product_form.html',
+        return render_template('admin/product_form.html',
                               title="ویرایش محصول",
                               product=product,
                               categories=categories)
@@ -757,7 +757,7 @@ def admin_products():
             
         product = Product.query.get_or_404(int(product_id))
         media = ProductMedia.query.filter_by(product_id=product.id).all()
-        return render_template('admin_product_media.html',
+        return render_template('admin/product_media.html',
                               product=product,
                               media=media,
                               active_page='products')
@@ -790,15 +790,58 @@ def build_category_tree(categories, parent_id=None):
             tree.append(category_data)
     return tree
 
-def get_all_subcategories(category_model, category_id, subcategories=None):
+
+@app.route('/admin-categories/delete_service_categories', methods=['POST'])
+@login_required
+def delete_service_categories():
+    """حذف دسته‌بندی خدمات"""
+    try:
+        category_id = request.form.get('id')
+        if not category_id:
+            flash('شناسه دسته‌بندی نامعتبر است.', 'danger')
+            return redirect(url_for('admin_categories'))
+        
+        category = ServiceCategory.query.get(int(category_id))
+        if not category:
+            flash('دسته‌بندی قبلاً حذف شده است.', 'warning')
+            return redirect(url_for('admin_categories'))
+        
+        name = category.name
+        
+        logger.debug(f"Processing deletion for category_id: {category_id}")
+        subcategories_count = unlink_subcategories(ServiceCategory, category_id)
+        services_count = unlink_objects(Service, ServiceCategory, category_id)
+        db.session.delete(category)
+        logger.debug(f"Deletion staged for category_id: {category_id}")
+        
+        # No explicit db.session.commit(); Flask-SQLAlchemy handles it
+        flash(f'دسته‌بندی خدمات "{name}" با موفقیت حذف شد. '
+              f'{subcategories_count} زیردسته بدون والد شدند و '
+              f'{services_count} خدمت بدون دسته‌بندی شدند.', 'success')
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in delete_service_categories: {e}")
+        flash(f'خطا در حذف دسته‌بندی خدمات: {str(e)}', 'danger')
+
+    return redirect(url_for('admin_categories'))
+
+def get_all_subcategories(category_model, category_id, subcategories=None, visited=None):
     """دریافت تمام زیردسته‌ها به‌صورت بازگشتی"""
+    logging.debug(f"Processing category_id: {category_id}")
     if subcategories is None:
         subcategories = []
-    
+    if visited is None:
+        visited = set()
+    if category_id in visited:
+        logging.warning(f"Circular reference detected for category_id: {category_id}")
+        return subcategories
+    visited.add(category_id)
     direct_subcategories = category_model.query.filter_by(parent_id=category_id).all()
+    logging.debug(f"Found {len(direct_subcategories)} subcategories for category_id: {category_id}")
     for subcategory in direct_subcategories:
-        subcategories.append(subcategory.id)
-        get_all_subcategories(category_model, subcategory.id, subcategories)
+        subcategories.append(subcategory.id)  # Append ID instead of object
+        get_all_subcategories(category_model, subcategory.id, subcategories, visited)
     
     return subcategories
 
@@ -811,14 +854,17 @@ def unlink_subcategories(category_model, category_id):
         if subcategory:
             subcategory.parent_id = None
             count += 1
+    # No db.session.commit(); let Flask-SQLAlchemy handle the transaction
     return count
 
 def unlink_objects(model, category_model, category_id):
     """تنظیم category_id اشیاء مرتبط به None"""
     category_ids = [category_id] + get_all_subcategories(category_model, category_id)
-    count = model.query.filter(model.category_id.in_(category_ids)).update({model.category_id: None})
+    count = model.query.filter(model.category_id.in_(category_ids)).update(
+        {model.category_id: None}, synchronize_session='fetch'
+    )
+    # No db.session.commit(); let Flask-SQLAlchemy handle the transaction
     return count
-
 # مسیرهای مدیریت دسته‌بندی‌ها
 @app.route('/admin/categories')
 @login_required
@@ -1018,35 +1064,6 @@ def update_service_categories():
     
     return redirect(url_for('admin_categories'))
 
-@app.route('/admin-categories/delete_service_categories', methods=['POST'])
-@login_required
-def delete_service_categories():
-    """حذف دسته‌بندی خدمات"""
-    try:
-        category_id = request.form.get('id')
-        if not category_id:
-            flash('شناسه دسته‌بندی نامعتبر است.', 'danger')
-            return redirect(url_for('admin_categories'))
-        
-        category = ServiceCategory.query.get_or_404(int(category_id))
-        name = category.name
-        
-        with db.session.begin_nested():
-            subcategories_count = unlink_subcategories(ServiceCategory, category_id)
-            services_count = unlink_objects(Service, ServiceCategory, category_id)
-            db.session.delete(category)
-        
-        db.session.commit()
-        flash(f'دسته‌بندی خدمات "{name}" با موفقیت حذف شد. '
-              f'{subcategories_count} زیردسته بدون والد شدند و '
-              f'{services_count} خدمت بدون دسته‌بندی شدند.', 'success')
-    
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error in delete_service_categories: {e}")
-        flash(f'خطا در حذف دسته‌بندی خدمات: {str(e)}', 'danger')
-
-    return redirect(url_for('admin_categories'))
 
 # Educational Category Management
 @app.route('/admin-categories/add_education_categories', methods=['POST'])
@@ -2642,7 +2659,7 @@ def admin_database():
             'static_content': db.session.query(StaticContent).count(),
         }
         
-        return render_template('admin_database.html', tables=tables)
+        return render_template('admin/database.html', tables=tables)
     except Exception as e:
         logger.error(f"Error in admin_database: {e}")
         return render_template('error.html', error=str(e))

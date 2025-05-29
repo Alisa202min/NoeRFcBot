@@ -173,7 +173,8 @@ class ServiceMedia(db.Model):
     service_id = db.Column(db.Integer, db.ForeignKey('services.id', ondelete='CASCADE'))
     file_id = db.Column(db.String(255), nullable=False)  # Telegram file_id
     file_type = db.Column(db.String(10), default='photo')  # photo, video, etc.
-    
+      # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     def __repr__(self):
         return f'<Media {self.id} for Service {self.service_id}>'
 
