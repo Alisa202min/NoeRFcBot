@@ -25,7 +25,7 @@ from configuration import load_config, save_config
 
 # تنظیم لاگر
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 # تنظیم لاگر برای ذخیره لاگ‌ها در فایل
 file_handler = logging.FileHandler('logs/rfcbot.log')
@@ -70,104 +70,102 @@ def delete_media_file(file_path):
 
 @app.route('/')
 def index():
-    """صفحه اصلی"""
+    """Main page of the application"""
     try:
-        # محصولات و خدمات حالا از جداول جداگانه دریافت می‌شوند                           
-        products = Product.query.filter_by(featured=True).limit(6).all()
-        services = Service.query.filter_by(featured=True).limit(6).all()
-        
-                # برای اطمینان، اگر محتوا وجود نداشت از یک لیست خالی استفاده می‌کنیم
-                                                                                                                            
-        if not products:
-            products = []
-        if not services:
-            services = []
-            
-                # دریافت محتوای آموزشی                                 
+        # Fetch featured products and services
+        products = Product.query.filter_by(featured=True).limit(6).all() or []
+        services = Service.query.filter_by(featured=True).limit(6).all() or []
+
+        # Fetch recent educational content
         try:
             educational = EducationalContent.query.order_by(
-                EducationalContent.created_at.desc()).limit(3).all()
+                EducationalContent.created_at.desc()
+            ).limit(3).all() or []
         except Exception as e:
-            logger.warning(f"Error loading educational content: {e}")
+            logger.warning(f"Error loading educational content: {str(e)}")
             educational = []
-            
-                # دریافت محتوای ثابت (درباره ما)                                                  
+
+        # Fetch 'about' static content
         try:
             about_content = StaticContent.query.filter_by(content_type='about').first()
-            about = about_content.content if about_content else "محتوای درباره ما وجود ندارد"
+            about = about_content.content if about_content else "No about content available"
         except Exception as e:
-            logger.warning(f"Error loading about content: {e}")
-            about = "خطا در بارگذاری محتوای درباره ما"
-        
-            # بررسی وضعیت ربات                               
+            logger.warning(f"Error loading about content: {str(e)}")
+            about = "Error loading about content"
+
+        # Check bot status from log file
         def check_bot_status():
-               """بررسی وضعیت ربات از طریق فایل لاگ"""                  
+            """Check bot status by analyzing recent log entries"""
             try:
                 if os.path.exists('bot.log'):
                     with open('bot.log', 'r', encoding='utf-8') as f:
                         lines = f.readlines()
-                        if lines:
-                            recent_lines = lines[-15:] # آخری10 خط
-                            for line in reversed(recent_lines):
-                                if 'Run polling for bot' in line or 'Start polling' in line:
-                                    return 'running'
-                                elif 'ERROR' in line or 'CRITICAL' in line:
-                                    return 'error'
+                        recent_lines = lines[-15:]  # Check last 15 lines
+                        for line in reversed(recent_lines):
+                            if 'Run polling for bot' in line or 'Start polling' in line:
+                                return 'running'
+                            if 'ERROR' in line or 'CRITICAL' in line:
+                                return 'error'
                 return 'stopped'
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Error checking bot status: {str(e)}")
                 return 'unknown'
-        
+
         bot_status = check_bot_status()
-        
-         # برای نمایش وضعیت متغیرهای محیطی                                                           
+
+        # Prepare environment variables status
         env_status = {
             'BOT_TOKEN': 'Set' if os.environ.get('BOT_TOKEN') else 'Not Set',
             'DATABASE_URL': 'Set' if os.environ.get('DATABASE_URL') else 'Not Set',
             'ADMIN_ID': 'Set' if os.environ.get('ADMIN_ID') else 'Not Set'
         }
-        
-          # آماده‌سازی لاگ‌های اولیه برای نمایش                               
+
+        # Fetch recent bot logs
         try:
             log_file = 'bot.log'
+            bot_logs = ['Log file not found.']
             if os.path.exists(log_file):
                 with open(log_file, 'r', encoding='utf-8') as f:
                     lines = f.readlines()
                     bot_logs = lines[-50:] if len(lines) > 50 else lines
-            else:
-                bot_logs = ['فایل لاگ موجود نیست.']
         except Exception as e:
-            logger.warning(f"Error reading log file: {e}")
-            bot_logs = [f'خطا در خواندن فایل لاگ: {str(e)}']
-            
-        return render_template('index.html', 
-                              products=products, 
-                              services=services, 
-                              educational=educational,
-                              about_text=about,
-                              bot_status=bot_status,
-                              env_status=env_status,
-                              last_run=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                              datetime=datetime,
-                              bot_logs=bot_logs)
+            logger.warning(f"Error reading log file: {str(e)}")
+            bot_logs = [f"Error reading log file: {str(e)}"]
+
+        # Render the template with all data
+        return render_template(
+            'index.html',
+            products=products,
+            services=services,
+            educational=educational,
+            about_text=about,
+            bot_status=bot_status,
+            env_status=env_status,
+            last_run=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            datetime=datetime,
+            bot_logs=bot_logs
+        )
+
     except Exception as e:
-        logger.error(f"Error in index route: {e}")
-         # در صورت خطا، مقادیر پیش‌فرض برگردان                              
+        logger.error(f"Error in index route: {str(e)}")
+        # Fallback values in case of error
         env_status = {
             'BOT_TOKEN': 'Set' if os.environ.get('BOT_TOKEN') else 'Not Set',
             'DATABASE_URL': 'Set' if os.environ.get('DATABASE_URL') else 'Not Set',
             'ADMIN_ID': 'Set' if os.environ.get('ADMIN_ID') else 'Not Set'
         }
-        return render_template('index.html', 
-                              products=[], 
-                              services=[], 
-                              educational=[], 
-                              about_text="خطا در بارگذاری محتوا", 
-                              env_status=env_status,
-                              bot_status='error',
-                              bot_logs=['خطا در بارگذاری لاگ‌ها'],
-                              last_run=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                              datetime=datetime)
-            
+        return render_template(
+            'index.html',
+            products=[],
+            services=[],
+            educational=[],
+            about_text="Error loading content",
+            bot_status='error',
+            env_status=env_status,
+            bot_logs=['Error loading logs'],
+            last_run=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            datetime=datetime
+        )          
 @app.route('/api/logs')
 def get_logs_json():
     """دریافت لاگ‌های ربات برای درخواست‌های AJAX"""
@@ -194,7 +192,7 @@ def get_logs_json():
 def loadConfig():
     """صفحه پیکربندی"""
     try:
-        from src.config.configuration import load_config
+        from configuration import load_config
         config = load_config()
         return render_template('configuration.html', 
                             config=config,
@@ -247,7 +245,7 @@ def logout():
 
    # ----- Media Deletion Route -----
 
-# ----- Admin Panel Routes -----
+
 
 @app.route('/admin/delete_media', methods=['POST'])
 @login_required
@@ -409,29 +407,29 @@ def product_detail(product_id):
                           related_products=related_products,
                           media=media)
 
+# ----- Product Management Routes -----
+
 @app.route('/admin/products', methods=['GET', 'POST'])
 @login_required
 def admin_products():
-    """پنل مدیریت - محصولات"""
+    """Admin panel - Manage products"""
     action = request.args.get('action')
     product_id = request.args.get('id')
-    
-    # عملیات POST
+
+    # Handle POST requests
     if request.method == 'POST':
-        # حذف محصول
+        # Delete product
         if action == 'delete':
             product_id = request.form.get('product_id')
             if not product_id:
-                flash('شناسه محصول الزامی است.', 'danger')
+                flash('Product ID is required.', 'danger')
                 return redirect(url_for('admin_products'))
-                
+
             try:
                 product = Product.query.get_or_404(int(product_id))
-                
-                # حذف تمام رسانه‌های مرتبط با محصول و فایل‌ها از دیسک
+                # Delete associated media files from disk
                 media_files = ProductMedia.query.filter_by(product_id=product.id).all()
                 for media in media_files:
-                    # حذف فایل از دیسک اگر محلی باشد
                     if media.file_id and not media.file_id.startswith('http'):
                         file_path = os.path.join('static', media.file_id)
                         if os.path.exists(file_path):
@@ -439,76 +437,72 @@ def admin_products():
                                 os.remove(file_path)
                                 logger.info(f"Removed file from disk: {file_path}")
                             except Exception as e:
-                                logger.warning(f"Could not remove file {file_path}: {e}")
-                
-                # حذف محصول از دیتابیس (رسانه‌ها به دلیل CASCADE خودکار حذف می‌شوند)
+                                logger.warning(f"Could not remove file {file_path}: {str(e)}")
+
+                # Delete product (media is deleted via CASCADE)
                 db.session.delete(product)
                 db.session.commit()
-                
-                flash(f'محصول "{product.name}" با موفقیت حذف شد.', 'success')
+                flash(f'Product "{product.name}" deleted successfully.', 'success')
             except Exception as e:
                 db.session.rollback()
-                logger.error(f"Error deleting product: {e}")
-                flash(f'خطا در حذف محصول: {str(e)}', 'danger')
-                
+                logger.error(f"Error deleting product: {str(e)}")
+                flash(f'Error deleting product: {str(e)}', 'danger')
             return redirect(url_for('admin_products'))
-            
-        # آپلود رسانه جدید
+
+        # Upload new media
         elif action == 'upload_media':
             product_id = request.form.get('product_id')
             if not product_id:
-                flash('شناسه محصول الزامی است.', 'danger')
+                flash('Product ID is required.', 'danger')
                 return redirect(url_for('admin_products'))
-            
+
             product = Product.query.get_or_404(int(product_id))
             file = request.files.get('file')
             file_type = request.form.get('file_type', 'photo')
-            
-            if file and file.filename:
-                try:
-                    # مسیر فایل‌های آپلودی
-                    upload_dir = os.path.join('static', 'uploads', 'products', str(product.id))
-                    
-                    # استفاده از تابع handle_media_upload برای مدیریت آپلود
-                    success, file_path = handle_media_upload(
-                        file=file,
-                        directory=upload_dir,
+
+            if not file or not file.filename:
+                flash('Please select a file.', 'warning')
+                return redirect(url_for('admin_products', action='media', id=product_id))
+
+            try:
+                # Define upload directory
+                upload_dir = os.path.join('static', 'uploads', 'products', str(product.id))
+                # Upload file using utility function
+                success, file_path = handle_media_upload(
+                    file=file,
+                    directory=upload_dir,
+                    file_type=file_type,
+                    custom_filename=None
+                )
+
+                if success and file_path:
+                    # Convert to relative path for database
+                    relative_path = file_path.replace('static/', '', 1) if file_path.startswith('static/') else file_path
+                    logger.info(f"Product media relative path: {relative_path}")
+
+                    # Save media record
+                    media = ProductMedia(
+                        product_id=product.id,
+                        file_id=relative_path,
                         file_type=file_type,
-                        custom_filename=None  # استفاده از نام اصلی فایل (با تغییر امن)
+                        local_path=file_path
                     )
-                    
-                    if success and file_path:
-                        # تبدیل مسیر کامل به مسیر نسبی برای ذخیره در دیتابیس
-                        relative_path = file_path.replace('static/', '', 1) if file_path.startswith('static/') else file_path
-                        logger.info(f"Product media relative path: {relative_path}")
-                        
-                        # افزودن به دیتابیس
-                        media = ProductMedia()
-                             # ذخیره مسیر کامل برای استفاده بعدی
-                        media.product_id=product.id,
-                        media.file_id=relative_path,
-                        media.file_type=file_type,
-                        media.local_path=file_path 
-                        db.session.add(media)
-                        db.session.commit()
-                        logger.info(f"Media uploaded successfully: {file_path}")
-                        flash('رسانه با موفقیت آپلود شد.', 'success')
-                    else:
-                        flash('خطا در آپلود فایل. لطفاً دوباره تلاش کنید.', 'danger')
-                        logger.error(f"File upload failed - no file path returned")
-                except Exception as e:
-                    db.session.rollback()
-                    logger.error(f"Error uploading media: {e}")
-                    logger.error(f"Exception details: {str(e)}")
-                    flash(f'خطا در آپلود رسانه: {str(e)}', 'danger')
-            else:
-                flash('لطفاً یک فایل انتخاب کنید.', 'warning')
-                
+                    db.session.add(media)
+                    db.session.commit()
+                    logger.info(f"Media uploaded successfully: {file_path}")
+                    flash('Media uploaded successfully.', 'success')
+                else:
+                    flash('File upload failed. Please try again.', 'danger')
+                    logger.error("File upload failed - no file path returned")
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Error uploading media: {str(e)}")
+                flash(f'Error uploading media: {str(e)}', 'danger')
             return redirect(url_for('admin_products', action='media', id=product_id))
-            
-        # ذخیره محصول جدید یا ویرایش محصول موجود
+
+        # Save new or existing product
         elif action == 'save':
-            # دریافت داده‌های فرم
+            # Retrieve form data
             product_id = request.form.get('id')
             name = request.form.get('name')
             price = request.form.get('price', '0')
@@ -521,44 +515,50 @@ def admin_products():
             featured = 'featured' in request.form
             model_number = request.form.get('model_number', '')
             manufacturer = request.form.get('manufacturer', '')
-            
-            # تبدیل داده‌ها به نوع مناسب
-            if price:
+
+            # Validate required fields
+            if not name:
+                flash('Product name is required.', 'danger')
+                categories = ProductCategory.query.all()
+                return render_template(
+                    'admin/product_form.html',
+                    title="Edit Product" if product_id else "Add New Product",
+                    product=Product.query.get(int(product_id)) if product_id else None,
+                    categories=categories
+                )
+
+            # Convert data types
             try:
-                    price = int(price)
+                price = int(price) if price else 0
             except ValueError:
                 price = 0
-                
+
             try:
                 category_id = int(category_id) if category_id else None
             except ValueError:
                 category_id = None
-                
+
             try:
-                # قبل از ذخیره در دیتابیس، مطمئن شویم که category_id معتبر است
-                # اگر category_id خالی است، بررسی می‌کنیم آیا دسته‌بندی پیش‌فرضی وجود دارد یا نه
-                if category_id is None:
-                    # سعی می‌کنیم دسته‌بندی پیش‌فرض برای محصولات پیدا کنیم
+                # Ensure valid category_id
+                if not category_id:
                     default_category = ProductCategory.query.first()
                     if default_category:
                         category_id = default_category.id
                         logger.info(f"Using default product category ID: {category_id}")
                     else:
-                        # اگر هیچ دسته‌بندی وجود ندارد، یک دسته‌بندی پیش‌فرض ایجاد می‌کنیم
-                        new_category = ProductCategory()
-                        new_category.name="دسته‌بندی پیش‌فرض محصولات"
+                        new_category = ProductCategory(name="Default Product Category")
                         db.session.add(new_category)
-                        db.session.flush()  # برای دریافت ID
+                        db.session.flush()
                         category_id = new_category.id
                         logger.info(f"Created new default product category ID: {category_id}")
-                
-                # اگر شناسه محصول وجود داشته باشد، ویرایش می‌کنیم
+
+                # Update or create product
                 if product_id:
                     product = Product.query.get_or_404(int(product_id))
                     product.name = name
                     product.price = price
                     product.description = description
-                    product.category_id = category_id # اکنون مطمئن هستیم که این مقدار NULL نیست
+                    product.category_id = category_id
                     product.brand = brand
                     product.model = model
                     product.in_stock = in_stock
@@ -567,7 +567,7 @@ def admin_products():
                     product.model_number = model_number
                     product.manufacturer = manufacturer
                     logger.info(f"Updating product ID: {product_id}, Name: {name}")
-                    flash('محصول با موفقیت به‌روزرسانی شد.', 'success')
+                    flash('Product updated successfully.', 'success')
                 else:
                     product = Product(
                         name=name,
@@ -584,156 +584,134 @@ def admin_products():
                     )
                     db.session.add(product)
                     logger.info(f"Creating new product: Name: {name}")
-                    flash('محصول جدید با موفقیت ثبت شد.', 'success')
-                
-                # آپلود تصویر اصلی محصول
+                    flash('Product created successfully.', 'success')
+
+                # Handle main photo upload
                 photo = request.files.get('photo')
+                file_path = None
                 if photo and photo.filename:
-                    # مسیر فایل‌های آپلودی
-                    current_dir = os.getcwd()
-                    logger.info(f"Current working directory: {current_dir}")
-                    
                     upload_dir = os.path.join('static', 'uploads', 'products', 'main')
-                    full_upload_dir = os.path.join(current_dir, upload_dir)
-                    logger.info(f"Trying to create upload directory: {full_upload_dir}")
-                    logger.info(f"Static directory exists: {os.path.exists('static')}")
-                    logger.info(f"Full static path: {os.path.join(current_dir, 'static')}")
-                    
                     os.makedirs(upload_dir, exist_ok=True)
-                    
-                    # استفاده از تابع handle_media_upload برای مدیریت آپلود
                     success, file_path = handle_media_upload(
                         file=photo,
                         directory=upload_dir,
                         file_type='photo',
-                        custom_filename=None  # استفاده از نام اصلی فایل (با تغییر امن)
+                        custom_filename=None
                     )
-                    
                     if success and file_path:
-                        # تبدیل مسیر کامل به مسیر نسبی برای ذخیره در دیتابیس
                         relative_path = file_path.replace('static/', '', 1) if file_path.startswith('static/') else file_path
-                        
-                        # ذخیره مسیر در محصول
                         product.photo_url = relative_path
                         logger.info(f"Uploaded main photo for product: {file_path}")
-                
+
                 db.session.commit()
-                
-                if not product_id and photo and photo.filename and success:
+
+                # Move photo to product-specific directory for new products
+                if not product_id and photo and photo.filename and file_path:
                     product_upload_dir = os.path.join('static', 'uploads', 'products', str(product.id))
                     os.makedirs(product_upload_dir, exist_ok=True)
-                        
-                        # انتقال فایل به دایرکتوری اختصاصی محصول
                     new_file_path = os.path.join(product_upload_dir, os.path.basename(file_path))
-                        import shutil
                     shutil.move(file_path, new_file_path)
-                        
-                        # به‌روزرسانی مسیر در دیتابیس
                     new_relative_path = new_file_path.replace('static/', '', 1) if new_file_path.startswith('static/') else new_file_path
                     product.photo_url = new_relative_path
                     db.session.commit()
                     logger.info(f"Moved product photo to dedicated directory: {new_file_path}")
-                
+
                 return redirect(url_for('admin_products'))
-                
+
             except Exception as e:
                 db.session.rollback()
                 logger.error(f"Error saving product: {str(e)}")
-                flash(f'خطا در ذخیره محصول: {str(e)}', 'danger')
+                flash(f'Error saving product: {str(e)}', 'danger')
                 categories = ProductCategory.query.all()
-                if product_id:
-                    product = Product.query.get_or_404(int(product_id))
-                    return render_template('admin/product_form.html',
-                                          title="ویرایش محصول",
-                                          product=product,
-                                          categories=categories)
-                else:
-                    # در صورت خطا در افزودن، به فرم افزودن برمی‌گردیم
-                    return render_template('admin/product_form.html',
-                                      title="افزودن محصول جدید",
-                                      categories=categories)
-                
-            return redirect(url_for('admin_products'))
-            
+                return render_template(
+                    'admin/product_form.html',
+                    title="Edit Product" if product_id else "Add New Product",
+                    product=Product.query.get(int(product_id)) if product_id else None,
+                    categories=categories
+                )
+
+        # Delete media
         elif action == 'delete_media':
             media_id = request.form.get('media_id')
             product_id = request.form.get('product_id')
-            
+
             if not media_id or not product_id:
-                flash('شناسه رسانه و محصول الزامی است.', 'danger')
+                flash('Media ID and Product ID are required.', 'danger')
                 return redirect(url_for('admin_products'))
-                
+
             try:
                 media = ProductMedia.query.get(int(media_id))
                 if media and media.product_id == int(product_id):
-                    if not media.file_id.startswith('http'):
-                        file_path = os.path.join('static', 'uploads', media.file_id)
-                        delete_media_file(file_path)
+                    if media.local_path and not media.file_id.startswith('http'):
+                        delete_media_file(media.local_path)
                     db.session.delete(media)
                     db.session.commit()
-                    flash('رسانه با موفقیت حذف شد.', 'success')
+                    flash('Media deleted successfully.', 'success')
                     logger.info(f"Media deleted: id={media_id}, product_id={product_id}")
                 else:
-                    flash('رسانه یافت نشد.', 'warning')
+                    flash('Media not found.', 'warning')
             except Exception as e:
                 db.session.rollback()
                 logger.error(f"Error deleting media: {str(e)}")
-                flash(f'خطا در حذف رسانه: {str(e)}', 'danger')
-                
+                flash(f'Error deleting media: {str(e)}', 'danger')
             return redirect(url_for('admin_products', action='media', id=product_id))
-    
+
+    # Handle GET requests
+    categories = ProductCategory.query.all()
+
     if action == 'add':
-        categories = ProductCategory.query.all()
-        return render_template('admin/product_form.html',
-                              title="افزودن محصول جدید",
-                              categories=categories)
+        return render_template(
+            'admin/product_form.html',
+            title="Add New Product",
+            categories=categories
+        )
     elif action == 'edit' and product_id:
         product = Product.query.get_or_404(int(product_id))
-        categories = ProductCategory.query.all()
-        return render_template('admin/product_form.html',
-                              title="ویرایش محصول",
-                              product=product,
-                              categories=categories)
-    elif action == 'media':
-        if not product_id:
-            # اگر شناسه محصول وجود نداشت، خطا نمایش داده می‌شود
-            flash('شناسه محصول الزامی است.', 'danger')
-            return redirect(url_for('admin_products'))
-            
+        return render_template(
+            'admin/product_form.html',
+            title="Edit Product",
+            product=product,
+            categories=categories
+        )
+    elif action == 'media' and product_id:
         product = Product.query.get_or_404(int(product_id))
         media = ProductMedia.query.filter_by(product_id=product.id).all()
-        return render_template('admin/product_media.html',
-                              product=product,
-                              media=media,
-                              active_page='products')
-    
-    # نمایش لیست محصولات
+        return render_template(
+            'admin/product_media.html',
+            product=product,
+            media=media,
+            active_page='products'
+        )
+
+    # Display product list
     products = Product.query.all()
-    categories = ProductCategory.query.all()
-    
-    # تبدیل مسیر photo_url برای استفاده در url_for
     for product in products:
         product.formatted_photo_url = get_photo_url(product.photo_url)
-    
-    return render_template('admin/products.html', 
-                          products=products, 
-                          categories=categories)
 
-# ----- Category Management Routes -----
+    return render_template(
+        'admin/products.html',
+        products=products,
+        categories=categories
+    )
+
+# ----- Category Management Functions -----
 
 def build_category_tree(categories, parent_id=None):
-    """ساخت ساختار درختی از دسته‌بندی‌ها"""
-    tree = []
-    for category in categories:
-        if category.parent_id == parent_id:
-            children = build_category_tree(categories, category.id)
-            tree.append({
-                'id': category.id,
-                'name': category.name,
-                'children': children
-            })
-    return tree
-
+    """Build a hierarchical tree structure from categories"""
+    try:
+        tree = []
+        for category in categories:
+            if category.parent_id == parent_id:
+                children = build_category_tree(categories, category.id)
+                tree.append({
+                    'id': category.id,
+                    'name': category.name,
+                    'children': children
+                })
+        return tree
+    except Exception as e:
+        logger.error(f"Error building category tree: {str(e)}")
+        return []
 def get_all_subcategories(category_model, category_id, subcategories=None, visited=None):
     """دریافت تمام زیردسته‌ها به صورت بازگشتی"""
     if subcategories is None:
@@ -1116,7 +1094,7 @@ def admin_services():
     """پنل مدیریت - خدمات"""
     action = request.args.get('action')
     service_id = request.args.get('id')
-    
+
     # عملیات POST
     if request.method == 'POST':
         # حذف خدمت
@@ -1125,35 +1103,35 @@ def admin_services():
             if not service_id:
                 flash('شناسه خدمت الزامی است.', 'danger')
                 return redirect(url_for('admin_services'))
-                
+
             try:
                 service = Service.query.get_or_404(int(service_id))
-                
+
                 # حذف تمام رسانه‌های مرتبط با خدمت و فایل‌ها از دیسک
                 media_files = ServiceMedia.query.filter_by(service_id=service.id).all()
                 for media in media_files:
                     # حذف فایل از دیسک اگر محلی باشد
                     if media.file_id and not media.file_id.startswith('http'):
-                        file_path = os.path.join('static', media.file_id)
+                        file_path = os.path.join('static', 'uploads', media.file_id)
                         if os.path.exists(file_path):
                             try:
-                            os.remove(file_path)
-                            logger.info(f"Removed file from disk: {file_path}")
+                                os.remove(file_path)
+                                logger.info(f"Removed file from disk: {file_path}")
                             except Exception as e:
                                 logger.warning(f"Could not remove file {file_path}: {e}")
-                
+
                 # حذف خدمت از دیتابیس (رسانه‌ها به دلیل CASCADE خودکار حذف می‌شوند)
                 db.session.delete(service)
                 db.session.commit()
-                
+
                 flash(f'خدمت "{service.name}" با موفقیت حذف شد.', 'success')
             except Exception as e:
                 db.session.rollback()
                 logger.error(f"Error deleting service: {str(e)}")
                 flash(f'خطا در حذف خدمت: {str(e)}', 'danger')
-                
+
             return redirect(url_for('admin_services'))
-            
+
         # ذخیره خدمت جدید یا ویرایش خدمت موجود
         elif action == 'save':
             # دریافت داده‌های فرم
@@ -1164,24 +1142,47 @@ def admin_services():
             category_id = request.form.get('category_id')
             tags = request.form.get('tags', '')
             featured = 'featured' in request.form
-            
+
             try:
-                price = float(price) if price else 0
-                category_id = int(category_id) if category_id else None
-                
+                # تبدیل داده‌ها به نوع مناسب
+                price = int(price) if price and price.strip() else 0
+                category_id = int(category_id) if category_id and category_id.strip() else None
+
                 if category_id is None:
                     # سعی می‌کنیم دسته‌بندی پیش‌فرض برای خدمات پیدا کنیم
                     default_category = ServiceCategory.query.first()
                     if default_category:
                         category_id = default_category.id
+                        logger.info(f"Using default service category ID: {category_id}")
                     else:
                         new_category = ServiceCategory(name="دسته‌بندی پیش‌فرض خدمات")
                         db.session.add(new_category)
-                        db.session.flush()
+                        db.session.flush()  # برای دریافت ID
                         category_id = new_category.id
-                        logger.info(f"Created default category ID: {category_id}")
-                
+                        logger.info(f"Created new default service category ID: {category_id}")
+
+                photo_path = None
+                photo = request.files.get('photo')
+                if photo and photo.filename:
+                    # مسیر فایل‌های آپلودی
+                    upload_dir = os.path.join('static', 'uploads', 'services', 'main')
+                    os.makedirs(upload_dir, exist_ok=True)
+
+                    # استفاده از تابع handle_media_upload برای مدیریت آپلود
+                    success, file_path = handle_media_upload(
+                        file=photo,
+                        directory=upload_dir,
+                        file_type='photo',
+                        custom_filename=None
+                    )
+                    if success and file_path:
+                        photo_path = file_path
+                    else:
+                        logger.warning("Failed to upload service photo")
+                        flash('خطا در آپلود تصویر اصلی خدمت.', 'warning')
+
                 if service_id:
+                    # ویرایش خدمت موجود
                     service = Service.query.get_or_404(int(service_id))
                     service.name = name
                     service.price = price
@@ -1189,9 +1190,14 @@ def admin_services():
                     service.category_id = category_id
                     service.tags = tags
                     service.featured = featured
+                    if photo_path:
+                        # تبدیل مسیر کامل به مسیر نسبی برای ذخیره در دیتابیس
+                        relative_path = photo_path.replace('static/', '', 1) if photo_path.startswith('static/') else photo_path
+                        service.photo_url = relative_path
                     logger.info(f"Updating service ID: {service_id}, Name: {name}")
                     flash('خدمت با موفقیت به‌روزرسانی شد.', 'success')
                 else:
+                    # ایجاد خدمت جدید
                     service = Service(
                         name=name,
                         price=price,
@@ -1200,46 +1206,29 @@ def admin_services():
                         tags=tags,
                         featured=featured
                     )
+                    if photo_path:
+                        # تبدیل مسیر کامل به مسیر نسبی برای ذخیره در دیتابیس
+                        relative_path = photo_path.replace('static/', '', 1) if photo_path.startswith('static/') else photo_path
+                        service.photo_url = relative_path
                     db.session.add(service)
                     logger.info(f"Creating new service: Name: {name}")
                     flash('خدمت جدید ثبت شد.', 'success')
-                
-                # آپلود تصویر اصلی خدمت
-                photo = request.files.get('photo')
-                if photo and photo.filename:
-                    # مسیر فایل‌های آپلودی
-                    upload_dir = os.path.join('static', 'uploads', 'services', 'main')
-                    os.makedirs(upload_dir, exist_ok=True)
-                    
-                    # استفاده از تابع handle_media_upload برای مدیریت آپلود
-                    success, file_path = handle_media_upload(
-                        file=photo,
-                        directory=upload_dir,
-                        file_type='photo',
-                        custom_filename=None  # استفاده از نام اصلی فایل (با تغییر امن)
-                    )
-                    if success and file_path:
-                        # تبدیل مسیر کامل به مسیر نسبی برای ذخیره در دیتابیس
-                        relative_path = file_path.replace('static/', '', 1) if file_path.startswith('static/') else file_path
-                        
-                        # ذخیره مسیر در خدمت
-                        service.photo_url = relative_path
-                        logger.info(f"Uploaded main photo for service: {file_path}")
-                
+
                 db.session.commit()
-                
-                if not service_id and photo and success and photo.filename:
+
+                # انتقال تصویر به دایرکتوری اختصاصی خدمت (فقط برای خدمت جدید)
+                if not service_id and photo_path:
                     service_upload_dir = os.path.join('static', 'uploads', 'services', str(service.id))
                     os.makedirs(service_upload_dir, exist_ok=True)
-                    new_file_path = os.path.join(service_upload_dir, os.path.basename(file_path))
-                    shutil.move(file_path, new_file_path)
-                        
-                        # به‌روزرسانی مسیر در دیتابیس
+                    new_file_path = os.path.join(service_upload_dir, os.path.basename(photo_path))
+                    shutil.move(photo_path, new_file_path)
+
+                    # به‌روزرسانی مسیر در دیتابیس
                     new_relative_path = new_file_path.replace('static/', '', 1) if new_file_path.startswith('static/') else new_file_path
                     service.photo_url = new_relative_path
                     db.session.commit()
                     logger.info(f"Moved service photo to: {new_file_path}")
-                
+
             except Exception as e:
                 db.session.rollback()
                 logger.error(f"Error saving service: {str(e)}")
@@ -1248,115 +1237,132 @@ def admin_services():
                 if service_id:
                     service = Service.query.get_or_404(int(service_id))
                     return render_template('admin/service_form.html',
-                                          title="ویرایش خدمت",
-                                          service=service,
-                                          categories=categories)
+                                           title="ویرایش خدمت",
+                                           service=service,
+                                           categories=categories)
                 return render_template('admin/service_form.html',
-                                      title="افزودن خدمت جدید",
-                                      categories=categories)
-                
+                                       title="افزودن خدمت جدید",
+                                       categories=categories)
+
             return redirect(url_for('admin_services'))
-            
+
         elif action == 'upload_media':
             service_id = request.form.get('service_id')
             if not service_id:
                 flash('شناسه خدمت الزامی است.', 'danger')
                 return redirect(url_for('admin_services'))
-            
+
             service = Service.query.get_or_404(int(service_id))
             file = request.files.get('file')
             file_type = request.form.get('file_type', 'photo')
-            
-            if file and file.filename:
-                try:
-                    upload_dir = os.path.join('static', 'uploads', 'services', str(service.id))
-                    success, file_path = handle_media_upload(
-                        file=file,
-                        directory=upload_dir,
+
+            if not file or not file.filename:
+                flash('لطفاً یک فایل انتخاب کنید.', 'warning')
+                return redirect(url_for('admin_services', action='media', id=service_id))
+
+            try:
+                upload_dir = os.path.join('static', 'uploads', 'services', str(service.id))
+                success, file_path = handle_media_upload(
+                    file=file,
+                    directory=upload_dir,
+                    file_type=file_type,
+                    custom_filename=None
+                )
+
+                if success and file_path:
+                    relative_path = file_path.replace('static/', '', 1) if file_path.startswith('static/') else file_path
+                    media = ServiceMedia(
+                        service_id=service.id,
+                        file_id=relative_path,
                         file_type=file_type,
-                        custom_filename=None
+                        local_path=file_path
                     )
-                    
-                    if success and file_path:
-                        relative_path = file_path.replace('static/', '', 1) if file_path.startswith('static/') else file_path
-                        media = ServiceMedia(
-                            service_id=service.id,
-                            file_id=relative_path,
-                            file_type=file_type,
-                            local_path=file_path
-                        )
-                        db.session.add(media)
-                        db.session.commit()
-                        logger.info(f"Media uploaded successfully: {file_path}")
-                        flash('رسانه با موفقیت آپلود شد.', 'success')
-                    else:
-                        flash('خطا در آپلود فایل.', 'danger')
-                        logger.error(f"File upload failed")
-                except Exception as e:
-                    db.session.rollback()
-                    logger.error(f"Error uploading media: {str(e)}")
-                    flash(f'خطا در آپلود رسانه: {str(e)}', 'danger')
+                    db.session.add(media)
+                    db.session.commit()
+                    logger.info(f"Media uploaded successfully: {file_path}")
+                    flash('رسانه با موفقیت آپلود شد.', 'success')
                 else:
-                    flash('لطفاً یک فایل انتخاب کنید.', 'warning')
-                
+                    flash('خطا در آپلود فایل.', 'danger')
+                    logger.error(f"File upload failed for service ID: {service_id}")
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Error uploading media: {str(e)}")
+                flash(f'خطا در آپلود رسانه: {str(e)}', 'danger')
+
             return redirect(url_for('admin_services', action='media', id=service_id))
-            
+
         elif action == 'delete_media':
             media_id = request.form.get('media_id')
             service_id = request.form.get('service_id')
-            
+
             if not media_id or not service_id:
                 flash('شناسه رسانه و خدمت الزامی است.', 'danger')
                 return redirect(url_for('admin_services'))
-            
+
             try:
                 media = ServiceMedia.query.get_or_404(int(media_id))
-                if media.service_id == int(service_id):
-                    if not media.file_id.startswith('http'):
-                        file_path = os.path.join('static', 'Uploads', media.file_id)
-                        delete_media_file(file_path)
-                    db.session.delete(media)
-                    db.session.commit()
-                    flash('رسانه با موفقیت حذف شد.', 'success')
-                    logger.info(f"Media deleted: id={media_id}, service_id={service_id}")
-                else:
-                    flash('رسانه یافت نشد.', 'warning')
+                if media.service_id != int(service_id):
+                    flash('رسانه با خدمت مطابقت ندارد.', 'warning')
+                    return redirect(url_for('admin_services', action='media', id=service_id))
+
+                # حذف فایل از دیسک
+                if media.local_path and not media.file_id.startswith('http'):
+                    file_path = media.local_path
+                    delete_media_file(file_path)
+                elif media.file_id and not media.file_id.startswith('http'):
+                    file_path = os.path.join('static', 'uploads', media.file_id)
+                    delete_media_file(file_path)
+
+                db.session.delete(media)
+                db.session.commit()
+                flash('رسانه با موفقیت حذف شد.', 'success')
+                logger.info(f"Media deleted: id={media_id}, service_id={service_id}")
             except Exception as e:
                 db.session.rollback()
                 logger.error(f"Error deleting media: {str(e)}")
                 flash(f'خطا در حذف رسانه: {str(e)}', 'danger')
-                
+
             return redirect(url_for('admin_services', action='media', id=service_id))
-    
+
+    # عملیات GET
     if action == 'add':
         categories = ServiceCategory.query.all()
         return render_template('admin/service_form.html',
-                              title="افزودن خدمت جدید",
-                              categories=categories)
+                               title="افزودن خدمت جدید",
+                               categories=categories)
     elif action == 'edit' and service_id:
         service = Service.query.get_or_404(int(service_id))
         categories = ServiceCategory.query.all()
         return render_template('admin/service_form.html',
-                              title="ویرایش خدمت",
-                              service=service,
-                              categories=categories)
+                               title="ویرایش خدمت",
+                               service=service,
+                               categories=categories)
     elif action == 'media' and service_id:
         service = Service.query.get_or_404(int(service_id))
         media = ServiceMedia.query.filter_by(service_id=service.id).all()
+        # تنظیم مسیرهای فرمت‌شده برای رسانه‌ها
+        for item in media:
+            item.formatted_file_id = get_photo_url(item.file_id)
         return render_template('admin/service_media.html',
-                              service=service,
-                              media=media,
-                              active_page='services')
+                               service=service,
+                               media=media,
+                               active_page='services')
 
-    services = Service.query.all()
+    # نمایش لیست خدمات با صفحه‌بندی
+    page = request.args.get('page', 1, type=int)
+    pagination = Service.query.paginate(
+        page=page, per_page=10, error_out=False
+    )
+    services = pagination.items
     categories = ServiceCategory.query.all()
+
     for service in services:
         service.formatted_photo_url = get_photo_url(service.photo_url)
-    
-    return render_template('admin/services.html', 
-                          services=services, 
-                          categories=categories)
 
+    return render_template('admin/services.html',
+                           services=services,
+                           categories=categories,
+                           pagination=pagination)
 # ----- Educational Content Routes -----
 
 @app.route('/educational/<int:content_id>')
@@ -1763,149 +1769,6 @@ def control_stop():
 
 
 
-@app.route('/admin/database/fix/<string:table>', methods=['POST'])
-@login_required
-def admin_database_fix(table):
-    """اصلاح مشکلات جدول"""
-    if not current_user.is_admin:
-        flash('دسترسی غیرمجاز است.', 'danger')
-        return redirect(url_for('index'))
-
-    try:
-        if table == 'service_media':
-            # Delete invalid service_media records (e.g., no associated service)
-            invalid_media = ServiceMedia.query.filter(~ServiceMedia.service_id.in_(
-                db.session.query(Service.id)
-            )).all()
-            for media in invalid_media:
-                db.session.delete(media)
-            # Create default media for services without media
-            services_without_media = Service.query.filter(~Service.id.in_(
-                db.session.query(ServiceMedia.service_id)
-            )).all()
-            for service in services_without_media:
-                default_media = ServiceMedia(
-                    service_id=service.id,
-                    file_id='uploads/default.jpg',
-                    file_type='photo',
-                    local_path='static/uploads/default.jpg'
-                )
-                db.session.add(default_media)
-            db.session.commit()
-            flash(f'جدول {table} با موفقیت اصلاح شد.', 'success')
-
-        elif table == 'product_media':
-            # Delete invalid product_media records
-            invalid_media = ProductMedia.query.filter(~ProductMedia.product_id.in_(
-                db.session.query(Product.id)
-            )).all()
-            for media in invalid_media:
-                db.session.delete(media)
-            # Create default media for products without media
-            products_without_media = Product.query.filter(~Product.id.in_(
-                db.session.query(ProductMedia.product_id)
-            )).all()
-            for product in products_without_media:
-                default_media = ProductMedia(
-                    product_id=product.id,
-                    file_id='uploads/default.jpg',
-                    file_type='photo',
-                    local_path='static/uploads/default.jpg'
-                )
-                db.session.add(default_media)
-            db.session.commit()
-            flash(f'جدول {table} با موفقیت اصلاح شد.', 'success')
-
-        elif table == 'services':
-            # Fix invalid category_id in services
-            invalid_services = Service.query.filter(~Service.category_id.in_(
-                db.session.query(ServiceCategory.id)
-            )).all()
-            default_category = ServiceCategory.query.first()
-            if not default_category:
-                default_category = ServiceCategory(name='دسته‌بندی پیش‌فرض خدمات')
-                db.session.add(default_category)
-                db.session.flush()
-            for service in invalid_services:
-                service.category_id = default_category.id
-            db.session.commit()
-            flash(f'جدول {table} با موفقیت اصلاح شد.', 'success')
-
-        elif table == 'products':
-            # Fix invalid category_id in products
-            invalid_products = Product.query.filter(~Product.category_id.in_(
-                db.session.query(ProductCategory.id)
-            )).all()
-            default_category = ProductCategory.query.first()
-            if not default_category:
-                default_category = ProductCategory(name='دسته‌بندی پیش‌فرض محصولات')
-                db.session.add(default_category)
-                db.session.flush()
-            for product in invalid_products:
-                product.category_id = default_category.id
-            db.session.commit()
-            flash(f'جدول {table} با موفقیت اصلاح شد.', 'success')
-
-        elif table == 'categories':
-            # Fix invalid parent_id in categories (for all category types)
-            for model in [ProductCategory, ServiceCategory, EducationalCategory]:
-                invalid_categories = model.query.filter(~model.parent_id.in_(
-                    db.session.query(model.id)
-                )).filter(model.parent_id.isnot(None)).all()
-                for category in invalid_categories:
-                    category.parent_id = None
-            db.session.commit()
-            flash(f'جدول {table} با موفقیت اصلاح شد.', 'success')
-
-        elif table == 'inquiries':
-            # Fix invalid product_id or service_id in inquiries
-            invalid_inquiries = Inquiry.query.filter(
-                ~Inquiry.product_id.in_(db.session.query(Product.id))
-                | ~Inquiry.service_id.in_(db.session.query(Service.id))
-            ).all()
-            for inquiry in invalid_inquiries:
-                if inquiry.product_id and inquiry.product_id not in [p.id for p in Product.query.all()]:
-                    inquiry.product_id = None
-                if inquiry.service_id and inquiry.service_id not in [s.id for s in Service.query.all()]:
-                    inquiry.service_id = None
-            db.session.commit()
-            flash(f'جدول {table} با موفقیت اصلاح شد.', 'success')
-
-        elif table == 'educational_content':
-            # Fix invalid category_id and sync type/content_type
-            invalid_content = EducationalContent.query.filter(~EducationalContent.category_id.in_(
-                db.session.query(EducationalCategory.id)
-            )).all()
-            default_category = EducationalCategory.query.first()
-            if not default_category:
-                default_category = EducationalCategory(name='دسته آموزشی پیش‌فرض')
-                db.session.add(default_category)
-                db.session.flush()
-            for content in invalid_content:
-                content.category_id = default_category.id
-            db.session.commit()
-            flash(f'جدول {table} با موفقیت اصلاح شد.', 'success')
-
-        elif table == 'educational_content_media':
-            # Delete invalid educational_content_media records
-            invalid_media = EducationalContentMedia.query.filter(~EducationalContentMedia.educational_content_id.in_(
-                db.session.query(EducationalContent.id)
-            )).all()
-            for media in invalid_media:
-                db.session.delete(media)
-            db.session.commit()
-            flash(f'جدول {table} با موفقیت اصلاح شد.', 'success')
-
-        else:
-            flash(f'جدول "{table}" نامعتبر است.', 'danger')
-            return redirect(url_for('admin_database'))
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error in admin_database_fix for {table}: {str(e)}", exc_info=True)
-        flash(f'خطا در اصلاح جدول {table}: {str(e)}', 'danger')
-
-    return redirect(url_for('admin_database'))
 
 @app.route('/admin/database/view/<string:table>')
 @login_required
@@ -1951,66 +1814,3 @@ def admin_view_table(table):
         flash(f'خطا در بارگذاری داده‌های جدول: {str(e)}', 'danger')
         return redirect(url_for('admin_database'))
 
-@app.route('/admin/database/fix/<string:table>', methods=['POST'])
-@login_required
-def admin_database_fix(table):
-    """اصلاح مشکلات جدول"""
-    if not current_user.is_admin:
-        flash('دسترسی غیرمجاز است.', 'danger')
-        return redirect(url_for('index'))
-
-    try:
-        if table == 'service_media':
-            invalid_media = ServiceMedia.query.filter(~ServiceMedia.service_id.in_(
-                db.session.query(Service.id)
-            )).all()
-            for media in invalid_media:
-                db.session.delete(media)
-            services_without_media = Service.query.filter(~Service.id.in_(
-                db.session.query(ServiceMedia.service_id)
-            )).all()
-            for service in services_without_media:
-                default_media = ServiceMedia(
-                    service_id=service.id,
-                    file_id='uploads/default.jpg',
-                    file_type='photo',
-                    local_path='static/uploads/default.jpg'
-                )
-                db.session.add(default_media)
-            db.session.commit()
-            flash(f'جدول {table} با موفقیت اصلاح شد.', 'success')
-
-        elif table == 'product_media':
-            # Similar logic for product_media
-            invalid_media = ProductMedia.query.filter(~ProductMedia.product_id.in_(
-                db.session.query(Product.id)
-            )).all()
-            for media in invalid_media:
-                db.session.delete(media)
-            products_without_media = Product.query.filter(~Product.id.in_(
-                db.session.query(ProductMedia.product_id)
-            )).all()
-            for product in products_without_media:
-                default_media = ProductMedia(
-                    product_id=product.id,
-                    file_id='uploads/default.jpg',
-                    file_type='photo',
-                    local_path='static/uploads/default.jpg'
-                )
-                db.session.add(default_media)
-            db.session.commit()
-            flash(f'جدول {table} با موفقیت اصلاح شد.', 'success')
-
-        # Add similar blocks for 'services', 'products', 'categories', 'inquiries',
-        # 'educational_content', 'educational_content_media' as per previous implementation
-
-        else:
-            flash(f'جدول "{table}" نامعتبر است.', 'danger')
-            return redirect(url_for('admin_database'))
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error in admin_database_fix for {table}: {str(e)}", exc_info=True)
-        flash(f'خطا در اصلاح جدول {table}: {str(e)}', 'danger')
-
-    return redirect(url_for('admin_database'))
