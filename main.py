@@ -4,13 +4,20 @@
 """
 
 import os
+import io
 import logging
 import datetime
+import csv
+import zipfile
+import tempfile
+from flask import (
+    render_template, request, redirect, url_for, flash, session, Response,
+    send_file,jsonify, send_from_directory
+)
 import time
-from flask import render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory, Response
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 import shutil
 from app import app
 from extensions import db
@@ -20,8 +27,10 @@ from models import (
     EducationalContent, StaticContent, EducationalCategory, EducationalContentMedia,
     ProductCategory, ServiceCategory
 )
-from utils import allowed_file, save_uploaded_file, create_directory
-from configuration import load_config, save_config
+
+
+
+
 
 # تنظیم لاگر
 logger = logging.getLogger(__name__)
@@ -29,7 +38,7 @@ logger.setLevel(logging.DEBUG)
 
 # تنظیم لاگر برای ذخیره لاگ‌ها در فایل
 file_handler = logging.FileHandler('logs/rfcbot.log')
-file_handler.setLevel(logging.INFO)
+file_handler.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
@@ -287,29 +296,6 @@ def login():
     
     return render_template('login.html')
 
-
-@app.route('/admin/database', methods=['GET'])
-@login_required
-def admin_database():
-    """Display database management page for admins."""
-    if not current_user.is_admin:
-        flash('دسترسی غیرمجاز است.', 'danger')
-        return redirect(url_for('index'))
-
-    try:
-        # Example: Fetch table names or stats for display
-        tables = [
-            'service_media', 'product_media', 'services', 'products',
-            'inquiries', 'educational_content', 'educational_content_media'
-        ]
-        return render_template('database.html',
-                               title='مدیریت دیتابیس',
-                               tables=tables,
-                               active_page='database')
-    except Exception as e:
-        logger.error(f"Error loading admin_database: {str(e)}", exc_info=True)
-        flash(f'خطا در بارگذاری صفحه مدیریت دیتابیس: {str(e)}', 'danger')
-        return redirect(url_for('admin_index'))
 
 
 
@@ -1468,21 +1454,21 @@ def educational_detail(content_id):
 
 @app.route('/admin/education', methods=['GET', 'POST'])
 @login_required
-def admin_educational():
+def admin_education():
     """پنل مدیریت - محتوای آموزشی"""
     if not current_user.is_admin:
         flash('دسترسی غیرمجاز.', 'danger')
         return redirect(url_for('index'))
-    
+
     action = request.args.get('action')
     content_id = request.args.get('id')
-    
+
     if request.method == 'POST':
         if action == 'delete':
             content_id = request.form.get('content_id')
             if not content_id:
                 flash('شناسه محتوا الزامی است.', 'danger')
-                return redirect(url_for('admin_educational'))
+                return redirect(url_for('admin_education'))
                 
             content = EducationalContent.query.get_or_404(int(content_id))
             media_files = EducationalContentMedia.query.filter_by(content_id=content.id).all()
@@ -1494,18 +1480,38 @@ def admin_educational():
             db.session.delete(content)
             db.session.commit()
             flash(f'محتوای آموزشی "{content.title}" با موفقیت حذف شد.', 'success')
-            return redirect(url_for('admin/educational'))
+            return redirect(url_for('admin_education'))  # اصلاح به admin_education
         
         elif action == 'save':
             content_id = request.form.get('id')
             title = request.form.get('title')
             content_text = request.form.get('content')
             category_id = request.form.get('category_id')
+            new_category = request.form.get('new_category')  # دریافت نام دسته‌بندی جدید
             tags = request.form.get('tags', '')
             featured = 'featured' in request.form
-            
+        
             try:
-                category_id = int(category_id) if category_id else None
+                # بررسی اینکه آیا دسته‌بندی جدید انتخاب شده است
+                if category_id == 'new_category':
+                    if not new_category:
+                        flash('لطفاً نام دسته‌بندی جدید را وارد کنید.', 'danger')
+                        categories = EducationalCategory.query.all()
+                        content = EducationalContent.query.get(int(content_id)) if content_id else None
+                        return render_template('admin/education_form.html',
+                                              title="ویرایش محتوای آموزشی" if content_id else "افزودن محتوای آموزشی جدید",
+                                              educational_content=content,
+                                              categories=categories)
+                    # ایجاد دسته‌بندی جدید
+                    new_category_obj = EducationalCategory(name=new_category)
+                    db.session.add(new_category_obj)
+                    db.session.flush()  # برای دریافت ID دسته‌بندی جدید
+                    category_id = new_category_obj.id
+                    logger.info(f"Created new category: {new_category} with ID: {category_id}")
+                else:
+                    category_id = int(category_id) if category_id else None
+        
+                # اگر category_id همچنان None باشد، دسته‌بندی پیش‌فرض را ایجاد یا انتخاب کنید
                 if category_id is None:
                     default_category = EducationalCategory.query.first()
                     if default_category:
@@ -1516,7 +1522,8 @@ def admin_educational():
                         db.session.flush()
                         category_id = new_category.id
                         logger.info(f"Created default educational category ID: {category_id}")
-                
+        
+                # ادامه فرآیند ذخیره محتوا
                 if content_id:
                     content = EducationalContent.query.get_or_404(int(content_id))
                     content.title = title
@@ -1535,7 +1542,8 @@ def admin_educational():
                     )
                     db.session.add(content)
                     db.session.commit()  # Commit برای دریافت content.id
-                
+                    logger.info(f"New content created with ID: {content.id}, Title: {content.title}")
+        
                 # آپلود رسانه جدید
                 file = request.files.get('file')
                 file_type = request.form.get('file_type', 'photo')
@@ -1566,31 +1574,26 @@ def admin_educational():
                         db.session.rollback()
                         logger.error(f"Error uploading media: {str(e)}")
                         flash(f'خطا در آپلود رسانه: {str(e)}', 'danger')
-                
+        
                 db.session.commit()
-                
+        
             except Exception as e:
                 db.session.rollback()
                 logger.error(f"Error saving educational content: {str(e)}")
                 flash(f'خطا در ذخیره محتوای آموزشی: {str(e)}', 'danger')
                 categories = EducationalCategory.query.all()
-                if content_id:
-                    content = EducationalContent.query.get_or_404(int(content_id))
-                    return render_template('admin/educational_form.html',
-                                          title="ویرایش محتوای آموزشی",
-                                          content=content,
-                                          categories=categories)
-                return render_template('admin/educational_form.html',
-                                      title="افزودن محتوای آموزشی جدید",
+                content = EducationalContent.query.get(int(content_id)) if content_id else None
+                return render_template('admin/education_form.html',
+                                      title="ویرایش محتوای آموزشی" if content_id else "افزودن محتوای آموزشی جدید",
+                                      educational_content=content,
                                       categories=categories)
-                
-            return redirect(url_for('admin_educational'))
-            
+        
+            return redirect(url_for('admin_education'))
         elif action == 'upload_media':
             content_id = request.form.get('content_id')
             if not content_id:
                 flash('شناسه محتوا الزامی است.', 'danger')
-                return redirect(url_for('admin_educational'))
+                return redirect(url_for('admin_education'))
                 
             content = EducationalContent.query.get_or_404(int(content_id))
             file = request.files.get('file')
@@ -1626,7 +1629,7 @@ def admin_educational():
             else:
                 flash('لطفاً یک فایل انتخاب کنید.', 'warning')
                 
-            return redirect(url_for('admin_educational', action='media', id=content_id))
+            return redirect(url_for('admin_education', action='media', id=content_id))
             
         elif action == 'delete_media':
             media_id = request.form.get('media_id')
@@ -1634,7 +1637,7 @@ def admin_educational():
             
             if not media_id or not content_id:
                 flash('شناسه رسانه و محتوا الزامی است.', 'danger')
-                return redirect(url_for('admin_educational'))
+                return redirect(url_for('admin_education'))
                 
             try:
                 media = EducationalContentMedia.query.get(int(media_id))
@@ -1651,37 +1654,52 @@ def admin_educational():
                 logger.error(f"Error deleting media: {str(e)}")
                 flash(f'خطا در حذف رسانه: {str(e)}', 'danger')
                 
-            return redirect(url_for('admin_educational', action='media', id=content_id))
+            return redirect(url_for('admin_education', action='media', id=content_id))
     
     if action == 'add':
         categories = EducationalCategory.query.all()
-        return render_template('admin/educational_form.html',
+        return render_template('admin/education_form.html',
                               title="افزودن محتوای آموزشی جدید",
                               categories=categories)
     elif action == 'edit' and content_id:
         content = EducationalContent.query.get_or_404(int(content_id))
         categories = EducationalCategory.query.all()
-        return render_template('admin/educational_form.html',
+        return render_template('admin/education_form.html',
                               title="ویرایش محتوای آموزشی",
-                              content=content,
+                              educational_content=content,
                               categories=categories)
     elif action == 'media' and content_id:
         content = EducationalContent.query.get_or_404(int(content_id))
         media = EducationalContentMedia.query.filter_by(content_id=content.id).all()
-        return render_template('admin/educational_media.html',
-                              content=content,
+        return render_template('admin/education_form.html',
+                              educational_content=content,
                               media=media,
                               active_page='educational')
     
-    contents = EducationalContent.query.all()
+    # اطمینان از وجود دسته‌بندی پیش‌فرض
+    if not EducationalCategory.query.first():
+        new_category = EducationalCategory(name="دسته آموزشی پیش‌فرض")
+        db.session.add(new_category)
+        db.session.commit()
+        logger.info("Created default educational category")
+
+    # صفحه‌بندی
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+    pagination = EducationalContent.query.paginate(page=page, per_page=per_page, error_out=False)
+    contents = pagination.items
     categories = EducationalCategory.query.all()
+
     for content in contents:
         media = EducationalContentMedia.query.filter_by(content_id=content.id, file_type='photo').first()
         content.formatted_photo_url = get_photo_url(media.file_id) if media else None
-    
-    return render_template('admin/educational.html',
-                          contents=contents,
+
+    logger.info(f"Number of educational contents: {len(contents)}")
+
+    return render_template('admin/education.html',
+                          educational_content=contents,
                           categories=categories,
+                          pagination=pagination,
                           active_page='educational')
 # ----- Inquiry Routes -----
 
@@ -1756,9 +1774,293 @@ def admin_inquiries():
                           inquiries=inquiries,
                           active_page='inquiries')
 
-# ----- Static Content Routes -----
 
-@app.route('/admin/static_content', methods=['GET', 'POST'])
+# ----- Database Management Routes -----
+
+
+
+
+@app.route('/admin/database', methods=['GET'])
+@login_required
+def admin_database():
+    """Display database management page for admins."""
+    if not current_user.is_admin:
+        flash('دسترسی غیرمجاز است.', 'danger')
+        return redirect(url_for('index'))
+
+    try:
+        table_model_map = {
+            'users': User,
+            'products': Product,
+            'services': Service,
+            'inquiries': Inquiry,
+            'educational_content': EducationalContent,
+            'static_content': StaticContent,
+            'product_categories': ProductCategory,
+            'service_categories': ServiceCategory,
+            'educational_categories': EducationalCategory,
+            'product_media': ProductMedia,
+            'educational_content_media': EducationalContentMedia
+        }
+
+        table_counts = {}
+        for table_name, model in table_model_map.items():
+            try:
+                count = model.query.count()
+                table_counts[table_name] = count
+            except Exception as e:
+                logger.warning(f"Error counting records for table {table_name}: {str(e)}")
+                table_counts[table_name] = 'Error'
+
+        with db.engine.connect() as connection:
+            pg_version = connection.execute(text("SELECT version();")).fetchone()[0]
+
+        pg_host = os.environ.get('DATABASE_HOST', 'localhost')
+        pg_database = os.environ.get('DATABASE_NAME', 'unknown')
+        pg_user = os.environ.get('DATABASE_USER', 'unknown')
+
+        inspector = inspect(db.engine)
+        table_structures = {}
+        for table_name in table_model_map.keys():
+            try:
+                columns = inspector.get_columns(table_name)
+                table_structures[table_name] = columns
+            except Exception as e:
+                logger.warning(f"Error fetching structure for table {table_name}: {str(e)}")
+                table_structures[table_name] = []
+
+        return render_template('admin/database.html',
+                               title='مدیریت دیتابیس',
+                               table_counts=table_counts,
+                               table_structures=table_structures,
+                               pg_version=pg_version,
+                               pg_host=pg_host,
+                               pg_database=pg_database,
+                               pg_user=pg_user,
+                               active_page='database')
+    except Exception as e:
+        logger.error(f"Error loading admin_database: {str(e)}", exc_info=True)
+        flash(f'خطا در بارگذاری صفحه مدیریت دیتابیس: {str(e)}', 'danger')
+        return redirect(url_for('admin_index'))
+
+@app.route('/admin/database/execute_sql', methods=['POST'])
+@login_required
+def execute_sql():
+    """Execute a custom SQL query."""
+    if not current_user.is_admin:
+        flash('دسترسی غیرمجاز است.', 'danger')
+        return redirect(url_for('index'))
+
+    try:
+        sql_query = request.form.get('sql_query')
+        if not sql_query:
+            flash('کوئری SQL خالی است.', 'danger')
+            return redirect(url_for('admin_database'))
+
+        sql_query = sql_query.strip().lower()
+        if sql_query.startswith(('drop ', 'alter ', 'truncate ', 'delete ', 'insert ', 'update ')):
+            flash('کوئری‌های تغییر ساختار یا داده مجاز نیستند.', 'danger')
+            return redirect(url_for('admin_database'))
+
+        with db.engine.connect() as connection:
+            result = connection.execute(text(sql_query))
+            rows = result.fetchall()
+            columns = result.keys() if rows else []
+
+        results = [dict(zip(columns, row)) for row in rows] if rows else []
+        flash(f'کوئری با موفقیت اجرا شد. تعداد ردیف‌ها: {len(results)}', 'success')
+
+        table_model_map = {
+            'users': User,
+            'products': Product,
+            'services': Service,
+            'inquiries': Inquiry,
+            'educational_content': EducationalContent,
+            'static_content': StaticContent,
+            'product_categories': ProductCategory,
+            'service_categories': ServiceCategory,
+            'educational_categories': EducationalCategory,
+            'product_media': ProductMedia,
+            'educational_content_media': EducationalContentMedia
+        }
+
+        table_counts = {}
+        for table_name, model in table_model_map.items():
+            try:
+                count = model.query.count()
+                table_counts[table_name] = count
+            except Exception as e:
+                logger.warning(f"Error counting records for table {table_name}: {str(e)}")
+                table_counts[table_name] = 'Error'
+
+        with db.engine.connect() as connection:
+            pg_version = connection.execute(text("SELECT version();")).fetchone()[0]
+
+        pg_host = os.environ.get('DATABASE_HOST', 'localhost')
+        pg_database = os.environ.get('DATABASE_NAME', 'unknown')
+        pg_user = os.environ.get('DATABASE_USER', 'unknown')
+
+        inspector = inspect(db.engine)
+        table_structures = {}
+        for table_name in table_model_map.keys():
+            try:
+                columns = inspector.get_columns(table_name)
+                table_structures[table_name] = columns
+            except Exception as e:
+                logger.warning(f"Error fetching structure for table {table_name}: {str(e)}")
+                table_structures[table_name] = []
+
+        return render_template('admin/database.html',
+                               title='مدیریت دیتابیس',
+                               table_counts=table_counts,
+                               table_structures=table_structures,
+                               pg_version=pg_version,
+                               pg_host=pg_host,
+                               pg_database=pg_database,
+                               pg_user=pg_user,
+                               sql_results=results,
+                               sql_columns=columns,
+                               active_page='database')
+    except Exception as e:
+        logger.error(f"Error executing SQL query: {str(e)}", exc_info=True)
+        flash(f'خطا در اجرای کوئری: {str(e)}', 'danger')
+        return redirect(url_for('admin_database'))
+
+@app.route('/admin/database/fix/<string:table>', methods=['POST'])
+@login_required
+def admin_database_fix(table):
+    """Fix issues in the specified table."""
+    if not current_user.is_admin:
+        flash('دسترسی غیرمجاز است.', 'danger')
+        return redirect(url_for('index'))
+
+    try:
+        table_model_map = {
+            'users': User,
+            'products': Product,
+            'services': Service,
+            'inquiries': Inquiry,
+            'educational_content': EducationalContent,
+            'static_content': StaticContent,
+            'product_categories': ProductCategory,
+            'service_categories': ServiceCategory,
+            'educational_categories': EducationalCategory,
+            'product_media': ProductMedia,
+            'educational_content_media': EducationalContentMedia
+        }
+
+        if table not in table_model_map:
+            flash(f'جدول "{table}" نامعتبر است.', 'danger')
+            return redirect(url_for('admin_database'))
+
+        model = table_model_map[table]
+        
+        if table == 'inquiries':
+            invalid_inquiries = model.query.filter(
+                (model.product_id != None) & (model.product_id.notin_(db.session.query(Product.id)))
+            ).all()
+            for inquiry in invalid_inquiries:
+                inquiry.product_id = None
+            db.session.commit()
+            flash(f'جدول {table} اصلاح شد: ارجاعات نامعتبر اصلاح شدند.', 'success')
+        else:
+            flash(f'اصلاح برای جدول {table} پیاده‌سازی نشده است.', 'warning')
+
+        return redirect(url_for('admin_database'))
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error fixing table {table}: {str(e)}", exc_info=True)
+        flash(f'خطا در اصلاح جدول: {str(e)}', 'danger')
+        return redirect(url_for('admin_database'))
+
+@app.route('/admin/database/view/<string:table>', methods=['GET'])
+@login_required
+def admin_view_table(table):
+    """View table data in the database."""
+    if not current_user.is_admin:
+        flash('دسترسی غیرمجاز است.', 'danger')
+        return redirect(url_for('index'))
+
+    try:
+        table_model_map = {
+            'users': User,
+            'products': Product,
+            'services': Service,
+            'inquiries': Inquiry,
+            'educational_content': EducationalContent,
+            'static_content': StaticContent,
+            'product_categories': ProductCategory,
+            'service_categories': ServiceCategory,
+            'educational_categories': EducationalCategory,
+            'product_media': ProductMedia,
+            'educational_content_media': EducationalContentMedia
+        }
+
+        if table not in table_model_map:
+            flash(f'جدول "{table}" یافت نشد.', 'danger')
+            return redirect(url_for('admin_database'))
+
+        model = table_model_map[table]
+        
+        inspector = inspect(db.engine)
+        columns = [col['name'] for col in inspector.get_columns(table)]
+        
+        per_page = int(request.args.get('per_page', 10))
+        page = int(request.args.get('page', 1))
+        if per_page not in [10, 20, 50, 100]:
+            per_page = 10
+
+        total_records = model.query.count()
+        total_pages = max(1, (total_records + per_page - 1) // per_page)
+        page = max(1, min(page, total_pages))
+        
+        query = model.query.offset((page - 1) * per_page).limit(per_page)
+        data = query.all()
+        
+        rows = []
+        for row in data:
+            row_data = []
+            for column in columns:
+                value = getattr(row, column, None)
+                row_data.append(value)
+            rows.append(row_data)
+
+        def url_for_page(p):
+            return url_for('admin_view_table', table=table, page=p, per_page=per_page)
+
+        return render_template('view_table.html',
+                               title=f'مشاهده جدول {table}',
+                               table_name=table,
+                               columns=columns,
+                               rows=rows,
+                               total_records=total_records,
+                               total_pages=total_pages,
+                               page=page,
+                               url_for_page=url_for_page,
+                               active_page='database')
+    except Exception as e:
+        logger.error(f"Error loading table {table}: {str(e)}", exc_info=True)
+        flash(f'خطا در بارگذاری داده‌های جدول: {str(e)}', 'danger')
+        return redirect(url_for('admin_database'))
+
+@app.route('/telegram/file/<string:file_id>')
+@login_required
+def telegram_file(file_id):
+    """Serve or redirect to a Telegram file."""
+    if not current_user.is_admin:
+        flash('دسترسی غیرمجاز است.', 'danger')
+        return redirect(url_for('index'))
+
+    try:
+        flash(f'فایل با شناسه {file_id} یافت نشد. لطفاً منطق بازیابی را پیاده‌سازی کنید.', 'warning')
+        return redirect(url_for('admin_database'))
+    except Exception as e:
+        logger.error(f"Error serving telegram file {file_id}: {str(e)}", exc_info=True)
+        flash(f'خطا در بارگذاری فایل: {str(e)}', 'danger')
+        return redirect(url_for('admin_database'))
+
+# ----- Static Content Routes -----
+@app.route('/admin/content', methods=['GET', 'POST'])
 @login_required
 def admin_static_content():
     """مدیریت محتوای ثابت"""
@@ -1772,25 +2074,33 @@ def admin_static_content():
         
         if not content_type or not content:
             flash('نوع محتوا و متن الزامی هستند.', 'danger')
-            return redirect(url_for('admin/static_content'))
+            return redirect(url_for('admin_static_content'))
         
-        static_content = StaticContent.query.filter_by(content_type=content_type).first()
-        if static_content:
-            static_content.content = content
-            flash(f'محتوای "{content_type}" به‌روزرسانی شد.', 'success')
-        else:
-            static_content = StaticContent(content_type=content_type, content=content)
-            db.session.add(static_content)
-            flash(f'محتوای "{content_type}" ایجاد شد.', 'success')
-        
-        db.session.commit()
-        return redirect(url_for('admin/static_content'))
+        try:
+            static_content = StaticContent.query.filter_by(content_type=content_type).first()
+            if static_content:
+                static_content.content = content
+                flash(f'محتوای "{content_type}" به‌روزرسانی شد.', 'success')
+            else:
+                static_content = StaticContent(content_type=content_type, content=content)
+                db.session.add(static_content)
+                flash(f'محتوای "{content_type}" ایجاد شد.', 'success')
+            
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error saving static content: {str(e)}")
+            flash(f'خطا در ذخیره محتوا: {str(e)}', 'danger')
+            return redirect(url_for('admin_static_content'))
     
-    contents = StaticContent.query.all()
-    return render_template('admin/static_content.html',
-                          contents=contents,
-                          active_page='static_content')
-
+    # Fetch specific content for the template
+    contact_content = StaticContent.query.filter_by(content_type='contact').first()
+    about_content = StaticContent.query.filter_by(content_type='about').first()
+    
+    return render_template('admin_content.html',
+                          contact_content=contact_content,
+                          about_content=about_content,
+                          active_page='content')
 # ----- File Serving Routes -----
 
 @app.route('/media/<path:filename>')
@@ -1857,51 +2167,500 @@ def control_stop():
         flash(f'خطا در توقف ربات: {str(e)}', 'danger')
 
     return redirect(url_for('index'))
+    
+# ----- Import Export Routes -----
 
 
-
-
-@app.route('/admin/database/view/<string:table>')
+@app.route('/admin/import_export')
 @login_required
-def admin_view_table(table):
-    """مشاهده داده‌های جدول"""
+def admin_import_export():
+    """Admin panel - Data import/export"""
     if not current_user.is_admin:
-        flash('دسترسی غیرمجاز است.', 'danger')
+        flash('دسترسی غیرمجاز.', 'danger')
+        return redirect(url_for('index'))
+    
+    message = session.pop('import_export_message', None)
+    return render_template('admin_import_export.html',
+                          message=message,
+                          active_page='import_export')
+
+@app.route('/admin/export/<entity_type>')
+@login_required
+def export_entity(entity_type):
+    """Export data to CSV format"""
+    if not current_user.is_admin:
+        flash('دسترسی غیرمجاز.', 'danger')
         return redirect(url_for('index'))
 
     try:
-        table_model_map = {
+        # Map entity types to models
+        entity_map = {
+            'products': Product,
+            'services': Service,
+            'inquiries': Inquiry,
+            'educational': EducationalContent,
+            'categories': {
+                'product_categories': ProductCategory,
+                'service_categories': ServiceCategory,
+                'educational_categories': EducationalCategory
+            }
+        }
+
+        # Handle category export separately
+        if entity_type == 'categories':
+            output = io.StringIO()
+            writer = csv.writer(output)
+
+            # Write headers for all category types
+            headers = ['id', 'name', 'parent_id', 'category_type']
+            writer.writerow(headers)
+
+            # Export product categories
+            for category in ProductCategory.query.all():
+                writer.writerow([
+                    category.id,
+                    category.name,
+                    category.parent_id if category.parent_id else '',
+                    'product'
+                ])
+
+            # Export service categories
+            for category in ServiceCategory.query.all():
+                writer.writerow([
+                    category.id,
+                    category.name,
+                    category.parent_id if category.parent_id else '',
+                    'service'
+                ])
+
+            # Export educational categories
+            for category in EducationalCategory.query.all():
+                writer.writerow([
+                    category.id,
+                    category.name,
+                    category.parent_id if category.parent_id else '',
+                    'educational'
+                ])
+
+        else:
+            if entity_type not in entity_map:
+                flash(f'نوع داده {entity_type} معتبر نیست.', 'danger')
+                return redirect(url_for('admin_import_export'))
+
+            model = entity_map[entity_type]
+            items = model.query.all()
+
+            if not items:
+                flash(f'داده‌ای برای {entity_type} یافت نشد.', 'warning')
+                return redirect(url_for('admin_import_export'))
+
+            output = io.StringIO()
+            writer = csv.writer(output)
+            columns = [c.name for c in model.__table__.columns]
+            writer.writerow(columns)
+
+            for item in items:
+                row = []
+                for column in columns:
+                    value = getattr(item, column)
+                    row.append(str(value) if value is not None else '')
+                writer.writerow(row)
+
+        output.seek(0)
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={'Content-Disposition': f'attachment; filename={entity_type}_{timestamp}.csv'}
+        )
+
+    except Exception as e:
+        logger.error(f"Error exporting {entity_type}: {str(e)}")
+        flash(f'خطا در خروجی‌گیری: {str(e)}', 'danger')
+        return redirect(url_for('admin_import_export'))
+
+@app.route('/admin/import', methods=['POST'])
+@login_required
+def import_entity():
+    """Import data from CSV file"""
+    if not current_user.is_admin:
+        flash('دسترسی غیرمجاز.', 'danger')
+        return redirect(url_for('index'))
+
+    try:
+        entity_type = request.form.get('entity_type')
+        if not entity_type:
+            flash('لطفاً نوع داده را انتخاب کنید.', 'danger')
+            return redirect(url_for('admin_import_export'))
+
+        if 'csv_file' not in request.files:
+            flash('لطفاً یک فایل CSV انتخاب کنید.', 'danger')
+            return redirect(url_for('admin_import_export'))
+
+        file = request.files['csv_file']
+        if not file.filename.endswith('.csv'):
+            flash('فایل باید فرمت CSV داشته باشد.', 'danger')
+            return redirect(url_for('admin_import_export'))
+
+        content = file.read().decode('utf-8')
+        csv_data = io.StringIO(content)
+        reader = csv.DictReader(csv_data)
+        imported_count = 0
+
+        if entity_type == 'products':
+            for row in reader:
+                product = Product(
+                    name=row.get('name', ''),
+                    price=int(row.get('price', 0)) if row.get('price') else 0,
+                    description=row.get('description', ''),
+                    category_id=int(row.get('category_id')) if row.get('category_id') else None,
+                    photo_url=row.get('photo_url', None),
+                    brand=row.get('brand', None),
+                    model=row.get('model', None),
+                    in_stock=row.get('in_stock', 'False').lower() == 'true',
+                    tags=row.get('tags', None),
+                    featured=row.get('featured', 'False').lower() == 'true',
+                    model_number=row.get('model_number', None),
+                    manufacturer=row.get('manufacturer', None),
+                    provider=row.get('provider', None),
+                    service_code=row.get('service_code', None),
+                    duration=row.get('duration', None),
+                    file_id=row.get('file_id', None),
+                    video_url=row.get('video_url', None),
+                    video_file_id=row.get('video_file_id', None)
+                )
+                db.session.add(product)
+                imported_count += 1
+
+        elif entity_type == 'services':
+            for row in reader:
+                service = Service(
+                    name=row.get('name', ''),
+                    price=int(row.get('price', 0)) if row.get('price') else 0,
+                    description=row.get('description', ''),
+                    category_id=int(row.get('category_id')) if row.get('category_id') else None,
+                    photo_url=row.get('photo_url', None),
+                    file_id=row.get('file_id', None),
+                    video_url=row.get('video_url', None),
+                    video_file_id=row.get('video_file_id', None),
+                    featured=row.get('featured', 'False').lower() == 'true',
+                    available=row.get('available', 'True').lower() == 'true',
+                    tags=row.get('tags', None)
+                )
+                db.session.add(service)
+                imported_count += 1
+
+        elif entity_type == 'categories':
+            for row in reader:
+                category_type = row.get('category_type', 'product')
+                name = row.get('name', '')
+                parent_id = int(row.get('parent_id')) if row.get('parent_id') else None
+
+                if category_type == 'product':
+                    category = ProductCategory(name=name, parent_id=parent_id)
+                elif category_type == 'service':
+                    category = ServiceCategory(name=name, parent_id=parent_id)
+                elif category_type == 'educational':
+                    category = EducationalCategory(name=name, parent_id=parent_id)
+                else:
+                    continue
+
+                db.session.add(category)
+                imported_count += 1
+
+        elif entity_type == 'inquiries':
+            for row in reader:
+                inquiry = Inquiry(
+                    user_id=int(row.get('user_id', 0)),
+                    product_id=int(row.get('product_id')) if row.get('product_id') else None,
+                    service_id=int(row.get('service_id')) if row.get('service_id') else None,
+                    name=row.get('name', ''),
+                    phone=row.get('phone', ''),
+                    description=row.get('description', None),
+                    status=row.get('status', 'new'),
+                    date=datetime.datetime.strptime(row.get('date'), '%Y-%m-%d %H:%M:%S') if row.get('date') else datetime.datetime.utcnow()
+                )
+                db.session.add(inquiry)
+                imported_count += 1
+
+        elif entity_type == 'educational':
+            for row in reader:
+                content = EducationalContent(
+                    title=row.get('title', ''),
+                    content=row.get('content', ''),
+                    category_id=int(row.get('category_id')) if row.get('category_id') else None,
+                    tags=row.get('tags', None),
+                    featured=row.get('featured', 'False').lower() == 'true'
+                )
+                db.session.add(content)
+                imported_count += 1
+
+        db.session.commit()
+        flash(f'{imported_count} مورد با موفقیت وارد شد.', 'success')
+        return redirect(url_for('admin_import_export'))
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error importing {entity_type}: {str(e)}")
+        flash(f'خطا در وارد کردن داده‌ها: {str(e)}', 'danger')
+        return redirect(url_for('admin_import_export'))
+
+@app.route('/admin/backup')
+@login_required
+def backup_database():
+    """Create database backup as ZIP file"""
+    if not current_user.is_admin:
+        flash('دسترسی غیرمجاز.', 'danger')
+        return redirect(url_for('index'))
+
+    try:
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_filename = f"database_backup_{timestamp}.zip"
+
+        models_map = {
+            'users.csv': User,
+            'product_categories.csv': ProductCategory,
+            'service_categories.csv': ServiceCategory,
+            'educational_categories.csv': EducationalCategory,
+            'products.csv': Product,
+            'services.csv': Service,
+            'inquiries.csv': Inquiry,
+            'educational_content.csv': EducationalContent,
+            'product_media.csv': ProductMedia,
+            'service_media.csv': ServiceMedia,
+            'educational_content_media.csv': EducationalContentMedia,
+            'static_content.csv': StaticContent
+        }
+
+        memory_file = io.BytesIO()
+        with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for table_name, model in models_map.items():
+                items = model.query.all()
+                if not items:
+                    continue
+
+                columns = [c.name for c in model.__table__.columns]
+                csv_output = io.StringIO()
+                writer = csv.writer(csv_output)
+                writer.writerow(columns)
+
+                for item in items:
+                    row = [str(getattr(item, col)) if getattr(item, col) is not None else '' for col in columns]
+                    writer.writerow(row)
+
+                zf.writestr(table_name, csv_output.getvalue().encode('utf-8'))
+
+            readme_content = f"""این پشتیبان در تاریخ {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ایجاد شده است.
+هر فایل CSV شامل داده‌های یک جدول است.
+ستون اول در هر فایل CSV نام ستون‌ها را نشان می‌دهد.
+
+فایل‌های پشتیبان شامل:
+{', '.join(models_map.keys())}
+"""
+            zf.writestr("README.txt", readme_content.encode('utf-8'))
+
+        memory_file.seek(0)
+        return send_file(
+            memory_file,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=backup_filename
+        )
+
+    except Exception as e:
+        logger.error(f"Error in backup_database: {str(e)}")
+        flash(f"خطا در پشتیبان‌گیری از دیتابیس: {str(e)}", 'danger')
+        return redirect(url_for('admin_import_export'))
+
+@app.route('/admin/restore', methods=['POST'])
+@login_required
+def restore_database():
+    """Restore database from backup file"""
+    if not current_user.is_admin:
+        flash('دسترسی غیرمجاز.', 'danger')
+        return redirect(url_for('index'))
+
+    try:
+        backup_file = request.files.get('backup_file')
+        if not backup_file or not backup_file.filename.endswith('.zip'):
+            flash('فایل پشتیبان باید با فرمت ZIP باشد.', 'warning')
+            return redirect(url_for('admin_import_export'))
+
+        safe_filename = secure_filename(backup_file.filename)
+        temp_dir = tempfile.mkdtemp()
+        temp_path = os.path.join(temp_dir, safe_filename)
+        backup_file.save(temp_path)
+
+        models_map = {
+            'users.csv': User,
+            'product_categories.csv': ProductCategory,
+            'service_categories.csv': ServiceCategory,
+            'educational_categories.csv': EducationalCategory,
+            'static_content.csv': StaticContent,
+            'products.csv': Product,
+            'services.csv': Service,
+            'educational_content.csv': EducationalContent,
+            'inquiries.csv': Inquiry,
+            'product_media.csv': ProductMedia,
+            'service_media.csv': ServiceMedia,
+            'educational_content_media.csv': EducationalContentMedia
+        }
+
+        restored_tables = []
+        skipped_tables = []
+        error_tables = []
+
+        with zipfile.ZipFile(temp_path, 'r') as zip_ref:
+            file_list = zip_ref.namelist()
+            if 'README.txt' in file_list:
+                file_list.remove('README.txt')
+
+            should_clear_tables = request.form.get('clear_tables') == 'on'
+
+            for csv_filename in models_map.keys():
+                if csv_filename not in file_list:
+                    logger.info(f"File {csv_filename} not in backup")
+                    continue
+
+                model = models_map[csv_filename]
+                csv_content = zip_ref.read(csv_filename).decode('utf-8')
+                csv_file = io.StringIO(csv_content)
+                reader = csv.DictReader(csv_file)
+
+                if should_clear_tables:
+                    try:
+                        db.session.query(model).delete()
+                        db.session.commit()
+                    except Exception as e:
+                        db.session.rollback()
+                        logger.error(f"Error clearing table {csv_filename}: {str(e)}")
+                        skipped_tables.append(csv_filename)
+                        continue
+
+                restored_rows = 0
+                for row in reader:
+                    try:
+                        data = {}
+                        for field in reader.fieldnames:
+                            value = row[field]
+                            if value == '':
+                                value = None
+                            elif field in ['id', 'parent_id', 'category_id', 'product_id', 'service_id', 'content_id', 'user_id']:
+                                value = int(value) if value else None
+                            elif field in ['is_admin', 'in_stock', 'featured', 'available']:
+                                value = value.lower() in ('true', '1', 'yes')
+                            elif field in ['created_at', 'updated_at', 'date']:
+                                value = datetime.datetime.strptime(value, '%Y-%m-%d %H:%M:%S') if value else None
+                            data[field] = value
+
+                        # Validate foreign keys for media tables
+                        if model == ProductMedia and data.get('product_id'):
+                            if not Product.query.get(data['product_id']):
+                                continue
+                        elif model == ServiceMedia and data.get('service_id'):
+                            if not Service.query.get(data['service_id']):
+                                continue
+                        elif model == EducationalContentMedia and data.get('content_id'):
+                            if not EducationalContent.query.get(data['content_id']):
+                                continue
+
+                        item = model(**data)
+                        db.session.add(item)
+                        restored_rows += 1
+                    except Exception as e:
+                        logger.warning(f"Error adding row to {csv_filename}: {str(e)}")
+                        continue
+
+                try:
+                    db.session.commit()
+                    restored_tables.append(f"{csv_filename} ({restored_rows} rows)")
+                except Exception as e:
+                    db.session.rollback()
+                    logger.error(f"Error committing {csv_filename}: {str(e)}")
+                    error_tables.append(csv_filename)
+
+        os.unlink(temp_path)
+        os.rmdir(temp_dir)
+
+        if restored_tables:
+            flash(f'بازیابی جداول: {", ".join(restored_tables)}', 'success')
+        if skipped_tables:
+            flash(f'جداول رد شده: {", ".join(skipped_tables)}', 'warning')
+        if error_tables:
+            flash(f'خطا در جداول: {", ".join(error_tables)}', 'danger')
+
+        return redirect(url_for('admin_import_export'))
+
+    except Exception as e:
+        logger.error(f"Error in restore_database: {str(e)}")
+        flash(f"خطا در بازیابی دیتابیس: {str(e)}", 'danger')
+        return redirect(url_for('admin_import_export'))
+
+@app.route('/admin/database/export/<table_name>', methods=['POST'])
+@login_required
+def export_table_csv(table_name):
+    """Export table data as CSV"""
+    if not current_user.is_admin:
+        flash('دسترسی غیرمجاز.', 'danger')
+        return redirect(url_for('admin_database'))
+
+    try:
+        model_map = {
             'users': User,
+            'product_categories': ProductCategory,
+            'service_categories': ServiceCategory,
+            'educational_categories': EducationalCategory,
             'products': Product,
             'services': Service,
             'inquiries': Inquiry,
             'educational_content': EducationalContent,
-            'static_content': StaticContent,
-            'product_categories': ProductCategory,
-            'service_categories': ServiceCategory,
-            'educational_categories': EducationalCategory,
             'product_media': ProductMedia,
             'service_media': ServiceMedia,
-            'educational_content_media': EducationalContentMedia
+            'educational_content_media': EducationalContentMedia,
+            'static_content': StaticContent
         }
 
-        if table not in table_model_map:
-            flash(f'جدول "{table}" نامعتبر است.', 'danger')
+        if table_name not in model_map:
+            flash(f'جدول {table_name} یافت نشد.', 'danger')
             return redirect(url_for('admin_database'))
 
-        model = table_model_map[table]
-        data = model.query.limit(50).all()
+        model = model_map[table_name]
+        export_type = request.form.get('export_type', 'all')
+        include_headers = request.form.get('include_headers') == 'on'
 
-        inspector = inspect(db.engine)
-        columns = [col['name'] for col in inspector.get_columns(table)]
+        query = model.query
+        if export_type == 'current':
+            page = request.form.get('page', 1, type=int)
+            per_page = request.form.get('per_page', 20, type=int)
+            query = query.offset((page - 1) * per_page).limit(per_page)
+        elif export_type == 'custom':
+            start_row = request.form.get('start_row', 1, type=int)
+            end_row = request.form.get('end_row', type=int)
+            query = query.offset(start_row - 1)
+            if end_row:
+                query = query.limit(end_row - start_row + 1)
 
-        return render_template('admin/view_table.html',
-                              table_name=table,
-                              columns=columns,
-                              data=data,
-                              active_page='database')
+        items = query.all()
+        columns = [c.name for c in model.__table__.columns]
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        if include_headers:
+            writer.writerow(columns)
+
+        for item in items:
+            row = [str(getattr(item, col)) if getattr(item, col) is not None else '' for col in columns]
+            writer.writerow(row)
+
+        output.seek(0)
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={'Content-Disposition': f'attachment;filename={table_name}_{timestamp}.csv'}
+        )
+
     except Exception as e:
-        logger.error(f"Error in admin_view_table for {table}: {str(e)}", exc_info=True)
-        flash(f'خطا در بارگذاری داده‌های جدول: {str(e)}', 'danger')
+        logger.error(f"Error exporting table {table_name}: {str(e)}")
+        flash(f'خطا در خروجی‌گیری از جدول: {str(e)}', 'danger')
         return redirect(url_for('admin_database'))
-

@@ -262,21 +262,21 @@ class EducationalContent(db.Model):
     featured = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     media = db.relationship('EducationalContentMedia', backref='educational_content', lazy='dynamic', cascade='all, delete-orphan')
-
+    category = db.relationship('EducationalCategory', backref='educational_contents')  # اضافه کردن رابطه
 
 class EducationalContentMedia(db.Model):
     """Media files for educational content"""
     __tablename__ = 'educational_content_media'
     
     id = db.Column(db.Integer, primary_key=True)
-    educational_content_id = db.Column(db.Integer, db.ForeignKey('educational_content.id', ondelete='CASCADE'), nullable=False)
+    content_id = db.Column(db.Integer, db.ForeignKey('educational_content.id', ondelete='CASCADE'), nullable=False)
     file_id = db.Column(db.Text, nullable=False)  # Telegram file_id
     file_type = db.Column(db.String(10), default='photo')  # photo, video, etc.
     local_path = db.Column(db.Text, nullable=True)  # مسیر محلی برای فایل‌ها
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):
-        return f'<EducationalContentMedia {self.id} for EducationalContent {self.educational_content_id}>'
+        return f'<EducationalContentMedia {self.id} for EducationalContent {self.content_id}>'
 
 
 class StaticContent(db.Model):
