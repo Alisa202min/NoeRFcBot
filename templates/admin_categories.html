@@ -423,16 +423,16 @@
         // تنظیم مسیر action بر اساس نوع دسته‌بندی
         if (type === 'ProductCategory') {
             categoryForm.action = formActionInput.value === 'add' 
-                ? "{{ url_for('add_product_categories') }}" 
-                : "{{ url_for('update_product_categories') }}";
+                ? "{{ url_for('add_product_category') }}" 
+                : "{{ url_for('update_product_category') }}";
         } else if (type === 'ServiceCategory') {
             categoryForm.action = formActionInput.value === 'add' 
-                ? "{{ url_for('add_service_categories') }}" 
-                : "{{ url_for('update_service_categories') }}";
+                ? "{{ url_for('add_service_category') }}" 
+                : "{{ url_for('update_service_category') }}";
         } else if (type === 'EducationalCategory') {
             categoryForm.action = formActionInput.value === 'add' 
-                ? "{{ url_for('add_education_categories') }}" 
-                : "{{ url_for('update_education_categories') }}";
+                ? "{{ url_for('add_educational_category') }}" 
+                : "{{ url_for('update_educational_category') }}";
         }
 
         updateParentCategoryOptions();
@@ -489,11 +489,11 @@
 
         // تنظیم مسیر action برای حذف
         if (type === 'ProductCategory') {
-            deleteForm.action = "{{ url_for('delete_product_categories') }}";
+            deleteForm.action = "{{ url_for('delete_product_category') }}";
         } else if (type === 'ServiceCategory') {
-            deleteForm.action = "{{ url_for('delete_service_categories') }}";
+            deleteForm.action = "{{ url_for('delete_service_category') }}";
         } else if (type === 'EducationalCategory') {
-            deleteForm.action = "{{ url_for('delete_education_categories') }}";
+            deleteForm.action = "{{ url_for('delete_educational_category') }}";
         }
 
         new bootstrap.Modal(document.getElementById('deleteCategoryModal')).show();

@@ -165,7 +165,60 @@ def index():
             bot_logs=['Error loading logs'],
             last_run=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             datetime=datetime
-        )          
+        )   
+@app.route('/logs')
+@login_required
+def logs():
+    """دریافت لاگ‌های ربات"""
+    import os
+    try:
+        # تلاش برای خواندن آخرین خطوط فایل لاگ
+        log_file = 'bot.log'
+        max_lines = 500  # حداکثر تعداد خطوط برای نمایش
+
+        # برای درخواست‌های AJAX، پاسخ JSON برگردان
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            try:
+                if os.path.exists(log_file):
+                    with open(log_file, 'r', encoding='utf-8') as f:
+                        # خواندن آخرین خطوط
+                        all_lines = f.readlines()
+                        lines = all_lines[-max_lines:] if len(all_lines) > max_lines else all_lines
+                        return jsonify({'logs': ''.join(lines)})
+                else:
+                    return jsonify({'logs': 'فایل لاگ موجود نیست.'})
+            except Exception as e:
+                logger.error(f"Error reading log file: {e}")
+                return jsonify({'logs': f'خطا در خواندن فایل لاگ: {str(e)}'})
+
+        # برای درخواست‌های معمولی، صفحه HTML برگردان
+        try:
+            bot_logs = []
+            if os.path.exists(log_file):
+                with open(log_file, 'r', encoding='utf-8') as f:
+                    lines = f.readlines()
+                    bot_logs = lines[-50:] if len(lines) > 50 else lines
+            else:
+                bot_logs = ['فایل لاگ موجود نیست.']
+
+            return render_template('logs.html', 
+                                 logs=bot_logs,
+                                 datetime=datetime,
+                                 active_page='logs')
+        except Exception as e:
+            logger.error(f"Error reading log file for HTML view: {e}")
+            bot_logs = [f'خطا در خواندن فایل لاگ: {str(e)}']
+            return render_template('logs.html',
+                                 logs=bot_logs,
+                                 datetime=datetime,
+                                 active_page='logs')
+    except Exception as e:
+        logger.error(f"Error in logs route: {e}")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'logs': 'خطای داخلی سرور'})
+        else:
+            return render_template('error.html', error='خطای داخلی سرور')
+
 @app.route('/api/logs')
 def get_logs_json():
     """دریافت لاگ‌های ربات برای درخواست‌های AJAX"""
@@ -201,6 +254,7 @@ def loadConfig():
         logger.error(f"Error in loadConfig route: {e}")
         return render_template('500.html'), 500
 
+
 # ----- Authentication Routes -----
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -232,6 +286,32 @@ def login():
             flash('نام کاربری یا رمز عبور اشتباه است.', 'danger')
     
     return render_template('login.html')
+
+
+@app.route('/admin/database', methods=['GET'])
+@login_required
+def admin_database():
+    """Display database management page for admins."""
+    if not current_user.is_admin:
+        flash('دسترسی غیرمجاز است.', 'danger')
+        return redirect(url_for('index'))
+
+    try:
+        # Example: Fetch table names or stats for display
+        tables = [
+            'service_media', 'product_media', 'services', 'products',
+            'inquiries', 'educational_content', 'educational_content_media'
+        ]
+        return render_template('database.html',
+                               title='مدیریت دیتابیس',
+                               tables=tables,
+                               active_page='database')
+    except Exception as e:
+        logger.error(f"Error loading admin_database: {str(e)}", exc_info=True)
+        flash(f'خطا در بارگذاری صفحه مدیریت دیتابیس: {str(e)}', 'danger')
+        return redirect(url_for('admin_index'))
+
+
 
 @app.route('/logout')
 @login_required
@@ -765,7 +845,7 @@ def admin_categories():
         service_tree = build_category_tree(service_categories)
         educational_tree = build_category_tree(educational_categories)
         
-        return render_template('admin/categories.html',
+        return render_template('admin_categories.html',
                               product_categories=product_categories,
                               service_categories=service_categories,
                               educational_categories=educational_categories,
@@ -776,7 +856,7 @@ def admin_categories():
     except Exception as e:
         logger.error(f"Error in admin_categories: {str(e)}")
         flash(f'خطا در بارگذاری دسته‌بندی‌ها: {str(e)}', 'danger')
-        return render_template('admin/categories.html',
+        return render_template('admin_categories.html',
                               product_categories=[],
                               service_categories=[],
                               educational_categories=[],
@@ -1372,9 +1452,13 @@ def educational_detail(content_id):
     media = EducationalContentMedia.query.filter_by(content_id=content.id).all()
     related_content = EducationalContent.query.filter_by(category_id=content.category_id).filter(EducationalContent.id != content_id).limit(4).all()
     
-    photo_url = get_photo_url(content.photo_url)
+    # دریافت تصویر اصلی از EducationalContentMedia
+    main_photo = EducationalContentMedia.query.filter_by(content_id=content.id, file_type='photo').first()
+    photo_url = get_photo_url(main_photo.file_id) if main_photo else None
+    
     for related in related_content:
-        related.formatted_photo_url = get_photo_url(related.photo_url)
+        media = EducationalContentMedia.query.filter_by(content_id=related.id, file_type='photo').first()
+        related.formatted_photo_url = get_photo_url(media.file_id) if media else None
     
     return render_template('educational_detail.html',
                           content=content,
@@ -1382,14 +1466,14 @@ def educational_detail(content_id):
                           media=media,
                           related_content=related_content)
 
-@app.route('/admin/educational', methods=['GET', 'POST'])
+@app.route('/admin/education', methods=['GET', 'POST'])
 @login_required
 def admin_educational():
     """پنل مدیریت - محتوای آموزشی"""
     if not current_user.is_admin:
         flash('دسترسی غیرمجاز.', 'danger')
         return redirect(url_for('index'))
-        
+    
     action = request.args.get('action')
     content_id = request.args.get('id')
     
@@ -1410,8 +1494,8 @@ def admin_educational():
             db.session.delete(content)
             db.session.commit()
             flash(f'محتوای آموزشی "{content.title}" با موفقیت حذف شد.', 'success')
-            return redirect(url_for('admin_educational'))
-            
+            return redirect(url_for('admin/educational'))
+        
         elif action == 'save':
             content_id = request.form.get('id')
             title = request.form.get('title')
@@ -1450,34 +1534,40 @@ def admin_educational():
                         featured=featured
                     )
                     db.session.add(content)
-                    flash('محتوای آموزشی جدید ثبت شد.', 'success')
+                    db.session.commit()  # Commit برای دریافت content.id
                 
-                photo = request.files.get('photo')
-                if photo and photo.filename:
-                    upload_dir = os.path.join('static', 'uploads', 'educational', 'main')
-                    os.makedirs(upload_dir, exist_ok=True)
-                    success, file_path = handle_media_upload(
-                        file=photo,
-                        directory=upload_dir,
-                        file_type='photo',
-                        custom_filename=None
-                    )
-                    if success:
-                        relative_path = file_path.replace('static/', '', 1) if file_path.startswith('static/') else file_path
-                        content.photo_url = relative_path
-                        logger.info(f"Uploaded main photo for educational content: {file_path}")
+                # آپلود رسانه جدید
+                file = request.files.get('file')
+                file_type = request.form.get('file_type', 'photo')
+                if file and file.filename:
+                    try:
+                        upload_dir = os.path.join('static', 'uploads', 'educational', str(content.id))
+                        success, file_path = handle_media_upload(
+                            file=file,
+                            directory=upload_dir,
+                            file_type=file_type,
+                            custom_filename=None
+                        )
+                        if success:
+                            relative_path = file_path.replace('static/', '', 1) if file_path.startswith('static/') else file_path
+                            media = EducationalContentMedia(
+                                content_id=content.id,
+                                file_id=relative_path,
+                                file_type=file_type,
+                                local_path=file_path
+                            )
+                            db.session.add(media)
+                            db.session.commit()
+                            flash('رسانه با موفقیت آپلود شد.', 'success')
+                            logger.info(f"Media uploaded for content: {file_path}")
+                        else:
+                            flash('خطا در آپلود فایل.', 'danger')
+                    except Exception as e:
+                        db.session.rollback()
+                        logger.error(f"Error uploading media: {str(e)}")
+                        flash(f'خطا در آپلود رسانه: {str(e)}', 'danger')
                 
                 db.session.commit()
-                
-                if not content_id and photo and success:
-                    content_upload_dir = os.path.join('static', 'uploads', 'educational', str(content.id))
-                    os.makedirs(content_upload_dir, exist_ok=True)
-                    new_file_path = os.path.join(content_upload_dir, os.path.basename(file_path))
-                    shutil.move(file_path, new_file_path)
-                    new_relative_path = new_file_path.replace('static/', '', 1) if new_file_path.startswith('static/') else new_file_path
-                    content.photo_url = new_relative_path
-                    db.session.commit()
-                    logger.info(f"Moved content photo to: {new_file_path}")
                 
             except Exception as e:
                 db.session.rollback()
@@ -1586,12 +1676,13 @@ def admin_educational():
     contents = EducationalContent.query.all()
     categories = EducationalCategory.query.all()
     for content in contents:
-        content.formatted_photo_url = get_photo_url(content.photo_url)
+        media = EducationalContentMedia.query.filter_by(content_id=content.id, file_type='photo').first()
+        content.formatted_photo_url = get_photo_url(media.file_id) if media else None
+    
     return render_template('admin/educational.html',
                           contents=contents,
                           categories=categories,
                           active_page='educational')
-
 # ----- Inquiry Routes -----
 
 @app.route('/inquiry', methods=['GET', 'POST'])

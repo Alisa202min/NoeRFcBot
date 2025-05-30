@@ -253,23 +253,15 @@ class Inquiry(db.Model):
 
 
 class EducationalContent(db.Model):
-    """Educational content for the bot"""
     __tablename__ = 'educational_content'
-    
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(128), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    category = db.Column(db.Text, nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('educational_categories.id'), nullable=True)
-    
-    # Timestamps
+    tags = db.Column(db.String(128), nullable=True)
+    featured = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relationships
     media = db.relationship('EducationalContentMedia', backref='educational_content', lazy='dynamic', cascade='all, delete-orphan')
-    
-    def __repr__(self):
-        return f'<EducationalContent {self.title}>'
 
 
 class EducationalContentMedia(db.Model):
