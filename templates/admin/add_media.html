@@ -91,85 +91,78 @@
 
 {% block scripts %}
 <script>
-    // Preview multiple images before upload
-    document.addEventListener('DOMContentLoaded', function() {
-        const mediaInput = document.getElementById('media');
-        const previewDiv = document.getElementById('preview');
-        const previewContainer = document.getElementById('preview-container');
+document.addEventListener('DOMContentLoaded', function() {
+    const mediaInput = document.getElementById('media');
+    const previewDiv = document.getElementById('preview');
+    const previewContainer = document.getElementById('preview-container');
+    
+    mediaInput.addEventListener('change', function() {
+        previewContainer.innerHTML = '';
         
-        mediaInput.addEventListener('change', function() {
-            // Clear previous previews
-            previewContainer.innerHTML = '';
+        if (this.files.length > 0) {
+            previewDiv.classList.remove('d-none');
             
-            if (this.files.length > 0) {
-                previewDiv.classList.remove('d-none');
+            for (let i = 0; i < this.files.length; i++) {
+                const file = this.files[i];
+                const reader = new FileReader();
                 
-                for (let i = 0; i < this.files.length; i++) {
-                    const file = this.files[i];
-                    const reader = new FileReader();
+                reader.onload = function(e) {
+                    const previewItem = document.createElement('div');
+                    previewItem.className = 'preview-item m-2 text-center';
                     
-                    reader.onload = function(e) {
-                        const previewItem = document.createElement('div');
-                        previewItem.className = 'preview-item m-2 text-center';
+                    if (file.type.startsWith('image/')) {
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.className = 'img-thumbnail';
+                        img.style.maxHeight = '150px';
+                        img.style.maxWidth = '150px';
+                        previewItem.appendChild(img);
+                    } else if (file.type.startsWith('video/')) {
+                        const video = document.createElement('div');
+                        video.className = 'video-preview bg-dark d-flex align-items-center justify-content-center rounded';
+                        video.style.width = '150px';
+                        video.style.height = '150px';
                         
-                        if (file.type.startsWith('image/')) {
-                            // Image preview
-                            const img = document.createElement('img');
-                            img.src = e.target.result;
-                            img.className = 'img-thumbnail';
-                            img.style.maxHeight = '150px';
-                            img.style.maxWidth = '150px';
-                            previewItem.appendChild(img);
-                        } else if (file.type.startsWith('video/')) {
-                            // Video preview
-                            const video = document.createElement('div');
-                            video.className = 'video-preview bg-dark d-flex align-items-center justify-content-center rounded';
-                            video.style.width = '150px';
-                            video.style.height = '150px';
-                            
-                            const icon = document.createElement('i');
-                            icon.className = 'bi bi-play-circle-fill text-white';
-                            icon.style.fontSize = '3rem';
-                            
-                            video.appendChild(icon);
-                            previewItem.appendChild(video);
-                        }
+                        const icon = document.createElement('i');
+                        icon.className = 'bi bi-play-circle-fill text-white';
+                        icon.style.fontSize = '3rem';
                         
-                        // Add file name and size
-                        const fileNameDiv = document.createElement('div');
-                        fileNameDiv.className = 'small mt-1 text-truncate';
-                        fileNameDiv.style.maxWidth = '150px';
-                        fileNameDiv.textContent = file.name;
-                        
-                        // Add file size
-                        const fileSizeDiv = document.createElement('div');
-                        fileSizeDiv.className = 'small text-muted';
-                        
-                        // Format file size
-                        const fileSize = file.size;
-                        let sizeText = '';
-                        if (fileSize < 1024) {
-                            sizeText = fileSize + ' B';
-                        } else if (fileSize < 1024 * 1024) {
-                            sizeText = (fileSize / 1024).toFixed(1) + ' KB';
-                        } else {
-                            sizeText = (fileSize / (1024 * 1024)).toFixed(1) + ' MB';
-                        }
-                        
-                        fileSizeDiv.textContent = sizeText;
-                        
-                        previewItem.appendChild(fileNameDiv);
-                        previewItem.appendChild(fileSizeDiv);
-                        
-                        previewContainer.appendChild(previewItem);
-                    };
+                        video.appendChild(icon);
+                        previewItem.appendChild(video);
+                    }
                     
-                    reader.readAsDataURL(file);
-                }
-            } else {
-                previewDiv.classList.add('d-none');
+                    const fileNameDiv = document.createElement('div');
+                    fileNameDiv.className = 'small mt-1 text-truncate';
+                    fileNameDiv.style.maxWidth = '150px';
+                    fileNameDiv.textContent = file.name;
+                    
+                    const fileSizeDiv = document.createElement('div');
+                    fileSizeDiv.className = 'small text-muted';
+                    
+                    const fileSize = file.size;
+                    let sizeText = '';
+                    if (fileSize < 1024) {
+                        sizeText = fileSize + ' B';
+                    } else if (fileSize < 1024 * 1024) {
+                        sizeText = (fileSize / 1024).toFixed(1) + ' KB';
+                    } else {
+                        sizeText = (fileSize / (1024 * 1024)).toFixed(1) + ' MB';
+                    }
+                    
+                    fileSizeDiv.textContent = sizeText;
+                    
+                    previewItem.appendChild(fileNameDiv);
+                    previewItem.appendChild(fileSizeDiv);
+                    
+                    previewContainer.appendChild(previewItem);
+                };
+                
+                reader.readAsDataURL(file);
             }
-        });
+        } else {
+            previewDiv.classList.add('d-none');
+        }
     });
+});
 </script>
 {% endblock %}

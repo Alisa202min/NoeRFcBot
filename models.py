@@ -72,7 +72,6 @@ class EducationalCategory(db.Model):
     
   
    
-
 class Product(db.Model):
     """Product model - now separate from services"""
     __tablename__ = 'products'
@@ -82,9 +81,6 @@ class Product(db.Model):
     description = db.Column(db.Text)
     price = db.Column(db.Integer, default=0)
     category_id = db.Column(db.Integer, db.ForeignKey('product_categories.id'))
-    photo_url = db.Column(db.Text, nullable=True)
-    
-    # Type field removed in new database structure
     
     # Extended fields for better search
     brand = db.Column(db.Text, nullable=True)
@@ -93,17 +89,12 @@ class Product(db.Model):
     tags = db.Column(db.Text, nullable=True)
     featured = db.Column(db.Boolean, default=False)
     
-    # Additional database columns that exist in the schema
+    # Additional database columns
     model_number = db.Column(db.Text, nullable=True)
     manufacturer = db.Column(db.Text, nullable=True)
     provider = db.Column(db.String(255), nullable=True)
     service_code = db.Column(db.String(255), nullable=True)
     duration = db.Column(db.String(255), nullable=True)
-    
-    # Media-related columns
-    file_id = db.Column(db.Text, nullable=True)  # Main Telegram file_id
-    video_url = db.Column(db.Text, nullable=True)
-    video_file_id = db.Column(db.Text, nullable=True)
     
     # Relationships
     media = db.relationship('ProductMedia', backref='product', lazy='dynamic', cascade='all, delete-orphan')
@@ -114,7 +105,6 @@ class Product(db.Model):
     
     def __repr__(self):
         return f'<Product {self.name}>'
-
 
 class Service(db.Model):
     """Service model - now separate from products"""

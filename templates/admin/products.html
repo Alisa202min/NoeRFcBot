@@ -57,8 +57,13 @@
                                 <tr class="product-row" data-product-url="{{ url_for('product_detail', product_id=product.id) }}" style="cursor: pointer;">
                                     <td>{{ product.id }}</td>
                                     <td>
-                                        {% if product.formatted_photo_url %}
-                                        <img src="{{ url_for('static', filename=product.formatted_photo_url) }}" alt="{{ product.name }}" class="img-thumbnail" style="max-height: 50px;">
+                                        {% set first_media = product.media.first() %}
+                                        {% if first_media and first_media.file_type == 'photo' %}
+                                        <img src="{{ url_for('telegram_file', file_id=first_media.file_id) }}" alt="{{ product.name }}" class="img-thumbnail" style="max-height: 50px;">
+                                        {% elif first_media and first_media.file_type == 'video' %}
+                                        <div class="bg-dark d-flex align-items-center justify-content-center rounded" style="width: 50px; height: 50px;">
+                                            <i class="bi bi-play-circle-fill text-white"></i>
+                                        </div>
                                         {% else %}
                                         <div class="bg-light d-flex align-items-center justify-content-center rounded" style="width: 50px; height: 50px;">
                                             <i class="bi bi-image text-muted"></i>
@@ -85,7 +90,6 @@
                                             <a href="{{ url_for('product_detail', product_id=product.id) }}" target="_blank" class="btn btn-sm btn-outline-success">
                                                 <i class="bi bi-eye"></i> مشاهده
                                             </a>
-                                            <!-- دکمه حذف با مودال تأیید -->
                                             <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteProductModal{{ product.id }}">
                                                 <i class="bi bi-trash"></i> حذف
                                             </button>
@@ -118,9 +122,6 @@
                             </tbody>
                         </table>
                     </div>
-                    
-                    <!-- Pagination will be added in future -->
-                    <!-- Currently showing all products without pagination -->
                     {% endif %}
                 </div>
             </div>
@@ -130,17 +131,14 @@
 
 {% block extra_js %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // فعال‌سازی کلیک بر روی سطر محصول
-        document.querySelectorAll('.product-row').forEach(function(row) {
-            row.addEventListener('click', function(e) {
-                // بررسی می‌کنیم که کلیک روی دکمه‌ها یا لینک‌ها نباشد
-                if (!e.target.closest('a') && !e.target.closest('button') && !e.target.closest('form')) {
-                    window.open(this.dataset.productUrl, '_blank');
-                }
-            });
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.product-row').forEach(function(row) {
+        row.addEventListener('click', function(e) {
+            if (!e.target.closest('a') && !e.target.closest('button') && !e.target.closest('form')) {
+                window.open(this.dataset.productUrl, '_blank');
+            }
         });
     });
+});
 </script>
-{% endblock %}
 {% endblock %}
