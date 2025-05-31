@@ -75,3 +75,6 @@ with app.app_context():
         admin.set_password('admin')  # Set a default password - should be changed immediately
         db.session.add(admin)
         db.session.commit()
+
+# Import routes - this must be done after app initialization
+import main
