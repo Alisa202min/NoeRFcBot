@@ -17,7 +17,7 @@
                     {% for item in media %}
                         <div class="col">
                             {% if item.file_type == 'photo' %}
-                                <img src="/static/{{ item.file_id }}" class="img-fluid rounded" alt="{{ product.name }}" style="max-height: 150px; object-fit: cover;">
+                                <img src="/static/{{ item.file_id }}" class="img-fluid rounded" alt="{{ product.name }}" style="max-height: 400px; object-fit: cover;">
                             {% elif item.file_type == 'video' %}
                                 <video controls class="img-fluid rounded" style="max-height: 150px;">
                                     <source src="/static/{{ item.file_id }}" type="video/mp4">

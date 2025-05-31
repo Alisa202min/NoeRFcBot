@@ -22,49 +22,6 @@
                     </a>
                 </div>
                 <div class="card-body">
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <h6>تصویر اصلی خدمت</h6>
-                            {% if service.photo_url %}
-                            <div class="card mb-3">
-                                <img src="{{ url_for('telegram_file', file_id=service.formatted_photo_url) }}" class="card-img-top product-img-preview" alt="{{ service.name }}">
-                                <div class="card-body">
-                                    <p class="card-text">
-                                        <small class="text-muted">{{ service.photo_url }}</small>
-                                    </p>
-                                </div>
-                            </div>
-                            {% else %}
-                            <div class="alert alert-info">
-                                تصویر اصلی تنظیم نشده است. لطفاً از صفحه ویرایش خدمت، تصویر اصلی را آپلود کنید.
-                            </div>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-6">
-                            <h6>ویدیوی خدمت</h6>
-                            {% if service.video_url %}
-                            <div class="card mb-3">
-                                <div class="ratio ratio-16x9">
-                                    <video controls>
-                                        <source src="{{ url_for('static', filename=service.video_url) }}" type="video/mp4">
-                                        مرورگر شما از پخش ویدیو پشتیبانی نمی‌کند.
-                                    </video>
-                                </div>
-                                <div class="card-body">
-                                    <p class="card-text">
-                                        <small class="text-muted">{{ service.video_url }}</small>
-                                    </p>
-                                </div>
-                            </div>
-                            {% else %}
-                            <div class="alert alert-info">
-                                ویدیویی تنظیم نشده است.
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    
-                    <h6>رسانه‌های اضافی</h6>
                     <form id="mediaUploadForm" enctype="multipart/form-data">
                         <input type="hidden" name="service_id" value="{{ service.id }}">
                         <div class="row mb-3">
@@ -74,10 +31,9 @@
                                     <input type="file" class="form-control" id="file" name="file" required onchange="previewMediaFile(this)">
                                 </div>
                                 
-                                <!-- پیش نمایش فایل انتخاب شده -->
                                 <div id="mediaPreviewContainer" class="mt-2" style="display: none;">
                                     <div class="card p-2">
-                                        <img id="mediaPreview" src="#" alt="پیش نمایش فایل" class="img-thumbnail" style="max-height: 150px;">
+                                        <img id="mediaPreview" src="#" alt="پیش‌نمایش فایل" class="img-thumbnail" style="max-height: 150px;">
                                         <div class="progress mt-2" style="height: 5px;">
                                             <div id="mediaUploadProgress" class="progress-bar bg-success" role="progressbar" style="width: 0%"></div>
                                         </div>
@@ -102,22 +58,22 @@
                         </div>
                     </form>
                     
-                    <!-- نوتیفیکیشن پیام موفقیت -->
                     <div class="alert alert-success" id="uploadSuccessAlert" style="display: none;" role="alert">
                         <i class="bi bi-check-circle-fill me-2"></i> فایل با موفقیت آپلود شد.
                     </div>
                     
+                    <h6>رسانه‌های خدمت</h6>
                     <div class="row">
                         {% if media|length > 0 %}
                         {% for item in media %}
                         <div class="col-md-3 mb-4">
                             <div class="card h-100">
                                 {% if item.file_type == 'photo' %}
-                                <img src="{{ url_for('telegram_file', file_id=item.formatted_file_id) }}" class="card-img-top service-img-preview" alt="تصویر خدمت">
+                                <img src="{{ url_for('telegram_file', file_id=item.file_id) }}" class="card-img-top service-img-preview" alt="تصویر خدمت">
                                 {% elif item.file_type == 'video' %}
                                 <div class="ratio ratio-16x9">
                                     <video controls>
-                                        <source src="{{ url_for('telegram_file', file_id=item.formatted_file_id) }}" type="video/mp4">
+                                        <source src="{{ url_for('telegram_file', file_id=item.file_id) }}" type="video/mp4">
                                         مرورگر شما از پخش ویدیو پشتیبانی نمی‌کند.
                                     </video>
                                 </div>
@@ -142,7 +98,7 @@
                         {% else %}
                         <div class="col-12">
                             <div class="alert alert-info">
-                                هیچ رسانه اضافی برای این خدمت وجود ندارد.
+                                هیچ رسانه‌ای برای این خدمت وجود ندارد.
                             </div>
                         </div>
                         {% endif %}
@@ -157,63 +113,49 @@
 {% block scripts %}
 <script>
 function previewMediaFile(input) {
-    // نمایش پیش‌نمایش فایل انتخاب شده
     const container = document.getElementById('mediaPreviewContainer');
     const preview = document.getElementById('mediaPreview');
     const progress = document.getElementById('mediaUploadProgress');
     const status = document.getElementById('mediaUploadStatus');
     
-    // پنهان کردن پیش‌نمایش اگر فایلی انتخاب نشده باشد
     if (!input.files || input.files.length === 0) {
         container.style.display = 'none';
         return;
     }
     
     const file = input.files[0];
-    
-    // بررسی نوع فایل
     const fileType = document.getElementById('file_type').value;
     
-    // پیش‌نمایش بر اساس نوع فایل
     if (fileType === 'photo' && file.type.startsWith('image/')) {
         const reader = new FileReader();
         
         reader.onload = function(e) {
-            // نمایش تصویر
             preview.src = e.target.result;
             preview.style.display = 'block';
             container.style.display = 'block';
             
-            // نمایش نام فایل و سایز آن
             const fileSize = (file.size / 1024).toFixed(2) + ' KB';
             status.textContent = `فایل: ${file.name} (${fileSize})`;
             
-            // شبیه‌سازی نوار پیشرفت
             simulateMediaProgress();
         };
         
         reader.readAsDataURL(file);
-    } 
-    else if (fileType === 'video' && file.type.startsWith('video/')) {
-        // برای ویدیو، فقط اطلاعات فایل را نمایش می‌دهیم (بدون پیش‌نمایش)
+    } else if (fileType === 'video' && file.type.startsWith('video/')) {
         preview.style.display = 'none';
         container.style.display = 'block';
         
         const fileSize = (file.size / 1024 / 1024).toFixed(2) + ' MB';
         status.textContent = `ویدیو: ${file.name} (${fileSize})`;
         
-        // شبیه‌سازی نوار پیشرفت
         simulateMediaProgress();
-    }
-    else {
-        // نوع فایل با نوع انتخاب شده مطابقت ندارد
+    } else {
         container.style.display = 'none';
-        alert('لطفاً فایل متناسب با نوع انتخاب شده (تصویر یا ویدیو) را انتخاب کنید.');
+        alert('لطفاً فایل متناسب با نوع انتخاب‌شده (تصویر یا ویدیو) را انتخاب کنید.');
     }
 }
 
 function simulateMediaProgress() {
-    // نمایش اولیه نوار پیشرفت تا قبل از شروع آپلود واقعی
     const progress = document.getElementById('mediaUploadProgress');
     const status = document.getElementById('mediaUploadStatus');
     let width = 0;
@@ -230,7 +172,6 @@ function simulateMediaProgress() {
     }, 100);
 }
 
-// اضافه کردن یک listener برای تغییر نوع فایل
 document.getElementById('file_type').addEventListener('change', function() {
     const fileInput = document.getElementById('file');
     if (fileInput.files && fileInput.files.length > 0) {
@@ -238,7 +179,6 @@ document.getElementById('file_type').addEventListener('change', function() {
     }
 });
 
-// آپلود فایل با استفاده از AJAX
 function uploadMedia() {
     const uploadForm = document.getElementById('mediaUploadForm');
     const formData = new FormData(uploadForm);
@@ -248,20 +188,16 @@ function uploadMedia() {
     const uploadBtn = document.getElementById('uploadBtn');
     const successAlert = document.getElementById('uploadSuccessAlert');
     
-    // بررسی اینکه فایل انتخاب شده باشد
     if (!fileInput.files || fileInput.files.length === 0) {
         alert('لطفاً یک فایل انتخاب کنید.');
         return false;
     }
     
-    // غیرفعال کردن دکمه آپلود در طول فرایند
     uploadBtn.disabled = true;
     uploadBtn.innerHTML = '<i class="bi bi-hourglass"></i> در حال آپلود...';
     
-    // ساخت یک درخواست AJAX
     const xhr = new XMLHttpRequest();
     
-    // تنظیم event listener برای پیشرفت آپلود
     xhr.upload.addEventListener('progress', function(e) {
         if (e.lengthComputable) {
             const percentComplete = Math.round((e.loaded / e.total) * 100);
@@ -270,42 +206,33 @@ function uploadMedia() {
         }
     });
     
-    // گوش دادن به تغییر وضعیت درخواست
     xhr.onreadystatechange = function() {
         if (xhr.readyState === 4) {
-            // فعال کردن مجدد دکمه آپلود
             uploadBtn.disabled = false;
             uploadBtn.innerHTML = '<i class="bi bi-upload"></i> آپلود فایل';
             
             if (xhr.status === 200) {
-                // آپلود موفق
                 progress.style.width = '100%';
                 status.textContent = 'فایل با موفقیت آپلود شد.';
                 
-                // نمایش پیام موفقیت
                 successAlert.style.display = 'block';
                 
-                // پاک کردن فرم
                 fileInput.value = '';
                 document.getElementById('mediaPreviewContainer').style.display = 'none';
                 
-                // بعد از 3 ثانیه، صفحه را رفرش می‌کنیم تا مدیای جدید نمایش داده شود
                 setTimeout(function() {
                     window.location.reload();
                 }, 3000);
             } else {
-                // خطا در آپلود
                 progress.className = 'progress-bar bg-danger';
                 status.textContent = 'خطا در آپلود فایل. لطفاً دوباره تلاش کنید.';
             }
         }
     };
     
-    // باز کردن اتصال و ارسال درخواست
     xhr.open('POST', '{{ url_for("admin_services", action="upload_media") }}', true);
     xhr.send(formData);
     
-    // وضعیت آپلود را به‌روز می‌کنیم
     progress.style.width = '0%';
     status.textContent = 'در حال شروع آپلود...';
     progress.className = 'progress-bar bg-success';
