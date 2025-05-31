@@ -2687,8 +2687,3 @@ def export_table_csv(table_name):
         logger.error(f"Error exporting table {table_name}: {str(e)}")
         flash(f'خطا در خروجی‌گیری از جدول: {str(e)}', 'danger')
         return redirect(url_for('admin_database'))
-
-
-if __name__ == '__main__':
-    # راه‌اندازی سرور فقط در صورت اجرای مستقیم
-    app.run(host='0.0.0.0', port=5000, debug=False)
