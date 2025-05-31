@@ -213,5 +213,28 @@ def logs():
         app.logger.error(f"Error reading logs: {e}")
         return render_template('logs.html', logs=['خطا در خواندن لاگ‌ها'], datetime=datetime)
 
+@app.route('/api/logs')
+@login_required
+def get_logs_json():
+    """API برای دریافت لاگ‌ها به صورت JSON"""
+    if not current_user.is_admin:
+        return jsonify({'error': 'دسترسی غیرمجاز'}), 403
+    
+    try:
+        logs = []
+        if os.path.exists('bot.log'):
+            with open('bot.log', 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                logs = lines[-100:] if len(lines) > 100 else lines
+        
+        return jsonify({
+            'logs': [line.strip() for line in logs],
+            'count': len(logs),
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        app.logger.error(f"Error reading logs for API: {e}")
+        return jsonify({'error': 'خطا در خواندن لاگ‌ها', 'logs': []}), 500
+
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000)
