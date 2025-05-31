@@ -13,7 +13,7 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "رمز موقت برای ربات RFCBot")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-
+app.config['WTF_CSRF_ENABLED'] = False
 # Load configuration
 config = load_config()
 app.config["SQLALCHEMY_DATABASE_URI"] = config.get("DATABASE_URL") or os.environ.get("SQLALCHEMY_DATABASE_URI") or os.environ.get("DATABASE_URL")

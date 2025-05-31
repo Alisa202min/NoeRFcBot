@@ -19,7 +19,21 @@
                     <h5 class="card-title mb-0">{{ title }}</h5>
                 </div>
                 <div class="card-body">
-                    <form method="post" action="{{ url_for('admin_products') }}?action=save" enctype="multipart/form-data">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                    <div class="messages mb-4">
+                        {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+                    
+                    <form method="post" action="{{ url_for('admin_products', action='save') }}" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         {% if product %}
                         <input type="hidden" name="id" value="{{ product.id }}">
                         {% endif %}
@@ -54,6 +68,17 @@
                                 <div class="mb-3">
                                     <label for="model" class="form-label">مدل</label>
                                     <input type="text" class="form-control" id="model" name="model" value="{{ product.model if product else '' }}">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="photo" class="form-label">عکس اصلی محصول</label>
+                                    <input type="file" class="form-control" id="photo" name="photo" accept="image/*">
+                                    {% if product and product.photo_url %}
+                                    <div class="mt-2">
+                                        <img src="{{ product.formatted_photo_url }}" alt="عکس محصول" class="img-thumbnail" style="max-height: 100px;">
+                                    </div>
+                                    {% endif %}
+                                    <div class="form-text">فرمت‌های مجاز: JPG، PNG، GIF. حداکثر اندازه: 16 مگابایت</div>
                                 </div>
                             </div>
                             
@@ -94,9 +119,8 @@
                             </div>
                         </div>
                         
-                        <!-- اطلاع‌رسانی درباره مدیریت رسانه‌ها -->
                         <div class="alert alert-info">
-                            برای مدیریت تصاویر و ویدیوهای محصول، لطفاً پس از ذخیره محصول به صفحه <a href="{{ url_for('product_media', product_id=product.id) if product else '#' }}">مدیریت رسانه‌ها</a> مراجعه کنید.
+                            برای مدیریت تصاویر و ویدیوهای اضافی، پس از ذخیره محصول به صفحه <a href="{{ url_for('admin_products', action='media', id=product.id) if product else '#' }}">مدیریت رسانه‌ها</a> مراجعه کنید.
                         </div>
                         
                         <div class="d-flex justify-content-between">
@@ -113,37 +137,4 @@
         </div>
     </div>
 </div>
-
-{% block scripts %}
-<script>
-// حذف اسکریپت‌های مربوط به پیش‌نمایش تصویر اصلی
-(function() {
-    // تابع تأیید حذف فایل رسانه‌ای (برای تصاویر اضافی)
-    window.confirmDeleteMedia = function(contentType, contentId, mediaId, mediaType) {
-        if (confirm('آیا از حذف این فایل رسانه‌ای اطمینان دارید؟ این عملیات غیرقابل بازگشت است.')) {
-            fetch(`/admin/delete_media?type=${contentType}&content_id=${contentId}&media_id=${mediaId}&media_type=${mediaType}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('فایل با موفقیت حذف شد.');
-                    const mediaCard = document.querySelector(`button[onclick*="${mediaId}"]`).closest('.col');
-                    if (mediaCard) mediaCard.remove();
-                } else {
-                    alert('خطا در حذف فایل: ' + data.error);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('خطایی در عملیات حذف رخ داد.');
-            });
-        }
-    }
-})();
-</script>
 {% endblock %}

@@ -10,6 +10,7 @@ import datetime
 import csv
 import zipfile
 import tempfile
+from sqlalchemy.orm import joinedload
 from flask import (render_template, request, redirect, url_for, flash, session,
                    Response, send_file, jsonify, send_from_directory)
 import time
@@ -24,7 +25,7 @@ from models import (User, Product, ProductMedia, Service, ServiceMedia,
                     Inquiry, EducationalContent, StaticContent,
                     EducationalCategory, EducationalContentMedia,
                     ProductCategory, ServiceCategory)
-
+from flask_wtf.csrf import CSRFProtect
 # تنظیم لاگر
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -40,6 +41,8 @@ logger.addHandler(file_handler)
 # ایجاد دایرکتوری logs اگر وجود ندارد
 os.makedirs('logs', exist_ok=True)
 
+app.config['SECRET_KEY'] = 'your-secret-key'  # یا از متغیر محیطی
+csrf = CSRFProtect(app)
 # ----- Utility Functions for Media Management -----
 
 
@@ -498,10 +501,18 @@ def get_photo_url(photo_url):
 
 # ----- Product Management Routes -----
 
+
+
+@app.route('/product/<int:product_id>')
+def product_detail(product_id):
+    product = Product.query.get_or_404(product_id)
+    media = ProductMedia.query.filter_by(product_id=product_id).all()
+    related_products = Product.query.filter(Product.id != product_id, Product.category_id == product.category_id).limit(4).all()
+    return render_template('product_detail.html', product=product, media=media, related_products=related_products)
+
 @app.route('/admin/products', methods=['GET', 'POST'])
 @login_required
 def admin_products():
-    """Admin panel - Manage products"""
     if not current_user.is_admin:
         flash('دسترسی غیرمجاز.', 'danger')
         return redirect(url_for('index'))
@@ -511,76 +522,68 @@ def admin_products():
 
     # Handle POST requests
     if request.method == 'POST':
-        # Delete product
         if action == 'delete':
             product_id = request.form.get('product_id')
             if not product_id:
-                flash('Product ID is required.', 'danger')
+                flash('شناسه محصول الزامی است.', 'danger')
                 return redirect(url_for('admin_products'))
-
             try:
                 product = Product.query.get_or_404(int(product_id))
                 media_files = ProductMedia.query.filter_by(product_id=product.id).all()
                 for media in media_files:
-                    if media.local_path:  # Use local_path instead of file_id
+                    if media.local_path:
                         delete_media_file(media.local_path)
                     db.session.delete(media)
-
                 db.session.delete(product)
                 db.session.commit()
-                flash(f'Product "{product.name}" deleted successfully.', 'success')
-                logger.info(f"Deleted product ID: {product_id}, Name: {product.name}")
+                flash(f'محصول "{product.name}" با موفقیت حذف شد.', 'success')
+                logger.info(f"حذف محصول: ID={product_id}, نام={product.name}")
             except Exception as e:
                 db.session.rollback()
-                logger.error(f"Error deleting product: {str(e)}")
-                flash(f'Error deleting product: {str(e)}', 'danger')
+                logger.error(f"خطا در حذف محصول: {str(e)}")
+                flash(f'خطا در حذف محصول: {str(e)}', 'danger')
             return redirect(url_for('admin_products'))
 
-        # Upload new media
         elif action == 'upload_media':
             product_id = request.form.get('product_id')
             if not product_id:
-                flash('Product ID is required.', 'danger')
+                flash('شناسه محصول الزامی است.', 'danger')
                 return redirect(url_for('admin_products'))
-
             product = Product.query.get_or_404(int(product_id))
-            file = request.files.get('file')
+            files = request.files.getlist('file')
             file_type = request.form.get('file_type', 'photo')
-
-            if not file or not file.filename:
-                flash('Please select a file.', 'warning')
+            if not files or all(not f.filename for f in files):
+                flash('لطفاً حداقل یک فایل انتخاب کنید.', 'warning')
                 return redirect(url_for('admin_products', action='media', id=product_id))
-
             try:
                 upload_dir = os.path.join('static', 'uploads', 'products', str(product.id))
-                success, file_path = handle_media_upload(
-                    file=file,
-                    directory=upload_dir,
-                    file_type=file_type,
-                    custom_filename=None
-                )
-
-                if success and file_path:
-                    relative_path = file_path.replace('static/', '', 1)
-                    media = ProductMedia(
-                        product_id=product.id,
-                        file_id=relative_path,
-                        file_type=file_type,
-                        local_path=file_path  # Ensure local_path is set
-                    )
-                    db.session.add(media)
-                    db.session.commit()
-                    flash('Media uploaded successfully.', 'success')
-                    logger.info(f"Media uploaded successfully: {file_path}")
-                else:
-                    flash('File upload failed. Please try again.', 'danger')
+                for file in files:
+                    if file.filename:
+                        success, file_path = handle_media_upload(
+                            file=file,
+                            directory=upload_dir,
+                            file_type=file_type
+                        )
+                        if success and file_path:
+                            relative_path = file_path.replace('static/', '', 1)
+                            media = ProductMedia(
+                                product_id=product.id,
+                                file_id=relative_path,
+                                file_type=file_type,
+                                local_path=file_path
+                            )
+                            db.session.add(media)
+                        else:
+                            flash(f'آپلود فایل {file.filename} ناموفق بود.', 'danger')
+                db.session.commit()
+                flash('رسانه‌ها با موفقیت آپلود شدند.', 'success')
+                logger.info(f"رسانه‌ها آپلود شدند برای محصول {product_id}")
             except Exception as e:
                 db.session.rollback()
-                logger.error(f"Error uploading media: {str(e)}")
-                flash(f'Error uploading media: {str(e)}', 'danger')
+                logger.error(f"خطا در آپلود رسانه: {str(e)}")
+                flash(f'خطا در آپلود رسانه: {str(e)}', 'danger')
             return redirect(url_for('admin_products', action='media', id=product_id))
 
-        # Save new or existing product
         elif action == 'save':
             product_id = request.form.get('id')
             name = request.form.get('name')
@@ -594,29 +597,25 @@ def admin_products():
             featured = 'featured' in request.form
             model_number = request.form.get('model_number', '')
             manufacturer = request.form.get('manufacturer', '')
-
-            # Enhanced validation
             errors = []
             if not name:
-                errors.append('Product name is required.')
+                errors.append('نام محصول الزامی است.')
             try:
                 price = int(price) if price else 0
                 if price < 0:
-                    errors.append('Price cannot be negative.')
+                    errors.append('قیمت نمی‌تواند منفی باشد.')
             except ValueError:
-                errors.append('Price must be a valid number.')
-
+                errors.append('قیمت باید یک عدد معتبر باشد.')
             if errors:
                 for error in errors:
                     flash(error, 'danger')
                 categories = ProductCategory.query.all()
                 return render_template(
                     'admin/product_form.html',
-                    title="Edit Product" if product_id else "Add New Product",
+                    title="ویرایش محصول" if product_id else "افزودن محصول جدید",
                     product=Product.query.get(int(product_id)) if product_id else None,
                     categories=categories
                 )
-
             try:
                 category_id = int(category_id) if category_id else None
                 if not category_id:
@@ -624,11 +623,10 @@ def admin_products():
                     if default_category:
                         category_id = default_category.id
                     else:
-                        new_category = ProductCategory(name="Default Product Category")
+                        new_category = ProductCategory(name="دسته‌بندی پیش‌فرض محصولات")
                         db.session.add(new_category)
                         db.session.flush()
                         category_id = new_category.id
-
                 if product_id:
                     product = Product.query.get_or_404(int(product_id))
                     product.name = name
@@ -642,7 +640,7 @@ def admin_products():
                     product.featured = featured
                     product.model_number = model_number
                     product.manufacturer = manufacturer
-                    flash('Product updated successfully.', 'success')
+                    flash('محصول با موفقیت به‌روزرسانی شد.', 'success')
                 else:
                     product = Product(
                         name=name,
@@ -658,59 +656,26 @@ def admin_products():
                         manufacturer=manufacturer
                     )
                     db.session.add(product)
-                    db.session.flush()  # Get product ID
-                    flash('Product created successfully.', 'success')
-
-                photo = request.files.get('photo')
-                file_path = None
-                if photo and photo.filename:
-                    upload_dir = os.path.join('static', 'uploads', 'products', 'main')
-                    os.makedirs(upload_dir, exist_ok=True)
-                    success, file_path = handle_media_upload(
-                        file=photo,
-                        directory=upload_dir,
-                        file_type='photo',
-                        custom_filename=None
-                    )
-                    if success and file_path:
-                        relative_path = file_path.replace('static/', '', 1)
-                        product.photo_url = relative_path
-                    else:
-                        flash('Failed to upload photo.', 'warning')
-
+                    db.session.flush()
                 db.session.commit()
-
-                if not product_id and file_path:
-                    product_upload_dir = os.path.join('static', 'uploads', 'products', str(product.id))
-                    os.makedirs(product_upload_dir, exist_ok=True)
-                    new_file_path = os.path.join(product_upload_dir, os.path.basename(file_path))
-                    shutil.move(file_path, new_file_path)
-                    product.photo_url = new_file_path.replace('static/', '', 1)
-                    db.session.commit()
-
                 return redirect(url_for('admin_products'))
-
             except Exception as e:
                 db.session.rollback()
-                logger.error(f"Error saving product: {str(e)}")
-                flash(f'Error saving product: {str(e)}', 'danger')
+                logger.error(f"خطا در ذخیره محصول: {str(e)}")
+                flash(f'خطا در ذخیره محصول: {str(e)}', 'danger')
                 categories = ProductCategory.query.all()
                 return render_template(
                     'admin/product_form.html',
-                    title="Edit Product" if product_id else "Add New Product",
+                    title="ویرایش محصول" if product_id else "افزودن محصول جدید",
                     product=Product.query.get(int(product_id)) if product_id else None,
                     categories=categories
                 )
-
-        # Delete media
         elif action == 'delete_media':
             media_id = request.form.get('media_id')
             product_id = request.form.get('product_id')
-
             if not media_id or not product_id:
-                flash('Media ID and Product ID are required.', 'danger')
+                flash('شناسه رسانه و محصول الزامی است.', 'danger')
                 return redirect(url_for('admin_products'))
-
             try:
                 media = ProductMedia.query.get(int(media_id))
                 if media and media.product_id == int(product_id):
@@ -718,23 +683,22 @@ def admin_products():
                         delete_media_file(media.local_path)
                     db.session.delete(media)
                     db.session.commit()
-                    flash('Media deleted successfully.', 'success')
+                    flash('رسانه با موفقیت حذف شد.', 'success')
                 else:
-                    flash('Media not found.', 'warning')
+                    flash('رسانه یافت نشد.', 'warning')
             except Exception as e:
                 db.session.rollback()
-                logger.error(f"Error deleting media: {str(e)}")
-                flash(f'Error deleting media: {str(e)}', 'danger')
+                logger.error(f"خطا در حذف رسانه: {str(e)}")
+                flash(f'خطا در حذف رسانه: {str(e)}', 'danger')
             return redirect(url_for('admin_products', action='media', id=product_id))
 
     # Handle GET requests
     categories = ProductCategory.query.all()
-
     if action == 'add':
-        return render_template('admin/product_form.html', title="Add New Product", categories=categories)
+        return render_template('admin/product_form.html', title="افزودن محصول جدید", categories=categories)
     elif action == 'edit' and product_id:
         product = Product.query.get_or_404(int(product_id))
-        return render_template('admin/product_form.html', title="Edit Product", product=product, categories=categories)
+        return render_template('admin/product_form.html', title="ویرایش محصول", product=product, categories=categories)
     elif action == 'media' and product_id:
         product = Product.query.get_or_404(int(product_id))
         media = ProductMedia.query.filter_by(product_id=product.id).all()
@@ -744,67 +708,32 @@ def admin_products():
     page = request.args.get('page', 1, type=int)
     per_page = 10
     search_query = request.args.get('search')
-    query = Product.query
+    category_filter = request.args.get('category_id')
+    query = Product.query.options(joinedload(Product.category))
     if search_query:
         query = query.filter(Product.name.ilike(f'%{search_query}%'))
+    if category_filter:
+        query = query.filter(Product.category_id == category_filter)
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     products = pagination.items
 
+    # Add main photo for each product and log for debugging
     for product in products:
-        product.formatted_photo_url = get_photo_url(product.photo_url)
+        main_media = product.media.filter_by(file_type='photo').first()
+        product.main_photo = main_media.file_id if main_media else None
+        logger.info(f"Product {product.id}: category_id={product.category_id}, category={product.category}, category_name={product.category.name if product.category else 'None'}")
 
     return render_template(
         'admin/products.html',
         products=products,
         categories=categories,
         pagination=pagination,
-        search_query=search_query
+        search_query=search_query,
+        category_filter=category_filter
     )
 
-# روت‌های مربوط به محصولات
-@app.route('/product/<int:product_id>')
-def product_detail(product_id):
-    """صفحه جزئیات محصول"""
-    product = Product.query.get_or_404(product_id)
-    # محصولات مرتبط که در همان دسته‌بندی هستند اما ID متفاوتی دارند
-    related_products = Product.query.filter_by(
-        category_id=product.category_id).filter(
-            Product.id != product.id).limit(4).all()
-    media = ProductMedia.query.filter_by(product_id=product.id).all()
 
-    # تبدیل مسیر photo_url برای استفاده در url_for
-    photo_url = get_photo_url(product.photo_url)
-
-    # تبدیل مسیر photo_url برای محصولات مرتبط
-    for related in related_products:
-        related.formatted_photo_url = get_photo_url(related.photo_url)
-
-    return render_template('product_detail.html',
-                           product=product,
-                           photo_url=photo_url,
-                           related_products=related_products,
-                           media=media)
-
-# ----- Category Management Functions -----
-
-
-def build_category_tree(categories, parent_id=None):
-    """Build a hierarchical tree structure from categories"""
-    try:
-        tree = []
-        for category in categories:
-            if category.parent_id == parent_id:
-                children = build_category_tree(categories, category.id)
-                tree.append({
-                    'id': category.id,
-                    'name': category.name,
-                    'children': children
-                })
-        return tree
-    except Exception as e:
-        logger.error(f"Error building category tree: {str(e)}")
-        return []
-
+# ----- Category Management Routes -----
 
 def get_all_subcategories(category_model,
                           category_id,

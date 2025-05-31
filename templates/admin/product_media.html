@@ -13,7 +13,7 @@
                     <li class="breadcrumb-item active" aria-current="page">رسانه‌های محصول: {{ product.name }}</li>
                 </ol>
             </nav>
-            
+
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">رسانه‌های محصول: {{ product.name }}</h5>
@@ -22,9 +22,21 @@
                     </a>
                 </div>
                 <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                    <div class="messages mb-4">
+                        {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+
                     <div class="row mb-4">
                         <div class="col-md-6">
-                            <!-- اطلاعات محصول -->
                             <div class="card mb-3">
                                 <div class="card-header">
                                     <h6 class="mb-0">اطلاعات محصول</h6>
@@ -38,9 +50,10 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <h6>مدیریت رسانه‌ها</h6>
-                    <form id="mediaUploadForm" enctype="multipart/form-data">
+                    <form id="mediaUploadForm" method="POST" action="{{ url_for('admin_products', action='upload_media') }}" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="product_id" value="{{ product.id }}">
                         <div class="row mb-3">
                             <div class="col-md-6">
@@ -55,8 +68,15 @@
                                         </ul>
                                     </div>
                                 </div>
-                                
-                                <!-- پیش نمایش فایل‌های انتخاب شده -->
+
+                                <div class="mb-3">
+                                    <label for="file_type" class="form-label">نوع رسانه</label>
+                                    <select class="form-select" id="file_type" name="file_type" required>
+                                        <option value="photo">تصویر</option>
+                                        <option value="video">ویدیو</option>
+                                    </select>
+                                </div>
+
                                 <div id="mediaPreviewContainer" class="mt-2" style="display: none;">
                                     <div class="card p-2">
                                         <div id="preview-container" class="d-flex flex-wrap">
@@ -71,50 +91,55 @@
                                 </button>
                             </div>
                         </div>
+                        <div class="progress mt-3 mb-3">
+                            <div id="mediaUploadProgress" class="progress-bar bg-success" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <div id="mediaUploadStatus" class="text-muted mb-3"></div>
                     </form>
-                    
-                    <!-- نوتیفیکیشن پیام موفقیت -->
+
                     <div class="alert alert-success" id="uploadSuccessAlert" style="display: none;" role="alert">
                         <i class="bi bi-check-circle-fill me-2"></i> فایل‌ها با موفقیت آپلود شدند.
                     </div>
-                    
+
                     <div class="row">
                         {% if media|length > 0 %}
-                        {% for item in media %}
-                        <div class="col-md-3 mb-4">
-                            <div class="card h-100">
-                                {% if item.file_type == 'photo' %}
-                                <img src="{{ url_for('telegram_file', file_id=item.file_id) }}" class="card-img-top product-img-preview" alt="تصویر محصول">
-                                {% elif item.file_type == 'video' %}
-                                <div class="ratio ratio-16x9">
-                                    <video controls>
-                                        <source src="{{ url_for('telegram_file', file_id=item.file_id) }}" type="video/mp4">
-                                        مرورگر شما از پخش ویدیو پشتیبانی نمی‌کند.
-                                    </video>
-                                </div>
-                                {% endif %}
-                                <div class="card-body">
-                                    <p class="card-text text-center">
-                                        <span class="badge bg-secondary">{{ item.file_type }}</span>
-                                    </p>
-                                </div>
-                                <div class="card-footer">
-                                    <form method="post" action="{{ url_for('admin_products', action='delete_media') }}">
-                                        <input type="hidden" name="media_id" value="{{ item.id }}">
-                                        <input type="hidden" name="product_id" value="{{ product.id }}">
-                                        <button type="submit" class="btn btn-sm btn-danger w-100">
-                                            <i class="bi bi-trash"></i> حذف
-                                        </button>
-                                    </form>
+                            {% for item in media %}
+                            <div class="col-md-3 mb-4">
+                                <div class="card h-100">
+                                    {% if item.file_type == 'photo' %}
+                                    <img src="/static/{{ item.file_id }}" class="card-img-top product-img-preview" alt="تصویر محصول">
+                                    {% elif item.file_type == 'video' %}
+                                    <div class="ratio ratio-16x9">
+                                        <video controls>
+                                            <source src="/static/{{ item.file_id }}" type="video/mp4">
+                                            مرورگر شما از پخش ویدیویی پشتیبانی نمی‌کند.
+                                        </video>
+                                    </div>
+                                    {% endif %}
+                                    <div class="card-body">
+                                        <p class="card-text text-center">
+                                            <span class="badge bg-secondary">{{ item.file_type }}</span>
+                                        </p>
+                                    </div>
+                                    <div class="card-footer">
+                                        <form method="post" action="{{ url_for('admin_products', action='delete_media') }}">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="media_id" value="{{ item.id }}">
+                                            <input type="hidden" name="product_id" value="{{ product.id }}">
+                                            <button type="submit" class="btn btn-sm btn-danger w-100">
+                                                <i class="bi bi-trash"></i> حذف
+                                            </button>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                            {% endfor %}
                         {% else %}
-                        <div class="col-12">
-                            <div class="alert alert-info">
-                                هیچ رسانه‌ای برای این محصول وجود ندارد.
+                            <div class="col-12">
+                                <div class="alert alert-info">
+                                    هیچ رسانه‌ای برای این محصول وجود ندارد.
+                                </div>
                             </div>
-                        </div>
                         {% endif %}
                     </div>
                 </div>
@@ -122,29 +147,24 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
 {% block scripts %}
 <script>
 function previewMediaFile(input) {
     const container = document.getElementById('mediaPreviewContainer');
     const previewContainer = document.getElementById('preview-container');
-    
-    // پاک کردن پیش‌نمایش‌های قبلی
     previewContainer.innerHTML = '';
-    
+
     if (input.files.length > 0) {
         container.style.display = 'block';
-        
-        for (let i = 0; i < input.files.length; i++) {
-            const file = input.files[i];
+        for (let file of input.files) {
             const reader = new FileReader();
-            
             reader.onload = function(e) {
                 const previewItem = document.createElement('div');
                 previewItem.className = 'preview-item m-2 text-center';
-                
+
                 if (file.type.startsWith('image/')) {
-                    // پیش‌نمایش تصویر
                     const img = document.createElement('img');
                     img.src = e.target.result;
                     img.className = 'img-thumbnail';
@@ -152,72 +172,40 @@ function previewMediaFile(input) {
                     img.style.maxWidth = '150px';
                     previewItem.appendChild(img);
                 } else if (file.type.startsWith('video/')) {
-                    // پیش‌نمایش ویدیو
                     const video = document.createElement('div');
                     video.className = 'video-preview bg-dark d-flex align-items-center justify-content-center rounded';
                     video.style.width = '150px';
                     video.style.height = '150px';
-                    
                     const icon = document.createElement('i');
                     icon.className = 'bi bi-play-circle-fill text-white';
                     icon.style.fontSize = '3rem';
-                    
                     video.appendChild(icon);
                     previewItem.appendChild(video);
                 }
-                
-                // افزودن نام فایل و اندازه
+
                 const fileNameDiv = document.createElement('div');
                 fileNameDiv.className = 'small mt-1 text-truncate';
                 fileNameDiv.style.maxWidth = '150px';
                 fileNameDiv.textContent = file.name;
-                
-                // محاسبه اندازه فایل
+
                 const fileSize = file.size;
-                let sizeText = '';
-                if (fileSize < 1024) {
-                    sizeText = fileSize + ' B';
-                } else if (fileSize < 1024 * 1024) {
-                    sizeText = (fileSize / 1024).toFixed(1) + ' KB';
-                } else {
-                    sizeText = (fileSize / (1024 * 1024)).toFixed(1) + ' MB';
-                }
-                
+                let sizeText = fileSize < 1024 ? fileSize + ' B' :
+                              fileSize < 1024 * 1024 ? (fileSize / 1024).toFixed(1) + ' KB' :
+                              (fileSize / (1024 * 1024)).toFixed(1) + ' MB';
+
                 const fileSizeDiv = document.createElement('div');
                 fileSizeDiv.className = 'small text-muted';
                 fileSizeDiv.textContent = sizeText;
-                
+
                 previewItem.appendChild(fileNameDiv);
                 previewItem.appendChild(fileSizeDiv);
-                
                 previewContainer.appendChild(previewItem);
             };
-            
             reader.readAsDataURL(file);
         }
-        
-        // شبیه‌سازی نوار پیشرفت
-        simulateMediaProgress();
     } else {
         container.style.display = 'none';
     }
-}
-
-function simulateMediaProgress() {
-    const progress = document.getElementById('mediaUploadProgress');
-    const status = document.getElementById('mediaUploadStatus');
-    let width = 0;
-    
-    const interval = setInterval(() => {
-        if (width >= 100) {
-            clearInterval(interval);
-            status.textContent = 'فایل‌ها آماده آپلود هستند. برای شروع آپلود دکمه «آپلود فایل‌ها» را بزنید.';
-        } else {
-            width += 5;
-            progress.style.width = width + '%';
-            status.textContent = 'در حال آماده‌سازی فایل‌ها... ' + width + '%';
-        }
-    }, 100);
 }
 
 function uploadMedia() {
@@ -228,20 +216,16 @@ function uploadMedia() {
     const status = document.getElementById('mediaUploadStatus');
     const uploadBtn = document.getElementById('uploadBtn');
     const successAlert = document.getElementById('uploadSuccessAlert');
-    
-    // بررسی اینکه فایل انتخاب شده باشد
+
     if (!fileInput.files || fileInput.files.length === 0) {
         alert('لطفاً حداقل یک فایل انتخاب کنید.');
         return false;
     }
-    
-    // غیرفعال کردن دکمه آپلود
+
     uploadBtn.disabled = true;
     uploadBtn.innerHTML = '<i class="bi bi-hourglass"></i> در حال آپلود...';
-    
-    // درخواست AJAX
+
     const xhr = new XMLHttpRequest();
-    
     xhr.upload.addEventListener('progress', function(e) {
         if (e.lengthComputable) {
             const percentComplete = Math.round((e.loaded / e.total) * 100);
@@ -249,40 +233,31 @@ function uploadMedia() {
             status.textContent = 'در حال آپلود فایل‌ها... ' + percentComplete + '%';
         }
     });
-    
+
     xhr.onreadystatechange = function() {
         if (xhr.readyState === 4) {
             uploadBtn.disabled = false;
             uploadBtn.innerHTML = '<i class="bi bi-upload"></i> آپلود فایل‌ها';
-            
             if (xhr.status === 200) {
                 progress.style.width = '100%';
                 status.textContent = 'فایل‌ها با موفقیت آپلود شدند.';
                 successAlert.style.display = 'block';
-                
-                // پاک کردن فرم
                 fileInput.value = '';
                 document.getElementById('mediaPreviewContainer').style.display = 'none';
-                
-                // رفرش صفحه بعد از 3 ثانیه
-                setTimeout(function() {
-                    window.location.reload();
-                }, 3000);
+                setTimeout(() => window.location.reload(), 2000);
             } else {
                 progress.className = 'progress-bar bg-danger';
-                status.textContent = 'خطا در آپلود فایل‌ها. لطفاً دوباره تلاش کنید.';
+                status.textContent = 'خطا در آپلود فایل‌ها: ' + (xhr.responseText || 'لطفاً دوباره تلاش کنید.');
             }
         }
     };
-    
-    xhr.open('POST', '{{ url_for("admin_products", action="upload_media") }}', true);
+
+    xhr.open('POST', uploadForm.action, true);
     xhr.send(formData);
-    
+
     progress.style.width = '0%';
     status.textContent = 'در حال شروع آپلود...';
     progress.className = 'progress-bar bg-success';
-    
-    return false;
 }
 </script>
 {% endblock %}
