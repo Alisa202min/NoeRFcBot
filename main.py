@@ -13,17 +13,30 @@ def index():
         services = Service.query.filter_by(featured=True).limit(6).all() or []
         educational = EducationalContent.query.order_by(EducationalContent.created_at.desc()).limit(3).all() or []
         
+        # بررسی وضعیت متغیرهای محیطی
+        env_status = {
+            'BOT_TOKEN': 'Set' if os.environ.get('BOT_TOKEN') else 'Not Set',
+            'DATABASE_URL': 'Set' if os.environ.get('DATABASE_URL') else 'Not Set',
+            'WEBHOOK_URL': 'Set' if os.environ.get('WEBHOOK_URL') else 'Not Set'
+        }
+        
         return render_template('index.html',
                              products=products,
                              services=services,
                              educational=educational,
                              bot_status='running' if os.path.exists('bot.log') else 'stopped',
+                             env_status=env_status,
                              datetime=datetime)
     except Exception as e:
         app.logger.error(f"Error in index route: {e}")
+        env_status = {
+            'BOT_TOKEN': 'Error',
+            'DATABASE_URL': 'Error', 
+            'WEBHOOK_URL': 'Error'
+        }
         return render_template('index.html',
                              products=[], services=[], educational=[],
-                             bot_status='error', datetime=datetime)
+                             bot_status='error', env_status=env_status, datetime=datetime)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
