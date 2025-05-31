@@ -13,7 +13,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.web.app import app, db
-from src.models.models import User, Category, Product, Service, ProductMedia, ServiceMedia, Inquiry, EducationalContent, StaticContent
+from models import User,  Product, Service, ProductMedia, ServiceMedia, Inquiry, EducationalContent, StaticContent
 
 # تنظیم لاگر
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

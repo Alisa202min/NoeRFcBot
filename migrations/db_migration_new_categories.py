@@ -20,8 +20,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # وارد کردن ماژول‌های مورد نیاز
 from src.web.app import db  # noqa: E402
-from src.models.models import (  # noqa: E402
-    Category, ProductCategory, ServiceCategory, 
+from models import (  # noqa: E402
+     ProductCategory, ServiceCategory, 
     Product, Service
 )
 

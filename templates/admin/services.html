@@ -34,7 +34,7 @@
                     {% endif %}
                     {% endwith %}
                     
-                    {% if services.items|length == 0 %}
+                    {% if services|length == 0 %}
                     <div class="alert alert-info mb-0">
                         هیچ خدمتی یافت نشد. <a href="{{ url_for('admin_services') }}?action=add">افزودن خدمت جدید</a>
                     </div>
@@ -52,12 +52,13 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for service in services.items %}
+                                {% for service in services %}
                                 <tr class="service-row" data-service-url="{{ url_for('service_detail', service_id=service.id) }}" style="cursor: pointer;">
                                     <td>{{ service.id }}</td>
                                     <td>
-                                        {% if service.formatted_photo_url %}
-                                        <img src="{{ url_for('static', filename=service.formatted_photo_url) }}" alt="{{ service.name }}" class="img-thumbnail" style="max-height: 50px;">
+                                        {% set main_media = service.media_files|selectattr('file_type', 'equalto', 'photo')|first %}
+                                        {% if main_media %}
+                                        <img src="{{ url_for('telegram_file', file_id=main_media.file_id) }}" alt="{{ service.name }}" class="img-thumbnail" style="max-height: 50px;">
                                         {% else %}
                                         <div class="bg-light d-flex align-items-center justify-content-center rounded" style="width: 50px; height: 50px;">
                                             <i class="bi bi-image text-muted"></i>
@@ -67,11 +68,7 @@
                                     <td>{{ service.name }}</td>
                                     <td>{{ "{:,}".format(service.price) }}</td>
                                     <td>
-                                        {% for category in categories %}
-                                            {% if category.id == service.category_id %}
-                                                {{ category.name }}
-                                            {% endif %}
-                                        {% endfor %}
+                                        {{ service.category.name if service.category else 'بدون دسته‌بندی' }}
                                     </td>
                                     <td>
                                         <div class="btn-group" role="group">
@@ -84,13 +81,11 @@
                                             <a href="{{ url_for('service_detail', service_id=service.id) }}" target="_blank" class="btn btn-sm btn-outline-success">
                                                 <i class="bi bi-eye"></i> مشاهده
                                             </a>
-                                            <!-- دکمه حذف با مودال تأیید -->
                                             <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteServiceModal{{ service.id }}">
                                                 <i class="bi bi-trash"></i> حذف
                                             </button>
                                         </div>
                                         
-                                        <!-- مودال تأیید حذف -->
                                         <div class="modal fade" id="deleteServiceModal{{ service.id }}" tabindex="-1" aria-labelledby="deleteServiceModalLabel{{ service.id }}" aria-hidden="true">
                                             <div class="modal-dialog">
                                                 <div class="modal-content">
@@ -118,7 +113,6 @@
                         </table>
                     </div>
                     
-                    <!-- Pagination -->
                     {% if services.pages > 1 %}
                     <nav aria-label="Page navigation" class="mt-4">
                         <ul class="pagination justify-content-center">
@@ -180,10 +174,8 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // فعال‌سازی کلیک بر روی سطر خدمت
         document.querySelectorAll('.service-row').forEach(function(row) {
             row.addEventListener('click', function(e) {
-                // بررسی می‌کنیم که کلیک روی دکمه‌ها یا لینک‌ها نباشد
                 if (!e.target.closest('a') && !e.target.closest('button') && !e.target.closest('form')) {
                     window.open(this.dataset.serviceUrl, '_blank');
                 }
@@ -191,5 +183,4 @@
         });
     });
 </script>
-{% endblock %}
 {% endblock %}

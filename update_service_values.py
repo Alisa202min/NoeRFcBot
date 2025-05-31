@@ -4,7 +4,7 @@
 
 import logging
 from src.web.app import app, db
-from src.models.models import Service
+from models import Service
 from sqlalchemy import text
 
 logging.basicConfig(level=logging.INFO)

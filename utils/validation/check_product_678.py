@@ -4,7 +4,7 @@
 
 import logging
 from src.web.app import app, db
-from src.models.models import Product
+from models import Product
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

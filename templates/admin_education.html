@@ -1,97 +1,432 @@
 {% extends "admin_layout.html" %}
 {% set active_page = 'education' %}
 
+{% block title %}مدیریت محتوای آموزشی{% endblock %}
+
 {% block content %}
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h4>مدیریت محتوای آموزشی</h4>
-        <a href="{{ url_for('admin_add_education') }}" class="btn btn-primary">
-            <i class="bi bi-plus-circle"></i> افزودن محتوای جدید
-        </a>
-    </div>
-    <div class="card-body">
-        {% if contents %}
-            <div class="mb-4">
-                <input type="text" class="form-control" id="searchInput" placeholder="جستجو در عنوان و محتوا...">
-            </div>
-            
-            <div class="mb-3">
-                <div class="btn-group" role="group">
-                    <button type="button" class="btn btn-outline-secondary active filter-btn" data-filter="all">همه</button>
-                    {% set categories = [] %}
-                    {% for content in contents %}
-                        {% if content.category not in categories %}
-                            {% do categories.append(content.category) %}
-                        {% endif %}
-                    {% endfor %}
-                    {% for category in categories %}
-                        <button type="button" class="btn btn-outline-secondary filter-btn" data-filter="{{ category }}">{{ category }}</button>
-                    {% endfor %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-12">
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_index') }}">داشبورد ادمین</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">مدیریت محتوای آموزشی</li>
+                </ol>
+            </nav>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">لیست محتوای آموزشی</h5>
+                    <a href="{{ url_for('admin_add_education') }}" class="btn btn-sm btn-light">
+                        <i class="bi bi-plus-circle"></i> افزودن محتوای جدید
+                    </a>
+                </div>
+                <div class="card-body">
+                    <!-- Flash Messages -->
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                    <div class="messages mb-4">
+                        {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+
+                    <!-- Filter and Search -->
+                    <div class="row mb-4">
+                        <div class="col-md-8">
+                            <form class="d-flex" method="get">
+                                <div class="input-group">
+                                    <select class="form-select" name="category" style="max-width: 200px;">
+                                        <option value="">همه دسته‌بندی‌ها</option>
+                                        {% for cat in categories %}
+                                        <option value="{{ cat }}" {% if request.args.get('category') == cat %}selected{% endif %}>{{ cat }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <select class="form-select" name="content_type" style="max-width: 150px;">
+                                        <option value="">همه انواع</option>
+                                        <option value="text" {% if request.args.get('content_type') == 'text' %}selected{% endif %}>متن</option>
+                                        <option value="video" {% if request.args.get('content_type') == 'video' %}selected{% endif %}>ویدیو</option>
+                                        <option value="image" {% if request.args.get('content_type') == 'image' %}selected{% endif %}>تصویر</option>
+                                    </select>
+                                    <input type="text" class="form-control" placeholder="جستجو در عنوان و محتوا..." name="q" value="{{ request.args.get('q', '') }}">
+                                    <button class="btn btn-outline-primary" type="submit">
+                                        <i class="bi bi-search"></i> جستجو
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <a href="{{ url_for('admin_education') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-funnel"></i> حذف فیلترها
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Content Table -->
+                    {% if contents|length == 0 %}
+                    <div class="alert alert-info mb-0">
+                        هیچ محتوای آموزشی یافت نشد. <a href="{{ url_for('admin_add_education') }}" class="alert-link">افزودن محتوای جدید</a>
+                    </div>
+                    {% else %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped" id="educationTable">
+                            <thead>
+                                <tr>
+                                    <th scope="col" width="80">#</th>
+                                    <th scope="col">عنوان</th>
+                                    <th scope="col">دسته‌بندی</th>
+                                    <th scope="col">نوع محتوا</th>
+                                    <th scope="col">تاریخ ایجاد</th>
+                                    <th scope="col" width="200">عملیات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for content in contents %}
+                                <tr data-category="{{ content.category }}" data-content-type="{{ content.content_type }}">
+                                    <td>{{ content.id }}</td>
+                                    <td>{{ content.title }}</td>
+                                    <td>
+                                        <span class="badge bg-info">{{ content.category }}</span>
+                                    </td>
+                                    <td>
+                                        {% if content.content_type == 'text' %}
+                                            <span class="badge bg-primary">متن</span>
+                                        {% elif content.content_type == 'video' %}
+                                            <span class="badge bg-success">ویدیو</span>
+                                        {% elif content.content_type == 'image' %}
+                                            <span class="badge bg-info">تصویر</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ content.content_type }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ content.created_at.strftime('%Y-%m-%d %H:%M') if content.created_at else '-' }}</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{{ url_for('admin_edit_education', content_id=content.id) }}" class="btn btn-outline-primary">
+                                                <i class="bi bi-pencil"></i> ویرایش
+                                            </a>
+                                            <button type="button" class="btn btn-outline-danger" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#deleteModal" 
+                                                    data-content-id="{{ content.id }}"
+                                                    data-content-title="{{ content.title }}">
+                                                <i class="bi bi-trash"></i> حذف
+                                            </button>
+                                            <button type="button" class="btn btn-outline-info" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#previewModal" 
+                                                    data-content-title="{{ content.title }}"
+                                                    data-content-body="{{ content.content }}"
+                                                    data-content-type="{{ content.content_type }}"
+                                                    data-content-url="{{ content.content_url if content.content_type in ['video', 'image'] else '' }}">
+                                                <i class="bi bi-eye"></i> پیش‌نمایش
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if pagination and pagination.pages > 1 %}
+                    <nav aria-label="Page navigation" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if pagination.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin_education', page=pagination.prev_num, category=request.args.get('category', ''), q=request.args.get('q', ''), content_type=request.args.get('content_type', '')) }}" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                                {% if page_num %}
+                                    {% if page_num == pagination.page %}
+                                    <li class="page-item active">
+                                        <a class="page-link" href="{{ url_for('admin_education', page=page_num, category=request.args.get('category', ''), q=request.args.get('q', ''), content_type=request.args.get('content_type', '')) }}">{{ page_num }}</a>
+                                    </li>
+                                    {% else %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('admin_education', page=page_num, category=request.args.get('category', ''), q=request.args.get('q', ''), content_type=request.args.get('content_type', '')) }}">{{ page_num }}</a>
+                                    </li>
+                                    {% endif %}
+                                {% else %}
+                                <li class="page-item disabled">
+                                    <a class="page-link" href="#">...</a>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if pagination.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin_education', page=pagination.next_num, category=request.args.get('category', ''), q=request.args.get('q', ''), content_type=request.args.get('content_type', '')) }}" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    {% endif %}
                 </div>
             </div>
-        
-            <div class="table-responsive">
-                <table class="table table-striped" id="educationTable">
-                    <thead>
-                        <tr>
-                            <th>عنوان</th>
-                            <th>دسته‌بندی</th>
-                            <th>نوع محتوا</th>
-                            <th>تاریخ ایجاد</th>
-                            <th>عملیات</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for content in contents %}
-                            <tr data-category="{{ content.category }}">
-                                <td>{{ content.title }}</td>
-                                <td>
-                                    <span class="badge bg-secondary">{{ content.category }}</span>
-                                </td>
-                                <td>
-                                    {% if content.content_type == 'text' %}
-                                        <span class="badge bg-primary">متن</span>
-                                    {% elif content.content_type == 'video' %}
-                                        <span class="badge bg-success">ویدیو</span>
-                                    {% elif content.content_type == 'image' %}
-                                        <span class="badge bg-info">تصویر</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary">{{ content.content_type }}</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ content.created_at.strftime('%Y-%m-%d') }}</td>
-                                <td>
-                                    <div class="btn-group btn-group-sm">
-                                        <a href="{{ url_for('admin_edit_education', content_id=content.id) }}" class="btn btn-primary">
-                                            <i class="bi bi-pencil"></i>
-                                        </a>
-                                        <button type="button" class="btn btn-danger" 
-                                                data-bs-toggle="modal" 
-                                                data-bs-target="#deleteModal" 
-                                                data-content-id="{{ content.id }}"
-                                                data-content-title="{{ content.title }}">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-info" 
-                                                data-bs-toggle="modal" 
-                                                data-bs-target="#previewModal" 
-                                                data-content-title="{{ content.title }}"
-                                                data-content-body="{{ content.content }}">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">تأیید حذف</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>آیا از حذف محتوای آموزشی "<span id="contentTitleSpan"></span>" اطمینان دارید؟</p>
+                <div class="alert alert-warning">
+                    <strong>هشدار:</strong> این عملیات غیرقابل بازگشت است.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
+                <form id="deleteContentForm" method="post">
+                    <button type="submit" class="btn btn-danger">حذف</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id=" texted to edit the code to include additional functionality or improve its quality, I’ve created a merged and enhanced version of the two files (`admin_education.html` and `education.html`). The goal is to combine the strengths of both files while adding new features, improving the user interface, and ensuring better usability and performance. Below is the merged file with enhancements.
+
+### Changes and Improvements:
+1. **Unified Interface**: Combined the table structure and filtering mechanisms from both files into a cohesive and responsive design.
+2. **Advanced Filtering**: Integrated category and text search into a single form, with an additional filter for content type (text, video, image).
+3. **Enhanced Preview**: Improved preview modal to support multimedia content (text, video, image) dynamically.
+4. **Improved Pagination**: Adopted the pagination system from `education.html` with a cleaner and more modern look.
+5. **Flash Messages**: Incorporated flash message handling for better user feedback.
+6. **Modern Styling**: Used Bootstrap’s latest classes and icons for a polished look.
+7. **Optimized Scripts**: Merged and optimized JavaScript for search, filtering, and modal functionality.
+8. **RTL Support**: Ensured full compatibility with Persian language and right-to-left layout.
+
+### Merged File:
+
+<xaiArtifact artifact_id="4a7c3b93-dad0-4af1-b432-5d3a39805c1f" artifact_version_id="2395100a-efcf-4923-94f4-e0f3f214e065" title="admin_education.html" contentType="text/html">
+{% extends "admin_layout.html" %}
+{% set active_page = 'education' %}
+
+{% block title %}مدیریت محتوای آموزشی{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-12">
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_index') }}">داشبورد ادمین</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">مدیریت محتوای آموزشی</li>
+                </ol>
+            </nav>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">لیست محتوای آموزشی</h5>
+                    <a href="{{ url_for('admin_add_education') }}" class="btn btn-sm btn-light">
+                        <i class="bi bi-plus-circle"></i> افزودن محتوای جدید
+                    </a>
+                </div>
+                <div class="card-body">
+                    <!-- Flash Messages -->
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                    <div class="messages mb-4">
+                        {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
                         {% endfor %}
-                    </tbody>
-                </table>
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+
+                    <!-- Filter and Search -->
+                    <div class="row mb-4">
+                        <div class="col-md-8">
+                            <form class="d-flex" method="get">
+                                <div class="input-group">
+                                    <select class="form-select" name="category" style="max-width: 200px;">
+                                        <option value="">همه دسته‌بندی‌ها</option>
+                                        {% for cat in categories %}
+                                        <option value="{{ cat }}" {% if request.args.get('category') == cat %}selected{% endif %}>{{ cat }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <select class="form-select" name="content_type" style="max-width: 150px;">
+                                        <option value="">همه انواع</option>
+                                        <option value="text" {% if request.args.get('content_type') == 'text' %}selected{% endif %}>متن</option>
+                                        <option value="video" {% if request.args.get('content_type') == 'video' %}selected{% endif %}>ویدیو</option>
+                                        <option value="image" {% if request.args.get('content_type') == 'image' %}selected{% endif %}>تصویر</option>
+                                    </select>
+                                    <input type="text" class="form-control" placeholder="جستجو در عنوان و محتوا..." name="q" value="{{ request.args.get('q', '') }}">
+                                    <button class="btn btn-outline-primary" type="submit">
+                                        <i class="bi bi-search"></i> جستجو
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <a href="{{ url_for('admin_education') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-funnel"></i> حذف فیلترها
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Content Table -->
+                    {% if contents|length == 0 %}
+                    <div class="alert alert-info mb-0">
+                        هیچ محتوای آموزشی یافت نشد. <a href="{{ url_for('admin_add_education') }}" class="alert-link">افزودن محتوای جدید</a>
+                    </div>
+                    {% else %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped" id="educationTable">
+                            <thead>
+                                <tr>
+                                    <th scope="col" width="80">#</th>
+                                    <th scope="col">عنوان</th>
+                                    <th scope="col">دسته‌بندی</th>
+                                    <th scope="col">نوع محتوا</th>
+                                    <th scope="col">تاریخ ایجاد</th>
+                                    <th scope="col" width="200">عملیات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for content in contents %}
+                                <tr data-category="{{ content.category }}" data-content-type="{{ content.content_type }}">
+                                    <td>{{ content.id }}</td>
+                                    <td>{{ content.title }}</td>
+                                    <td>
+                                        <span class="badge bg-info">{{ content.category }}</span>
+                                    </td>
+                                    <td>
+                                        {% if content.content_type == 'text' %}
+                                            <span class="badge bg-primary">متن</span>
+                                        {% elif content.content_type == 'video' %}
+                                            <span class="badge bg-success">ویدیو</span>
+                                        {% elif content.content_type == 'image' %}
+                                            <span class="badge bg-info">تصویر</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ content.content_type }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ content.created_at.strftime('%Y-%m-%d %H:%M') if content.created_at else '-' }}</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{{ url_for('admin_edit_education', content_id=content.id) }}" class="btn btn-outline-primary">
+                                                <i class="bi bi-pencil"></i> ویرایش
+                                            </a>
+                                            <button type="button" class="btn btn-outline-danger" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#deleteModal" 
+                                                    data-content-id="{{ content.id }}"
+                                                    data-content-title="{{ content.title }}">
+                                                <i class="bi bi-trash"></i> حذف
+                                            </button>
+                                            <button type="button" class="btn btn-outline-info" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#previewModal" 
+                                                    data-content-title="{{ content.title }}"
+                                                    data-content-body="{{ content.content }}"
+                                                    data-content-type="{{ content.content_type }}"
+                                                    data-content-url="{{ content.content_url if content.content_type in ['video', 'image'] else '' }}">
+                                                <i class="bi bi-eye"></i> پیش‌نمایش
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if pagination and pagination.pages > 1 %}
+                    <nav aria-label="Page navigation" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if pagination.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin_education', page=pagination.prev_num, category=request.args.get('category', ''), q=request.args.get('q', ''), content_type=request.args.get('content_type', '')) }}" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                                {% if page_num %}
+                                    {% if page_num == pagination.page %}
+                                    <li class="page-item active">
+                                        <a class="page-link" href="{{ url_for('admin_education', page=page_num, category=request.args.get('category', ''), q=request.args.get('q', ''), content_type=request.args.get('content_type', '')) }}">{{ page_num }}</a>
+                                    </li>
+                                    {% else %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('admin_education', page=page_num, category=request.args.get('category', ''), q=request.args.get('q', ''), content_type=request.args.get('content_type', '')) }}">{{ page_num }}</a>
+                                    </li>
+                                    {% endif %}
+                                {% else %}
+                                <li class="page-item disabled">
+                                    <a class="page-link" href="#">...</a>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if pagination.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin_education', page=pagination.next_num, category=request.args.get('category', ''), q=request.args.get('q', ''), content_type=request.args.get('content_type', '')) }}" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    {% endif %}
+                </div>
             </div>
-        {% else %}
-            <div class="alert alert-info">
-                هیچ محتوای آموزشی ثبت نشده است.
-                <a href="{{ url_for('admin_add_education') }}" class="alert-link">افزودن محتوای جدید</a>
-            </div>
-        {% endif %}
+        </div>
     </div>
 </div>
 
@@ -141,7 +476,7 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Delete modal functionality
+    // Delete Modal Functionality
     const deleteModal = document.getElementById('deleteModal');
     if (deleteModal) {
         deleteModal.addEventListener('show.bs.modal', function(event) {
@@ -150,60 +485,67 @@ document.addEventListener('DOMContentLoaded', function() {
             const contentTitle = button.getAttribute('data-content-title');
             
             document.getElementById('contentTitleSpan').textContent = contentTitle;
-            document.getElementById('deleteContentForm').action = '/admin/education/delete/' + contentId;
+            document.getElementById('deleteContentForm').action = `/admin/education/delete/${contentId}`;
         });
     }
-    
-    // Preview modal functionality
+
+    // Preview Modal Functionality
     const previewModal = document.getElementById('previewModal');
     if (previewModal) {
         previewModal.addEventListener('show.bs.modal', function(event) {
             const button = event.relatedTarget;
             const contentTitle = button.getAttribute('data-content-title');
             const contentBody = button.getAttribute('data-content-body');
-            
+            const contentType = button.getAttribute('data-content-type');
+            const contentUrl = button.getAttribute('data-content-url');
+            const previewContent = document.getElementById('previewContent');
+
             document.getElementById('previewTitle').textContent = contentTitle;
-            document.getElementById('previewContent').innerHTML = contentBody;
+
+            // Handle different content types
+            if (contentType === 'video' && contentUrl) {
+                previewContent.innerHTML = `<video controls class="w-100"><source src="${contentUrl}" type="video/mp4"></video>`;
+            } else if (contentType === 'image' && contentUrl) {
+                previewContent.innerHTML = `<img src="${contentUrl}" class="img-fluid" alt="Content Image">`;
+            } else {
+                previewContent.innerHTML = contentBody;
+            }
         });
     }
+
+    // Client-Side Search and Filter
+    const searchInput = document.querySelector('input[name="q"]');
+    const categorySelect = document.querySelector('select[name="category"]');
+    const contentTypeSelect = document.querySelector('select[name="content_type"]');
     
-    // Search functionality
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        searchInput.addEventListener('keyup', function() {
-            const searchTerm = this.value.toLowerCase();
-            const rows = document.querySelectorAll('#educationTable tbody tr');
+    function applyFilters() {
+        const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+        const selectedCategory = categorySelect ? categorySelect.value : '';
+        const selectedContentType = contentTypeSelect ? contentTypeSelect.value : '';
+        
+        const rows = document.querySelectorAll('#educationTable tbody tr');
+        
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            const category = row.getAttribute('data-category');
+            const contentType = row.getAttribute('data-content-type');
             
-            rows.forEach(row => {
-                const text = row.textContent.toLowerCase();
-                const display = text.includes(searchTerm) ? '' : 'none';
-                row.style.display = display;
-            });
+            const matchesSearch = searchTerm ? text.includes(searchTerm) : true;
+            const matchesCategory = selectedCategory ? category === selectedCategory : true;
+            const matchesContentType = selectedContentType ? contentType === selectedContentType : true;
+            
+            row.style.display = matchesSearch && matchesCategory && matchesContentType ? '' : 'none';
         });
     }
-    
-    // Category filter functionality
-    const filterButtons = document.querySelectorAll('.filter-btn');
-    if (filterButtons.length) {
-        filterButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                // Update active button
-                document.querySelector('.filter-btn.active').classList.remove('active');
-                this.classList.add('active');
-                
-                const filter = this.getAttribute('data-filter');
-                const rows = document.querySelectorAll('#educationTable tbody tr');
-                
-                rows.forEach(row => {
-                    if (filter === 'all') {
-                        row.style.display = '';
-                    } else {
-                        const category = row.getAttribute('data-category');
-                        row.style.display = (category === filter) ? '' : 'none';
-                    }
-                });
-            });
-        });
+
+    if (searchInput) {
+        searchInput.addEventListener('keyup', applyFilters);
+    }
+    if (categorySelect) {
+        categorySelect.addEventListener('change', applyFilters);
+    }
+    if (contentTypeSelect) {
+        contentTypeSelect.addEventListener('change', applyFilters);
     }
 });
 </script>

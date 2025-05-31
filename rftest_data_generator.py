@@ -16,8 +16,8 @@ import shutil
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # وارد کردن کلاس‌های اصلی برنامه
-from src.web.app import app, db
-from src.models.models import (
+from app import app, db
+from models import (
     Product, Service, EducationalContent, Inquiry,
     ProductCategory, ServiceCategory, EducationalCategory,
     ProductMedia, ServiceMedia, EducationalContentMedia,

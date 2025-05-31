@@ -20,22 +20,22 @@
                 </div>
                 <div class="card-body">
                     <form method="post" action="{{ url_for('admin_education') }}?action=save" enctype="multipart/form-data">
-                        {% if content %}
-                        <input type="hidden" name="id" value="{{ content.id }}">
+                        {% if educational_content %}
+                        <input type="hidden" name="id" value="{{ educational_content.id }}">
                         {% endif %}
                         
                         <div class="row mb-4">
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="title" class="form-label">عنوان</label>
-                                    <input type="text" class="form-control" id="title" name="title" value="{{ content.title if content else '' }}" required>
+                                    <input type="text" class="form-control" id="title" name="title" value="{{ educational_content.title if educational_content else '' }}" required>
                                 </div>
                                 
                                 <div class="mb-3">
                                     <label for="category" class="form-label">دسته‌بندی</label>
-                                    <select class="form-select" id="category" name="category">
+                                    <select class="form-select" id="category" name="category_id">
                                         {% for cat in categories %}
-                                        <option value="{{ cat }}" {% if content and content.category == cat %}selected{% endif %}>{{ cat }}</option>
+                                        <option value="{{ cat.id }}" {% if educational_content and educational_content.category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
                                         {% endfor %}
                                         <option value="new_category" {% if not categories %}selected{% endif %}>دسته‌بندی جدید</option>
                                     </select>
@@ -45,14 +45,12 @@
                                     <label for="new_category" class="form-label">دسته‌بندی جدید</label>
                                     <input type="text" class="form-control" id="new_category" name="new_category" placeholder="نام دسته‌بندی جدید">
                                 </div>
-                                
-                                <!-- محتوای آموزشی همیشه متن است و فایل‌ها جداگانه ذخیره می‌شوند -->
                             </div>
                             
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="content_text" class="form-label">محتوا</label>
-                                    <textarea class="form-control" id="content_text" name="content" rows="12">{{ content.content if content else '' }}</textarea>
+                                    <textarea class="form-control" id="content_text" name="content" rows="12">{{ educational_content.content if educational_content else '' }}</textarea>
                                     <div class="form-text" id="contentHelp">
                                         متن یا توضیحات محتوای آموزشی را در این قسمت وارد کنید.
                                     </div>
@@ -62,20 +60,18 @@
                                     <label for="file" class="form-label">آپلود فایل (می‌توانید چند فایل انتخاب کنید)</label>
                                     <input type="file" class="form-control" id="file" name="file" multiple>
                                     <div class="form-text text-info">
-                                       برای انتخاب چندین فایل، دکمه Ctrl یا Shift را نگه داشته و فایل‌ها را انتخاب کنید
+                                        برای انتخاب چندین فایل، دکمه Ctrl یا Shift را نگه داشته و فایل‌ها را انتخاب کنید
                                     </div>
                                     
-                                    {% if content %}
-                                    <!-- نمایش اطلاعات محتوا (برای اطلاع) -->
+                                    {% if educational_content %}
                                     <div class="mt-3 mb-2">
                                         <div class="alert alert-info">
-                                            <p><strong>عنوان محتوا:</strong> {{ content.title }}</p>
-                                            <p><strong>دسته‌بندی:</strong> {{ content.category }}</p>
+                                            <p><strong>عنوان محتوا:</strong> {{ educational_content.title }}</p>
+                                            <p><strong>دسته‌بندی:</strong> {{ educational_content.category.name if educational_content.category else 'بدون دسته‌بندی' }}</p>
                                         </div>
                                     </div>
                                     {% endif %}
                                     
-                                    <!-- نمایش فایل‌های ضمیمه موجود -->
                                     {% if media_list %}
                                     <div class="mt-3">
                                         <h6 class="text-primary">فایل‌های ضمیمه موجود:</h6>
@@ -86,6 +82,7 @@
                                                     {% if media.file_type == 'photo' %}
                                                     <img src="{{ media.redirect_url }}" class="card-img-top" alt="تصویر ضمیمه">
                                                     {% elif media.file_type == 'video' %}
+                                                    < Balances
                                                     <div class="ratio ratio-16x9">
                                                         <video controls>
                                                             <source src="{{ media.redirect_url }}" type="video/mp4">
@@ -102,7 +99,7 @@
                                                             <i class="bi bi-download"></i> دانلود
                                                         </a>
                                                         <button type="button" class="btn btn-sm btn-danger" 
-                                                                onclick="confirmDeleteMedia('educational', {{ content.id }}, {{ media.id }}, '{{ media.file_type }}')">
+                                                                onclick="confirmDeleteMedia('educational', {{ educational_content.id }}, {{ media.id }}, '{{ media.file_type }}')">
                                                             <i class="bi bi-trash"></i> حذف
                                                         </button>
                                                     </div>
@@ -139,7 +136,6 @@
         const newCategoryDiv = document.getElementById('newCategoryDiv');
         const uploadSection = document.getElementById('uploadSection');
         
-        // نمایش/عدم نمایش فیلد دسته‌بندی جدید
         function updateCategoryField() {
             if (category.value === 'new_category') {
                 newCategoryDiv.style.display = 'block';
@@ -148,18 +144,12 @@
             }
         }
         
-        // بخش آپلود فایل همیشه نمایش داده می‌شود
-        
         category.addEventListener('change', updateCategoryField);
-        
-        // فراخوانی اولیه برای تنظیم حالت فرم
         updateCategoryField();
     });
     
-    // تابع تأیید حذف فایل رسانه‌ای
     window.confirmDeleteMedia = function(contentType, contentId, mediaId, mediaType) {
         if (confirm('آیا از حذف این فایل رسانه‌ای اطمینان دارید؟ این عملیات غیرقابل بازگشت است.')) {
-            // ارسال درخواست حذف فایل
             fetch(`/admin/delete_media?type=${contentType}&content_id=${contentId}&media_id=${mediaId}&media_type=${mediaType}`, {
                 method: 'POST',
                 headers: {
@@ -171,7 +161,6 @@
             .then(data => {
                 if (data.success) {
                     alert('فایل با موفقیت حذف شد.');
-                    // حذف کارت مربوط به فایل از صفحه
                     const mediaCard = document.querySelector(`button[onclick*="${mediaId}"]`).closest('.col');
                     mediaCard.remove();
                 } else {
@@ -184,5 +173,18 @@
             });
         }
     }
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        form.addEventListener('submit', function(event) {
+            const category = document.getElementById('category');
+            const newCategory = document.getElementById('new_category');
+            if (category.value === 'new_category' && !newCategory.value.trim()) {
+                alert('لطفاً نام دسته‌بندی جدید را وارد کنید.');
+                event.preventDefault();
+            }
+        });
+    });
 </script>
 {% endblock %}

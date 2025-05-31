@@ -7,7 +7,7 @@ import pytest
 from flask import url_for
 import json
 from src.web.app import app
-from src.models.models import db, Service, ServiceCategory, ServiceMedia
+from models import db, Service, ServiceCategory, ServiceMedia
 
 @pytest.fixture
 def admin_client():
