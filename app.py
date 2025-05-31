@@ -76,5 +76,4 @@ with app.app_context():
         db.session.add(admin)
         db.session.commit()
 
-# Import all routes
-import main
+# Routes will be imported when main.py is executed
