@@ -9,7 +9,6 @@ deploymentTarget = "autoscale"
 run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
 
 [workflows]
-runButton = "Start application"
 
 [[workflows.workflow]]
 name = "Project"
@@ -30,11 +29,24 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "gunicorn --bind 0.0.0.0:5000 --reuse-port --reload main:app"
+args = "gunicorn --bind 0.0.0.0:5000--log-level debug --reuse-port --reload main:app"
 
 [[workflows.workflow]]
 name = "telegram_bot"
 author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python bot.py"
+
+[[workflows.workflow]]
+name = "web"
+mode = "parallel"
+author = 38637864
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "gunicorn --bind 0.0.0.0:5000 main:app"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
