@@ -320,71 +320,86 @@ def logout():
 @app.route('/admin/delete_media', methods=['POST'])
 @login_required
 def delete_media():
+    # بررسی دسترسی ادمین
     if not current_user.is_admin:
-        logger.warning(
-            f"Non-admin user {current_user.id} attempted to delete media")
+        logger.warning(f"Non-admin user {current_user.id} attempted to delete media")
         return jsonify({'success': False, 'error': 'دسترسی مجاز نیست'}), 403
 
     try:
+        # دریافت پارامترها
         content_type = request.args.get('type')
         content_id = request.args.get('content_id')
         media_id = request.args.get('media_id')
 
+        # اعتبارسنجی پارامترها
         if not all([content_type, content_id, media_id]):
-            logger.error(
-                f"Missing parameters in delete_media request: {request.args}")
+            logger.error(f"Missing parameters in delete_media request: {request.args}")
             return jsonify({'success': False, 'error': 'پارامترهای ناقص'}), 400
 
         content_id = int(content_id)
         media_id = int(media_id)
 
-        if content_type == 'product':
-            # بدون تغییر
-            pass
-        elif content_type == 'service':
-            media = ServiceMedia.query.get(media_id)
-            if not media or media.service_id != content_id:
-                logger.warning(
-                    f"Service media not found or mismatch: media_id={media_id}, service_id={content_id}"
-                )
-                return jsonify({
-                    'success': False,
-                    'error': 'رسانه خدمت یافت نشد'
-                }), 404
+        # تعریف مپینگ برای مدل‌ها و مسیرهای ذخیره‌سازی
+        media_config = {
+            'product': {
+                'model': ProductMedia,
+                'id_field': 'product_id',
+                'upload_dir': os.path.join('static', 'uploads', 'products')
+            },
+            'service': {
+                'model': ServiceMedia,
+                'id_field': 'service_id',
+                'upload_dir': os.path.join('static', 'uploads', 'services')
+            },
+            'educational': {
+                'model': EducationalContentMedia,
+                'id_field': 'educational_id',
+                'upload_dir': os.path.join('static', 'uploads', 'educationals')
+            }
+        }
 
-            file_path = media.local_path if hasattr(
-                media, 'local_path') and media.local_path else None
-            if not file_path and media.file_id:
-                file_path = os.path.join('static', 'uploads', 'services',
-                                         f"{media.file_id.split('_')[-1]}")
+        # بررسی نوع محتوا
+        if content_type not in media_config:
+            logger.error(f"Invalid content type in delete_media request: {content_type}")
+            return jsonify({'success': False, 'error': 'نوع محتوا نامعتبر است'}), 400
 
-            delete_result = delete_media_file(
-                file_path) if file_path else False
-            db.session.delete(media)
-            db.session.commit()
-            logger.info(
-                f"Service media deleted: id={media_id}, service_id={content_id}, file_path={file_path}"
+        # دریافت مدل و اطلاعات مربوطه
+        config = media_config[content_type]
+        MediaModel = config['model']
+        id_field = config['id_field']
+        upload_dir = config['upload_dir']
+
+        # یافتن رسانه
+        media = MediaModel.query.get(media_id)
+        if not media or getattr(media, id_field) != content_id:
+            logger.warning(
+                f"{content_type.capitalize()} media not found or mismatch: media_id={media_id}, {id_field}={content_id}"
             )
-            return jsonify({'success': True})
+            return jsonify({'success': False, 'error': f'رسانه {content_type} یافت نشد'}), 404
 
-        elif content_type == 'educational':
-            # بدون تغییر
-            pass
-        else:
-            logger.error(
-                f"Invalid content type in delete_media request: {content_type}"
-            )
-            return jsonify({
-                'success': False,
-                'error': 'نوع محتوا نامعتبر است'
-            }), 400
+        # تعیین مسیر فایل لوکال
+        file_path = media.local_path if hasattr(media, 'local_path') and media.local_path else None
+        if not file_path and media.file_id:
+            # اگر local_path وجود ندارد، مسیر را از file_id بسازیم
+            file_name = media.file_id.split('_')[-1]  # فرض: file_id شامل نام فایل است
+            file_path = os.path.join(upload_dir, file_name)
+
+        # حذف فایل لوکال (در صورت وجود)
+        delete_result = delete_media_file(file_path) if file_path else False
+
+        # حذف رسانه از دیتابیس
+        db.session.delete(media)
+        db.session.commit()
+
+        logger.info(
+            f"{content_type.capitalize()} media deleted: id={media_id}, {id_field}={content_id}, file_path={file_path}"
+        )
+        return jsonify({'success': True})
 
     except Exception as e:
         logger.error(f"Error in delete_media: {str(e)}", exc_info=True)
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
-
-
 # ----- Admin Dashboard Routes -----
 
 
