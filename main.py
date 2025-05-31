@@ -146,5 +146,59 @@ def admin_inquiries():
     inquiries = Inquiry.query.order_by(Inquiry.created_at.desc()).all()
     return render_template('admin_inquiries.html', inquiries=inquiries)
 
+@app.route('/control/start', methods=['POST'])
+@login_required
+def control_start():
+    """شروع بات"""
+    if not current_user.is_admin:
+        flash('دسترسی غیرمجاز', 'danger')
+        return redirect(url_for('index'))
+    
+    flash('درخواست شروع بات ارسال شد', 'info')
+    return redirect(url_for('index'))
+
+@app.route('/control/stop', methods=['POST'])
+@login_required
+def control_stop():
+    """توقف بات"""
+    if not current_user.is_admin:
+        flash('دسترسی غیرمجاز', 'danger')
+        return redirect(url_for('index'))
+    
+    flash('درخواست توقف بات ارسال شد', 'info')
+    return redirect(url_for('index'))
+
+@app.route('/control/restart', methods=['POST'])
+@login_required
+def control_restart():
+    """راه‌اندازی مجدد بات"""
+    if not current_user.is_admin:
+        flash('دسترسی غیرمجاز', 'danger')
+        return redirect(url_for('index'))
+    
+    flash('درخواست راه‌اندازی مجدد بات ارسال شد', 'info')
+    return redirect(url_for('index'))
+
+@app.route('/logs')
+@login_required
+def logs():
+    """صفحه لاگ‌ها"""
+    if not current_user.is_admin:
+        flash('دسترسی غیرمجاز', 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        if os.path.exists('bot.log'):
+            with open('bot.log', 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                bot_logs = lines[-50:] if len(lines) > 50 else lines
+        else:
+            bot_logs = ['فایل لاگ موجود نیست.']
+        
+        return render_template('logs.html', logs=bot_logs, datetime=datetime)
+    except Exception as e:
+        app.logger.error(f"Error reading logs: {e}")
+        return render_template('logs.html', logs=['خطا در خواندن لاگ‌ها'], datetime=datetime)
+
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000)
