@@ -56,19 +56,19 @@ is_installed() {
 
 # تابع بررسی و اصلاح app.py برای load_dotenv
 ensure_load_dotenv() {
-    print_message "بررسی وجود load_dotenv در $APP_DIR/app.py..."
-    if ! grep -q "from dotenv import load_dotenv" "$APP_DIR/app.py"; then
-        print_warning "load_dotenv در app.py یافت نشد. در حال اضافه کردن..."
-        sed -i '1i from dotenv import load_dotenv\nimport os\nload_dotenv()\n' "$APP_DIR/app.py"
-        check_error "اضافه کردن load_dotenv به app.py با خطا مواجه شد." "load_dotenv با موفقیت به app.py اضافه شد."
+    print_message "بررسی وجود load_dotenv در $APP_DIR/main.py..."
+    if ! grep -q "from dotenv import load_dotenv" "$APP_DIR/main.py"; then
+        print_warning "load_dotenv در main.py یافت نشد. در حال اضافه کردن..."
+        sed -i '1i from dotenv import load_dotenv\nimport os\nload_dotenv()\n' "$APP_DIR/main.py"
+        check_error "اضافه کردن load_dotenv به main.py با خطا مواجه شد." "load_dotenv با موفقیت به main.py اضافه شد."
     else
-        print_success "load_dotenv در app.py وجود دارد."
+        print_success "load_dotenv در main.py وجود دارد."
     fi
     # اصلاح SQLALCHEMY_DATABASE_URI برای پشتیبانی از هر دو متغیر
-    if ! grep -q "SQLALCHEMY_DATABASE_URI.*os.environ.get.*SQLALCHEMY_DATABASE_URI" "$APP_DIR/app.py"; then
-        print_message "اصلاح تنظیم SQLALCHEMY_DATABASE_URI در app.py..."
-        sed -i 's|app.config\["SQLALCHEMY_DATABASE_URI"\] = os.environ.get("DATABASE_URL")|app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("SQLALCHEMY_DATABASE_URI") or os.environ.get("DATABASE_URL")|' "$APP_DIR/app.py"
-        check_error "اصلاح SQLALCHEMY_DATABASE_URI در app.py با خطا مواجه شد." "SQLALCHEMY_DATABASE_URI با موفقیت اصلاح شد."
+    if ! grep -q "SQLALCHEMY_DATABASE_URI.*os.environ.get.*SQLALCHEMY_DATABASE_URI" "$APP_DIR/main.py"; then
+        print_message "اصلاح تنظیم SQLALCHEMY_DATABASE_URI در main.py..."
+        sed -i 's|app.config\["SQLALCHEMY_DATABASE_URI"\] = os.environ.get("DATABASE_URL")|app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("SQLALCHEMY_DATABASE_URI") or os.environ.get("DATABASE_URL")|' "$APP_DIR/main.py"
+        check_error "اصلاح SQLALCHEMY_DATABASE_URI در main.py با خطا مواجه شد." "SQLALCHEMY_DATABASE_URI با موفقیت اصلاح شد."
     fi
 }
 
@@ -128,7 +128,6 @@ DB_USER=${DB_USER:-neondb_owner}
 read -s -p "رمز عبور پایگاه داده: " DB_PASSWORD
 echo ""
 DB_PASSWORD=${DB_PASSWORD:-npg_nguJUcZGPX83}
-
 
 if [ -z "$DB_PASSWORD" ]; then
     print_error "رمز عبور پایگاه داده نمی‌تواند خالی باشد."
@@ -276,7 +275,6 @@ if [ "$USE_GIT" = "y" ] || [ "$USE_GIT" = "Y" ]; then
             print_message "در حال حذف پوشه $APP_DIR (تخمین زمان: کمتر از 1 دقیقه)..."
             rm -rf "$APP_DIR" >> "$LOG_FILE" 2>&1
             check_error "حذف پوشه $APP_DIR با خطا مواجه شد." "پوشه $APP_DIR با موفقیت حذف شد."
-           
         else
             print_error "کلون کردن لغو شد زیرا پوشه $APP_DIR از قبل وجود دارد."
             exit 1
@@ -300,7 +298,6 @@ if [ "$USE_GIT" = "y" ] || [ "$USE_GIT" = "Y" ]; then
     $CLONE_CMD >> "$LOG_FILE" 2>&1
     check_error "کلون کردن مخزن گیت با خطا مواجه شد. جزئیات در $LOG_FILE." "مخزن گیت با موفقیت کلون شد."
     if [ $? -ne 0 ]; then
- 
         print_message "دستور پیشنهادی برای بررسی:"
         print_message "  cd /var/www"
         print_message "  $CLONE_CMD"
@@ -322,7 +319,7 @@ fi
 
 # ===== بررسی فایل‌های پروژه =====
 print_message "در حال بررسی فایل‌های پروژه..."
-REQUIRED_FILES=("app.py" "bot.py" "database.py")
+REQUIRED_FILES=("main.py" "bot.py" "database.py")
 MISSING_FILES=()
 for file in "${REQUIRED_FILES[@]}"; do
     if [ ! -f "$APP_DIR/$file" ]; then
@@ -342,9 +339,8 @@ if [ ${#MISSING_FILES[@]} -ne 0 ]; then
 fi
 print_success "همه فایل‌های مورد نیاز پروژه موجود هستند."
 
-# اصلاح app.py برای load_dotenv
+# اصلاح main.py برای load_dotenv
 ensure_load_dotenv
-
 
 # ===== راه‌اندازی پوشه برنامه =====
 print_message "در حال راه‌اندازی پوشه برنامه در $APP_DIR..."
@@ -359,24 +355,10 @@ mkdir -p "$APP_DIR/logs" >> "$LOG_FILE" 2>&1
 check_error "ایجاد پوشه‌های برنامه با خطا مواجه شد." "پوشه‌های برنامه با موفقیت ایجاد شدند."
 
 # ===== بررسی و نصب پایتون 3.11 =====
-# ===== بررسی فایل‌های پروژه =====
-print_message "در حال بررسی فایل‌های پروژه..."
-REQUIRED_FILES=("app.py" "bot.py" "database.py")
-for file in "${REQUIRED_FILES[@]}"; do
-    if [ ! -f "$APP_DIR/$file" ]; then
-        print_error "فایل $file در $APP_DIR پیدا نشد. لطفاً مطمئن شوید پروژه کامل منتقل یا کلون شده است."
-        exit 1
-    fi
-done
-print_success "همه فایل‌های مورد نیاز پروژه موجود هستند."
-
-
-# ===== بررسی و نصب پایتون 3.11 برای محیط مجازی =====
 print_message "در حال بررسی نسخه‌های پایتون نصب‌شده..."
 if command -v python3.11 >/dev/null 2>&1; then
     PYTHON_VERSION=$(python3.11 --version 2>&1)
     print_message "پایتون 3.11 یافت شد: $PYTHON_VERSION"
-  
     read -p "آیا می‌خواهید با پایتون 3.11 موجود ادامه دهید؟ (y/n) [y]: " USE_EXISTING
     USE_EXISTING=${USE_EXISTING:-y}
     if [ "$USE_EXISTING" = "y" ] || [ "$USE_EXISTING" = "Y" ]; then
@@ -468,15 +450,11 @@ if ! $PYTHON_EXEC -m venv --help >/dev/null 2>&1; then
     print_success "بسته python3.11-venv با موفقیت نصب شد."
 fi
 
-print_message "در حال ایجاد محیط مجازی با پایتون 3.11..."
 print_message "در حال ایجاد محیط مجازی با پایتون 3.11 (تخمین زمان: 1 دقیقه)..."
 cd "$APP_DIR" || { print_error "تغییر به $APP_DIR با خطا مواجه شد."; exit 1; }
 rm -rf venv >> "$LOG_FILE" 2>&1
 $PYTHON_EXEC -m venv venv >> "$LOG_FILE" 2>&1
 check_error "ایجاد محیط مجازی با خطا مواجه شد." "محیط مجازی با موفقیت ایجاد شد."
-
-
-
 
 # ===== راه‌اندازی Ngrok (اختیاری) =====
 if [ "$USE_NGROK" = "y" ] || [ "$USE_NGROK" = "Y" ]; then
@@ -527,8 +505,6 @@ fi
 # ===== ایجاد فایل تنظیمات =====
 print_message "در حال ایجاد فایل .env (تخمین زمان: کمتر از 1 دقیقه)..."
 
-# ===== ایجاد فایل .env =====
-print_message "در حال ایجاد فایل .env..."
 # ایجاد یک کلید تصادفی برای SESSION_SECRET
 SESSION_SECRET=$(openssl rand -hex 32)
 
@@ -549,42 +525,36 @@ EOF
 check_error "ایجاد فایل .env با خطا مواجه شد." "فایل .env با موفقیت ایجاد شد."
 
 # ===== نصب وابستگی‌ها =====
-print_message "در حال نصب وابستگی‌های پروژه..."
-if [ $? -ne 0 ]; then
-    print_error "ایجاد فایل .env با خطا مواجه شد."
-    exit 1
-fi
-print_success "فایل .env با موفقیت ایجاد شد."
-
-# ===== نصب وابستگی‌های پروژه =====
 print_message "در حال نصب وابستگی‌های پروژه از requirements.txt (تخمین زمان: 2-5 دقیقه)..."
 if [ ! -f "$APP_DIR/requirements.txt" ]; then
     print_warning "فایل requirements.txt در $APP_DIR یافت نشد. ایجاد فایل پیش‌فرض..."
     cat << EOF > "$APP_DIR/requirements.txt"
-flask==3.1.0
-Flask-SQLAlchemy==3.1.1
-Flask-Login==0.6.3
-Flask-WTF==1.2.2
-SQLAlchemy==2.0.40
-psycopg2-binary==2.9.10
-Werkzeug==3.1.3
-Jinja2==3.1.6
-gunicorn==23.0.0
-python-telegram-bot==20.7
-aiogram==3.20.0
-aiohttp==3.11.18
-python-dotenv==1.1.0
-Pillow==11.2.1
-email-validator==2.2.0
-pytest==8.3.5
-pytest-flask==1.3.0
-pytest-asyncio==0.26.0
-PyJWT==2.10.1
-oauthlib==3.2.2
-requests==2.32.3
-replit==4.1.1
-locust==2.37.1
+flask>=3.1.0
+Flask-SQLAlchemy>=3.1.1
+Flask-Login>=0.6.3
+Flask-WTF>=1.2.2
+SQLAlchemy>=2.0.40
+psycopg2-binary>=2.9.10
+Werkzeug>=3.1.3
+Jinja2>=3.1.6
+gunicorn>=23.0.0
+python-telegram-bot>=20.7
+aiogram>=3.20.0
+aiohttp>=3.11.18
+python-dotenv>=1.1.0
+Pillow>=11.2.1
+email-validator>=2.2.0
+pytest>=8.3.5
+pytest-flask>=1.3.0
+pytest-asyncio>=0.26.0
+PyJWT>=2.10.1
+oauthlib>=3.2.2
+requests>=2.32.3
+replit>=4.1.1
+locust>=2.37.1
 EOF
+else
+    print_message "فایل requirements.txt یافت شد. استفاده از فایل موجود..."
 fi
 source "$APP_DIR/venv/bin/activate" >> "$LOG_FILE" 2>&1
 if [ $? -ne 0 ]; then
@@ -592,7 +562,6 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 pip install --upgrade pip >> "$LOG_FILE" 2>&1
-
 pip install -r "$APP_DIR/requirements.txt" >> "$LOG_FILE" 2>&1
 if [ $? -ne 0 ]; then
     print_error "نصب وابستگی‌ها با خطا مواجه شد. جزئیات در $LOG_FILE."
@@ -614,7 +583,6 @@ if ! command -v python | grep -q "$APP_DIR/venv" 2>/dev/null; then
 fi
 
 # ===== ایجاد اسکریپت امن init_db.py =====
-# این اسکریپت به صورت موقت ایجاد می‌شود و بعد از اجرا حذف می‌شود
 SECURE_INIT_SCRIPT="$APP_DIR/.temp_init_$(date +%s)_$(openssl rand -hex 8).py"
 
 # تولید کلید رمزنگاری موقت برای حفاظت از اطلاعات حساس
@@ -775,6 +743,30 @@ export SETUP_POPULATE_DATA="$POPULATE_DATA"
 
 # اجرای اسکریپت امن
 print_message "🔐 اجرای اسکریپت امن راه‌اندازی..."
+if [ "$POPULATE_DATA" = "y" ] || [ "$POPULATE_DATA" = "Y" ]; then
+    print_message "انتخاب اسکریپت تولید داده..."
+    DATA_GENERATORS=("rftest_data_generator.py" "rftest_data_generator_fixed.py" "seed_database.py" "quick_data_generator.py")
+    SELECTED_GENERATOR=""
+    for generator in "${DATA_GENERATORS[@]}"; do
+        if [ -f "$APP_DIR/$generator" ]; then
+            SELECTED_GENERATOR="$generator"
+            break
+        fi
+    done
+    if [ -z "$SELECTED_GENERATOR" ]; then
+        print_warning "هیچ اسکریپت تولید داده‌ای یافت نشد. ادامه بدون اطلاعات تست..."
+    else
+        print_message "اجرای $SELECTED_GENERATOR برای پر کردن اطلاعات تست..."
+        source "$APP_DIR/venv/bin/activate" >> "$LOG_FILE" 2>&1
+        python "$APP_DIR/$SELECTED_GENERATOR" >> "$LOG_FILE" 2>&1
+        check_error "اجرای $SELECTED_GENERATOR با خطا مواجه شد." "اطلاعات تست با موفقیت وارد شد."
+        deactivate
+    fi
+else
+    print_message "رد شدن از پر کردن اطلاعات تست."
+fi
+
+# اجرای اسکریپت امن
 python "$SECURE_INIT_SCRIPT" >> "$LOG_FILE" 2>&1
 
 # بررسی نتیجه و حذف فوری اسکریپت
@@ -794,10 +786,8 @@ print_success "🎉 راه‌اندازی امن پایگاه داده کامل 
 # بررسی نهایی جداول دیتابیس
 check_db_tables
 
-
-
-
 deactivate >> "$LOG_FILE" 2>&1
+
 # ===== ایجاد سرویس‌ها =====
 print_message "در حال ایجاد سرویس‌های سیستمی..."
 
@@ -847,7 +837,7 @@ SERVER_NAME=${SERVER_NAME%%/*}
 SERVER_NAME=${SERVER_NAME:-_}
 
 if [ -z "$SERVER_NAME" ]; then
-    SERVER_NAME="_" # اگر دامنه مشخص نشده باشد، از IP استفاده می‌کنیم
+    SERVER_NAME="_"
 fi
 
 # پیکربندی Nginx
@@ -858,8 +848,16 @@ server {
 
     client_max_body_size 20M;
 
-    location /static {
-        alias $APP_DIR/static;
+    location /static/uploads/ {
+        alias $APP_DIR/static/uploads/;
+    }
+
+    location /static/media/ {
+        alias $APP_DIR/static/media/;
+    }
+
+    location /static/ {
+        alias $APP_DIR/static/;
     }
 
     location $WEBHOOK_PATH {
@@ -884,7 +882,6 @@ ln -sf /etc/nginx/sites-available/rfbot /etc/nginx/sites-enabled/ >> "$LOG_FILE"
 nginx -t >> "$LOG_FILE" 2>&1
 check_error "تست پیکربندی Nginx با خطا مواجه شد." "پیکربندی Nginx با موفقیت تست شد."
 
-# ===== تنظیم دسترسی‌ها و راه‌اندازی سرویس‌ها =====
 # ===== تنظیم دسترسی‌ها =====
 print_message "در حال تنظیم دسترسی‌های فایل‌ها..."
 chown -R www-data:www-data "$APP_DIR" >> "$LOG_FILE" 2>&1
@@ -895,10 +892,6 @@ print_message "در حال راه‌اندازی سرویس‌ها..."
 systemctl daemon-reload >> "$LOG_FILE" 2>&1
 systemctl enable rfbot-web rfbot-telegram >> "$LOG_FILE" 2>&1
 systemctl start rfbot-web rfbot-telegram >> "$LOG_FILE" 2>&1
-systemctl enable rfbot-web >> "$LOG_FILE" 2>&1
-systemctl start rfbot-web >> "$LOG_FILE" 2>&1
-systemctl enable rfbot-telegram >> "$LOG_FILE" 2>&1
-systemctl start rfbot-telegram >> "$LOG_FILE" 2>&1
 systemctl restart nginx >> "$LOG_FILE" 2>&1
 check_error "راه‌اندازی سرویس‌ها با خطا مواجه شد." "سرویس‌ها با موفقیت راه‌اندازی شدند."
 
@@ -935,7 +928,6 @@ echo ""
 echo "⚙️ دستورات مفید:"
 echo "   مشاهده لاگ‌های وب: sudo journalctl -u rfbot-web -f"
 echo "   مشاهده لاگ‌های بات: sudo journalctl -u rfbot-telegram -f"
-echo "✅ سیستم با موفقیت نصب شد."
 echo "   ری‌استارت سرویس وب: sudo systemctl restart rfbot-web"
 echo "   ری‌استارت سرویس بات: sudo systemctl restart rfbot-telegram"
 echo ""
