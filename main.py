@@ -728,7 +728,41 @@ def admin_products():
 
 
 # ----- Category Management Routes -----
+def build_category_tree(categories):
+    """
+    ساخت ساختار درختی از دسته‌بندی‌ها
+    
+    Args:
+        categories: لیست اشیاء دسته‌بندی (مانند ProductCategory، ServiceCategory یا EducationalCategory)
+                   که هر کدام دارای ویژگی‌های id، name، parent_id هستند
+    
+    Returns:
+        لیست اشیاء درختی که هر کدام شامل name و children (لیست زیردسته‌ها) هستند
+    """
+    # دیکشنری برای ذخیره گره‌های درختی
+    tree_dict = {}
+    # لیست نهایی برای دسته‌بندی‌های ریشه (بدون والد)
+    tree = []
 
+    # ایجاد گره‌ها برای هر دسته‌بندی
+    for category in categories:
+        tree_dict[category.id] = {
+            'id': category.id,
+            'name': category.name,
+            'children': []
+        }
+
+    # اتصال فرزندان به والدین
+    for category in categories:
+        if category.parent_id:
+            # اگر دسته‌بندی والد دارد، آن را به لیست فرزندان والد اضافه کن
+            if category.parent_id in tree_dict:
+                tree_dict[category.parent_id]['children'].append(tree_dict[category.id])
+        else:
+            # اگر والد ندارد، به لیست ریشه اضافه کن
+            tree.append(tree_dict[category.id])
+
+    return tree
 
 def get_all_subcategories(category_model,
                           category_id,
@@ -1120,22 +1154,35 @@ def delete_educational_category():
 # ----- Service Routes -----
 
 
+@app.route('/service/<int:service_id>')
+def service_detail(service_id):
+    service = Service.query.get_or_404(service_id)
+    media = ServiceMedia.query.filter_by(service_id=service_id).all()
+    related_services = Service.query.filter(
+        Service.id != service_id,
+        Service.category_id == service.category_id).limit(4).all()
+    return render_template('service_detail.html',
+                           service=service,
+                           media=media,
+                           related_services=related_services)
+
 @app.route('/admin/services', methods=['GET', 'POST'])
 @login_required
 def admin_services():
-    """پنل مدیریت - خدمات"""
+    if not current_user.is_admin:
+        flash('دسترسی غیرمجاز.', 'danger')
+        return redirect(url_for('index'))
+
     action = request.args.get('action')
     service_id = request.args.get('id')
 
-    # عملیات POST
+    # Handle POST requests
     if request.method == 'POST':
-        # حذف خدمت
         if action == 'delete':
             service_id = request.form.get('service_id')
             if not service_id:
                 flash('شناسه خدمت الزامی است.', 'danger')
                 return redirect(url_for('admin_services'))
-
             try:
                 service = Service.query.get_or_404(int(service_id))
                 media_files = ServiceMedia.query.filter_by(
@@ -1147,118 +1194,25 @@ def admin_services():
                 db.session.delete(service)
                 db.session.commit()
                 flash(f'خدمت "{service.name}" با موفقیت حذف شد.', 'success')
+                logger.info(f"حذف خدمت: ID={service_id}, نام={service.name}")
             except Exception as e:
                 db.session.rollback()
-                logger.error(f"Error deleting service: {str(e)}")
+                logger.error(f"خطا در حذف خدمت: {str(e)}")
                 flash(f'خطا در حذف خدمت: {str(e)}', 'danger')
-            return redirect(url_for('admin_services'))
-
-        # ذخیره خدمت جدید یا ویرایش خدمت موجود
-        elif action == 'save':
-            service_id = request.form.get('id')
-            name = request.form.get('name')
-            price = request.form.get('price', '0')
-            description = request.form.get('description', '')
-            category_id = request.form.get('category_id')
-            tags = request.form.get('tags', '')
-            featured = 'featured' in request.form
-
-            try:
-                price = int(price) if price and price.strip() else 0
-                category_id = int(
-                    category_id
-                ) if category_id and category_id.strip() else None
-
-                if category_id is None:
-                    default_category = ServiceCategory.query.first()
-                    if default_category:
-                        category_id = default_category.id
-                    else:
-                        new_category = ServiceCategory(
-                            name="دسته‌بندی پیش‌فرض خدمات")
-                        db.session.add(new_category)
-                        db.session.flush()
-                        category_id = new_category.id
-
-                if service_id:
-                    service = Service.query.get_or_404(int(service_id))
-                    service.name = name
-                    service.price = price
-                    service.description = description
-                    service.category_id = category_id
-                    service.tags = tags
-                    service.featured = featured
-                    flash('خدمت با موفقیت به‌روزرسانی شد.', 'success')
-                else:
-                    service = Service(name=name,
-                                      price=price,
-                                      description=description,
-                                      category_id=category_id,
-                                      tags=tags,
-                                      featured=featured)
-                    db.session.add(service)
-                    db.session.flush()
-
-                # آپلود رسانه جدید
-                files = request.files.getlist(
-                    'files')  # پشتیبانی از چندین فایل
-                if files and any(f.filename for f in files):
-                    upload_dir = os.path.join('static', 'uploads', 'services',
-                                              str(service.id))
-                    os.makedirs(upload_dir, exist_ok=True)
-                    for file in files:
-                        if file.filename:
-                            success, file_path = handle_media_upload(
-                                file=file,
-                                directory=upload_dir,
-                                file_type='photo')
-                            if success and file_path:
-                                relative_path = file_path.replace(
-                                    'static/', '', 1)
-                                media = ServiceMedia(service_id=service.id,
-                                                     file_id=relative_path,
-                                                     file_type='photo',
-                                                     local_path=file_path)
-                                db.session.add(media)
-                            else:
-                                flash(
-                                    f'آپلود فایل {file.filename} ناموفق بود.',
-                                    'warning')
-
-                db.session.commit()
-
-            except Exception as e:
-                db.session.rollback()
-                logger.error(f"Error saving service: {str(e)}")
-                flash(f"خطا در ذخیره خدمت: {str(e)}", 'danger')
-                categories = ServiceCategory.query.all()
-                if service_id:
-                    service = Service.query.get_or_404(int(service_id))
-                    return render_template('admin/service_form.html',
-                                           title="ویرایش خدمت",
-                                           service=service,
-                                           categories=categories)
-                return render_template('admin/service_form.html',
-                                       title="افزودن خدمت جدید",
-                                       categories=categories)
-
             return redirect(url_for('admin_services'))
 
         elif action == 'upload_media':
             service_id = request.form.get('service_id')
             if not service_id:
-                flash('شناسه خدمت مورد نیاز است.', 'danger')
+                flash('شناسه خدمت الزامی است.', 'danger')
                 return redirect(url_for('admin_services'))
-
             service = Service.query.get_or_404(int(service_id))
-            files = request.files.getlist('files')
+            files = request.files.getlist('file')
             file_type = request.form.get('file_type', 'photo')
-
             if not files or all(not f.filename for f in files):
                 flash('لطفاً حداقل یک فایل انتخاب کنید.', 'warning')
                 return redirect(
                     url_for('admin_services', action='media', id=service_id))
-
             try:
                 upload_dir = os.path.join('static', 'uploads', 'services',
                                           str(service.id))
@@ -1280,53 +1234,120 @@ def admin_services():
                                   'danger')
                 db.session.commit()
                 flash('رسانه‌ها با موفقیت آپلود شدند.', 'success')
+                logger.info(f"رسانه‌ها آپلود شدند برای خدمت {service_id}")
             except Exception as e:
                 db.session.rollback()
-                logger.error(f"Error uploading media: {str(e)}")
+                logger.error(f"خطا در آپلود رسانه: {str(e)}")
                 flash(f'خطا در آپلود رسانه: {str(e)}', 'danger')
-
             return redirect(
                 url_for('admin_services', action='media', id=service_id))
 
+        elif action == 'save':
+            service_id = request.form.get('id')
+            name = request.form.get('name')
+            price = request.form.get('price', '0')
+            description = request.form.get('description', '')
+            category_id = request.form.get('category_id')
+            available = 'available' in request.form
+            tags = request.form.get('tags', '')
+            featured = 'featured' in request.form
+            errors = []
+            if not name:
+                errors.append('نام خدمت الزامی است.')
+            try:
+                price = int(price) if price else 0
+                if price < 0:
+                    errors.append('قیمت نمی‌تواند منفی باشد.')
+            except ValueError:
+                errors.append('قیمت باید یک عدد معتبر باشد.')
+            if errors:
+                for error in errors:
+                    flash(error, 'danger')
+                categories = ServiceCategory.query.all()
+                return render_template(
+                    'admin/service_form.html',
+                    title="ویرایش خدمت"
+                    if service_id else "افزودن خدمت جدید",
+                    service=Service.query.get(int(service_id))
+                    if service_id else None,
+                    categories=categories)
+            try:
+                category_id = int(category_id) if category_id else None
+                if not category_id:
+                    default_category = ServiceCategory.query.first()
+                    if default_category:
+                        category_id = default_category.id
+                    else:
+                        new_category = ServiceCategory(
+                            name="دسته‌بندی پیش‌فرض خدمات")
+                        db.session.add(new_category)
+                        db.session.flush()
+                        category_id = new_category.id
+                if service_id:
+                    service = Service.query.get_or_404(int(service_id))
+                    service.name = name
+                    service.price = price
+                    service.description = description
+                    service.category_id = category_id
+                    service.available = available
+                    service.tags = tags
+                    service.featured = featured
+                    flash('خدمت با موفقیت به‌روزرسانی شد.', 'success')
+                else:
+                    service = Service(name=name,
+                                      price=price,
+                                      description=description,
+                                      category_id=category_id,
+                                      available=available,
+                                      tags=tags,
+                                      featured=featured)
+                    db.session.add(service)
+                    db.session.flush()
+                db.session.commit()
+                return redirect(url_for('admin_services'))
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"خطا در ذخیره خدمت: {str(e)}")
+                flash(f'خطا در ذخیره خدمت: {str(e)}', 'danger')
+                categories = ServiceCategory.query.all()
+                return render_template(
+                    'admin/service_form.html',
+                    title="ویرایش خدمت"
+                    if service_id else "افزودن خدمت جدید",
+                    service=Service.query.get(int(service_id))
+                    if service_id else None,
+                    categories=categories)
         elif action == 'delete_media':
             media_id = request.form.get('media_id')
             service_id = request.form.get('service_id')
-
             if not media_id or not service_id:
-                flash('شناسه رسانه و خدمت مورد نیاز است.', 'danger')
+                flash('شناسه رسانه و خدمت الزامی است.', 'danger')
                 return redirect(url_for('admin_services'))
-
             try:
-                media = ServiceMedia.query.get_or_404(int(media_id))
-                if media.service_id != int(service_id):
-                    flash('رسانه با خدمت مطابقت ندارد.', 'warning')
-                    return redirect(
-                        url_for('admin_services',
-                                action='media',
-                                id=service_id))
-
-                if media.local_path:
-                    delete_media_file(media.local_path)
-                db.session.delete(media)
-                db.session.commit()
-                flash('رسانه با موفقیت حذف شد.', 'success')
+                media = ServiceMedia.query.get(int(media_id))
+                if media and media.service_id == int(service_id):
+                    if media.local_path:
+                        delete_media_file(media.local_path)
+                    db.session.delete(media)
+                    db.session.commit()
+                    flash('رسانه با موفقیت حذف شد.', 'success')
+                else:
+                    flash('رسانه یافت نشد.', 'warning')
             except Exception as e:
                 db.session.rollback()
-                logger.error(f"Error deleting media: {str(e)}")
+                logger.error(f"خطا در حذف رسانه: {str(e)}")
                 flash(f'خطا در حذف رسانه: {str(e)}', 'danger')
-
             return redirect(
                 url_for('admin_services', action='media', id=service_id))
 
-    # عملیات GET
+    # Handle GET requests
+    categories = ServiceCategory.query.all()
     if action == 'add':
-        categories = ServiceCategory.query.all()
         return render_template('admin/service_form.html',
                                title="افزودن خدمت جدید",
                                categories=categories)
     elif action == 'edit' and service_id:
         service = Service.query.get_or_404(int(service_id))
-        categories = ServiceCategory.query.all()
         return render_template('admin/service_form.html',
                                title="ویرایش خدمت",
                                service=service,
@@ -1334,33 +1355,38 @@ def admin_services():
     elif action == 'media' and service_id:
         service = Service.query.get_or_404(int(service_id))
         media = ServiceMedia.query.filter_by(service_id=service.id).all()
-        for item in media:
-            item.formatted_file_id = get_photo_url(item.file_id)
         return render_template('admin/service_media.html',
                                service=service,
                                media=media,
                                active_page='services')
 
-    # نمایش لیست خدمات با صفحه‌بندی
+    # Display service list with pagination
     page = request.args.get('page', 1, type=int)
     per_page = 10
-    pagination = Service.query.paginate(page=page,
-                                        per_page=per_page,
-                                        error_out=False)
+    search_query = request.args.get('search')
+    category_filter = request.args.get('category_id')
+    query = Service.query.options(joinedload(Service.category))
+    if search_query:
+        query = query.filter(Service.name.ilike(f'%{search_query}%'))
+    if category_filter:
+        query = query.filter(Service.category_id == category_filter)
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     services = pagination.items
-    categories = ServiceCategory.query.all()
 
+    # Add main photo for each service and log for debugging
     for service in services:
-        main_media = ServiceMedia.query.filter_by(service_id=service.id,
-                                                  file_type='photo').first()
-        service.formatted_photo_url = get_photo_url(
-            main_media.file_id) if main_media else None
+        main_media = service.media.filter_by(file_type='photo').first()
+        service.main_photo = main_media.file_id if main_media else None
+        logger.info(
+            f"Service {service.id}: category_id={service.category_id}, category={service.category}, category_name={service.category.name if service.category else 'None'}"
+        )
 
     return render_template('admin/services.html',
                            services=services,
                            categories=categories,
-                           pagination=pagination)
-
+                           pagination=pagination,
+                           search_query=search_query,
+                           category_filter=category_filter)
 
 # ----- Educational Content Routes -----
 

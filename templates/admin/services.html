@@ -1,4 +1,5 @@
 {% extends 'admin_layout.html' %}
+{% set active_page = 'services' %}
 
 {% block title %}مدیریت خدمات{% endblock %}
 
@@ -12,11 +13,11 @@
                     <li class="breadcrumb-item active" aria-current="page">مدیریت خدمات</li>
                 </ol>
             </nav>
-            
+
             <div class="card shadow-sm">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">لیست خدمات</h5>
-                    <a href="{{ url_for('admin_services') }}?action=add" class="btn btn-sm btn-light">
+                    <a href="{{ url_for('admin_services', action='add') }}" class="btn btn-sm btn-light">
                         <i class="bi bi-plus-circle"></i> افزودن خدمت جدید
                     </a>
                 </div>
@@ -33,10 +34,30 @@
                     </div>
                     {% endif %}
                     {% endwith %}
-                    
+
+                    <!-- فرم جستجو و فیلتر -->
+                    <form method="GET" action="{{ url_for('admin_services') }}" class="mb-4">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <input type="text" class="form-control" name="search" value="{{ search_query or '' }}" placeholder="جستجوی نام خدمت...">
+                            </div>
+                            <div class="col-md-4">
+                                <select class="form-select" name="category_id">
+                                    <option value="">همه دسته‌ها</option>
+                                    {% for category in categories %}
+                                    <option value="{{ category.id }}" {% if category_filter == category.id|string %}selected{% endif %}>{{ category.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <button type="submit" class="btn btn-primary w-100">فیلتر</button>
+                            </div>
+                        </div>
+                    </form>
+
                     {% if services|length == 0 %}
                     <div class="alert alert-info mb-0">
-                        هیچ خدمتی یافت نشد. <a href="{{ url_for('admin_services') }}?action=add">افزودن خدمت جدید</a>
+                        هیچ خدمتی یافت نشد. <a href="{{ url_for('admin_services', action='add') }}">افزودن خدمت جدید</a>
                     </div>
                     {% else %}
                     <div class="table-responsive">
@@ -56,9 +77,8 @@
                                 <tr class="service-row" data-service-url="{{ url_for('service_detail', service_id=service.id) }}" style="cursor: pointer;">
                                     <td>{{ service.id }}</td>
                                     <td>
-                                        {% set main_media = service.media_files|selectattr('file_type', 'equalto', 'photo')|first %}
-                                        {% if main_media %}
-                                        <img src="{{ url_for('telegram_file', file_id=main_media.file_id) }}" alt="{{ service.name }}" class="img-thumbnail" style="max-height: 50px;">
+                                        {% if service.formatted_photo_url %}
+                                        <img src="/static/{{ service.formatted_photo_url }}" alt="{{ service.name }}" class="img-thumbnail" style="max-height: 50px;">
                                         {% else %}
                                         <div class="bg-light d-flex align-items-center justify-content-center rounded" style="width: 50px; height: 50px;">
                                             <i class="bi bi-image text-muted"></i>
@@ -68,14 +88,14 @@
                                     <td>{{ service.name }}</td>
                                     <td>{{ "{:,}".format(service.price) }}</td>
                                     <td>
-                                        {{ service.category.name if service.category else 'بدون دسته‌بندی' }}
+                                        {{ service.category.name if service.category else 'بدون دسته‌بندی' }} 
                                     </td>
                                     <td>
                                         <div class="btn-group" role="group">
-                                            <a href="{{ url_for('admin_services') }}?action=edit&id={{ service.id }}" class="btn btn-sm btn-outline-primary">
+                                            <a href="{{ url_for('admin_services', action='edit', id=service.id) }}" class="btn btn-sm btn-outline-primary">
                                                 <i class="bi bi-pencil"></i> ویرایش
                                             </a>
-                                            <a href="{{ url_for('admin_services') }}?action=media&id={{ service.id }}" class="btn btn-sm btn-outline-info">
+                                            <a href="{{ url_for('admin_services', action='media', id=service.id) }}" class="btn btn-sm btn-outline-info">
                                                 <i class="bi bi-images"></i> رسانه‌ها
                                             </a>
                                             <a href="{{ url_for('service_detail', service_id=service.id) }}" target="_blank" class="btn btn-sm btn-outline-success">
@@ -85,7 +105,7 @@
                                                 <i class="bi bi-trash"></i> حذف
                                             </button>
                                         </div>
-                                        
+
                                         <div class="modal fade" id="deleteServiceModal{{ service.id }}" tabindex="-1" aria-labelledby="deleteServiceModalLabel{{ service.id }}" aria-hidden="true">
                                             <div class="modal-dialog">
                                                 <div class="modal-content">
@@ -99,6 +119,7 @@
                                                     <div class="modal-footer">
                                                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
                                                         <form method="post" action="{{ url_for('admin_services', action='delete') }}">
+                                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                             <input type="hidden" name="service_id" value="{{ service.id }}">
                                                             <button type="submit" class="btn btn-danger">حذف</button>
                                                         </form>
@@ -112,53 +133,32 @@
                             </tbody>
                         </table>
                     </div>
-                    
-                    {% if services.pages > 1 %}
-                    <nav aria-label="Page navigation" class="mt-4">
+
+                    <!-- صفحه‌بندی -->
+                    {% if pagination %}
+                    <nav aria-label="Page navigation">
                         <ul class="pagination justify-content-center">
-                            {% if services.has_prev %}
+                            {% if pagination.has_prev %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('admin_services', page=services.prev_num) }}" aria-label="Previous">
-                                    <span aria-hidden="true">&laquo;</span>
-                                </a>
-                            </li>
-                            {% else %}
-                            <li class="page-item disabled">
-                                <a class="page-link" href="#" aria-label="Previous">
-                                    <span aria-hidden="true">&laquo;</span>
-                                </a>
+                                <a class="page-link" href="{{ url_for('admin_services', page=pagination.prev_num, search=search_query, category_id=category_filter) }}">قبلی</a>
                             </li>
                             {% endif %}
-                            
-                            {% for page_num in services.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
-                                {% if page_num %}
-                                    {% if page_num == services.page %}
-                                    <li class="page-item active">
-                                        <a class="page-link" href="{{ url_for('admin_services', page=page_num) }}">{{ page_num }}</a>
-                                    </li>
-                                    {% else %}
-                                    <li class="page-item">
-                                        <a class="page-link" href="{{ url_for('admin_services', page=page_num) }}">{{ page_num }}</a>
-                                    </li>
-                                    {% endif %}
-                                {% else %}
-                                <li class="page-item disabled">
-                                    <a class="page-link" href="#">...</a>
-                                </li>
-                                {% endif %}
-                            {% endfor %}
-                            
-                            {% if services.has_next %}
-                            <li class="page-item">
-                                <a class="page-link" href="{{ url_for('admin_services', page=services.next_num) }}" aria-label="Next">
-                                    <span aria-hidden="true">&raquo;</span>
-                                </a>
+
+                            {% for page_num in pagination.iter_pages() %}
+                            {% if page_num %}
+                            <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('admin_services', page=page_num, search=search_query, category_id=category_filter) }}">{{ page_num }}</a>
                             </li>
                             {% else %}
                             <li class="page-item disabled">
-                                <a class="page-link" href="#" aria-label="Next">
-                                    <span aria-hidden="true">&raquo;</span>
-                                </a>
+                                <span class="page-link">...</span>
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+
+                            {% if pagination.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin_services', page=pagination.next_num, search=search_query, category_id=category_filter) }}">بعدی</a>
                             </li>
                             {% endif %}
                         </ul>
@@ -170,17 +170,18 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
 {% block extra_js %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('.service-row').forEach(function(row) {
-            row.addEventListener('click', function(e) {
-                if (!e.target.closest('a') && !e.target.closest('button') && !e.target.closest('form')) {
-                    window.open(this.dataset.serviceUrl, '_blank');
-                }
-            });
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.service-row').forEach(row => {
+        row.addEventListener('click', e => {
+            if (!e.target.closest('a') && !e.target.closest('button') && !e.target.closest('form')) {
+                window.open(row.dataset.serviceUrl, '_blank');
+            }
         });
     });
+});
 </script>
 {% endblock %}

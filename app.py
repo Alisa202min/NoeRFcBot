@@ -6,6 +6,9 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_login import LoginManager
 from dotenv import load_dotenv
 from configuration import load_config  # Import load_config to get DATABASE_URL
+# Configure Flask-Uploads
+from utils_upload import UploadSet, IMAGES, VIDEO, configure_uploads
+
 
 load_dotenv()
 
@@ -30,8 +33,7 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 # Initialize SQLAlchemy with the app
 db.init_app(app)
 
-# Configure Flask-Uploads
-from utils_upload import UploadSet, IMAGES, VIDEO, configure_uploads
+
 
 # Add mp4 to allowed formats
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4'} 
@@ -62,7 +64,7 @@ def load_user(user_id):
 # Create database tables and initialize admin user
 with app.app_context():
     # Import models here to ensure they're registered with SQLAlchemy
-    import models
+   
     
     # Create tables
     db.create_all()
@@ -76,5 +78,3 @@ with app.app_context():
         db.session.add(admin)
         db.session.commit()
 
-# Import routes - this must be done after app initialization
-import main

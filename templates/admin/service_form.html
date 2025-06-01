@@ -1,4 +1,5 @@
 {% extends "admin_layout.html" %}
+{% set active_page = 'services' %}
 
 {% block title %}{{ title }} - RFCBot{% endblock %}
 
@@ -19,7 +20,21 @@
                     <h5 class="card-title mb-0">{{ title }}</h5>
                 </div>
                 <div class="card-body">
-                    <form method="post" action="{{ url_for('admin_services') }}?action=save" enctype="multipart/form-data">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                    <div class="messages mb-4">
+                        {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+                    
+                    <form method="post" action="{{ url_for('admin_services', action='save') }}" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         {% if service %}
                         <input type="hidden" name="id" value="{{ service.id }}">
                         {% endif %}
@@ -67,19 +82,8 @@
                             </div>
                         </div>
                         
-                        <div class="mb-4">
-                            <label for="files" class="form-label">رسانه‌های خدمت (تصاویر و ویدئوها)</label>
-                            <input type="file" class="form-control" id="files" name="files" multiple accept="image/*,video/*" onchange="previewFiles(this)">
-                            <div class="form-text">فرمت‌های مجاز: JPG، PNG، GIF، MP4 (حداکثر 10MB). می‌توانید چندین فایل انتخاب کنید.</div>
-                            
-                            <!-- پیش‌نمایش فایل‌های انتخاب‌شده -->
-                            <div id="filesPreviewContainer" class="mt-2" style="display: none;">
-                                <div class="row" id="filesPreview"></div>
-                                <div class="progress mt-2" style="height: 5px;">
-                                    <div id="uploadProgress" class="progress-bar bg-success" role="progressbar" style="width: 0%"></div>
-                                </div>
-                                <small id="uploadStatus" class="text-muted mt-1">فایل‌ها آماده آپلود هستند</small>
-                            </div>
+                         <div class="alert alert-info">
+                            برای مدیریت تصاویر و ویدیوهای اضافی، پس از ذخیره خدمت به صفحه <a href="{{ url_for('admin_services', action='media', id=service.id) if service else '#' }}">مدیریت رسانه‌ها</a> مراجعه کنید.
                         </div>
                         
                         <div class="d-flex justify-content-between">
@@ -96,6 +100,7 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
 {% block scripts %}
 <script>

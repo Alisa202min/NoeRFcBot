@@ -95,6 +95,7 @@ class Service(db.Model):
     description = db.Column(db.Text)
     price = db.Column(db.Integer, default=0)
     category_id = db.Column(db.Integer, db.ForeignKey('service_categories.id'))
+    category = db.relationship('ServiceCategory', backref='services')  # اضافه شده
     featured = db.Column(db.Boolean, default=False)
     available = db.Column(db.Boolean, default=True)
     tags = db.Column(db.Text, nullable=True)
