@@ -1185,8 +1185,7 @@ def admin_services():
                 return redirect(url_for('admin_services'))
             try:
                 service = Service.query.get_or_404(int(service_id))
-                media_files = ServiceMedia.query.filter_by(
-                    service_id=service.id).all()
+                media_files = ServiceMedia.query.filter_by(service_id=service.id).all()
                 for media in media_files:
                     if media.local_path:
                         delete_media_file(media.local_path)
@@ -1211,11 +1210,9 @@ def admin_services():
             file_type = request.form.get('file_type', 'photo')
             if not files or all(not f.filename for f in files):
                 flash('لطفاً حداقل یک فایل انتخاب کنید.', 'warning')
-                return redirect(
-                    url_for('admin_services', action='media', id=service_id))
+                return redirect(url_for('admin_services', action='media', id=service_id))
             try:
-                upload_dir = os.path.join('static', 'uploads', 'services',
-                                          str(service.id))
+                upload_dir = os.path.join('static', 'uploads', 'services', str(service.id))
                 for file in files:
                     if file.filename:
                         success, file_path = handle_media_upload(
@@ -1224,14 +1221,14 @@ def admin_services():
                             file_type=file_type)
                         if success and file_path:
                             relative_path = file_path.replace('static/', '', 1)
-                            media = ServiceMedia(service_id=service.id,
-                                                 file_id=relative_path,
-                                                 file_type=file_type,
-                                                 local_path=file_path)
+                            media = ServiceMedia(
+                                service_id=service.id,
+                                file_id=relative_path,
+                                file_type=file_type,
+                                local_path=file_path)
                             db.session.add(media)
                         else:
-                            flash(f'آپلود فایل {file.filename} ناموفق بود.',
-                                  'danger')
+                            flash(f'آپلود فایل {file.filename} ناموفق بود.', 'danger')
                 db.session.commit()
                 flash('رسانه‌ها با موفقیت آپلود شدند.', 'success')
                 logger.info(f"رسانه‌ها آپلود شدند برای خدمت {service_id}")
@@ -1239,8 +1236,7 @@ def admin_services():
                 db.session.rollback()
                 logger.error(f"خطا در آپلود رسانه: {str(e)}")
                 flash(f'خطا در آپلود رسانه: {str(e)}', 'danger')
-            return redirect(
-                url_for('admin_services', action='media', id=service_id))
+            return redirect(url_for('admin_services', action='media', id=service_id))
 
         elif action == 'save':
             service_id = request.form.get('id')
@@ -1266,10 +1262,8 @@ def admin_services():
                 categories = ServiceCategory.query.all()
                 return render_template(
                     'admin/service_form.html',
-                    title="ویرایش خدمت"
-                    if service_id else "افزودن خدمت جدید",
-                    service=Service.query.get(int(service_id))
-                    if service_id else None,
+                    title="ویرایش خدمت" if service_id else "افزودن خدمت جدید",
+                    service=Service.query.get(int(service_id)) if service_id else None,
                     categories=categories)
             try:
                 category_id = int(category_id) if category_id else None
@@ -1278,8 +1272,7 @@ def admin_services():
                     if default_category:
                         category_id = default_category.id
                     else:
-                        new_category = ServiceCategory(
-                            name="دسته‌بندی پیش‌فرض خدمات")
+                        new_category = ServiceCategory(name="دسته‌بندی پیش‌فرض خدمات")
                         db.session.add(new_category)
                         db.session.flush()
                         category_id = new_category.id
@@ -1294,16 +1287,18 @@ def admin_services():
                     service.featured = featured
                     flash('خدمت با موفقیت به‌روزرسانی شد.', 'success')
                 else:
-                    service = Service(name=name,
-                                      price=price,
-                                      description=description,
-                                      category_id=category_id,
-                                      available=available,
-                                      tags=tags,
-                                      featured=featured)
+                    service = Service(
+                        name=name,
+                        price=price,
+                        description=description,
+                        category_id=category_id,
+                        available=available,
+                        tags=tags,
+                        featured=featured)
                     db.session.add(service)
                     db.session.flush()
                 db.session.commit()
+                flash('خدمت با موفقیت ذخیره شد.', 'success')
                 return redirect(url_for('admin_services'))
             except Exception as e:
                 db.session.rollback()
@@ -1312,15 +1307,14 @@ def admin_services():
                 categories = ServiceCategory.query.all()
                 return render_template(
                     'admin/service_form.html',
-                    title="ویرایش خدمت"
-                    if service_id else "افزودن خدمت جدید",
-                    service=Service.query.get(int(service_id))
-                    if service_id else None,
+                    title="ویرایش خدمت" if service_id else "افزودن خدمت جدید",
+                    service=Service.query.get(int(service_id)) if service_id else None,
                     categories=categories)
+
         elif action == 'delete_media':
             media_id = request.form.get('media_id')
             service_id = request.form.get('service_id')
-            if not media_id or not service_id:
+            if not mediaote:
                 flash('شناسه رسانه و خدمت الزامی است.', 'danger')
                 return redirect(url_for('admin_services'))
             try:
@@ -1337,8 +1331,7 @@ def admin_services():
                 db.session.rollback()
                 logger.error(f"خطا در حذف رسانه: {str(e)}")
                 flash(f'خطا در حذف رسانه: {str(e)}', 'danger')
-            return redirect(
-                url_for('admin_services', action='media', id=service_id))
+            return redirect(url_for('admin_services', action='media', id=service_id))
 
     # Handle GET requests
     categories = ServiceCategory.query.all()
@@ -1370,15 +1363,17 @@ def admin_services():
         query = query.filter(Service.name.ilike(f'%{search_query}%'))
     if category_filter:
         query = query.filter(Service.category_id == category_filter)
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    pagination = query.paginate(page=page, per_page=10, error_out=False)
     services = pagination.items
 
-    # Add main photo for each service and log for debugging
+    # Add main photo for each service
     for service in services:
         main_media = service.media.filter_by(file_type='photo').first()
         service.main_photo = main_media.file_id if main_media else None
         logger.info(
-            f"Service {service.id}: category_id={service.category_id}, category={service.category}, category_name={service.category.name if service.category else 'None'}"
+            f"Service {service.id}: category_id={service.category_id}, category={service.category}, "
+            f"category_name={service.category.name if service.category else 'None'}, "
+            f"main_photo={service.main_photo}"
         )
 
     return render_template('admin/services.html',
