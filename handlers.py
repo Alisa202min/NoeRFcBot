@@ -13,6 +13,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKe
 from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from database import Database
+from logging.handlers import RotatingFileHandler
 from keyboards import get_main_keyboard, get_back_keyboard, get_categories_keyboard, get_admin_keyboard
 from configuration import (
     PRODUCTS_BTN, SERVICES_BTN, INQUIRY_BTN, EDUCATION_BTN, CONTACT_BTN, ABOUT_BTN,
@@ -20,9 +21,27 @@ from configuration import (
     BACK_PREFIX, INQUIRY_PREFIX, EDUCATION_PREFIX, ADMIN_PREFIX
 )
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# تنظیمات لاگ‌گیری
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+# فرمت لاگ
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# هندلر برای فایل (با چرخش لاگ‌ها برای جلوگیری از پر شدن دیسک)
+file_handler = RotatingFileHandler('logs/rfcbot.log', maxBytes=5*1024*1024, backupCount=3)
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(formatter)
+
+# هندلر برای کنسول
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.DEBUG)
+console_handler.setFormatter(formatter)
+
+# اضافه کردن هندلرها به logger
+logger.handlers = []  # پاک کردن هندلرهای قبلی (برای جلوگیری از تکرار)
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
 
 # Define FSM states
 class UserStates(StatesGroup):
