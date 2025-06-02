@@ -6,17 +6,16 @@ import csv
 from sqlalchemy import create_engine, text, or_, and_, func, case
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.exc import OperationalError
-from configuration import CONTACT_DEFAULT, ABOUT_DEFAULT
-from src.web.models import (ProductCategory, ServiceCategory, EducationalCategory, 
-                          Product, Service, ProductMedia, ServiceMedia, Inquiry, 
-                          EducationalContent, EducationalContentMedia, StaticContent)
-
+from app import db
+from models import (ProductCategory, ServiceCategory, 
+EducationalCategory,Product, Service, ProductMedia, ServiceMedia, Inquiry, EducationalContent, EducationalContentMedia, StaticContent)
+from configuration import config
 class Database:
     """Database abstraction layer for PostgreSQL using SQLAlchemy"""
 
     def __init__(self):
         """Initialize the PostgreSQL database using DATABASE_URL from environment"""
-        from configuration import config
+        
         self.db_type = config.get('DB_TYPE', 'postgresql').lower()
         self.database_url = os.environ.get('DATABASE_URL')
         self.test_mode = os.environ.get('TEST_MODE', 'False').lower() == 'true'
@@ -52,7 +51,7 @@ class Database:
 
     def initialize(self):
         """Initialize database and create necessary tables"""
-        from src.web.app import db
+        
         try:
             db.create_all()
 
@@ -60,9 +59,10 @@ class Database:
             session = self.Session()
             try:
                 if not session.query(StaticContent).filter_by(content_type='contact').first():
-                    session.add(StaticContent(content_type='contact', content=CONTACT_DEFAULT))
+                    session.add(StaticContent(content_type='contact', content=config.get('CONTACT_DEFAULT', 'contact us.')))
                 if not session.query(StaticContent).filter_by(content_type='about').first():
-                    session.add(StaticContent(content_type='about', content=ABOUT_DEFAULT))
+                    session.add(
+                        StaticContent(content_type='about',content=config.get('ABOUT_DEFAULT', 'about us.')))
                 session.commit()
             except Exception as e:
                 session.rollback()

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-تولیدکننده دیتای کامل RFTEST - ویرایش بهبود یافته
-استفاده از توابع ORM برای حفظ یکپارچگی دیتا و شناسایی خطاها
-15 محصول + 15 خدمات + 15 مطلب آموزشی + 15 استعلام
+RFTEST Data Generator - Enhanced Version
+Uses ORM functions for data integrity and error detection
+Generates 15 products + 15 services + 15 educational contents + 15 inquiries
 """
 
 import os
@@ -11,11 +11,12 @@ from datetime import datetime, timedelta
 import random
 from PIL import Image, ImageDraw, ImageFont
 import shutil
+from sqlalchemy.sql import text
 
-# اضافه کردن مسیر اصلی برنامه
+# Add main project path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# وارد کردن کلاس‌های اصلی برنامه
+# Import main application classes
 from app import app, db
 from models import (
     Product, Service, EducationalContent, Inquiry,
@@ -25,8 +26,8 @@ from models import (
 )
 
 def create_image(path, text):
-    """ساخت تصویر با متن مشخص"""
-    # اطمینان از وجود پوشه
+    """Create an image with specified text"""
+    # Ensure directory exists
     os.makedirs(os.path.dirname(path), exist_ok=True)
 
     img = Image.new('RGB', (800, 600), (245, 245, 245))
@@ -39,52 +40,61 @@ def create_image(path, text):
     draw.text((300, 280), text, fill=(60, 60, 60), font=font)
     draw.text((50, 50), "RFTEST.IR", fill=(0, 102, 204), font=font)
     img.save(path)
-    print(f"✅ تصویر ایجاد شد: {path}")
+    print(f"✅ Image created: {path}")
 
 def clear_all_data():
-    """پاک کردن تمام دیتای قبلی با استفاده از ORM"""
-    print("🗑️ پاک کردن دیتای قبلی...")
+    """Clear all previous data using ORM"""
+    print("🗑️ Clearing previous data...")
 
     with app.app_context():
         try:
-            # حذف رسانه‌ها (به ترتیب وابستگی)
+            # Delete media (in dependency order)
             ProductMedia.query.delete()
             ServiceMedia.query.delete()
             EducationalContentMedia.query.delete()
 
-            # حذف محتوا
+            # Delete content
             Product.query.delete()
             Service.query.delete()
             EducationalContent.query.delete()
             Inquiry.query.delete()
 
-            # حذف دسته‌بندی‌ها
+            # Delete categories
             ProductCategory.query.delete()
             ServiceCategory.query.delete()
             EducationalCategory.query.delete()
 
+            # Reset auto-increment sequences
+            db.session.execute(text("ALTER SEQUENCE products_id_seq RESTART WITH 1;"))
+            db.session.execute(text("ALTER SEQUENCE services_id_seq RESTART WITH 1;"))
+            db.session.execute(text("ALTER SEQUENCE educational_content_id_seq RESTART WITH 1;"))
+            db.session.execute(text("ALTER SEQUENCE inquiries_id_seq RESTART WITH 1;"))
+            db.session.execute(text("ALTER SEQUENCE product_categories_id_seq RESTART WITH 1;"))
+            db.session.execute(text("ALTER SEQUENCE service_categories_id_seq RESTART WITH 1;"))
+            db.session.execute(text("ALTER SEQUENCE educational_categories_id_seq RESTART WITH 1;"))
+
             db.session.commit()
-            print("✅ دیتای قبلی پاک شد")
+            print("✅ Previous data cleared and sequences reset")
 
         except Exception as e:
             db.session.rollback()
-            print(f"❌ خطا در پاک کردن دیتا: {e}")
+            print(f"❌ Error clearing data: {e}")
 
 def create_hierarchical_categories():
-    """ایجاد دسته‌بندی‌های سلسله مراتبی با استفاده از ORM"""
-    print("📂 ایجاد دسته‌بندی‌های سلسله مراتبی...")
+    """Create hierarchical categories using ORM"""
+    print("📂 Creating hierarchical categories...")
 
     categories = {}
 
     with app.app_context():
         try:
-            # دسته‌بندی محصولات
+            # Product categories
             product_categories = [
-                ("اسیلوسکوپ", "تجهیزات اندازه‌گیری شکل موج"),
-                ("اسپکتروم آنالایزر", "تجهیزات آنالیز فرکانسی"),
-                ("سیگنال ژنراتور", "تجهیزات تولید سیگنال"),
-                ("نتورک آنالایزر", "تجهیزات آنالیز شبکه"),
-                ("پاورمتر", "تجهیزات اندازه‌گیری توان")
+                ("اسیلوسکوپ", "Waveform measurement equipment"),
+                ("اسپکتروم آنالایزر", "Frequency analysis equipment"),
+                ("سیگنال ژنراتور", "Signal generation equipment"),
+                ("نتورک آنالایزر", "Network analysis equipment"),
+                ("پاورمتر", "Power measurement equipment")
             ]
 
             for name, description in product_categories:
@@ -93,16 +103,16 @@ def create_hierarchical_categories():
                 category.description = description
                 category.created_at = datetime.now()
                 db.session.add(category)
-                db.session.flush()  # برای گرفتن ID
+                db.session.flush()  # To get ID
                 categories[f"product_{name}"] = category.id
 
-            # دسته‌بندی خدمات
+            # Service categories
             service_categories = [
-                ("کالیبراسیون", "خدمات کالیبراسیون تجهیزات"),
-                ("تعمیرات", "خدمات تعمیر و نگهداری"),
-                ("آموزش", "خدمات آموزشی و مشاوره"),
-                ("طراحی", "خدمات طراحی و پیاده‌سازی"),
-                ("مشاوره", "خدمات مشاوره تخصصی")
+                ("کالیبراسیون", "Equipment calibration services"),
+                ("تعمیرات", "Repair and maintenance services"),
+                ("آموزش", "Training and consulting services"),
+                ("طراحی", "Design and implementation services"),
+                ("مشاوره", "Specialized consulting services")
             ]
 
             for name, description in service_categories:
@@ -114,13 +124,13 @@ def create_hierarchical_categories():
                 db.session.flush()
                 categories[f"service_{name}"] = category.id
 
-            # دسته‌بندی آموزشی
+            # Educational categories
             educational_categories = [
-                ("RF و میکروویو", "آموزش تکنولوژی RF"),
-                ("اندازه‌گیری", "آموزش تجهیزات اندازه‌گیری"),
-                ("کالیبراسیون", "آموزش فرآیندهای کالیبراسیون"),
-                ("تعمیرات", "آموزش تعمیر تجهیزات"),
-                ("استانداردها", "آموزش استانداردهای صنعتی")
+                ("RF و میکروویو", "RF technology training"),
+                ("اندازه‌گیری", "Measurement equipment training"),
+                ("کالیبراسیون", "Calibration process training"),
+                ("تعمیرات", "Equipment repair training"),
+                ("استانداردها", "Industrial standards training")
             ]
 
             for name, description in educational_categories:
@@ -133,17 +143,19 @@ def create_hierarchical_categories():
                 categories[f"educational_{name}"] = category.id
 
             db.session.commit()
-            print("✅ دسته‌بندی‌های سلسله مراتبی ایجاد شد")
+            print("✅ Hierarchical categories created")
+            print(f"Available category keys: {list(categories.keys())}")
+
             return categories
 
         except Exception as e:
             db.session.rollback()
-            print(f"❌ خطا در ایجاد دسته‌بندی‌ها: {e}")
+            print(f"❌ Error creating categories: {e}")
             return {}
 
 def create_products_with_images(categories):
-    """ایجاد 15 محصول با تصاویر کامل با استفاده از ORM"""
-    print("📦 ایجاد 15 محصول با تصاویر...")
+    """Create 15 products with images using ORM"""
+    print("📦 Creating 15 products with images...")
 
     products_data = [
         ("اسیلوسکوپ Keysight DSOX2002A", "اسیلوسکوپ", 45000000, "Keysight"),
@@ -166,36 +178,39 @@ def create_products_with_images(categories):
     with app.app_context():
         try:
             for i, (name, cat, price, brand) in enumerate(products_data, 1):
-                category_id = categories[f"product_{cat}"]
+                category_key = f"product_{cat}"
+                if category_key not in categories:
+                    raise KeyError(f"Category '{category_key}' not found in categories")
+                category_id = categories[category_key]
 
-                # ایجاد محصول
+                # Create product
                 product = Product(
                     name=name,
-                    description=f"تجهیز پیشرفته {cat} از برند معتبر {brand}",
+                    description=f"تجهيز پيشرفته {cat} از برند معتبر {brand}",
                     price=price,
                     category_id=category_id,
                     brand=brand,
                     model=f"MODEL-{i:03d}",
-                    tags=f"{cat},{brand},تequipments اندازه‌گیری",
+                    tags=f"{cat},{brand},تجهيزات اندازه‌گيري",
                     in_stock=True,
                     featured=i <= 5,
                     created_at=datetime.now()
                 )
                 db.session.add(product)
-                db.session.flush()  # برای گرفتن ID محصول
+                db.session.flush()  # To get product ID
 
-                # ایجاد پوشه محصول
+                # Create product directory
                 product_dir = f"static/uploads/products/{product.id}"
                 os.makedirs(product_dir, exist_ok=True)
 
-                # تصویر اصلی + 3 تصویر اضافی
+                # Main image + 3 extra images
                 for j in range(4):
                     if j == 0:
                         img_name = "main.jpg"
                         text = f"{name[:25]}..."
                     else:
                         img_name = f"extra_{j}.jpg"
-                        text = f"تصویر اضافی {j}"
+                        text = f"تصوير اضافي {j}"
 
                     img_path = f"{product_dir}/{img_name}"
                     create_image(img_path, text)
@@ -208,19 +223,19 @@ def create_products_with_images(categories):
                     db.session.add(media)
 
             db.session.commit()
-            print("✅ 15 محصول با تصاویر کامل ایجاد شدند")
+            print("✅ 15 products with images created")
 
         except Exception as e:
             db.session.rollback()
-            print(f"❌ خطا در ایجاد محصولات: {e}")
+            print(f"❌ Error creating products: {e}")
 
 def create_services_with_images(categories):
-    """ایجاد 15 خدمات با تصاویر با استفاده از ORM"""
-    print("🔧 ایجاد 15 خدمات با تصاویر...")
+    """Create 15 services with images using ORM"""
+    print("🔧 Creating 15 services with images...")
 
     services_data = [
         ("کالیبراسیون اسیلوسکوپ", "کالیبراسیون", 3500000),
-        ("کالیبراسیون اسپکترتروم آنالایزر", "کالیبراسیون", 4500000),
+        ("کالیبراسیون اسپکتروم آنالایزر", "کالیبراسیون", 4500000),
         ("کالیبراسیون سیگنال ژنراتور", "کالیبراسیون", 4000000),
         ("کالیبراسیون نتورک آنالایزر", "کالیبراسیون", 5500000),
         ("کالیبراسیون پاورمتر و سنسور", "کالیبراسیون", 2500000),
@@ -239,23 +254,26 @@ def create_services_with_images(categories):
     with app.app_context():
         try:
             for i, (name, cat, price) in enumerate(services_data, 1):
-                category_id = categories[f"service_{cat}"]
+                category_key = f"service_{cat}"
+                if category_key not in categories:
+                    raise KeyError(f"Category '{category_key}' not found in categories")
+                category_id = categories[category_key]
 
-                # ایجاد خدمت
+                # Create service
                 service = Service(
                     name=name,
-                    description=f"خدمات تخصصی {cat} توسط متخصصان مجرب RFTEST. کیفیت بالا و قیمت مناسب.",
+                    description=f"خدمات تخصصي {cat} توسط متخصصان مجرب RFTEST. کيفيت بالا و قيمت مناسب.",
                     price=price,
                     category_id=category_id,
-                    tags=f"{cat},RFTEST,خدمات تخصصی",
-                    featured=i <= 2,
+                    tags=f"{cat},RFTEST,خدمات تخصصي",
+                    featured=i <= 5,
                     available=True,
                     created_at=datetime.now()
                 )
                 db.session.add(service)
-                db.session.flush()  # برای گرفتن ID سرویس
+                db.session.flush()  # To get service ID
 
-                # ایجاد تصویر خدمات
+                # Create service directory
                 service_dir = f"static/uploads/services/{service.id}"
                 os.makedirs(service_dir, exist_ok=True)
 
@@ -270,15 +288,15 @@ def create_services_with_images(categories):
                 db.session.add(media)
 
             db.session.commit()
-            print("✅ 15 خدمات با تصاویر ایجاد شدند")
+            print("✅ 15 services with images created")
 
         except Exception as e:
             db.session.rollback()
-            print(f"❌ خطا در ایجاد خدمات: {e}")
+            print(f"❌ Error creating services: {e}")
 
 def create_educational_content_with_images(categories):
-    """ایجاد 15 مطلب آموزشی با تصاویر با استفاده از ORM"""
-    print("📚 ایجاد 15 محتوای آموزشی با تصاویر...")
+    """Create 15 educational contents with images using ORM"""
+    print("📚 Creating 15 educational contents with images...")
 
     educational_data = [
         ("راهنمای کامل استفاده از اسیلوسکوپ دیجیتال", "RF و میکروویو"),
@@ -289,7 +307,7 @@ def create_educational_content_with_images(categories):
         ("اصول اندازه‌گیری توان RF", "RF و میکروویو"),
         ("مفهوم نویز فاز در سیگنال‌ها", "RF و میکروویو"),
         ("تئوری اسپکتروم و تحلیل فرکانسی", "اندازه‌گیری"),
-        ("اندازه‌گیری امپدانس و SWR"", "اندازه‌گیری"),
+        ("اندازه‌گیری امپدانس و SWR", "اندازه‌گیری"),
         ("اصول پراکندگی S-parameters", "RF و میکروویو"),
         ("روش‌های عیب‌یابی در مدارات RF", "تعمیرات"),
         ("تکنیک‌های اندازه‌گیری S-parameters", "اندازه‌گیری"),
@@ -301,31 +319,33 @@ def create_educational_content_with_images(categories):
     with app.app_context():
         try:
             for i, (title, cat) in enumerate(educational_data, 1):
-                category_id = categories[f"educational_{cat}"]
+                category_key = f"educational_{cat}"
+                if category_key not in categories:
+                    raise KeyError(f"Category '{category_key}' not found in categories")
+                category_id = categories[category_key]
 
-                content = f"""این مطلب جامع در زمینه {cat} تهیه شده است. شامل توضیحات کامل، مثال‌های عملی و نکات کاربردی برای متخصصان و علاقه‌مندان به تجهیزات اندازه‌گیری RF.
+                content = f"""اين مطلب جامع در زمينه {cat} تهيه شده است. شامل توضيحات کامل، مثال‌هاي عملي و نکات کاربردي براي متخصصان و علاقه‌مندان به تجهيزات اندازه‌گيري RF.
 
-محتوای این مطلب شامل:
-- اصول کلی و مبانی تئوری
-- راهنمای گام به گام عملی
-- نکات و ترفندهای کاربردی
-- مثال‌های واقعی از پروژه‌ها
-- منابع و مراجع تکمیلی
+محتواي اين مطلب شامل:
+- اصول کلي و مباني تئوري
+- راهنماي گام به گام عملي
+- نکات و ترفندهاي کاربردي
+- مثال‌هاي واقعي از پروژه‌ها
+- منابع و مراجع تکميلي
 
-این محتوا مناسب برای سطوح مختلف دانش فنی و به صورت کاربردی تنظیم شده است."""
+اين محتوا مناسب براي سطوح مختلف دانش فني و به صورت کاربردي تنظيم شده است."""
 
-                # ایجاد مطلب آموزشی
+                # Create educational content
                 edu_content = EducationalContent(
                     title=title,
                     content=content,
-                    category=cat,
                     category_id=category_id,
                     created_at=datetime.now()
                 )
                 db.session.add(edu_content)
-                db.session.flush()  # برای گرفتن ID محتوا
+                db.session.flush()  # To get content ID
 
-                # ایجاد تصویر آموزشی
+                # Create educational image directory
                 edu_dir = f"static/media/educational"
                 os.makedirs(edu_dir, exist_ok=True)
 
@@ -334,7 +354,7 @@ def create_educational_content_with_images(categories):
                 create_image(img_path, f"آموزش {cat}")
 
                 media = EducationalContentMedia(
-                    educational_content_id=edu_content.id,
+                    content_id=edu_content.id,
                     file_id=f"educational_media_{edu_content.id}_main",
                     file_type="photo",
                     local_path=f"static/media/educational/{img_name}"
@@ -342,42 +362,42 @@ def create_educational_content_with_images(categories):
                 db.session.add(media)
 
             db.session.commit()
-            print("✅ 15 مطلب آموزشی با تصاویر ایجاد شدند")
+            print("✅ 15 educational contents with images created")
 
         except Exception as e:
             db.session.rollback()
-            print(f"❌ خطا در ایجاد مطالب آموزشی: {e}")
+            print(f"❌ Error creating educational contents: {e}")
 
 def create_inquiries():
-    """ایجاد 15 استعلام قیمت با استفاده از ORM"""
-    print("📋 ایجاد 15 استعلام قیمت...")
+    """Create 15 inquiries using ORM"""
+    print("📋 Creating 15 inquiries...")
 
     inquiries_data = [
-        (7625738591, "مهندس احمد رضایی", "091234567", "استعلام قیمت اسیلوسکوپ 100MHz برای آزمایشگاه دانشگاه"),
+        (7625738591, "مهندس احمد رضایی", "09121234567", "استعلام قیمت اسیلوسکوپ 100MHz برای آزمایشگاه دانشگاه"),
         (987654321, "شرکت فناوری پارس", "02144556677", "درخواست کالیبراسیون 5 دستگاه اسپکتروم آنالایزر"),
         (123456789, "دکتر محمد محمدی", "09359876543", "آیا دوره آموزشی RF برای دانشجویان ارشد برگزار می‌کنید؟"),
         (555666777, "مهندس فاطمه نوری", "09128887766", "نیاز به مشاوره برای تجهیز آزمایشگاه تست EMC"),
         (111222333, "شرکت الکترونیک آریا", "02133445566", "استعلام قیمت رادیوتستر Aeroflex 3920B"),
         (444555666, "آقای علی احمدی", "09135554433", "آیا تعمیر اسیلوسکوپ Tektronix 2465 را انجام می‌دهید؟"),
-        (777888999, "مهندس سارا کریمی", "0912343322", "درخواست آموزش تخصصی کار با نتورک آنالایزر"),
+        (777888999, "مهندس سارا کریمی", "09124443322", "درخواست آموزش تخصصی کار با نتورک آنالایزر"),
         (333444555, "شرکت مخابرات ایران", "02177889900", "استعلام قیمت سیگنال ژنراتور تا 6GHz"),
         (666777888, "دکتر رضا پوری", "09366655544", "نیاز به کالیبراسیون فوری پاورمتر HP 437B"),
         (222333444, "مهندس حسن زارعی", "09357778899", "استعلام قیمت اسپکتروم آنالایزر Rohde & Schwarz FSW"),
         (888999111, "شرکت رادار پردازش", "02155667788", "نیاز به آموزش تخصصی S-parameter measurements"),
-        (999111222, "مهندس مریم صادقی", "09147556677", "استعلام قیمت کالیبراسیون سالانه 8 دستگاه"),
-        (111333444, "آقای محسن رستمی", "09198886644", "آیا رادیوتستر Marconi 2955B دست دوم دارید؟"),
+        (999111222, "مهندس مریم صادقی", "09147775566", "استعلام قیمت کالیبراسیون سالانه 8 دستگاه"),
+        (111333555, "آقای محسن رستمی", "09198886644", "آیا رادیوتستر Marconi 2955B دست دوم دارید؟"),
         (444666888, "شرکت نوآوری فن", "02166554433", "درخواست مشاوره برای انتخاب تجهیزات برای آزمایشگاه تست IoT"),
         (777999222, "دکتر امیر حسینی", "09351112233", "استعلام اجاره کوتاه مدت نتورک آنالایزر")
     ]
 
     with app.app_context():
         try:
-            for user_id, name, phone, phone, desc in inquiries_data:
-                # تاریخ تصادفی در 2 ماه گذشته
+            for user_id, name, phone, desc in inquiries_data:
+                # Random date in the past 2 months
                 days_ago = random.randint(1, 60)
                 created_date = datetime.now() - timedelta(days=days_ago)
 
-                # ایجاد استعلام
+                # Create inquiry
                 inquiry = Inquiry(
                     user_id=user_id,
                     name=name,
@@ -389,75 +409,73 @@ def create_inquiries():
                 db.session.add(inquiry)
 
             db.session.commit()
-            print("✅ 15 استعلام قیمت ایجاد شدند")
+            print("✅ 15 inquiries created")
 
         except Exception as e:
             db.session.rollback()
-            print(f"❌ خطا در ایجاد استعلام‌ها: {e}")
+            print(f"❌ Error creating inquiries: {e}")
 
 def generate_final_report():
-    """تولید گزارش نهایی با استفاده از ORM"""
+    """Generate final report using ORM"""
     with app.app_context():
         try:
-            # شمارش کلی
+            # Count totals
             products_count = Product.query.count()
             services_count = Service.query.count()
             educational_count = EducationalContent.query.count()
             inquiries_count = Inquiry.query.count()
 
-            # شمارش رسانه‌ها
+            # Count media
             product_media_count = ProductMedia.query.count()
             service_media_count = ServiceMedia.query.count()
             edu_media_count = EducationalContentMedia.query.count()
 
-            # شمارش دسته‌بندی‌های سلسله مراتبی
-            hierarchical_categories = ProductCategory.query.filter(ProductCategory.parent_id.isnot(None)).count()
+            # Count all categories (not just hierarchical)
+            product_cats = ProductCategory.query.count()
+            service_cats = ServiceCategory.query.count()
+            edu_cats = EducationalCategory.query.count()
+            total_cats = product_cats + service_cats + edu_cats
 
-            # چاپ گزارش نهایی
+            # Print final report
             print("\n" + "="*70)
-            print("🎉 دیتای کامل RFTEST با موفقیت تولید شد!")
+            print(" RFTEST data successfully generated!")
             print("="*70)
-            print(f"✅ {products_count} محصول تجهیزات اندازه‌گیری شده")
-            print(f"✅ {services_count} خدمات تخصصی")
-            print(f"✅ {educational_count} مطلب آموزشی")
-            print(f"✅ {inquiries_count} استعلام قیمت")
+            print(f"✅ {products_count} measurement equipment products")
+            print(f"✅ {services_count} specialized services")
+            print(f"✅ {educational_count} educational contents")
+            print(f"✅ {inquiries_count} inquiries")
             print()
-            print(f"🖼️ {product_media_count} تصویر محصولات (شامل اصلی و اضافی)")
-            print(f"🖼️ {service_media_count} تصویر خدمات")
-            print(f"🖼️ {edu_media_count} تصویر آموزشی")
+            print(f"🖼️ {product_media_count} product images (main + extra)")
+            print(f"🖼️ {service_media_count} service images")
+            print(f"🖼️ {edu_media_count} educational images")
             print()
-            print(f"🗂️ {hierarchical_categories} دسته‌بندی سلسله مراتبی")
-            print("✅ ساختار والد-فرزند کامل")
+            print(f"🗂️ {total_cats} categories (product: {product_cats}, service: {service_cats}, educational: {edu_cats})")
+            print("✅ Complete parent-child structure")
             print()
-            print("🌐 وب پنل: مدیریت کامل محتوا")
-            print("🤖 بات تلگرام: @RFCatBot")
-            print("📧 ایمیل: rftest@example.com")
-            print("📞 تلفن: 09123456789")
-            print("🌍 وب‌سایت: www.rflib.ir")
-            print("="*70)
-            print("🚀 سیستم RFTEST آماده استفاده!")
+        
+            print("🚀 RFTEST system ready for use!")
 
         except Exception as e:
-            print(f"❌ خطا در تولید گزارش: {e}")
+            print(f"❌ Error generating report: {e}")
 
 def main():
-    """تابع اصلی - تولید کامل دیتای RFTEST با استفاده از ORM"""
-    print("🚀 تولیدکننده داده کامل RFTEST - ویرایش بهبود یافته")
-    print("📦 15 محصول + 15 خدمات + 15 محتوا + 15 استعلام")
-    print("🔄 استفاده از ORM برای حفظ یکپارچگی و شناسایی خطاها")
-    print("="*60)
+    """Main function - Generate complete RFTEST data using ORM"""
+    print("🚀 RFTEST Data Generator - Enhanced Version")
+    print("📦 15 products + 15 services + 15 contents + 15 inquiries")
+    print("⚙️ Using ORM for data integrity and error handling")
+    print("="*80)
 
     try:
-        # ایجاد پوشه پیش‌فرض
+        # Create default image
         os.makedirs("static/uploads/default", exist_ok=True)
         create_image("static/uploads/default/default.jpg", "تصویر پیش‌فرض")
 
-        # مراحل تولید دیتا
+        # Data generation steps
         clear_all_data()
         categories = create_hierarchical_categories()
 
         if not categories:
-            print("❌ خطا در ایجاد دسته‌بندی‌ها. متوقف شد.")
+            print("❌ Error creating categories. Aborted.")
             return 1
 
         create_products_with_images(categories)
@@ -465,13 +483,13 @@ def main():
         create_educational_content_with_images(categories)
         create_inquiries()
 
-        # گزارش نهایی
+        # Final report
         generate_final_report()
 
         return 0
 
     except Exception as e:
-        print(f"❌ خطای عمومی: {e}")
+        print(f"❌ General error: {e}")
         return 1
 
 if __name__ == "__main__":
