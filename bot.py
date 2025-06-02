@@ -1,32 +1,50 @@
 # bot.py
 import os
+import sys
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommand
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.enums import ParseMode
 from dotenv import load_dotenv
 from aiohttp import web, ClientSession
 
 load_dotenv()
 
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.DEBUG,
-    filename='logs/rfcbot.log'
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler("bot.log")
+    ]
 )
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = os.environ.get('BOT_TOKEN')
-if not BOT_TOKEN:
-    logger.error("BOT_TOKEN is not set in environment variables")
-    raise ValueError("BOT_TOKEN is not set")
-logger.debug(f"Using BOT_TOKEN: {BOT_TOKEN[:10]}...")
 
-bot = Bot(token=BOT_TOKEN)
+# Note: We already configured logging at the top of the file, so we don't need to do it again
+# Just use the existing logger
+
+# Initialize bot and dispatcher
+bot_token = os.environ.get('BOT_TOKEN')
+if not bot_token:
+    logger.error("BOT_TOKEN not set in environment variables")
+    exit(1)
+
+logger.info(f"Using bot token starting with: {bot_token[:5]}...")
+
+# Create bot instance
+try:
+    bot = Bot(token=bot_token)
+    logger.info("Bot instance created successfully")
+except Exception as e:
+    logger.error(f"Error creating bot instance: {e}")
+    raise
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
+# Register available commands
 async def set_commands():
     commands = [
         BotCommand(command='/start', description='شروع / بازگشت به منوی اصلی'),
