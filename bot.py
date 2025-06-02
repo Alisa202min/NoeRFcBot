@@ -1,50 +1,32 @@
 # bot.py
 import os
-import sys
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommand
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.enums import ParseMode
 from dotenv import load_dotenv
 from aiohttp import web, ClientSession
 
 load_dotenv()
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler("bot.log")
-    ]
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.DEBUG,
+    filename='logs/rfcbot.log'
 )
 logger = logging.getLogger(__name__)
 
+BOT_TOKEN = os.environ.get('BOT_TOKEN')
+if not BOT_TOKEN:
+    logger.error("BOT_TOKEN is not set in environment variables")
+    raise ValueError("BOT_TOKEN is not set")
+logger.debug(f"Using BOT_TOKEN: {BOT_TOKEN[:10]}...")
 
-# Note: We already configured logging at the top of the file, so we don't need to do it again
-# Just use the existing logger
-
-# Initialize bot and dispatcher
-bot_token = os.environ.get('BOT_TOKEN')
-if not bot_token:
-    logger.error("BOT_TOKEN not set in environment variables")
-    exit(1)
-
-logger.info(f"Using bot token starting with: {bot_token[:5]}...")
-
-# Create bot instance
-try:
-    bot = Bot(token=bot_token)
-    logger.info("Bot instance created successfully")
-except Exception as e:
-    logger.error(f"Error creating bot instance: {e}")
-    raise
+bot = Bot(token=BOT_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
-# Register available commands
 async def set_commands():
     commands = [
         BotCommand(command='/start', description='شروع / بازگشت به منوی اصلی'),
@@ -59,9 +41,19 @@ async def set_commands():
     logger.info("Bot commands set successfully")
 
 async def register_handlers(dp):
-    from handlers import register_all_handlers
-    register_all_handlers(dp)
-    logger.info("All handlers registered successfully")
+    """Register all handlers for the bot"""
+    # Import all necessary handlers to ensure they are initialized
+    from handlers import router, cmd_start, cmd_help, cmd_products, cmd_services
+    from handlers import cmd_contact, cmd_about, callback_products, callback_services
+    from handlers import callback_contact, callback_about, callback_educational
+    
+    # Include the router from handlers module
+    dp.include_router(router)
+    
+    # Verify handlers are registered by checking some key ones
+    handlers_count = len(router.message.handlers) + len(router.callback_query.handlers)
+    logger.info(f"Handlers registered successfully: {handlers_count} handlers in router")
+
 
 async def setup_webhook(app, webhook_path, webhook_host):
     async with ClientSession() as session:
