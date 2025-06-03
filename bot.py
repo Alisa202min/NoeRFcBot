@@ -7,15 +7,40 @@ from aiogram.types import BotCommand
 from aiogram.fsm.storage.memory import MemoryStorage
 from dotenv import load_dotenv
 from aiohttp import web, ClientSession
-
+from logging.handlers import RotatingFileHandler
 load_dotenv()
 
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.DEBUG,
-    filename='logs/rfcbot.log'
-)
+# اطمینان از وجود دایرکتوری logs
+log_dir = "logs"
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
+# تنظیمات لاگ‌گیری
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+# فرمت لاگ
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# هندلر برای فایل
+file_handler = RotatingFileHandler(
+    os.path.join(log_dir, 'rfcbot.log'), 
+    maxBytes=5*1024*1024, 
+    backupCount=3
+)
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(formatter)
+
+# هندلر برای کنسول
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.DEBUG)
+console_handler.setFormatter(formatter)
+
+# پاک کردن هندلرهای قبلی و اضافه کردن هندلرهای جدید
+logger.handlers = []  # پاک کردن هندلرهای قبلی
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
+
 
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 if not BOT_TOKEN:

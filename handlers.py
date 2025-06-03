@@ -28,6 +28,11 @@ from configuration import (
 
 
 
+# اطمینان از وجود دایرکتوری logs
+log_dir = "logs"
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
 # تنظیمات لاگ‌گیری
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -35,8 +40,12 @@ logger.setLevel(logging.DEBUG)
 # فرمت لاگ
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-# هندلر برای فایل (با چرخش لاگ‌ها برای جلوگیری از پر شدن دیسک)
-file_handler = RotatingFileHandler('logs/rfcbot.log', maxBytes=5*1024*1024, backupCount=3)
+# هندلر برای فایل
+file_handler = RotatingFileHandler(
+    os.path.join(log_dir, 'rfcbot.log'), 
+    maxBytes=5*1024*1024, 
+    backupCount=3
+)
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(formatter)
 
@@ -45,16 +54,18 @@ console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.DEBUG)
 console_handler.setFormatter(formatter)
 
-# اضافه کردن هندلرها به logger
-logger.handlers = []  # پاک کردن هندلرهای قبلی (برای جلوگیری از تکرار)
+# پاک کردن هندلرهای قبلی و اضافه کردن هندلرهای جدید
+logger.handlers = []  # پاک کردن هندلرهای قبلی
 logger.addHandler(file_handler)
 logger.addHandler(console_handler)
+
 
 # Define FSM states
 class UserStates(StatesGroup):
     """States for the Telegram bot FSM"""
     browse_categories = State()
     view_product = State()
+    view_service = State()
     view_category = State()
     view_educational_content = State()
     inquiry_name = State()
@@ -532,202 +543,6 @@ async def callback_educational_categories(callback: CallbackQuery):
     await callback.message.answer("🎓 دسته‌بندی محتوای آموزشی را انتخاب کنید:", 
                            reply_markup=keyboard)
 
-@router.callback_query(
-    lambda c: c.data and c.data.startswith(f"{EDUCATION_PREFIX}") and "cat_" not in c.data and "categories" not in c.data
-)
-async def callback_educational_content(callback: CallbackQuery):
-    """Handle educational content selection - direct navigation to content"""
-    await callback.answer()
-    
-    try:
-        # Extract content ID (removing the prefix)
-        content_id = int(callback.data.replace(f"{EDUCATION_PREFIX}", ""))
-        
-        # Get content details
-        content = db.get_educational_content(content_id)
-        
-        if not content:
-            await callback.message.answer("⚠️ محتوای آموزشی مورد نظر یافت نشد.")
-            return
-        
-        # Get category_id for back button
-        category_id = content.get('category_id')
-        if not category_id:
-            # اگر category_id موجود نیست، به صفحه اصلی دسته‌بندی‌ها برگردیم
-            from keyboards import education_detail_keyboard
-            keyboard = education_detail_keyboard(0)  # صفر به عنوان پیش‌فرض
-        else:
-            from keyboards import education_detail_keyboard
-            keyboard = education_detail_keyboard(category_id)
-        
-        # Get the associated media files
-        media_files = db.get_educational_content_media(content_id)
-        
-        if media_files:
-            logging.info(f"Found {len(media_files)} media files for educational content {content_id}")
-            
-            # Format the content title and text
-            title = content['title']
-            content_text = content.get('content', '')
-            
-            # Check if text is too long for a media caption (Telegram limit ~1024 chars)
-            MAX_CAPTION_LENGTH = 850  # Leave some room for the title and "متن کامل" link
-            
-            caption_text = f"📖 *{title}*\n\n"
-            telegraph_url = None
-            
-            if len(content_text) > MAX_CAPTION_LENGTH:
-                # Create a shortened version with link to full text
-                short_text = content_text[:MAX_CAPTION_LENGTH] + "...\n\n"
-                short_text += "[(متن کامل)](https://telegra.ph/temp-link)"  # Placeholder, will be updated
-                caption_text += short_text
-                
-                # Create Telegra.ph article with full content
-                from utils import create_telegraph_page
-                try:
-                    telegraph_url = await create_telegraph_page(
-                        title=title,
-                        content=content_text,
-                        author="RFCatalogbot"
-                    )
-                    logging.info(f"Created Telegraph page: {telegraph_url}")
-                    
-                    # Update the caption with the actual link
-                    if telegraph_url:
-                        caption_text = caption_text.replace("https://telegra.ph/temp-link", telegraph_url)
-                except Exception as e:
-                    logging.error(f"Error creating Telegraph page: {e}")
-                    # Fallback to regular text without link
-                    caption_text = f"📖 *{title}*\n\n{content_text[:MAX_CAPTION_LENGTH]}..."
-            else:
-                # Text fits in caption, use it directly
-                caption_text += content_text
-            
-            # Prepare media items for the group
-            from bot import bot
-            from aiogram.types import InputMediaPhoto, FSInputFile
-            
-            media_group = []
-            found_valid_media = False
-            
-            # Process media files
-            for idx, media in enumerate(media_files):
-                file_id = media.get('file_id')
-                local_path = media.get('local_path')
-                file_type = media.get('file_type', 'photo')
-                
-                # Skip if no file_id
-                if not file_id:
-                    continue
-                
-                # For first media item, include caption
-                item_caption = caption_text if idx == 0 else ""
-                
-                # Check if file exists in static/media/educational folder
-                if file_id.startswith('educational_content_image_'):
-                    # Extract content ID from file_id (format: educational_content_image_[content_id]_...)
-                    try:
-                        # Try to get content ID from the file_id format
-                        parts = file_id.split('_')
-                        content_id_str = parts[3] if len(parts) > 3 else None
-                        
-                        logging.info(f"Looking for media files for content ID: {content_id_str}")
-                        
-                        # Look for all files in static/media/educational directory
-                        import glob
-                        import os.path
-                        
-                        # First try with local_path if available
-                        found_file = False
-                        if local_path:
-                            # Try with static prefix
-                            if not local_path.startswith('static/'):
-                                full_path = f"./static/{local_path}"
-                            else:
-                                full_path = f"./{local_path}"
-                                
-                            if os.path.exists(full_path) and os.path.isfile(full_path):
-                                logging.info(f"Found media file using local_path: {full_path}")
-                                media_path = full_path
-                                found_file = True
-                        
-                        # If no file found yet, try with different glob patterns
-                        if not found_file:
-                            # Try all jpg files in the educational directory
-                            possible_files = glob.glob(f"./static/media/educational/*.jpg")
-                            if possible_files:
-                                # Use first media file found as fallback
-                                media_path = possible_files[0]
-                                logging.info(f"Using first available media file from: {media_path}")
-                                found_file = True
-                        
-                        if found_file:
-                            media_group.append(
-                                InputMediaPhoto(
-                                    media=FSInputFile(media_path),
-                                    caption=item_caption,
-                                    parse_mode="Markdown"
-                                )
-                            )
-                            found_valid_media = True
-                        else:
-                            logging.error(f"Could not find any media file for content ID: {content_id_str}")
-                    except Exception as e:
-                        logging.error(f"Error processing media file: {str(e)}")
-                else:
-                    try:
-                        # Try to use as direct Telegram file_id
-                        media_group.append(
-                            InputMediaPhoto(
-                                media=file_id,
-                                caption=item_caption,
-                                parse_mode="Markdown"
-                            )
-                        )
-                        found_valid_media = True
-                    except Exception as e:
-                        logging.error(f"Error adding media: {str(e)}")
-            
-            if found_valid_media and media_group:
-                logging.info(f"Sending media group with {len(media_group)} items")
-                try:
-                    # Send media group
-                    await bot.send_media_group(
-                        chat_id=callback.message.chat.id,
-                        media=media_group
-                    )
-                    
-                    # Send keyboard in separate message if needed
-                    if keyboard:
-                        await bot.send_message(
-                            chat_id=callback.message.chat.id,
-                            text="🔍 گزینه‌های مرتبط با محتوای آموزشی:",
-                            reply_markup=keyboard
-                        )
-                except Exception as e:
-                    logging.error(f"Error sending media group: {str(e)}")
-                    # Fallback to text-only message
-                    content_text = f"📖 *{title}*\n\n{content_text}"
-                    if telegraph_url:
-                        content_text += f"\n\n[متن کامل]({telegraph_url})"
-                    
-                    await callback.message.answer(content_text, parse_mode="Markdown", reply_markup=keyboard)
-            else:
-                # No valid media found, fallback to text message
-                content_text = f"📖 *{title}*\n\n{content['content']}"
-                if telegraph_url:
-                    content_text += f"\n\n[متن کامل]({telegraph_url})"
-                
-                await callback.message.answer(content_text, parse_mode="Markdown", reply_markup=keyboard)
-        else:
-            # No media files, send as regular text message
-            content_text = f"📖 *{content['title']}*\n\n{content['content']}"
-            await callback.message.answer(content_text, parse_mode="Markdown", reply_markup=keyboard)
-            
-    except Exception as e:
-        logging.error(f"خطا در نمایش محتوای آموزشی: {str(e)}")
-        logging.error(traceback.format_exc())
-        await callback.message.answer("⚠️ خطایی در نمایش محتوا رخ داد. لطفا مجددا تلاش کنید.")
 
 @router.callback_query(F.data == "back_to_main")
 async def callback_back_to_main(callback: CallbackQuery, state: FSMContext):
@@ -948,23 +763,59 @@ async def callback_category(callback: CallbackQuery, state: FSMContext):
 
 
 
+async def show_products_list(message, products, category_id):
+
+    """Show list of products in a category"""
+    logging.info(f"show_products_list called with category_id={category_id}, products={products}")
+    
+    try:
+        # Build keyboard with products
+        kb = InlineKeyboardBuilder()
+        for product in products:
+            logging.debug(f"Adding product: {product['name']} with id: {product['id']}")
+            kb.button(text=product['name'], callback_data=f"product:{product['id']}")
+        
+        # Add back button
+        logging.debug(f"Adding back button with callback_data: category:{category_id}")
+        kb.button(text="🔙 بازگشت", callback_data=f"category:{category_id}")
+        kb.adjust(1)
+        
+        await message.answer("محصولات موجود در این دسته‌بندی:", reply_markup=kb.as_markup())
+        logging.info("Products list sent successfully")
+    
+    except Exception as e:
+        logging.error(f"Error in show_products_list: {str(e)}", exc_info=True)
+        await message.answer("⚠️ خطایی در نمایش محصولات رخ داد. لطفا دوباره تلاش کنید.")
+
+  
+ 
+    
 
 
-    
-    
 
 async def show_services_list(message, services, category_id):
     """Show list of services in a category"""
-    # Build keyboard with services
-    kb = InlineKeyboardBuilder()
-    for service in services:
-        kb.button(text=service['name'], callback_data=f"service:{service['id']}")
+    logging.info(f"show_services_list called with category_id={category_id}, services={services}")
     
-    # Add back button
-    kb.button(text="🔙 بازگشت", callback_data=f"category:{category_id}")
-    kb.adjust(1)
+    try:
+        # Build keyboard with services
+        kb = InlineKeyboardBuilder()
+        for service in services:
+            logging.debug(f"Adding service: {service['name']} with id: {service['id']}")
+            kb.button(text=service['name'], callback_data=f"service:{service['id']}")
+        
+        # Add back button
+        logging.debug(f"Adding back button with callback_data: category:{category_id}")
+        kb.button(text="🔙 بازگشت", callback_data=f"category:{category_id}")
+        kb.adjust(1)
+        
+        await message.answer("خدمات موجود در این دسته‌بندی:", reply_markup=kb.as_markup())
+        logging.info("Services list sent successfully")
     
-    await message.answer("خدمات موجود در این دسته‌بندی:", reply_markup=kb.as_markup())
+    except Exception as e:
+        logging.error(f"Error in show_services_list: {str(e)}", exc_info=True)
+        await message.answer("⚠️ خطایی در نمایش خدمات رخ داد. لطفا دوباره تلاش کنید.")
+
 
 @router.callback_query(F.data.startswith("product:"))
 async def callback_product(callback: CallbackQuery, state: FSMContext):

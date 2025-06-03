@@ -231,32 +231,32 @@ class Database:
         finally:
             session.close()
 
-    def get_product_categories(self, parent_id=None) -> List[Dict]:
-        """Get product categories with subcategory and product counts"""
+    def get_educational_categories(self, parent_id=None) -> List[Dict]:
+        """Get educational categories with subcategory and content counts"""
         session = self.Session()
         try:
-            query = session.query(ProductCategory)
+            query = session.query(EducationalCategory)
             if parent_id is None:
-                query = query.filter(ProductCategory.parent_id.is_(None))
+                query = query.filter(EducationalCategory.parent_id.is_(None))
             else:
                 query = query.filter_by(parent_id=parent_id)
 
-            categories = query.order_by(ProductCategory.name).all()
+            categories = query.order_by(EducationalCategory.name).all()
             result = []
             for category in categories:
-                subcategory_count = session.query(ProductCategory).filter_by(parent_id=category.id).count()
-                product_count = session.query(Product).filter_by(category_id=category.id).count()
+                subcategory_count = session.query(EducationalCategory).filter_by(parent_id=category.id).count()
+                content_count = session.query(EducationalContent).filter_by(category_id=category.id).count()
                 result.append({
                     'id': category.id,
                     'name': category.name,
                     'parent_id': category.parent_id,
                     'subcategory_count': subcategory_count,
-                    'product_count': product_count,
-                    'total_items': subcategory_count + product_count
+                    'content_count': content_count,
+                    'total_items': subcategory_count + content_count
                 })
             return result
         except Exception as e:
-            logging.error(f"Error in get_product_categories: {str(e)}")
+            logging.error(f"Error in get_educational_categories: {str(e)}")
             return []
         finally:
             session.close()
@@ -366,7 +366,7 @@ class Database:
             session.close()
 
     def add_product(self, name: str, price: int, description: str, 
-                   category_id: int, photo_url: Optional[str] = None, brand: str = '', 
+                   category_id: int,  brand: str = '', 
                    model: str = '', in_stock: bool = True, tags: str = '', featured: bool = False) -> int:
         """Add a new product"""
         session = self.Session()
@@ -376,7 +376,6 @@ class Database:
                 price=price,
                 description=description,
                 category_id=category_id,
-                photo_url=photo_url,
                 brand=brand,
                 model=model,
                 in_stock=in_stock,
@@ -394,7 +393,7 @@ class Database:
             session.close()
 
     def add_service(self, name: str, price: int, description: str, 
-                   category_id: int, photo_url: Optional[str] = None, 
+                   category_id: int, 
                    featured: bool = False, tags: str = '') -> int:
         """Add a new service to the services table"""
         session = self.Session()
@@ -404,7 +403,6 @@ class Database:
                 price=price,
                 description=description,
                 category_id=category_id,
-                photo_url=photo_url,
                 featured=featured,
                 tags=tags
             )
@@ -429,7 +427,6 @@ class Database:
                     'name': product.name,
                     'price': product.price,
                     'description': product.description,
-                    'photo_url': product.photo_url,
                     'category_id': product.category_id,
                     'brand': product.brand,
                     'model': product.model,
@@ -495,7 +492,6 @@ class Database:
                     'name': media.product.name,
                     'price': media.product.price,
                     'description': media.product.description,
-                    'photo_url': media.product.photo_url,
                     'category_id': media.product.category_id
                 }
             return None
@@ -516,7 +512,6 @@ class Database:
                     'name': service.name,
                     'price': service.price,
                     'description': service.description,
-                    'photo_url': service.photo_url,
                     'category_id': service.category_id,
                     'tags': service.tags,
                     'featured': service.featured,
@@ -578,7 +573,6 @@ class Database:
                     'name': media.service.name,
                     'price': media.service.price,
                     'description': media.service.description,
-                    'photo_url': media.service.photo_url,
                     'category_id': media.service.category_id,
                     'tags': media.service.tags,
                     'featured': media.service.featured,
@@ -601,7 +595,6 @@ class Database:
                 'name': p.name,
                 'price': p.price,
                 'description': p.description,
-                'photo_url': p.photo_url,
                 'category_id': p.category_id
             } for p in products]
         except Exception as e:
@@ -620,7 +613,6 @@ class Database:
                 'name': s.name,
                 'price': s.price,
                 'description': s.description,
-                'photo_url': s.photo_url,
                 'category_id': s.category_id
             } for s in services]
         except Exception as e:
@@ -696,7 +688,6 @@ class Database:
                 'name': p.name,
                 'price': p.price,
                 'description': p.description,
-                'photo_url': p.photo_url,
                 'category_id': p.category_id,
                 'tags': p.tags,
                 'brand': p.brand,
@@ -761,7 +752,6 @@ class Database:
                 'name': s.name,
                 'price': s.price,
                 'description': s.description,
-                'photo_url': s.photo_url,
                 'category_id': s.category_id,
                 'tags': s.tags,
                 'featured': s.featured,
@@ -775,7 +765,7 @@ class Database:
             session.close()
 
     def update_product(self, product_id: int, name: Optional[str] = None, price: Optional[int] = None,
-                      description: Optional[str] = None, photo_url: Optional[str] = None,
+                      description: Optional[str] = None,
                       category_id: Optional[int] = None) -> bool:
         """Update a product"""
         session = self.Session()
@@ -790,8 +780,7 @@ class Database:
                 product.price = price
             if description is not None:
                 product.description = description
-            if photo_url is not None:
-                product.photo_url = photo_url
+            
             if category_id is not None:
                 product.category_id = category_id
 
@@ -1032,7 +1021,6 @@ class Database:
                 EducationalContent.id,
                 EducationalContent.title,
                 EducationalContent.content,
-                EducationalContent.category,
                 EducationalContent.category_id,
                 EducationalCategory.name.label('category_name')
             ).outerjoin(EducationalCategory, EducationalContent.category_id == EducationalCategory.id
@@ -1042,14 +1030,13 @@ class Database:
                 return None
 
             media_files = session.query(EducationalContentMedia).filter_by(
-                educational_content_id=content_id
+                content_id=content_id
             ).order_by(EducationalContentMedia.file_type, EducationalContentMedia.id).all()
 
             return {
                 'id': content.id,
                 'title': content.title,
                 'content': content.content,
-                'category': content.category,
                 'category_id': content.category_id,
                 'category_name': content.category_name,
                 'media': [{
@@ -1073,16 +1060,14 @@ class Database:
                 EducationalContent.id,
                 EducationalContent.title,
                 EducationalContent.content,
-                EducationalContent.category,
                 EducationalContent.category_id,
                 EducationalCategory.name.label('category_name'),
                 func.count(EducationalContentMedia.id).label('media_count')
             ).outerjoin(EducationalCategory, EducationalContent.category_id == EducationalCategory.id
-            ).outerjoin(EducationalContentMedia, EducationalContentMedia.educational_content_id == EducationalContent.id
+            ).outerjoin(EducationalContentMedia, EducationalContentMedia.content_id == EducationalContent.id
             ).group_by(EducationalContent.id, EducationalCategory.name)
 
-            if category:
-                query = query.filter(EducationalContent.category == category)
+            
             if category_id:
                 query = query.filter(EducationalContent.category_id == category_id)
 
@@ -1091,7 +1076,6 @@ class Database:
                 'id': c.id,
                 'title': c.title,
                 'content': c.content,
-                'category': c.category,
                 'category_id': c.category_id,
                 'category_name': c.category_name,
                 'media_count': c.media_count
@@ -1102,35 +1086,7 @@ class Database:
         finally:
             session.close()
 
-    def get_educational_categories(self) -> List[Dict]:
-        """Get all educational categories with hierarchical structure"""
-        session = self.Session()
-        try:
-            categories = session.query(
-                EducationalCategory.id,
-                EducationalCategory.name,
-                EducationalCategory.parent_id,
-                EducationalCategory.name.label('parent_name'),
-                func.count(EducationalContent.id).label('content_count'),
-                func.count(EducationalCategory.id).filter(EducationalCategory.parent_id == EducationalCategory.id).label('children_count')
-            ).outerjoin(EducationalContent, EducationalContent.category_id == EducationalCategory.id
-            ).outerjoin(EducationalCategory, EducationalCategory.parent_id == EducationalCategory.id
-            ).group_by(EducationalCategory.id
-            ).order_by(EducationalCategory.parent_id.asc().nullsfirst(), EducationalCategory.name).all()
-
-            return [{
-                'id': c.id,
-                'name': c.name,
-                'parent_id': c.parent_id,
-                'parent_name': c.parent_name,
-                'content_count': c.content_count,
-                'children_count': c.children_count
-            } for c in categories]
-        except Exception as e:
-            logging.error(f"Error getting educational categories: {str(e)}")
-            return []
-        finally:
-            session.close()
+ 
 
     def get_educational_category_by_id(self, category_id: int) -> Optional[Dict]:
         """Get educational category by ID"""
@@ -1201,7 +1157,7 @@ class Database:
         finally:
             session.close()
 
-    def add_educational_content(self, title: str, content: str, category: str, 
+    def add_educational_content(self, title: str, content: str,
                                category_id: Optional[int] = None, media_files: Optional[List[Dict]] = None) -> int:
         """Add new educational content with optional category_id and media files"""
         session = self.Session()
@@ -1209,7 +1165,7 @@ class Database:
             edu_content = EducationalContent(
                 title=title,
                 content=content,
-                category=category,
+               
                 category_id=category_id
             )
             session.add(edu_content)
@@ -1252,8 +1208,7 @@ class Database:
                 edu_content.title = title
             if content is not None:
                 edu_content.content = content
-            if category is not None:
-                edu_content.category = category
+            
             if category_id is not None:
                 edu_content.category_id = category_id
 
@@ -1392,7 +1347,7 @@ class Database:
         session = self.Session()
         try:
             media = session.query(EducationalContentMedia).filter_by(
-                educational_content_id=content_id
+                content_id=content_id
             ).order_by(EducationalContentMedia.file_type, EducationalContentMedia.id).all()
             return [{
                 'id': m.id,
@@ -1416,7 +1371,7 @@ class Database:
                 raise ValueError(f"Educational content with ID {content_id} does not exist")
 
             media = EducationalContentMedia(
-                educational_content_id=content_id,
+                content_id=content_id,
                 file_id=file_id,
                 file_type=file_type
             )
@@ -1510,7 +1465,6 @@ class Database:
                     Product.name,
                     Product.price,
                     Product.description,
-                    Product.photo_url,
                     Product.category_id,
                     ProductCategory.name.label('category_name'),
                     text("'product'").label('type')
@@ -1521,7 +1475,6 @@ class Database:
                         Service.name,
                         Service.price,
                         Service.description,
-                        Service.photo_url,
                         Service.category_id,
                         ServiceCategory.name.label('category_name'),
                         text("'service'").label('type')
@@ -1531,7 +1484,7 @@ class Database:
                 rows = [dict(row) for row in query.all()]
 
                 with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
-                    fieldnames = ['id', 'name', 'price', 'description', 'photo_url', 'category_id', 'category_name', 'type']
+                    fieldnames = ['id', 'name', 'price', 'description',  'category_id', 'category_name', 'type']
                     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                     writer.writeheader()
                     for row in rows:
@@ -1617,16 +1570,16 @@ class Database:
                                         name=row['name'],
                                         price=int(row['price']),
                                         description=row.get('description', ''),
-                                        category_id=category_id,
-                                        photo_url=row.get('photo_url', '')
+                                        category_id=category_id
+                                       
                                     )
                                 else:
                                     self.add_product(
                                         name=row['name'],
                                         price=int(row['price']),
                                         description=row.get('description', ''),
-                                        category_id=category_id,
-                                        photo_url=row.get('photo_url', '')
+                                        category_id=category_id
+                                        
                                     )
                                 success_count += 1
                             else:
@@ -1709,8 +1662,7 @@ class Database:
                     Product.id,
                     Product.name,
                     Product.price,
-                    Product.description,
-                    Product.photo_url,
+                    Product.description,                  
                     Product.category_id,
                     Product.tags,
                     Product.brand,
@@ -1736,7 +1688,6 @@ class Database:
                     'name': p.name,
                     'price': p.price,
                     'description': p.description,
-                    'photo_url': p.photo_url,
                     'category_id': p.category_id,
                     'tags': p.tags,
                     'brand': p.brand,
@@ -1756,7 +1707,6 @@ class Database:
                     Service.name,
                     Service.price,
                     Service.description,
-                    Service.photo_url,
                     Service.category_id,
                     Service.tags,
                     Service.featured,
@@ -1777,7 +1727,6 @@ class Database:
                     'name': s.name,
                     'price': s.price,
                     'description': s.description,
-                    'photo_url': s.photo_url,
                     'category_id': s.category_id,
                     'tags': s.tags,
                     'featured': s.featured,
