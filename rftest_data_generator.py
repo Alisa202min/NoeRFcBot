@@ -54,10 +54,11 @@ def clear_all_data():
             EducationalContentMedia.query.delete()
 
             # Delete content
+            Inquiry.query.delete()
             Product.query.delete()
             Service.query.delete()
             EducationalContent.query.delete()
-            Inquiry.query.delete()
+         
 
             # Delete categories
             ProductCategory.query.delete()
@@ -346,7 +347,7 @@ def create_educational_content_with_images(categories):
                 db.session.flush()  # To get content ID
 
                 # Create educational image directory
-                edu_dir = f"static/media/educational"
+                edu_dir = f"static/uploads/educational"
                 os.makedirs(edu_dir, exist_ok=True)
 
                 img_name = f"edu_{edu_content.id}_main.jpg"
@@ -357,7 +358,7 @@ def create_educational_content_with_images(categories):
                     content_id=edu_content.id,
                     file_id=f"educational_media_{edu_content.id}_main",
                     file_type="photo",
-                    local_path=f"static/media/educational/{img_name}"
+                    local_path=f"static/uploads/educational/{img_name}"
                 )
                 db.session.add(media)
 

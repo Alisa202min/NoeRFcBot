@@ -230,7 +230,9 @@ class Database:
             return []
         finally:
             session.close()
-
+            
+    
+    
     def get_educational_categories(self, parent_id=None) -> List[Dict]:
         """Get educational categories with subcategory and content counts"""
         session = self.Session()
@@ -1741,7 +1743,6 @@ class Database:
                     EducationalContent.id,
                     EducationalContent.title,
                     EducationalContent.content,
-                    EducationalContent.category,
                     EducationalContent.category_id,
                     EducationalCategory.name.label('category_name'),
                     EducationalContent.created_at
@@ -1762,7 +1763,6 @@ class Database:
                     'content': e.content,
                     'category': e.category,
                     'category_id': e.category_id,
-                    'category_name': e.category_name,
                     'created_at': e.created_at
                 } for e in educational]
                 total_count += len(educational)
