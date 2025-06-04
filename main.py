@@ -26,6 +26,9 @@ from models import (User, Product, ProductMedia, Service, ServiceMedia,
                     EducationalCategory, EducationalContentMedia,
                     ProductCategory, ServiceCategory)
 from flask_wtf.csrf import CSRFProtect
+
+# ایجاد دایرکتوری logs اگر وجود ندارد
+os.makedirs('logs', exist_ok=True)
 # تنظیم لاگر
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -38,8 +41,7 @@ formatter = logging.Formatter(
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
-# ایجاد دایرکتوری logs اگر وجود ندارد
-os.makedirs('logs', exist_ok=True)
+
 
 app.config['SECRET_KEY'] = 'your-secret-key'  # یا از متغیر محیطی
 csrf = CSRFProtect(app)
