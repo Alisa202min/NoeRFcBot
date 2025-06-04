@@ -592,7 +592,7 @@ TEMP_CRYPT_KEY=$(openssl rand -base64 32)
 cat << 'SECURE_EOF' > "$SECURE_INIT_SCRIPT"
 #!/usr/bin/env python3
 """
-اسکریپت امن راه‌اندازی پایگاه داده RFTEST
+اسکریپت امن راه‌اندازی پایگاه داده 
 این فایل پس از اجرا به صورت خودکار حذف می‌شود
 """
 import os
@@ -682,46 +682,14 @@ def initialize_secure_database():
         
         print("🎉 راه‌اندازی پایگاه داده کامل شد")
         
-        # ===== پر کردن دیتابیس با اطلاعات تست =====
-        populate_test_data = os.getenv('SETUP_POPULATE_DATA', 'yes').lower()
-        if populate_test_data in ['yes', 'y', '1', 'true']:
-            print("📥 شروع پر کردن دیتابیس با اطلاعات تست...")
-            
-            # بررسی وجود فایل rftest_data_generator.py
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            data_generator_path = os.path.join(current_dir, 'rftest_data_generator.py')
-            if os.path.exists(data_generator_path):
-                try:
-                    # وارد کردن و اجرای ماژول تولید داده
-                    import importlib.util
-                    spec = importlib.util.spec_from_file_location("rftest_data_generator", data_generator_path)
-                    data_generator = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(data_generator)
-                    
-                    # فراخوانی تابع اصلی تولید داده
-                    if hasattr(data_generator, 'generate_all_data'):
-                        data_generator.generate_all_data()
-                        print("✅ اطلاعات تست با موفقیت وارد شد")
-                    elif hasattr(data_generator, 'main'):
-                        data_generator.main()
-                        print("✅ اطلاعات تست با موفقیت وارد شد")
-                    else:
-                        print("⚠️  تابع تولید داده یافت نشد")
-                        
-                except Exception as e:
-                    print(f"⚠️  خطا در وارد کردن اطلاعات تست: {e}")
-                    print("ℹ️  ادامه بدون اطلاعات تست...")
-            else:
-                print("ℹ️  فایل rftest_data_generator.py یافت نشد")
-        else:
-            print("⏭️  رد شدن از پر کردن اطلاعات تست")
+        
         
     except Exception as e:
         print(f"❌ خطا در راه‌اندازی: {e}")
         sys.exit(1)
     finally:
         # حذف متغیرهای حساس از حافظه
-        for var in ['SETUP_ADMIN_USER', 'SETUP_ADMIN_PASS', 'SETUP_POPULATE_DATA']:
+        for var in ['SETUP_ADMIN_USER', 'SETUP_ADMIN_PASS']:
             if var in os.environ:
                 del os.environ[var]
 
@@ -898,7 +866,7 @@ echo ""
 # سوال از کاربر برای پر کردن دیتابیس با اطلاعات تست
 read -p "آیا می‌خواهید دیتابیس را با اطلاعات تست RFTEST پر کنید؟ (y/n) [y]: " POPULATE_DATA
 POPULATE_DATA=${POPULATE_DATA:-y}
-export SETUP_POPULATE_DATA="$POPULATE_DATA"
+
 
 if [ "$POPULATE_DATA" = "y" ] || [ "$POPULATE_DATA" = "Y" ]; then
     print_message "انتخاب اسکریپت تولید داده..."
