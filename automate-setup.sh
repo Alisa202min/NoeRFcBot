@@ -759,7 +759,11 @@ if [ "$POPULATE_DATA" = "y" ] || [ "$POPULATE_DATA" = "Y" ]; then
         print_message "اجرای $SELECTED_GENERATOR برای پر کردن اطلاعات تست..."
         source "$APP_DIR/venv/bin/activate" >> "$LOG_FILE" 2>&1
         python "$APP_DIR/$SELECTED_GENERATOR" >> "$LOG_FILE" 2>&1
-        check_error "اجرای $SELECTED_GENERATOR با خطا مواجه شد." "اطلاعات تست با موفقیت وارد شد."
+        if [ $? -ne 0 ]; then
+            print_warning "اجرای $SELECTED_GENERATOR با خطا مواجه شد. ادامه نصب بدون اطلاعات تست..."
+        else
+            print_success "اطلاعات تست با موفقیت وارد شد."
+        fi
         deactivate
     fi
 else
