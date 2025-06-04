@@ -1,132 +1,203 @@
-{% extends "admin_layout.html" %}
-{% block content %}
-<div class="container-fluid mt-3">
-    <h2 class="mb-4">مشاهده جدول: {{ table_name }}</h2>
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مدیریت ربات تلگرام</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        body {
+            direction: rtl;
+            text-align: right;
+        }
+        .text-left {
+            text-align: left;
+        }
+        .log-box {
+            direction: ltr;
+            text-align: left;
+            font-family: monospace;
+            height: 300px;
+            overflow-y: auto;
+            background-color: var(--bs-dark);
+            color: var(--bs-light);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .code-box {
+            direction: ltr;
+            text-align: left;
+            font-family: monospace;
+            background-color: var(--bs-dark);
+            color: var(--bs-light);
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg bg-body-tertiary">
+        <div class="container">
+            <a class="navbar-brand" href="/">RFCBot</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+																		 
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+			  
+							   
+										  
+																							 
+											  
+							
+													
+											  
+										
+							 
+							
+						   
+											 
+							
+												
+								
+													
+																	
+										  
+																
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if active_page == 'dashboard' }}" href="/">داشبورد اصلی</a>
+																					
+																												   
+									  
+																																				
+									 
+											 
+										
+																																																																					
+																					 
+										
+									  
+										  
+										 
+										   
+										   
+								 
+										
+							 
+									
+							
+						   
+							
+																				   
+																																																								 
+																				  
+																																																																
+																																												 
+									
+											 
+												
+                    </li>
+								 
+							 
+							
+						
+				  
 
-    <div class="card shadow mb-4">
-        <div class="card-header py-3 d-flex justify-content-between align-items-center">
-            <h6 class="m-0 font-weight-bold text-primary">جدول: {{ table_name }}</h6>
-            <div class="d-flex">
-                <span class="badge bg-info ms-2">{{ total_records }} رکورد</span>
-                <span class="badge bg-secondary ms-2">{{ total_pages }} صفحه</span>
-                <a href="{{ url_for('admin_database') }}" class="btn btn-sm btn-secondary ms-2">
-                    <i class="bi bi-arrow-right"></i> بازگشت
-                </a>
-                <form action="{{ url_for('admin_database_fix', table=table_name) }}" method="post" style="display: inline;">
-                    <button type="submit" class="btn btn-sm btn-warning">
-                        <i class="bi bi-wrench"></i> اصلاح
-                    </button>
-                </form>
-            </div>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-striped table-hover table-bordered" id="dataTable">
-                    <thead class="table-dark">
-                        <tr>
-                            {% for col in columns %}
-                            <th>{{ col }}</th>
-                            {% endfor %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in rows %}
-                        <tr>
-                            {% for col in row %}
-                            <td>
-                                {% if col is none %}
-                                <span class="text-muted">NULL</span>
-                                {% else %}
-                                {% if col|string|length > 100 %}
-                                <div class="expandable-content">
-                                    <div class="short-content">{{ col|string|truncate(100, true) }}</div>
-                                    <div class="full-content d-none">{{ col }}</div>
-                                    <button class="btn btn-sm btn-link toggle-content">نمایش کامل</button>
-                                </div>
-                                {% elif "image_" in col|string or "photo_" in col|string or "_image_" in col|string or "_file_" in col|string %}
-                                <div>
-                                    {{ col }}
-                                    <br>
-                                    <a href="{{ url_for('telegram_file', file_id=col) }}" target="_blank" class="btn btn-sm btn-outline-info">
-                                        <i class="bi bi-file-image"></i> مشاهده
-                                    </a>
-                                </div>
-                                {% else %}
-                                {{ col }}
-                                {% endif %}
-                                {% endif %}
-                            </td>
-                            {% endfor %}
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <td colspan="{{ columns|length }}" class="text-center">
-                                <select class="form-select d-inline-block w-auto" id="perPageSelect" onchange="window.location.href=this.value">
-                                    {% for per_page_option in [10, 20, 50, 100] %}
-                                    <option value="{{ url_for('admin_view_table', table=table_name, page=1, per_page=per_page_option) }}"
-                                            {% if per_page_option == per_page %}selected{% endif %}>
-                                        {{ per_page_option }} رکورد
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-
-            <!-- Pagination -->
-            {% if total_pages > 1 %}
-            <nav aria-label="Page navigation" class="mt-4">
-                <ul class="pagination justify-content-center">
-                    <li class="page-item {{ 'disabled' if page == 1 }}">
-                        <a class="page-link" href="{{ url_for_page(1) }}" aria-label="First">««</a>
+							   
+									
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if active_page == 'logs' }}" href="/logs">لاگ‌های ربات</a>
+																		
+																									 
                     </li>
-                    <li class="page-item {{ 'disabled' if page == 1 }}">
-                        <a class="page-link" href="{{ url_for_page(page-1) }}" aria-label="Previous">«</a>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if active_page == 'configuration' }}" href="/configuration">پیکربندی</a>
                     </li>
-                    {% for p in range(max(1, page-2), min(total_pages+1, page+3)) %}
-                    <li class="page-item {{ 'active' if p == page }}">
-                        <a class="page-link" href="{{ url_for_page(p) }}">{{ p }}</a>
-                    </li>
-                    {% endfor %}
-                    <li class="page-item {{ 'disabled' if page == total_pages }}">
-                        <a class="page-link" href="{{ url_for_page(page+1) }}" aria-label="Next">»</a>
-                    </li>
-                    <li class="page-item {{ 'disabled' if page == total_pages }}">
-                        <a class="page-link" href="{{ url_for_page(total_pages) }}" aria-label="Last">»»</a>
+																					
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if active_page == 'admin' }}" href="/admin">پنل مدیریت</a>
                     </li>
                 </ul>
-            </nav>
-            {% endif %}
+                <div class="dropdown ms-2">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-palette"></i> تم
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a class="dropdown-item" href="#" onclick="setLightMode(); return false;">
+                                <i class="bi bi-sun"></i> حالت روز
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="#" onclick="setDarkMode(); return false;">
+                                <i class="bi bi-moon"></i> حالت شب
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
         </div>
-    </div>
-</div>
-{% endblock %}
+    </nav>
 
-{% block scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Toggle expandable content
-    document.querySelectorAll('.toggle-content').forEach(button => {
-        button.addEventListener('click', function() {
-            const container = this.closest('.expandable-content');
-            const shortContent = container.querySelector('.short-content');
-            const fullContent = container.querySelector('.full-content');
-            
-            if (fullContent.classList.contains('d-none')) {
-                shortContent.classList.add('d-none');
-                fullContent.classList.remove('d-none');
-                this.textContent = 'نمایش خلاصه';
+    <div class="container mt-4">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+    </div>
+
+    <footer class="footer mt-5 py-3 bg-body-tertiary border-top">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
+                <span>ربات تلگرام RFC</span>
+                <span>{{ current_year if current_year else '2025' }}</span>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // توابع تغییر تم
+        function setDarkMode() {
+            document.documentElement.setAttribute('data-bs-theme', 'dark');
+            localStorage.setItem('theme', 'dark');
+        }
+        
+        function setLightMode() {
+            document.documentElement.setAttribute('data-bs-theme', 'light');
+            localStorage.setItem('theme', 'light');
+        }
+        
+        // بررسی تنظیمات ذخیره شده در هنگام بارگذاری صفحه
+        document.addEventListener('DOMContentLoaded', function() {
+            const storedTheme = localStorage.getItem('theme');
+            if (storedTheme) {
+                document.documentElement.setAttribute('data-bs-theme', storedTheme);
+																  
+																		   
+																		 
+			
+														   
+													 
+													   
+														   
             } else {
-                shortContent.classList.remove('d-none');
-                fullContent.classList.add('d-none');
-                this.textContent = 'نمایش کامل';
+                // اگر تم ذخیره شده‌ای وجود نداشته باشد، حالت تاریک پیش‌فرض خواهد بود
+                document.documentElement.setAttribute('data-bs-theme', 'dark');
+														 
             }
         });
-    });
-});
-</script>
-{% endblock %}
+	   
+   
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
