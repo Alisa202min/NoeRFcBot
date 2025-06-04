@@ -736,39 +736,11 @@ chmod 600 "$SECURE_INIT_SCRIPT"
 export SETUP_ADMIN_USER="$ADMIN_USERNAME"
 export SETUP_ADMIN_PASS="$ADMIN_PASSWORD"
 
-# سوال از کاربر برای پر کردن دیتابیس با اطلاعات تست
-read -p "آیا می‌خواهید دیتابیس را با اطلاعات تست RFTEST پر کنید؟ (y/n) [y]: " POPULATE_DATA
-POPULATE_DATA=${POPULATE_DATA:-y}
-export SETUP_POPULATE_DATA="$POPULATE_DATA"
+
 
 # اجرای اسکریپت امن
 print_message "🔐 اجرای اسکریپت امن راه‌اندازی..."
-if [ "$POPULATE_DATA" = "y" ] || [ "$POPULATE_DATA" = "Y" ]; then
-    print_message "انتخاب اسکریپت تولید داده..."
-    DATA_GENERATORS=("rftest_data_generator.py" "rftest_data_generator_fixed.py" "seed_database.py" "quick_data_generator.py")
-    SELECTED_GENERATOR=""
-    for generator in "${DATA_GENERATORS[@]}"; do
-        if [ -f "$APP_DIR/$generator" ]; then
-            SELECTED_GENERATOR="$generator"
-            break
-        fi
-    done
-    if [ -z "$SELECTED_GENERATOR" ]; then
-        print_warning "هیچ اسکریپت تولید داده‌ای یافت نشد. ادامه بدون اطلاعات تست..."
-    else
-        print_message "اجرای $SELECTED_GENERATOR برای پر کردن اطلاعات تست..."
-        source "$APP_DIR/venv/bin/activate" >> "$LOG_FILE" 2>&1
-        python "$APP_DIR/$SELECTED_GENERATOR" >> "$LOG_FILE" 2>&1
-        if [ $? -ne 0 ]; then
-            print_warning "اجرای $SELECTED_GENERATOR با خطا مواجه شد. ادامه نصب بدون اطلاعات تست..."
-        else
-            print_success "اطلاعات تست با موفقیت وارد شد."
-        fi
-        deactivate
-    fi
-else
-    print_message "رد شدن از پر کردن اطلاعات تست."
-fi
+
 
 # اجرای اسکریپت امن
 python "$SECURE_INIT_SCRIPT" >> "$LOG_FILE" 2>&1
@@ -922,6 +894,38 @@ if [ "$BOT_MODE" = "webhook" ]; then
     fi
 fi
 echo ""
+
+# سوال از کاربر برای پر کردن دیتابیس با اطلاعات تست
+read -p "آیا می‌خواهید دیتابیس را با اطلاعات تست RFTEST پر کنید؟ (y/n) [y]: " POPULATE_DATA
+POPULATE_DATA=${POPULATE_DATA:-y}
+export SETUP_POPULATE_DATA="$POPULATE_DATA"
+
+if [ "$POPULATE_DATA" = "y" ] || [ "$POPULATE_DATA" = "Y" ]; then
+    print_message "انتخاب اسکریپت تولید داده..."
+    DATA_GENERATORS=("rftest_data_generator.py")
+    SELECTED_GENERATOR=""
+    for generator in "${DATA_GENERATORS[@]}"; do
+        if [ -f "$APP_DIR/$generator" ]; then
+            SELECTED_GENERATOR="$generator"
+            break
+        fi
+    done
+    if [ -z "$SELECTED_GENERATOR" ]; then
+        print_warning "هیچ اسکریپت تولید داده‌ای یافت نشد. ادامه بدون اطلاعات تست..."
+    else
+        print_message "اجرای $SELECTED_GENERATOR برای پر کردن اطلاعات تست..."
+        source "$APP_DIR/venv/bin/activate" >> "$LOG_FILE" 2>&1
+        python "$APP_DIR/$SELECTED_GENERATOR" >> "$LOG_FILE" 2>&1
+        if [ $? -ne 0 ]; then
+            print_warning "اجرای $SELECTED_GENERATOR با خطا مواجه شد. ادامه نصب بدون اطلاعات تست..."
+        else
+            print_success "اطلاعات تست با موفقیت وارد شد."
+        fi
+        deactivate
+    fi
+else
+    print_message "اطلاعات تستی جایگزین نمی شود."
+fi
 
 echo "📂 مسیرهای مهم:"
 echo "   پوشه پروژه: $APP_DIR"
