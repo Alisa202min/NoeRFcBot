@@ -26,21 +26,44 @@ from models import (User, Product, ProductMedia, Service, ServiceMedia,
                     EducationalCategory, EducationalContentMedia,
                     ProductCategory, ServiceCategory)
 from flask_wtf.csrf import CSRFProtect
+from logging.handlers import RotatingFileHandler
 
-# ایجاد دایرکتوری logs اگر وجود ندارد
-os.makedirs('logs', exist_ok=True)
-# تنظیم لاگر
+# تنظیمات لاگ‌گیری
+# Logger setup
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+logger.propagate = False  # Prevent propagation to parent loggers
 
-# تنظیم لاگر برای ذخیره لاگ‌ها در فایل
-file_handler = logging.FileHandler('logs/rfcbot.log')
+# Log format
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# Ensure logs directory exists
+log_dir = "logs"
+log_file = os.path.join(log_dir, 'bot.log')  # Consistent file name
+try:
+    os.makedirs(log_dir, exist_ok=True)
+except OSError as e:
+    print(f"Failed to create log directory: {e}")
+    raise
+
+# File handler with rotation
+file_handler = RotatingFileHandler(
+    log_file,
+    maxBytes=5*1024*1024,  # 5 MB
+    backupCount=3
+)
 file_handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
 
+# Console handler
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.DEBUG)
+console_handler.setFormatter(formatter)
+
+# Clear existing handlers and add new ones
+logger.handlers = []
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
 
 
 app.config['SECRET_KEY'] = 'your-secret-key'  # یا از متغیر محیطی
@@ -109,7 +132,7 @@ def index():
             """Check bot status by analyzing recent log entries"""
             try:
                 if os.path.exists('bot.log'):
-                    with open('bot.log', 'r', encoding='utf-8') as f:
+                    with open(logfile, 'r', encoding='utf-8') as f:
                         lines = f.readlines()
                         recent_lines = lines[-15:]  # Check last 15 lines
                         for line in reversed(recent_lines):
@@ -134,7 +157,7 @@ def index():
 
         # Fetch recent bot logs
         try:
-            log_file = 'bot.log'
+           
             bot_logs = ['Log file not found.']
             if os.path.exists(log_file):
                 with open(log_file, 'r', encoding='utf-8') as f:
@@ -186,7 +209,7 @@ def logs():
     import os
     try:
         # تلاش برای خواندن آخرین خطوط فایل لاگ
-        log_file = 'bot.log'
+       
         max_lines = 500  # حداکثر تعداد خطوط برای نمایش
 
         # برای درخواست‌های AJAX، پاسخ JSON برگردان

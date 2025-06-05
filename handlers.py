@@ -30,6 +30,7 @@ from configuration import (
 
 # اطمینان از وجود دایرکتوری logs
 log_dir = "logs"
+log_file = 'bot.log'
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
 
