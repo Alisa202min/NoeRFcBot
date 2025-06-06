@@ -1,57 +1,43 @@
 # bot.py
 import os
+import sys
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommand
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.enums import ParseMode
 from dotenv import load_dotenv
 from aiohttp import web, ClientSession
-from logging.handlers import RotatingFileHandler
+from logging_config import get_logger
+
+
+
+# Get bot logger
+logger = get_logger('bot')
+
+# Load environment variables
 load_dotenv()
 
-# اطمینان از وجود دایرکتوری logs
-log_dir = "logs"
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
+# Initialize bot and dispatcher
+bot_token = os.environ.get('BOT_TOKEN')
+if not bot_token:
+    logger.error("BOT_TOKEN not set in environment variables")
+    exit(1)
 
-# تنظیمات لاگ‌گیری
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.info(f"Using bot token starting with: {bot_token[:10]}...")
 
-# فرمت لاگ
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-# هندلر برای فایل
-file_handler = RotatingFileHandler(
-    os.path.join(log_dir, 'rfcbot.log'), 
-    maxBytes=5*1024*1024, 
-    backupCount=3
-)
-file_handler.setLevel(logging.DEBUG)
-file_handler.setFormatter(formatter)
-
-# هندلر برای کنسول
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.DEBUG)
-console_handler.setFormatter(formatter)
-
-# پاک کردن هندلرهای قبلی و اضافه کردن هندلرهای جدید
-logger.handlers = []  # پاک کردن هندلرهای قبلی
-logger.addHandler(file_handler)
-logger.addHandler(console_handler)
-
-
-BOT_TOKEN = os.environ.get('BOT_TOKEN')
-if not BOT_TOKEN:
-    logger.error("BOT_TOKEN is not set in environment variables")
-    raise ValueError("BOT_TOKEN is not set")
-logger.debug(f"Using BOT_TOKEN: {BOT_TOKEN[:10]}...")
-
-bot = Bot(token=BOT_TOKEN)
+# Create bot instance
+try:
+    bot = Bot(token=bot_token)
+    logger.info("Bot instance created successfully")
+except Exception as e:
+    logger.error(f"Error creating bot instance: {e}")
+    raise
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
+# Register available commands
 async def set_commands():
     commands = [
         BotCommand(command='/start', description='شروع / بازگشت به منوی اصلی'),
@@ -65,7 +51,7 @@ async def set_commands():
     await bot.set_my_commands(commands)
     logger.info("Bot commands set successfully")
 
-async def register_handlers(dp):
+async def register_handlers():
     """Register all handlers for the bot"""
     # Import all necessary handlers to ensure they are initialized
     from handlers import router, cmd_start, cmd_help, cmd_products, cmd_services
@@ -96,14 +82,17 @@ async def setup_webhook(app, webhook_path, webhook_host):
             if request.match_info.get('token') == BOT_TOKEN.split(':')[1]:
                 update = await request.json()
                 await dp.feed_update(bot, update)
-                return web.Response()
+                return web.Response(status=200)
             return web.Response(status=403)
 
         app.router.add_post(webhook_path, handle_webhook)
+    logger.info(f"Webhook handler added for path: {webhook_path}")
 
 async def start_polling():
     async with ClientSession() as session:
+        logger.info("Starting bot in polling mode")
         try:
+        # Delete any existing webhook before starting polling
             webhook_info = await bot.get_webhook_info()
             if webhook_info.url:
                 logger.info(f"Removing existing webhook: {webhook_info.url}")
@@ -115,16 +104,31 @@ async def start_polling():
             logger.error(f"Error checking webhook: {str(e)}")
             raise
 
+    # Set commands
         await set_commands()
-        await register_handlers(dp)
-        logger.info("Starting polling...")
+    
+    # Register all handlers
+    await register_handlers()
+    
+    # Log information about the router for debugging
+    logger.info("Handlers have been registered and router is included in dispatcher")
+    
+    # Start polling
         try:
             await dp.start_polling(bot)
         except Exception as e:
-            logger.error(f"Polling error: {str(e)}")
-            raise
-        finally:
-            logger.info("Polling stopped")
+        logger.error(f"Error in polling: {e}")
+        # Try to force delete webhook if we're still having issues
+        await bot.delete_webhook(drop_pending_updates=True)
+        logger.info("Forcefully deleted webhook after error")
+        # Try polling again
+        await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    asyncio.run(start_polling())
+    try:
+        # Run the bot with polling (for development/testing)
+        asyncio.run(start_polling())
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("Bot stopped")
+    except Exception as e:
+        logger.error(f"Error in bot: {e}")
