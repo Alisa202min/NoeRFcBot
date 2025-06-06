@@ -10,6 +10,9 @@ from app import db
 from models import (ProductCategory, ServiceCategory, 
 EducationalCategory,Product, Service, ProductMedia, ServiceMedia, Inquiry, EducationalContent, EducationalContentMedia, StaticContent)
 from configuration import config
+from logging_config import get_logger
+logger = get_logger('app')
+
 class Database:
     """Database abstraction layer for PostgreSQL using SQLAlchemy"""
 
@@ -26,11 +29,11 @@ class Database:
 
             # Modify database URL for test mode
             if self.test_mode:
-                logging.info("TEST MODE: Using test database")
+                logger.info("TEST MODE: Using test database")
                 if 'dbname=' in self.database_url:
                     self.database_url = self.database_url.replace('dbname=', 'dbname=test_')
                 else:
-                    logging.warning("TEST MODE: Could not modify database URL for test. Using main database.")
+                    logger.warning("TEST MODE: Could not modify database URL for test. Using main database.")
 
             # Create SQLAlchemy engine
             self.engine = create_engine(
@@ -47,7 +50,7 @@ class Database:
 
             # Create session factory
             self.Session = scoped_session(sessionmaker(bind=self.engine, autocommit=False, autoflush=False))
-            logging.info("Database connection established successfully")
+            logger.info("Database connection established successfully")
 
     def initialize(self):
         """Initialize database and create necessary tables"""
@@ -66,12 +69,12 @@ class Database:
                 session.commit()
             except Exception as e:
                 session.rollback()
-                logging.error(f"Error initializing static content: {str(e)}")
+                logger.error(f"Error initializing static content: {str(e)}")
                 raise
             finally:
                 session.close()
         except Exception as e:
-            logging.error(f"Error initializing database: {str(e)}")
+            logger.error(f"Error initializing database: {str(e)}")
             raise
 
     def add_product_category(self, name: str, parent_id: Optional[int] = None) -> int:
@@ -84,7 +87,7 @@ class Database:
             return category.id
         except Exception as e:
             session.rollback()
-            logging.error(f"Error adding product category: {str(e)}")
+            logger.error(f"Error adding product category: {str(e)}")
             raise
         finally:
             session.close()
@@ -99,7 +102,7 @@ class Database:
             return category.id
         except Exception as e:
             session.rollback()
-            logging.error(f"Error adding service category: {str(e)}")
+            logger.error(f"Error adding service category: {str(e)}")
             raise
         finally:
             session.close()
@@ -117,7 +120,7 @@ class Database:
                 }
             return None
         except Exception as e:
-            logging.error(f"Error getting product category: {str(e)}")
+            logger.error(f"Error getting product category: {str(e)}")
             return None
         finally:
             session.close()
@@ -135,7 +138,7 @@ class Database:
                 }
             return None
         except Exception as e:
-            logging.error(f"Error getting service category: {str(e)}")
+            logger.error(f"Error getting service category: {str(e)}")
             return None
         finally:
             session.close()
@@ -153,7 +156,7 @@ class Database:
                 }
             return None
         except Exception as e:
-            logging.error(f"Error getting educational category: {str(e)}")
+            logger.error(f"Error getting educational category: {str(e)}")
             return None
         finally:
             session.close()
@@ -164,7 +167,7 @@ class Database:
         try:
             return session.query(ProductCategory).filter_by(id=category_id).count() > 0
         except Exception as e:
-            logging.error(f"Error in check_product_category_exists: {str(e)}")
+            logger.error(f"Error in check_product_category_exists: {str(e)}")
             return False
         finally:
             session.close()
@@ -175,7 +178,7 @@ class Database:
         try:
             return session.query(ServiceCategory).filter_by(id=category_id).count() > 0
         except Exception as e:
-            logging.error(f"Error in check_service_category_exists: {str(e)}")
+            logger.error(f"Error in check_service_category_exists: {str(e)}")
             return False
         finally:
             session.close()
@@ -192,7 +195,7 @@ class Database:
             categories = query.order_by(ProductCategory.name).all()
             return [{'id': c.id, 'name': c.name, 'parent_id': c.parent_id} for c in categories]
         except Exception as e:
-            logging.error(f"Error getting product categories by parent: {str(e)}")
+            logger.error(f"Error getting product categories by parent: {str(e)}")
             return []
         finally:
             session.close()
@@ -209,7 +212,7 @@ class Database:
             categories = query.order_by(ServiceCategory.name).all()
             return [{'id': c.id, 'name': c.name, 'parent_id': c.parent_id} for c in categories]
         except Exception as e:
-            logging.error(f"Error getting service categories by parent: {str(e)}")
+            logger.error(f"Error getting service categories by parent: {str(e)}")
             return []
         finally:
             session.close()
@@ -226,7 +229,7 @@ class Database:
             categories = query.order_by(EducationalCategory.name).all()
             return [{'id': c.id, 'name': c.name, 'parent_id': c.parent_id} for c in categories]
         except Exception as e:
-            logging.error(f"Error getting educational categories by parent: {str(e)}")
+            logger.error(f"Error getting educational categories by parent: {str(e)}")
             return []
         finally:
             session.close()
@@ -258,7 +261,7 @@ class Database:
                 })
             return result
         except Exception as e:
-            logging.error(f"Error in get_educational_categories: {str(e)}")
+            logger.error(f"Error in get_educational_categories: {str(e)}")
             return []
         finally:
             session.close()
@@ -288,7 +291,7 @@ class Database:
                 })
             return result
         except Exception as e:
-            logging.error(f"Error in get_service_categories: {str(e)}")
+            logger.error(f"Error in get_service_categories: {str(e)}")
             return []
         finally:
             session.close()
@@ -308,7 +311,7 @@ class Database:
             return True
         except Exception as e:
             session.rollback()
-            logging.error(f"Error updating product category: {str(e)}")
+            logger.error(f"Error updating product category: {str(e)}")
             return False
         finally:
             session.close()
@@ -328,7 +331,7 @@ class Database:
             return True
         except Exception as e:
             session.rollback()
-            logging.error(f"Error updating service category: {str(e)}")
+            logger.error(f"Error updating service category: {str(e)}")
             return False
         finally:
             session.close()
@@ -345,7 +348,7 @@ class Database:
             return True
         except Exception as e:
             session.rollback()
-            logging.error(f"Error deleting product category: {str(e)}")
+            logger.error(f"Error deleting product category: {str(e)}")
             return False
         finally:
             session.close()
@@ -362,7 +365,7 @@ class Database:
             return True
         except Exception as e:
             session.rollback()
-            logging.error(f"Error deleting service category: {str(e)}")
+            logger.error(f"Error deleting service category: {str(e)}")
             return False
         finally:
             session.close()
@@ -389,7 +392,7 @@ class Database:
             return product.id
         except Exception as e:
             session.rollback()
-            logging.error(f"Error adding product: {str(e)}")
+            logger.error(f"Error adding product: {str(e)}")
             raise
         finally:
             session.close()
@@ -413,7 +416,7 @@ class Database:
             return service.id
         except Exception as e:
             session.rollback()
-            logging.error(f"Error adding service: {str(e)}")
+            logger.error(f"Error adding service: {str(e)}")
             raise
         finally:
             session.close()
@@ -440,7 +443,7 @@ class Database:
                 }
             return None
         except Exception as e:
-            logging.error(f"Error getting product: {str(e)}")
+            logger.error(f"Error getting product: {str(e)}")
             return None
         finally:
             session.close()
@@ -458,7 +461,7 @@ class Database:
                 'created_at': m.created_at
             } for m in media]
         except Exception as e:
-            logging.error(f"Error getting product media: {str(e)}")
+            logger.error(f"Error getting product media: {str(e)}")
             return []
         finally:
             session.close()
@@ -478,7 +481,7 @@ class Database:
                 }
             return None
         except Exception as e:
-            logging.error(f"Error getting media by ID: {str(e)}")
+            logger.error(f"Error getting media by ID: {str(e)}")
             return None
         finally:
             session.close()
@@ -498,7 +501,7 @@ class Database:
                 }
             return None
         except Exception as e:
-            logging.error(f"Error getting product by media ID: {str(e)}")
+            logger.error(f"Error getting product by media ID: {str(e)}")
             return None
         finally:
             session.close()
@@ -521,7 +524,7 @@ class Database:
                 }
             return None
         except Exception as e:
-            logging.error(f"Error getting service: {str(e)}")
+            logger.error(f"Error getting service: {str(e)}")
             return None
         finally:
             session.close()
@@ -539,7 +542,7 @@ class Database:
                 'created_at': m.created_at
             } for m in media]
         except Exception as e:
-            logging.error(f"Error getting service media: {str(e)}")
+            logger.error(f"Error getting service media: {str(e)}")
             return []
         finally:
             session.close()
@@ -559,7 +562,7 @@ class Database:
                 }
             return None
         except Exception as e:
-            logging.error(f"Error getting service media by ID: {str(e)}")
+            logger.error(f"Error getting service media by ID: {str(e)}")
             return None
         finally:
             session.close()
@@ -582,7 +585,7 @@ class Database:
                 }
             return None
         except Exception as e:
-            logging.error(f"Error getting service by media ID: {str(e)}")
+            logger.error(f"Error getting service by media ID: {str(e)}")
             return None
         finally:
             session.close()
@@ -600,7 +603,7 @@ class Database:
                 'category_id': p.category_id
             } for p in products]
         except Exception as e:
-            logging.error(f"Error getting products: {str(e)}")
+            logger.error(f"Error getting products: {str(e)}")
             return []
         finally:
             session.close()
@@ -618,7 +621,7 @@ class Database:
                 'category_id': s.category_id
             } for s in services]
         except Exception as e:
-            logging.error(f"Error getting services: {str(e)}")
+            logger.error(f"Error getting services: {str(e)}")
             return []
         finally:
             session.close()
@@ -701,7 +704,7 @@ class Database:
                 'item_type': 'product'
             } for p in products]
         except Exception as e:
-            logging.error(f"Error searching products: {str(e)}")
+            logger.error(f"Error searching products: {str(e)}")
             return []
         finally:
             session.close()
@@ -761,7 +764,7 @@ class Database:
                 'item_type': 'service'
             } for s in services]
         except Exception as e:
-            logging.error(f"Error searching services: {str(e)}")
+            logger.error(f"Error searching services: {str(e)}")
             return []
         finally:
             session.close()
@@ -790,7 +793,7 @@ class Database:
             return True
         except Exception as e:
             session.rollback()
-            logging.error(f"Error updating product: {str(e)}")
+            logger.error(f"Error updating product: {str(e)}")
             return False
         finally:
             session.close()
@@ -805,7 +808,7 @@ class Database:
             return media.id
         except Exception as e:
             session.rollback()
-            logging.error(f"Error adding product media: {str(e)}")
+            logger.error(f"Error adding product media: {str(e)}")
             raise
         finally:
             session.close()
@@ -820,7 +823,7 @@ class Database:
             return media.id
         except Exception as e:
             session.rollback()
-            logging.error(f"Error adding service media: {str(e)}")
+            logger.error(f"Error adding service media: {str(e)}")
             raise
         finally:
             session.close()
@@ -837,7 +840,7 @@ class Database:
             return True
         except Exception as e:
             session.rollback()
-            logging.error(f"Error deleting product media: {str(e)}")
+            logger.error(f"Error deleting product media: {str(e)}")
             return False
         finally:
             session.close()
@@ -854,7 +857,7 @@ class Database:
             return True
         except Exception as e:
             session.rollback()
-            logging.error(f"Error deleting service media: {str(e)}")
+            logger.error(f"Error deleting service media: {str(e)}")
             return False
         finally:
             session.close()
@@ -871,7 +874,7 @@ class Database:
             return True
         except Exception as e:
             session.rollback()
-            logging.error(f"Error deleting product: {str(e)}")
+            logger.error(f"Error deleting product: {str(e)}")
             return False
         finally:
             session.close()
@@ -888,7 +891,7 @@ class Database:
             return True
         except Exception as e:
             session.rollback()
-            logging.error(f"Error deleting service: {str(e)}")
+            logger.error(f"Error deleting service: {str(e)}")
             return False
         finally:
             session.close()
@@ -912,7 +915,7 @@ class Database:
             return inquiry.id
         except Exception as e:
             session.rollback()
-            logging.error(f"Error adding inquiry: {str(e)}")
+            logger.error(f"Error adding inquiry: {str(e)}")
             raise
         finally:
             session.close()
@@ -965,7 +968,7 @@ class Database:
                 'item_type': i.item_type
             } for i in inquiries]
         except Exception as e:
-            logging.error(f"Error getting inquiries: {str(e)}")
+            logger.error(f"Error getting inquiries: {str(e)}")
             return []
         finally:
             session.close()

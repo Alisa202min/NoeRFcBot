@@ -6,7 +6,7 @@
 import os
 import io
 from logging_config import get_logger
-logger = get_logger('webpanel')
+
 import datetime
 import csv
 import zipfile
@@ -14,7 +14,7 @@ import tempfile
 from sqlalchemy.orm import joinedload
 from flask import (render_template, request, redirect, url_for, flash, session,
                    Response, send_file, jsonify, send_from_directory)
-import time
+
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from sqlalchemy import inspect, text
@@ -27,10 +27,11 @@ from models import (User, Product, ProductMedia, Service, ServiceMedia,
                     EducationalCategory, EducationalContentMedia,
                     ProductCategory, ServiceCategory)
 from flask_wtf.csrf import CSRFProtect
-from logging.handlers import RotatingFileHandler
 
+from itertools import islice
 
-
+logger = get_logger('webpanel')
+bot_logger = get_logger('bot')
 
 app.config['SECRET_KEY'] = 'your-secret-key'  # یا از متغیر محیطی
 csrf = CSRFProtect(app)
@@ -40,10 +41,10 @@ csrf = CSRFProtect(app)
 def delete_media_file(file_path):
     """
     حذف فیزیکی فایل رسانه‌ای از سیستم فایل
-    
+
     Args:
         file_path: مسیر فایل برای حذف
-    
+
     Returns:
         bool: موفقیت یا عدم موفقیت عملیات
     """
@@ -63,8 +64,14 @@ def delete_media_file(file_path):
     except Exception as e:
         logger.error(f"Error deleting file {file_path}: {str(e)}")
         return False
-        
 
+def read_last_lines(file_path, max_lines):
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return list(islice(reversed(f.readlines()), max_lines))[::-1]
+    except Exception as e:
+        bot_logger.error(f"Error reading log file: {str(e)}", exc_info=True)
+        return []
 
 # ----- Main Routes -----
 
@@ -94,29 +101,27 @@ def index():
             logger.warning(f"Error loading about content: {str(e)}")
             about = "Error loading about content"
 
-
-        # Check bot status from log file
         def check_bot_status():
             """Check bot status by analyzing recent log entries"""
             try:
-                log_file = os.path.join('logs', 'bot.log')  # مسیر فایل لاگ از logging_config.py
+                log_file = os.path.join('logs', 'bot.log')  # Define log_file here
                 if os.path.exists(log_file):
                     with open(log_file, 'r', encoding='utf-8') as f:
                         lines = f.readlines()
                         recent_lines = lines[-15:]  # بررسی آخرین 15 خط
                         for line in reversed(recent_lines):
                             if 'Run polling for bot' in line or 'Start polling' in line:
-                                bot_logger.info('Bot status checked: running')
+                                logger.info('Bot status checked: running')
                                 return 'running'
                             if 'ERROR' in line or 'CRITICAL' in line:
-                                bot_logger.warning('Bot status checked: error')
+                                logger.warning('Bot status checked: error')
                                 return 'error'
                 bot_logger.info('Bot status checked: stopped')
                 return 'stopped'
             except Exception as e:
                 bot_logger.error(f"Error checking bot status: {str(e)}", exc_info=True)
                 return 'unknown'
-        
+
         bot_status = check_bot_status()
 
         # Prepare environment variables status
@@ -129,7 +134,7 @@ def index():
 
         # Fetch recent bot logs
         try:
-           
+
             bot_logs = ['Log file not found.']
             if os.path.exists(log_file):
                 with open(log_file, 'r', encoding='utf-8') as f:
@@ -453,7 +458,7 @@ def admin_index():
 def get_photo_url(photo_url):
     """
     تبدیل مسیر photo_url به مسیر قابل استفاده در url_for
-    
+
     اگر photo_url با static/ شروع شود، مسیر بدون static/ برگردانده می‌شود
     اگر photo_url با uploads/ شروع شود، مسیر همان‌طور برگردانده می‌شود
     اگر photo_url خالی یا None باشد، None برگردانده می‌شود
@@ -722,11 +727,11 @@ def admin_products():
 def build_category_tree(categories):
     """
     ساخت ساختار درختی از دسته‌بندی‌ها
-    
+
     Args:
         categories: لیست اشیاء دسته‌بندی (مانند ProductCategory، ServiceCategory یا EducationalCategory)
                    که هر کدام دارای ویژگی‌های id، name، parent_id هستند
-    
+
     Returns:
         لیست اشیاء درختی که هر کدام شامل name و children (لیست زیردسته‌ها) هستند
     """
@@ -2142,40 +2147,40 @@ def internal_server_error(e):
 
 
 # ----- Control Bot Handlers -----
-    @app.route('/control/start', methods=['POST'])
-    @login_required
-    def control_start():
-        """Start the Telegram bot"""
-        if not current_user.is_admin:
-            flash('دسترسی غیرمجاز.', 'danger')
-            return redirect(url_for('index'))
-
-        try:
-            bot_logger.info(f"Bot started by admin {current_user.username}")
-            flash('ربات با موفقیت راه‌اندازی شد.', 'success')
-        except Exception as e:
-            bot_logger.error(f"Error starting bot: {str(e)}", exc_info=True)
-            flash(f'خطا در راه‌اندازی ربات: {str(e)}', 'danger')
-
+@app.route('/control/start', methods=['POST'])
+@login_required
+def control_start():
+    """Start the Telegram bot"""
+    if not current_user.is_admin:
+        flash('دسترسی غیرمجاز.', 'danger')
         return redirect(url_for('index'))
 
-    @app.route('/control/stop', methods=['POST'])
-    @login_required
-    def control_stop():
-        """Stop the Telegram bot"""
-        if not current_user.is_admin:
-            flash('دسترسی غیرمجاز.', 'danger')
-            return redirect(url_for('index'))
+    try:
+        bot_logger.info(f"Bot started by admin {current_user.username}")
+        flash('ربات با موفقیت راه‌اندازی شد.', 'success')
+    except Exception as e:
+        bot_logger.error(f"Error starting bot: {str(e)}", exc_info=True)
+        flash(f'خطا در راه‌اندازی ربات: {str(e)}', 'danger')
 
-        try:
-            bot_logger.info(f"Bot stopped by admin {current_user.username}")
-            flash('ربات با موفقیت متوقف شد.', 'success')
-        except Exception as e:
-            bot_logger.error(f"Error stopping bot: {str(e)}", exc_info=True)
-            flash(f'خطا در توقف ربات: {str(e)}', 'danger')
+    return redirect(url_for('index'))
 
+@app.route('/control/stop', methods=['POST'])
+@login_required
+def control_stop():
+    """Stop the Telegram bot"""
+    if not current_user.is_admin:
+        flash('دسترسی غیرمجاز.', 'danger')
         return redirect(url_for('index'))
 
+    try:
+        bot_logger.info(f"Bot stopped by admin {current_user.username}")
+        flash('ربات با موفقیت متوقف شد.', 'success')
+    except Exception as e:
+        bot_logger.error(f"Error stopping bot: {str(e)}", exc_info=True)
+        flash(f'خطا در توقف ربات: {str(e)}', 'danger')
+
+    return redirect(url_for('index'))
+  
 
 # ----- Import Export Routes -----
 
@@ -2686,3 +2691,7 @@ def export_table_csv(table_name):
         logger.error(f"Error exporting table {table_name}: {str(e)}")
         flash(f'خطا در خروجی‌گیری از جدول: {str(e)}', 'danger')
         return redirect(url_for('admin_database'))
+
+@app.route('/debug/routes')
+def debug_routes():
+    return jsonify({rule.endpoint: rule.rule for rule in app.url_map.iter_rules()})

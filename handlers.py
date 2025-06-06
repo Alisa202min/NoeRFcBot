@@ -1137,7 +1137,7 @@ async def callback_service(callback: CallbackQuery, state: FSMContext):
         service_text += "\n\n".join(additional_info) + "\n\n"
     
     # Add description
-    if 'description' in in service and service['description']:
+    if 'description' in  service and service['description']:
         service_text += f"📝 توضیحات:\n{service['description']}\n\n"
     
     # Add keyboard for inquiry and back
@@ -1155,9 +1155,9 @@ async def callback_service(callback: CallbackQuery, state: FSMContext):
     if media_files:
         try:
             await send_service_media(callback.message.chat_id, media_files, service, keyboard)
-    except:
+    
         # If no media, send text-only message
-            except Exception as e:
+        except Exception as e:
             logger.debug(f"Error sending service media: {str(e)}\n{traceback.format_exc()}")
             await callback.message.reply("⚠️ خطایی در ارسال رسانه‌های خدمت رخ داد.")
         

@@ -1,7 +1,7 @@
 # app.py
 import os
 from logging_config import get_logger
-logger = get_logger('webpanel')
+logger = get_logger('app')
 from flask import Flask
 from extensions import db  # Import db from extensions.py
 from werkzeug.middleware.proxy_fix import ProxyFix
