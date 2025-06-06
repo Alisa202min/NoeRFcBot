@@ -5,7 +5,8 @@
 
 import os
 import io
-import logging
+from logging_config import get_logger
+logger = get_logger('webpanel')
 import datetime
 import csv
 import zipfile
@@ -28,42 +29,7 @@ from models import (User, Product, ProductMedia, Service, ServiceMedia,
 from flask_wtf.csrf import CSRFProtect
 from logging.handlers import RotatingFileHandler
 
-# تنظیمات لاگ‌گیری
-# Logger setup
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-logger.propagate = False  # Prevent propagation to parent loggers
 
-# Log format
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-# Ensure logs directory exists
-log_dir = "logs"
-log_file = os.path.join(log_dir, 'bot.log')  # Consistent file name
-try:
-    os.makedirs(log_dir, exist_ok=True)
-except OSError as e:
-    print(f"Failed to create log directory: {e}")
-    raise
-
-# File handler with rotation
-file_handler = RotatingFileHandler(
-    log_file,
-    maxBytes=5*1024*1024,  # 5 MB
-    backupCount=3
-)
-file_handler.setLevel(logging.DEBUG)
-file_handler.setFormatter(formatter)
-
-# Console handler
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.DEBUG)
-console_handler.setFormatter(formatter)
-
-# Clear existing handlers and add new ones
-logger.handlers = []
-logger.addHandler(file_handler)
-logger.addHandler(console_handler)
 
 
 app.config['SECRET_KEY'] = 'your-secret-key'  # یا از متغیر محیطی
@@ -97,6 +63,7 @@ def delete_media_file(file_path):
     except Exception as e:
         logger.error(f"Error deleting file {file_path}: {str(e)}")
         return False
+        
 
 
 # ----- Main Routes -----
@@ -127,24 +94,29 @@ def index():
             logger.warning(f"Error loading about content: {str(e)}")
             about = "Error loading about content"
 
+
         # Check bot status from log file
         def check_bot_status():
             """Check bot status by analyzing recent log entries"""
             try:
-                if os.path.exists('bot.log'):
-                    with open(logfile, 'r', encoding='utf-8') as f:
+                log_file = os.path.join('logs', 'bot.log')  # مسیر فایل لاگ از logging_config.py
+                if os.path.exists(log_file):
+                    with open(log_file, 'r', encoding='utf-8') as f:
                         lines = f.readlines()
-                        recent_lines = lines[-15:]  # Check last 15 lines
+                        recent_lines = lines[-15:]  # بررسی آخرین 15 خط
                         for line in reversed(recent_lines):
                             if 'Run polling for bot' in line or 'Start polling' in line:
+                                bot_logger.info('Bot status checked: running')
                                 return 'running'
                             if 'ERROR' in line or 'CRITICAL' in line:
+                                bot_logger.warning('Bot status checked: error')
                                 return 'error'
+                bot_logger.info('Bot status checked: stopped')
                 return 'stopped'
             except Exception as e:
-                logger.warning(f"Error checking bot status: {str(e)}")
+                bot_logger.error(f"Error checking bot status: {str(e)}", exc_info=True)
                 return 'unknown'
-
+        
         bot_status = check_bot_status()
 
         # Prepare environment variables status
@@ -206,26 +178,24 @@ def index():
 @login_required
 def logs():
     """دریافت لاگ‌های ربات"""
-    import os
     try:
-        # تلاش برای خواندن آخرین خطوط فایل لاگ
-       
         max_lines = 500  # حداکثر تعداد خطوط برای نمایش
+        log_file = os.path.join('logs', 'bot.log')  # مسیر فایل لاگ از logging_config.py
 
         # برای درخواست‌های AJAX، پاسخ JSON برگردان
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             try:
                 if os.path.exists(log_file):
                     with open(log_file, 'r', encoding='utf-8') as f:
-                        # خواندن آخرین خطوط
                         all_lines = f.readlines()
-                        lines = all_lines[-max_lines:] if len(
-                            all_lines) > max_lines else all_lines
+                        lines = all_lines[-max_lines:] if len(all_lines) > max_lines else all_lines
+                        bot_logger.info('Fetched bot logs for AJAX request')
                         return jsonify({'logs': ''.join(lines)})
                 else:
+                    bot_logger.warning('Log file not found')
                     return jsonify({'logs': 'فایل لاگ موجود نیست.'})
             except Exception as e:
-                logger.error(f"Error reading log file: {e}")
+                bot_logger.error(f"Error reading log file: {str(e)}", exc_info=True)
                 return jsonify({'logs': f'خطا در خواندن فایل لاگ: {str(e)}'})
 
         # برای درخواست‌های معمولی، صفحه HTML برگردان
@@ -237,45 +207,41 @@ def logs():
                     bot_logs = lines[-50:] if len(lines) > 50 else lines
             else:
                 bot_logs = ['فایل لاگ موجود نیست.']
-
+            bot_logger.info('Fetched bot logs for HTML view')
             return render_template('logs.html',
-                                   logs=bot_logs,
-                                   datetime=datetime,
-                                   active_page='logs')
+                                  logs=bot_logs,
+                                  datetime=datetime,
+                                  active_page='logs')
         except Exception as e:
-            logger.error(f"Error reading log file for HTML view: {e}")
+            bot_logger.error(f"Error reading log file for HTML view: {str(e)}", exc_info=True)
             bot_logs = [f'خطا در خواندن فایل لاگ: {str(e)}']
             return render_template('logs.html',
-                                   logs=bot_logs,
-                                   datetime=datetime,
-                                   active_page='logs')
+                                  logs=bot_logs,
+                                  datetime=datetime,
+                                  active_page='logs')
     except Exception as e:
-        logger.error(f"Error in logs route: {e}")
+        bot_logger.error(f"Error in logs route: {str(e)}", exc_info=True)
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'logs': 'خطای داخلی سرور'})
         else:
             return render_template('error.html', error='خطای داخلی سرور')
 
-
 @app.route('/api/logs')
 def get_logs_json():
     """دریافت لاگ‌های ربات برای درخواست‌های AJAX"""
     try:
-        log_file = 'bot.log'
+        log_file = os.path.join('logs', 'bot.log')
         if os.path.exists(log_file):
             with open(log_file, 'r', encoding='utf-8') as f:
                 lines = f.readlines()
-                # فقط آخرین ۵۰ خط را برمی‌گردانیم تا حجم داده زیاد نباشد
                 bot_logs = lines[-50:] if len(lines) > 50 else lines
-                # تبدیل آرایه خطوط به یک رشته با جداکننده خط جدید
                 logs_text = ''.join(bot_logs)
         else:
             logs_text = 'فایل لاگ موجود نیست.'
-
-        # برگرداندن پاسخ JSON برای درخواست‌های AJAX
+        bot_logger.info('Fetched bot logs for JSON API')
         return jsonify({'logs': logs_text})
     except Exception as e:
-        logger.error(f"Error fetching logs: {e}")
+        bot_logger.error(f"Error fetching logs: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 
@@ -2176,52 +2142,39 @@ def internal_server_error(e):
 
 
 # ----- Control Bot Handlers -----
-@app.route('/control/start', methods=['POST'])
-@login_required
-def control_start():
-    """Start the Telegram bot"""
-    if not current_user.is_admin:
-        flash('دسترسی غیرمجاز.', 'danger')
+    @app.route('/control/start', methods=['POST'])
+    @login_required
+    def control_start():
+        """Start the Telegram bot"""
+        if not current_user.is_admin:
+            flash('دسترسی غیرمجاز.', 'danger')
+            return redirect(url_for('index'))
+
+        try:
+            bot_logger.info(f"Bot started by admin {current_user.username}")
+            flash('ربات با موفقیت راه‌اندازی شد.', 'success')
+        except Exception as e:
+            bot_logger.error(f"Error starting bot: {str(e)}", exc_info=True)
+            flash(f'خطا در راه‌اندازی ربات: {str(e)}', 'danger')
+
         return redirect(url_for('index'))
 
-    try:
-        # Placeholder for bot start logic
-        # Example: Write to bot.log or trigger a bot process
-        with open('bot.log', 'a', encoding='utf-8') as f:
-            f.write(
-                f"{datetime.datetime.now()}: Bot started by admin {current_user.username}\n"
-            )
-        logger.info(f"Bot started by admin {current_user.username}")
-        flash('ربات با موفقیت راه‌اندازی شد.', 'success')
-    except Exception as e:
-        logger.error(f"Error starting bot: {str(e)}")
-        flash(f'خطا در راه‌اندازی ربات: {str(e)}', 'danger')
+    @app.route('/control/stop', methods=['POST'])
+    @login_required
+    def control_stop():
+        """Stop the Telegram bot"""
+        if not current_user.is_admin:
+            flash('دسترسی غیرمجاز.', 'danger')
+            return redirect(url_for('index'))
 
-    return redirect(url_for('index'))
+        try:
+            bot_logger.info(f"Bot stopped by admin {current_user.username}")
+            flash('ربات با موفقیت متوقف شد.', 'success')
+        except Exception as e:
+            bot_logger.error(f"Error stopping bot: {str(e)}", exc_info=True)
+            flash(f'خطا در توقف ربات: {str(e)}', 'danger')
 
-
-@app.route('/control/stop', methods=['POST'])
-@login_required
-def control_stop():
-    """Stop the Telegram bot"""
-    if not current_user.is_admin:
-        flash('دسترسی غیرمجاز.', 'danger')
         return redirect(url_for('index'))
-
-    try:
-        # Placeholder for bot stop logic
-        # Example: Write to bot.log or terminate a bot process
-        with open('bot.log', 'a', encoding='utf-8') as f:
-            f.write(
-                f"{datetime.datetime.now()}: Bot stopped by admin {current_user.username}\n"
-            )
-        logger.info(f"Bot stopped by admin {current_user.username}")
-        flash('ربات با موفقیت متوقف شد.', 'success')
-    except Exception as e:
-        logger.error(f"Error stopping bot: {str(e)}")
-        flash(f'خطا در توقف ربات: {str(e)}', 'danger')
-
-    return redirect(url_for('index'))
 
 
 # ----- Import Export Routes -----

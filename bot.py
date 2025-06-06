@@ -114,15 +114,15 @@ async def start_polling():
     logger.info("Handlers have been registered and router is included in dispatcher")
     
     # Start polling
-        try:
+    try:
             await dp.start_polling(bot)
-        except Exception as e:
-        logger.error(f"Error in polling: {e}")
-        # Try to force delete webhook if we're still having issues
-        await bot.delete_webhook(drop_pending_updates=True)
-        logger.info("Forcefully deleted webhook after error")
-        # Try polling again
-        await dp.start_polling(bot)
+    except Exception as e:
+            logger.error(f"Error in polling: {e}")
+            # Try to force delete webhook if we're still having issues
+            await bot.delete_webhook(drop_pending_updates=True)
+            logger.info("Forcefully deleted webhook after error")
+            # Try polling again
+            await dp.start_polling(bot)        
 
 if __name__ == "__main__":
     try:
