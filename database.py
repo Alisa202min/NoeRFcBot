@@ -266,6 +266,37 @@ class Database:
         finally:
             session.close()
 
+    
+    def get_product_categories(self, parent_id=None) -> List[Dict]:
+        """Get product categories with subcategory and product counts"""
+        session = self.Session()
+        try:
+            query = session.query(ProductCategory)
+            if parent_id is None:
+                query = query.filter(ProductCategory.parent_id.is_(None))
+            else:
+                query = query.filter_by(parent_id=parent_id)
+
+            categories = query.order_by(ProductCategory.name).all()
+            result = []
+            for category in categories:
+                subcategory_count = session.query(ProductCategory).filter_by(parent_id=category.id).count()
+                product_count = session.query(Product).filter_by(category_id=category.id).count()
+                result.append({
+                    'id': category.id,
+                    'name': category.name,
+                    'parent_id': category.parent_id,
+                    'subcategory_count': subcategory_count,
+                    'product_count': product_count,
+                    'total_items': subcategory_count + product_count
+                })
+            return result
+        except Exception as e:
+            logger.error(f"Error in get_product_categories: {str(e)}")
+            return []
+        finally:
+            session.close()
+            
     def get_service_categories(self, parent_id=None) -> List[Dict]:
         """Get service categories with subcategory and service counts"""
         session = self.Session()
