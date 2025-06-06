@@ -6,7 +6,7 @@
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 import os
-import logging
+			  
 import traceback
 from datetime import datetime
 from aiogram import Bot, Dispatcher, types
@@ -15,7 +15,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKe
 from aiogram.filters import Command, StateFilter, CommandStart
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from database import Database
-from logging.handlers import RotatingFileHandler
+from logging_config import get_logger
 from keyboards import get_main_keyboard, get_back_keyboard, get_categories_keyboard, get_admin_keyboard
 
 from configuration import (
@@ -25,40 +25,40 @@ from configuration import (
     BACK_PREFIX, INQUIRY_PREFIX, ADMIN_PREFIX
 ) 
 
+# دریافت لاگر برای بات
+logger = get_logger('bot')
 
+													  
+				
+					
+							   
+						
 
+								  
+									
+							  
 
-# اطمینان از وجود دایرکتوری logs
-log_dir = "logs"
-log_file = 'bot.log'
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
+				 
+																					 
 
-# تنظیمات لاگ‌گیری
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+							  
+								   
+										 
+						  
+				 
+ 
+									
+									
 
-# فرمت لاگ
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+								
+										 
+									   
+									   
 
-# هندلر برای فایل
-file_handler = RotatingFileHandler(
-    os.path.join(log_dir, 'rfcbot.log'), 
-    maxBytes=5*1024*1024, 
-    backupCount=3
-)
-file_handler.setLevel(logging.DEBUG)
-file_handler.setFormatter(formatter)
-
-# هندلر برای کنسول
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.DEBUG)
-console_handler.setFormatter(formatter)
-
-# پاک کردن هندلرهای قبلی و اضافه کردن هندلرهای جدید
-logger.handlers = []  # پاک کردن هندلرهای قبلی
-logger.addHandler(file_handler)
-logger.addHandler(console_handler)
+											  
+																 
+							   
+								  
 
 
 # Define FSM states
@@ -97,14 +97,14 @@ else:
     logger.warning("ADMIN_ID not set")
 
 
-    
+	
 
 # Start command handler - add a debug message to see if it's being called
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext):
     """Handle /start command - initial entry point"""
     try:
-        logging.info(f"Start command received from user: {message.from_user.id}")
+        logger.info(f"Start command received from user: {message.from_user.id}")
         await state.clear()
         
         # Welcome message
@@ -121,14 +121,14 @@ async def cmd_start(message: Message, state: FSMContext):
         keyboard = main_menu_keyboard()
         
         # Log that we're about to send the message with buttons
-        logging.info("Sending welcome message with keyboard buttons")
+        logger.info("Sending welcome message with keyboard buttons")
         
         # Send the message with the solid buttons
         await message.answer(welcome_text, reply_markup=keyboard)
-        logging.info("Start command response sent successfully")
+        logger.info("Start command response sent successfully")
     except Exception as e:
-        logging.error(f"Error in start command handler: {e}")
-        logging.error(traceback.format_exc())
+        logger.error(f"Error in start command handler: {e}\n{traceback.format_exc()}")
+											 
         await message.answer("متأسفانه خطایی رخ داد. لطفاً مجدداً تلاش کنید.")
         
 @router.message(Command("help"))
@@ -147,7 +147,7 @@ async def cmd_help(message: Message):
     await message.answer(help_text, reply_markup=get_main_keyboard())
 
 
-# This import is now at the top of the file
+										   
 
 # Products command handler
 @router.message(Command("products"))
@@ -155,7 +155,7 @@ async def cmd_help(message: Message):
 async def cmd_products(message: Message, state: FSMContext):
     """Handle /products command or Products button"""
     try:
-        logging.info(f"Products requested by user: {message.from_user.id}")
+        logger.info(f"Products requested by user: {message.from_user.id}")
         
         # تنظیم حالت برای محصولات
         await state.update_data(cat_type='product')
@@ -164,8 +164,8 @@ async def cmd_products(message: Message, state: FSMContext):
         await show_product_categories(message, state)
         
     except Exception as e:
-        logging.error(f"Error in cmd_products: {str(e)}")
-        logging.error(traceback.format_exc())
+        logger.error(f"Error in cmd_products: {str(e)}\n{traceback.format_exc()}")
+											 
         await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
 
 # Services command handler
@@ -174,7 +174,7 @@ async def cmd_products(message: Message, state: FSMContext):
 async def cmd_services(message: Message, state: FSMContext):
     """Handle /services command or Services button"""
     try:
-        logging.info(f"Services requested by user: {message.from_user.id}")
+        logger.info(f"Services requested by user: {message.from_user.id}")
         
         # تنظیم حالت برای خدمات
         await state.update_data(cat_type='service')
@@ -183,8 +183,8 @@ async def cmd_services(message: Message, state: FSMContext):
         await show_service_categories(message, state)
         
     except Exception as e:
-        logging.error(f"Error in cmd_services: {str(e)}")
-        logging.error(traceback.format_exc())
+        logger.error(f"Error in cmd_services: {str(e)}\n{traceback.format_exc()}")
+											 
         await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
 
 # Contact command handler
@@ -193,20 +193,20 @@ async def cmd_services(message: Message, state: FSMContext):
 async def cmd_contact(message: Message):
     """Handle /contact command or Contact button"""
     try:
-        logging.info(f"Contact information requested by user: {message.from_user.id}")
+        logger.info(f"Contact information requested by user: {message.from_user.id}")
         contact_text = db.get_static_content('contact')
         if not contact_text:
             await message.answer("⚠️ اطلاعات تماس در حال حاضر در دسترس نیست. لطفا بعدا تلاش کنید.")
-            logging.warning("Contact information not found in database")
+            logger.warning("Contact information not found in database")
             return
             
         # Format the message nicely
         formatted_text = f"📞 *اطلاعات تماس*\n\n{contact_text}"
         await message.answer(formatted_text, parse_mode="Markdown")
-        logging.info("Contact information sent successfully")
+        logger.info("Contact information sent successfully")
     except Exception as e:
-        error_msg = f"خطا در دریافت اطلاعات تماس: {str(e)}"
-        logging.error(f"Error in cmd_contact: {str(e)}\n{traceback.format_exc()}")
+										 
+        logger.error(f"Error in cmd_contact: {str(e)}\n{traceback.format_exc()}")
         await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
 
 # About command handler
@@ -215,20 +215,20 @@ async def cmd_contact(message: Message):
 async def cmd_about(message: Message):
     """Handle /about command or About button"""
     try:
-        logging.info(f"About information requested by user: {message.from_user.id}")
+        logger.info(f"About information requested by user: {message.from_user.id}")
         about_text = db.get_static_content('about')
         if not about_text:
             await message.answer("⚠️ اطلاعات درباره ما در حال حاضر در دسترس نیست. لطفا بعدا تلاش کنید.")
-            logging.warning("About information not found in database")
+            logger.warning("About information not found in database")
             return
             
         # Format the message nicely
         formatted_text = f"ℹ️ *درباره ما*\n\n{about_text}"
         await message.answer(formatted_text, parse_mode="Markdown")
-        logging.info("About information sent successfully")
+        logger.info("About information sent successfully")
     except Exception as e:
-        error_msg = f"خطا در دریافت اطلاعات درباره ما: {str(e)}"
-        logging.error(f"Error in cmd_about: {str(e)}\n{traceback.format_exc()}")
+											 
+        logger.error(f"Error in cmd_about: {str(e)}\n{traceback.format_exc()}")
         await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
 
 # Education button handler
@@ -236,11 +236,11 @@ async def cmd_about(message: Message):
 async def cmd_education(message: Message):
     """Handle Education button"""
     try:
-        logging.info(f"Educational content requested by user: {message.from_user.id}")
+        logger.info(f"Educational content requested by user: {message.from_user.id}")
         categories = db.get_educational_categories()
         if not categories:
             await message.answer("⚠️ محتوای آموزشی در حال حاضر در دسترس نیست. لطفا بعدا تلاش کنید.")
-            logging.warning("No educational categories found in database")
+            logger.warning("No educational categories found in database")
             return
         
         # Format the message nicely
@@ -251,10 +251,10 @@ async def cmd_education(message: Message):
             reply_markup=keyboard,
             parse_mode="Markdown"
         )
-        logging.info(f"Educational categories sent: {len(categories)} categories")
+        logger.info(f"Educational categories sent: {len(categories)} categories")
     except Exception as e:
-        error_msg = f"خطا در دریافت محتوای آموزشی: {str(e)}"
-        logging.error(f"Error in cmd_education: {str(e)}\n{traceback.format_exc()}")
+										  
+        logger.error(f"Error in cmd_education: {str(e)}\n{traceback.format_exc()}")
         await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
 
 # Search button handler
@@ -262,7 +262,7 @@ async def cmd_education(message: Message):
 async def cmd_search(message: Message, state: FSMContext):
     """Handle Search button"""
     try:
-        logging.info(f"Search requested by user: {message.from_user.id}")
+        logger.info(f"Search requested by user: {message.from_user.id}")
         
         search_text = (
             "🔍 *جستجو در محتوا*\n\n"
@@ -275,9 +275,9 @@ async def cmd_search(message: Message, state: FSMContext):
         
         await message.answer(search_text, parse_mode="Markdown")
         await state.set_state(UserStates.waiting_for_search)
-        logging.info(f"User {message.from_user.id} entered search state")
+        logger.info(f"User {message.from_user.id} entered search state")
     except Exception as e:
-        logging.error(f"Error in cmd_search: {str(e)}\n{traceback.format_exc()}")
+        logger.error(f"Error in cmd_search: {str(e)}\n{traceback.format_exc()}")
         await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
 
 # Search input handler
@@ -286,7 +286,7 @@ async def handle_search_input(message: Message, state: FSMContext):
     """Handle search input from user"""
     try:
         search_query = message.text.strip()
-        logging.info(f"Search query received from user {message.from_user.id}: {search_query}")
+        logger.info(f"Search query received from user {message.from_user.id}: {search_query}")
         
         if len(search_query) < 3:
             await message.answer("⚠️ لطفا حداقل ۳ حرف وارد کنید.")
@@ -349,10 +349,10 @@ async def handle_search_input(message: Message, state: FSMContext):
         await message.answer(response_text, parse_mode="Markdown")
         await state.clear()
         
-        logging.info(f"Search results sent to user {message.from_user.id}: {total_results} total results")
+        logger.info(f"Search results sent to user {message.from_user.id}: {total_results} total results")
         
     except Exception as e:
-        logging.error(f"Error in handle_search_input: {str(e)}\n{traceback.format_exc()}")
+        logger.error(f"Error in handle_search_input: {str(e)}\n{traceback.format_exc()}")
         await message.answer("⚠️ متأسفانه در جستجو خطایی رخ داد. لطفا مجددا تلاش کنید.")
         await state.clear()
 
@@ -361,7 +361,7 @@ async def handle_search_input(message: Message, state: FSMContext):
 async def cmd_inquiry(message: Message, state: FSMContext):
     """Handle Inquiry button"""
     try:
-        logging.info(f"Inquiry process started by user: {message.from_user.id}")
+        logger.info(f"Inquiry process started by user: {message.from_user.id}")
         
         # Format the message nicely
         inquiry_text = (
@@ -375,13 +375,13 @@ async def cmd_inquiry(message: Message, state: FSMContext):
         
         await message.answer(inquiry_text, parse_mode="Markdown")
         await state.set_state(UserStates.inquiry_name)
-        logging.info(f"User {message.from_user.id} entered inquiry name state")
+        logger.info(f"User {message.from_user.id} entered inquiry name state")
     except Exception as e:
-        error_msg = f"خطا در شروع فرآیند استعلام: {str(e)}"
-        logging.error(f"Error in cmd_inquiry: {str(e)}\n{traceback.format_exc()}")
+										 
+        logger.error(f"Error in cmd_inquiry: {str(e)}\n{traceback.format_exc()}")
         await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
 
-# Note: Search handlers are defined earlier in the file (lines 210-306)
+																	   
 
 # Button callbacks
 @router.callback_query(F.data == "products")
@@ -415,13 +415,13 @@ async def callback_educational(callback: CallbackQuery):
     """Handle educational content button click"""
     await callback.answer()
     
-    logging.info(f"Educational content requested by user: {callback.from_user.id}")
+    logger.info(f"Educational content requested by user: {callback.from_user.id}")
     
     # Get educational categories
     try:
         categories = db.get_educational_categories()
     except Exception as e:
-        logging.error(f"Failed to fetch categories: {e}")
+        logger.error(f"Failed to fetch categories: {e}\n{traceback.format_exc()}")
         await callback.message.answer("خطایی در دریافت محتوای آموزشی رخ داد.")
         return
     
@@ -437,14 +437,14 @@ async def callback_educational(callback: CallbackQuery):
             legacy_count = len(legacy_content) if legacy_content else 0
             content_count = int(category.get('content_count', 0))
             category['content_count'] = content_count + legacy_count
-            logging.info(f"Category '{category.get('name', 'Unknown')}' (ID: {category_id}): "
+            logger.info(f"Category '{category.get('name', 'Unknown')}' (ID: {category_id}): "
                         f"content_count={content_count}, legacy_count={legacy_count}, "
                         f"total={category['content_count']}")
         except Exception as e:
-            logging.error(f"Error processing category {category.get('id')}: {e}")
+            logger.error(f"Error processing category {category.get('id')}: {e}\n{traceback.format_exc()}")
             category['content_count'] = 0  # Fallback to avoid breaking the keyboard
     
-    logging.info(f"Educational categories sent: {len(categories)} categories")
+    logger.info(f"Educational categories sent: {len(categories)} categories")
     
     # Create and send keyboard
     from keyboards import education_categories_keyboard
@@ -460,24 +460,24 @@ async def callback_educational_category(callback: CallbackQuery):
     try:
         # Extract category ID
         category_id = int(callback.data.replace(f"{EDUCATION_PREFIX}cat_", ""))
-        logging.info(f"Selected educational category ID: {category_id}")
+        logger.info(f"Selected educational category ID: {category_id}")
 
         # Fetch category information directly
         category_info = db.get_educational_category(category_id)
         if not category_info:
-            logging.error(f"Category not found for ID: {category_id}")
+            logger.error(f"Category not found for ID: {category_id}")
             await callback.message.answer("⚠️ دسته‌بندی مورد نظر یافت نشد.")
             return
 
         category_name = category_info['name']
-        logging.info(f"Category name: {category_name}")
+        logger.info(f"Category name: {category_name}")
 
         # Fetch educational content for this category
         content_list = db.get_all_educational_content(category_id=category_id)
-        logging.info(f"Content list for category {category_id}: {content_list}")
+        logger.info(f"Content list for category {category_id}: {content_list}")
 
         if not content_list:
-            logging.warning(f"No educational content found for category ID: {category_id}")
+            logger.warning(f"No educational content found for category ID: {category_id}")
             await callback.message.answer(f"⚠️ محتوای آموزشی برای دسته‌بندی '{category_name}' موجود نیست.")
             return
 
@@ -488,11 +488,11 @@ async def callback_educational_category(callback: CallbackQuery):
         await callback.message.answer(f"📚 محتوای آموزشی در دسته‌بندی '{category_name}':", 
                                    reply_markup=keyboard)
     except ValueError as e:
-        logging.error(f"Invalid category ID format: {callback.data}, error: {str(e)}")
+        logger.error(f"Invalid category ID format: {callback.data}, error: {str(e)}\n{traceback.format_exc()}")
         await callback.message.answer("⚠️ خطایی در پردازش دسته‌بندی رخ داد.")
     except Exception as e:
-        logging.error(f"Error displaying educational content for category: {str(e)}")
-        logging.error(traceback.format_exc())
+        logger.error(f"Error displaying educational content for category: {str(e)}\n{traceback.format_exc()}")
+											 
         await callback.message.answer("⚠️ خطایی در نمایش محتوای آموزشی رخ داد. لطفا مجددا تلاش کنید.")
 
 
@@ -551,10 +551,10 @@ async def process_media_file(media, bot, caption_text, idx):
                 finally:
                     session.close()
             except Exception as e:
-                logging.error(f"Error uploading local file {local_path}: {str(e)}")
+                logger.error(f"Error uploading local file {local_path}: {str(e)}\n{traceback.format_exc()}")
                 return None
         else:
-            logging.error(f"Local file not found: {local_path}")
+            logger.error(f"Local file not found: {local_path}")
             return None
     else:
         # Use the file_id directly if it's a valid Telegram file_id
@@ -565,7 +565,7 @@ async def process_media_file(media, bot, caption_text, idx):
                 parse_mode="Markdown"
             )
         except Exception as e:
-            logging.error(f"Invalid file_id {file_id}: {str(e)}")
+            logger.error(f"Invalid file_id {file_id}: {str(e)}\n{traceback.format_exc()}")
             return None
             
 @router.callback_query(
@@ -592,7 +592,7 @@ async def callback_educational_content(callback: CallbackQuery, bot):
 
         # Get the associated media files
         media_files = db.get_educational_content_media(content_id)
-        logging.info(f"Found {len(media_files)} media files for educational content {content_id}")
+        logger.info(f"Found {len(media_files)} media files for educational content {content_id}")
 
         # Format the content title and text
         title = content['title']
@@ -614,11 +614,11 @@ async def callback_educational_content(callback: CallbackQuery, bot):
                     content=content_text,
                     author="RFCatalogbot"
                 )
-                logging.info(f"Created Telegraph page: {telegraph_url}")
+                logger.info(f"Created Telegraph page: {telegraph_url}")
                 if telegraph_url:
                     caption_text = caption_text.replace("https://telegra.ph/temp-link", telegraph_url)
             except Exception as e:
-                logging.error(f"Error creating Telegraph page: {e}")
+                logger.error(f"Error creating Telegraph page: {e}\n{traceback.format_exc()}")
                 caption_text = f"📖 *{title}*\n\n{content_text[:MAX_CAPTION_LENGTH]}..."
         else:
             caption_text += content_text
@@ -636,7 +636,7 @@ async def callback_educational_content(callback: CallbackQuery, bot):
                 return bool(file_id and len(file_id) > 20 and all(c.isalnum() or c in ['-', '_'] for c in file_id))
 
             if not file_id:
-                logging.warning(f"Skipping media {media['id']} with empty file_id")
+                logger.warning(f"Skipping media {media['id']} with empty file_id")
                 return None
 
             if file_id.startswith('educational_content_image_'):
@@ -653,7 +653,7 @@ async def callback_educational_content(callback: CallbackQuery, bot):
                                 if media_record:
                                     media_record.file_id = telegram_file_id
                                     session.commit()
-                                    logging.info(f"Updated file_id for media {media['id']} to {telegram_file_id}")
+                                    logger.info(f"Updated file_id for media {media['id']} to {telegram_file_id}")
                             finally:
                                 session.close()
                             return InputMediaPhoto(
@@ -662,13 +662,13 @@ async def callback_educational_content(callback: CallbackQuery, bot):
                                 parse_mode="Markdown"
                             )
                         except Exception as e:
-                            logging.error(f"Error uploading local file {full_path}: {str(e)}")
+                            logger.error(f"Error uploading local file {full_path}: {str(e)}\n{traceback.format_exc()}")
                             return None
                     else:
-                        logging.error(f"Local file not found: {full_path}")
+                        logger.error(f"Local file not found: {full_path}")
                         return None
                 else:
-                    logging.error(f"No local path for media {media['id']} with file_id {file_id}")
+                    logger.error(f"No local path for media {media['id']} with file_id {file_id}")
                     return None
             elif is_valid_telegram_file_id(file_id):
                 try:
@@ -678,21 +678,21 @@ async def callback_educational_content(callback: CallbackQuery, bot):
                         parse_mode="Markdown"
                     )
                 except Exception as e:
-                    logging.error(f"Invalid file_id {file_id}: {str(e)}")
+                    logger.error(f"Invalid file_id {file_id}: {str(e)}\n{traceback.format_exc()}")
                     return None
             else:
-                logging.warning(f"Skipping invalid file_id: {file_id}")
+                logger.warning(f"Skipping invalid file_id: {file_id}")
                 return None
 
         for idx, media in enumerate(media_files):
-            logging.info(f"Processing media {media['id']}: file_id={media.get('file_id')}, local_path={media.get('local_path')}")
+            logger.info(f"Processing media {media['id']}: file_id={media.get('file_id')}, local_path={media.get('local_path')}")
             media_item = await process_media_file(media, idx)
             if media_item:
                 media_group.append(media_item)
                 found_valid_media = True
 
         if found_valid_media and media_group:
-            logging.info(f"Sending media group with {len(media_group)} items")
+            logger.info(f"Sending media group with {len(media_group)} items")
             try:
                 await bot.send_media_group(
                     chat_id=callback.message.chat.id,
@@ -705,7 +705,7 @@ async def callback_educational_content(callback: CallbackQuery, bot):
                         reply_markup=keyboard
                     )
             except Exception as e:
-                logging.error(f"Error sending media group: {str(e)}")
+                logger.error(f"Error sending media group: {str(e)}\n{traceback.format_exc()}")
                 content_text = f"📖 *{title}*\n\n{content_text}"
                 if telegraph_url:
                     content_text += f"\n\n[متن کامل]({telegraph_url})"
@@ -717,8 +717,8 @@ async def callback_educational_content(callback: CallbackQuery, bot):
             await callback.message.answer(content_text, parse_mode="Markdown", reply_markup=keyboard)
 
     except Exception as e:
-        logging.error(f"خطا در نمایش محتوای آموزشی: {str(e)}")
-        logging.error(traceback.format_exc())
+        logger.error(f"Error displaying educational content: {str(e)}\n{traceback.format_exc()}")
+											 
         await callback.message.answer("⚠️ خطایی در نمایش محتوا رخ داد. لطفا مجددا تلاش کنید.")
 
 
@@ -747,11 +747,11 @@ async def show_product_categories(message, state, parent_id=None):
         await state.update_data(cat_type='product')
         
         # ثبت گزارش در لاگ
-        logging.info(f"show_product_categories called with parent_id={parent_id}")
+        logger.info(f"show_product_categories called with parent_id={parent_id}")
         
         # فقط از جدول محصولات استفاده می‌کنیم
         categories = db.get_product_categories(parent_id=parent_id)
-        logging.info(f"Product categories: {categories}")
+        logger.info(f"Product categories: {categories}")
         
         # اگر هیچ دسته‌بندی یافت نشد، بررسی کنیم آیا این یک دسته‌بندی نهایی است که محصول دارد
         if not categories:
@@ -759,7 +759,7 @@ async def show_product_categories(message, state, parent_id=None):
             if parent_id is not None:
                 # نمایش محصولات
                 products = db.get_products(parent_id)
-                logging.info(f"Retrieved {len(products)} products for category ID {parent_id}")
+                logger.info(f"Retrieved {len(products)} products for category ID {parent_id}")
                 if products:
                     await show_products_list(message, products, parent_id)
                 else:
@@ -809,8 +809,8 @@ async def show_product_categories(message, state, parent_id=None):
         await state.set_state(UserStates.browse_categories)
         
     except Exception as e:
-        logging.error(f"Error in show_product_categories: {str(e)}")
-        logging.error(traceback.format_exc())
+        logger.error(f"Error in show_product_categories: {str(e)}\n{traceback.format_exc()}")
+											 
         await message.answer("⚠️ متأسفانه در نمایش دسته‌بندی‌های محصولات خطایی رخ داد. لطفا مجددا تلاش کنید یا با پشتیبانی تماس بگیرید.")
 
 
@@ -821,11 +821,11 @@ async def show_service_categories(message, state, parent_id=None):
         await state.update_data(cat_type='service')
         
         # ثبت گزارش در لاگ
-        logging.info(f"show_service_categories called with parent_id={parent_id}")
+        logger.info(f"show_service_categories called with parent_id={parent_id}")
         
         # فقط از جدول خدمات استفاده می‌کنیم
         categories = db.get_service_categories(parent_id=parent_id)
-        logging.info(f"Service categories: {categories}")
+        logger.info(f"Service categories: {categories}")
         
         # اگر هیچ دسته‌بندی یافت نشد، بررسی کنیم آیا این یک دسته‌بندی نهایی است که خدمت دارد
         if not categories:
@@ -833,7 +833,7 @@ async def show_service_categories(message, state, parent_id=None):
             if parent_id is not None:
                 # نمایش خدمات
                 services = db.get_services(parent_id)
-                logging.info(f"Retrieved {len(services)} services for category ID {parent_id}")
+                logger.info(f"Retrieved {len(services)} services for category ID {parent_id}")
                 if services:
                     await show_services_list(message, services, parent_id)
                 else:
@@ -883,8 +883,8 @@ async def show_service_categories(message, state, parent_id=None):
         await state.set_state(UserStates.browse_categories)
         
     except Exception as e:
-        logging.error(f"Error in show_service_categories: {str(e)}")
-        logging.error(traceback.format_exc())
+        logger.error(f"Error in show_service_categories: {str(e)}\n{traceback.format_exc()}")
+											 
         await message.answer("⚠️ متأسفانه در نمایش دسته‌بندی‌های خدمات خطایی رخ داد. لطفا مجددا تلاش کنید یا با پشتیبانی تماس بگیرید.")
 
 @router.callback_query(F.data.startswith("category:"))
@@ -894,7 +894,7 @@ async def callback_category(callback: CallbackQuery, state: FSMContext):
     
     try:
         # ثبت گزارش درباره درخواست
-        logging.info(f"Category callback received: {callback.data}")
+        logger.info(f"Category callback received: {callback.data}")
         
         # استخراج شناسه دسته‌بندی
         category_id = int(callback.data.split(':', 1)[1])
@@ -905,14 +905,14 @@ async def callback_category(callback: CallbackQuery, state: FSMContext):
         # نوع دسته‌بندی (محصول یا خدمت) را قطعی از حالت دریافت می‌کنیم
         cat_type = state_data.get('cat_type', 'product')
         
-        logging.info(f"Processing category ID {category_id} as {cat_type} type")
+        logger.info(f"Processing category ID {category_id} as {cat_type} type")
         
         # براساس نوع دسته‌بندی، تابع مناسب را فراخوانی می‌کنیم
         if cat_type == 'product':
             # فقط دسته‌بندی‌های محصول را بررسی می‌کنیم
             is_valid = db.check_product_category_exists(category_id)
             if not is_valid:
-                logging.warning(f"Category {category_id} is not found in product_categories")
+                logger.warning(f"Category {category_id} is not found in product_categories")
                 await callback.message.answer("⚠️ این دسته‌بندی محصول وجود ندارد. لطفا دسته‌بندی دیگری انتخاب کنید.")
                 return
                 
@@ -922,8 +922,9 @@ async def callback_category(callback: CallbackQuery, state: FSMContext):
         elif cat_type == 'service':
             # فقط دسته‌بندی‌های خدمت را بررسی می‌کنیم
             is_valid = db.check_service_category_exists(category_id)
+            logger.debug(f"Checked service category_id: {category_id}, valid={is_valid}")
             if not is_valid:
-                logging.warning(f"Category {category_id} is not found in service_categories")
+                logger.warning(f"Category {category_id} not found in service_categories")
                 await callback.message.answer("⚠️ این دسته‌بندی خدمت وجود ندارد. لطفا دسته‌بندی دیگری انتخاب کنید.")
                 return
                 
@@ -931,68 +932,68 @@ async def callback_category(callback: CallbackQuery, state: FSMContext):
             await show_service_categories(callback.message, state, category_id)
             
         else:
-            logging.error(f"Unknown category type: {cat_type}")
+            logger.error(f"Unknown category type: {cat_type}")
             await callback.message.answer("⚠️ نوع دسته‌بندی نامشخص است. لطفا دوباره تلاش کنید.")
     
     except Exception as e:
-        logging.error(f"Error in callback_category: {str(e)}")
-        logging.error(traceback.format_exc())
-        await callback.message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید یا با پشتیبانی تماس بگیرید.")
+        logger.error(f"Error in callback_category: {str(e)}\n{traceback.format_exc()}")
+											 
+        await callback.message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفاً مجدداً تلاش کنید یا با پشتیبانی تماس بگیرید.")
 
 
 
 async def show_products_list(message, products, category_id):
 
     """Show list of products in a category"""
-    logging.info(f"show_products_list called with category_id={category_id}, products={products}")
+    logger.debug(f"show_products_list called with category_id={category_id}, products={len(products)}")
     
     try:
         # Build keyboard with products
         kb = InlineKeyboardBuilder()
         for product in products:
-            logging.debug(f"Adding product: {product['name']} with id: {product['id']}")
+            logger.debug(f"Adding product: {product['name']} with id: {product['id']}")
             kb.button(text=product['name'], callback_data=f"product:{product['id']}")
         
         # Add back button
-        logging.debug(f"Adding back button with callback_data: category:{category_id}")
-        kb.button(text="🔙 بازگشت", callback_data=f"category:{category_id}")
+        logger.debug(f"Adding back button with callback_data: category:{category_id}")
+        kb.button(text="🔙", callback_data=f"category:{category_id}")
         kb.adjust(1)
         
         await message.answer("محصولات موجود در این دسته‌بندی:", reply_markup=kb.as_markup())
-        logging.info("Products list sent successfully")
+        logger.info("Products list sent successfully")
     
     except Exception as e:
-        logging.error(f"Error in show_products_list: {str(e)}", exc_info=True)
+        logger.error(f"Error in show_products_list: {str(e)}\n{traceback.format_exc()}")
         await message.answer("⚠️ خطایی در نمایش محصولات رخ داد. لطفا دوباره تلاش کنید.")
 
   
  
-    
+	
 
 
 
 async def show_services_list(message, services, category_id):
     """Show list of services in a category"""
-    logging.info(f"show_services_list called with category_id={category_id}, services={services}")
+    logger.debug(f"show_services_list called with category_id={category_id}, services={len(services)}")
     
     try:
         # Build keyboard with services
         kb = InlineKeyboardBuilder()
         for service in services:
-            logging.debug(f"Adding service: {service['name']} with id: {service['id']}")
+            logger.debug(f"Adding service: {service['name']} with id: {service['id']}")
             kb.button(text=service['name'], callback_data=f"service:{service['id']}")
         
         # Add back button
-        logging.debug(f"Adding back button with callback_data: category:{category_id}")
-        kb.button(text="🔙 بازگشت", callback_data=f"category:{category_id}")
+        logger.debug(f"Adding back button with callback_data: category:{category_id}")
+        kb.button(text="🔙", callback_data=f"category:{category_id}")
         kb.adjust(1)
         
         await message.answer("خدمات موجود در این دسته‌بندی:", reply_markup=kb.as_markup())
-        logging.info("Services list sent successfully")
+        logger.info("Services list sent successfully")
     
     except Exception as e:
-        logging.error(f"Error in show_services_list: {str(e)}", exc_info=True)
-        await message.answer("⚠️ خطایی در نمایش خدمات رخ داد. لطفا دوباره تلاش کنید.")
+        logger.error(f"Error in show_services_list: {str(e)}\n{traceback.format_exc()}")
+        await message.answer("⚖️ خطایی در نمایش خدمات رخ داد. لطفا دوباره تلاش کنید.")
 
 
 @router.callback_query(F.data.startswith("product:"))
@@ -1001,7 +1002,7 @@ async def callback_product(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     
     # Extract product ID
-    product_id = int(callback.data.split(':', 1)[1])
+    product_id = int(category_id.data.split(':', 1)[1])
     
     # Get product details
     product = db.get_product(product_id)
@@ -1018,14 +1019,14 @@ async def callback_product(callback: CallbackQuery, state: FSMContext):
     media_files = db.get_product_media(product_id)
     
     # Log product information for debugging
-    logging.debug(f"Product details: {product}")
+    logger.debug(f"Product details: {product}")
     
     # Format the product details with additional information
     product_text = f"🛒 {product['name']}\n\n"
     
     # Add price information if available
     if 'price' in product and product['price']:
-        product_text += f"💰 قیمت: {product['price']} تومان\n\n"
+        product_text += f"💰 قیمت: {product['price']}: تومان\n\n"
     
     # Add additional information if available
     additional_info = []
@@ -1071,7 +1072,7 @@ async def callback_product(callback: CallbackQuery, state: FSMContext):
     kb.button(text="🛍️ استعلام قیمت", callback_data=f"inquiry:product:{product_id}")
     
     # Get category for back button
-    kb.button(text="🔙 بازگشت", callback_data=f"category:{product['category_id']}")
+    kb.button(text="🔙", callback_data=f"category:{product['category_id']}")
     kb.adjust(1)
     
     # Create keyboard with inquiry button
@@ -1079,9 +1080,9 @@ async def callback_product(callback: CallbackQuery, state: FSMContext):
     
     # Send media files with product info and keyboard
     if media_files:
-        await send_product_media(callback.message.chat.id, media_files, product, keyboard)
+        await send_product_media(callback.message.chat_id, media_files, product, keyboard)
     else:
-        # If no media, send only text description with keyboard
+        # If no media, send text-only message
         await callback.message.answer(product_text, reply_markup=keyboard)
 
 @router.callback_query(F.data.startswith("service:"))
@@ -1100,14 +1101,14 @@ async def callback_service(callback: CallbackQuery, state: FSMContext):
         return
     
     # Save service_id in state for inquiry
-    await state.update_data(service_id=service_id)
+    await state.set_data(service_id=service_id)
     await state.set_state(UserStates.view_service)
     
     # Get service media
     media_files = db.get_service_media(service_id)
     
-    # Log service information for debugging
-    logging.debug(f"Service details: {service}")
+    # Log service details for debugging
+    logger.debug(f"Service details: {service}")
     
     # Format the service details with additional information
     service_text = f"🛠️ {service['name']}\n\n"
@@ -1133,10 +1134,10 @@ async def callback_service(callback: CallbackQuery, state: FSMContext):
     
     # Add additional info to service text if available
     if additional_info:
-        service_text += "\n".join(additional_info) + "\n\n"
+        service_text += "\n\n".join(additional_info) + "\n\n"
     
     # Add description
-    if 'description' in service and service['description']:
+    if 'description' in in service and service['description']:
         service_text += f"📝 توضیحات:\n{service['description']}\n\n"
     
     # Add keyboard for inquiry and back
@@ -1144,17 +1145,22 @@ async def callback_service(callback: CallbackQuery, state: FSMContext):
     kb.button(text="🛍️ استعلام قیمت", callback_data=f"inquiry:service:{service_id}")
     
     # Get category for back button
-    kb.button(text="🔙 بازگشت", callback_data=f"category:{service['category_id']}")
+    kb.button(text="🔙", callback_data=f"category:{service['category_id']}")
     kb.adjust(1)
     
     # Create keyboard with inquiry button
-    keyboard = kb.as_markup()
+    keyboard = kb.as_inline()
     
     # Send media files with service info and keyboard
     if media_files:
-        await send_service_media(callback.message.chat.id, media_files, service, keyboard)
-    else:
-        # If no media, send only text description with keyboard
+        try:
+            await send_service_media(callback.message.chat_id, media_files, service, keyboard)
+    except:
+        # If no media, send text-only message
+            except Exception as e:
+            logger.debug(f"Error sending service media: {str(e)}\n{traceback.format_exc()}")
+            await callback.message.reply("⚠️ خطایی در ارسال رسانه‌های خدمت رخ داد.")
+        
         await callback.message.answer(service_text, reply_markup=keyboard)
 
 # Media handling functions
@@ -1164,10 +1170,10 @@ async def send_educational_media(chat_id, media_files):
     
     # Check if we have any media files
     if not media_files:
-        logging.warning(f"No media files provided to send_educational_media for chat_id {chat_id}")
+        logger.warning(f"No media files provided to send_educational_media for chat_id {chat_id}")
         return
         
-    logging.info(f"Attempting to send {len(media_files)} educational media files to chat_id {chat_id}")
+    logger.info(f"Attempting to send {len(media_files)} educational media files to chat_id {chat_id}")
     
     # Define possible paths to check
     media_paths = [
@@ -1179,6 +1185,7 @@ async def send_educational_media(chat_id, media_files):
         './static/media/',
         './static/media/educational/',
         './static/products/',
+        './static/services/', 
         './attached_assets/',
         './data/',
     ]
@@ -1190,53 +1197,54 @@ async def send_educational_media(chat_id, media_files):
             file_type = media.get('file_type', 'photo')
             
             # Log the full media info for debugging
-            logging.info(f"Processing educational media: file_id={file_id}, local_path={local_path}, file_type={file_type}")
+            logger.debug(f"Processing educational media: file_id={file_id}, local_path={file_path}, file_type={file_type}")
             
             # Check if we have any valid path to use
             if not file_id and not local_path:
-                logging.warning(f"Both file_id and local_path empty for educational media: {media}")
+                logger.warning(f"Skipping media with empty file_id and local_path: {media}")
                 continue
             
             # Prioritize checking local_path if available
             if local_path and os.path.isfile(local_path):
-                logging.info(f"Using educational media local_path that exists: {local_path}")
+                logger.info(f"Using educational media local_path that exists: {local_path}")
                 
                 if file_type == 'photo':
                     photo_file = FSInputFile(local_path)
                     await bot.send_photo(chat_id=chat_id, photo=photo_file)
-                    logging.info(f"Sent educational photo from local_path: {local_path}")
-                    continue  # Skip the rest of the loop for this media item
+                    logger.info(f"Sent educational photo from local_path: {local_path}")
+                    continue                    
+                # Skip the rest of the loop for this media item
                 elif file_type == 'video':
                     video_file = FSInputFile(local_path)
                     await bot.send_video(chat_id=chat_id, video=video_file)
-                    logging.info(f"Sent educational video from local_path: {local_path}")
+                    logger.info(f"Sent educational video from local_path: {local_path}")
                     continue  # Skip the rest of the loop for this media item
             
             # Handle different file location scenarios for file_id
             if isinstance(file_id, str) and file_id.startswith('http'):
                 # It's a URL, use URLInputFile
-                logging.info(f"Educational media file is a URL: {file_id}")
+                logger.info(f"Educational media file is a URL: {file_id}")
                 file = URLInputFile(file_id)
                 
                 if file_type == 'photo':
                     await bot.send_photo(chat_id=chat_id, photo=file)
-                    logging.info(f"Sent educational photo from URL: {file_id}")
+                    logger.info(f"Sent educational photo from URL: {file_id}")
                 elif file_type == 'video':
                     await bot.send_video(chat_id=chat_id, video=file)
-                    logging.info(f"Sent educational video from URL: {file_id}")
+                    logger.info(f"Sent educational video from URL: {file_id}")
                     
             elif file_id and os.path.isfile(file_id):
                 # It's a local file that exists at the given path
-                logging.info(f"Educational media file is a local path that exists: {file_id}")
+                logger.info(f"Educational media file is a local path that exists: {file_id}")
                 
                 if file_type == 'photo':
                     photo_file = FSInputFile(file_id)
                     await bot.send_photo(chat_id=chat_id, photo=photo_file)
-                    logging.info(f"Sent educational photo from local file: {file_id}")
+                    logger.info(f"Sent educational photo from local file: {file_id}")
                 elif file_type == 'video':
                     video_file = FSInputFile(file_id)
                     await bot.send_video(chat_id=chat_id, video=video_file)
-                    logging.info(f"Sent educational video from local file: {file_id}")
+                    logger.info(f"Sent educational video from local file: {file_id}")
             else:
                 # Try to find the file in various directories
                 file_found = False
@@ -1252,17 +1260,18 @@ async def send_educational_media(chat_id, media_files):
                     
                     for path in possible_paths:
                         if os.path.isfile(path):
-                            logging.info(f"Found educational media at alternative path: {path}")
+                            logger.info(f"Found educational media at alternative path: {path}")
                             file_found = True
                             
+                            try:
                             if file_type == 'photo':
                                 photo_file = FSInputFile(path)
                                 await bot.send_photo(chat_id=chat_id, photo=photo_file)
-                                logging.info(f"Sent educational photo from alt path: {path}")
+                                logger.info(f"Sent educational photo from alt path: {path}")
                             elif file_type == 'video':
                                 video_file = FSInputFile(path)
                                 await bot.send_video(chat_id=chat_id, video=video_file)
-                                logging.info(f"Sent educational video from alt path: {path}")
+                                logger.info(f"Sent educational video from alt path: {path}")
                                 
                             break
                 
@@ -1271,54 +1280,55 @@ async def send_educational_media(chat_id, media_files):
                     for path in media_paths:
                         full_path = f"{path}{file_id}"
                         if os.path.isfile(full_path):
-                            logging.info(f"Found educational media file at {full_path}")
+                            logger.info(f"Found educational media file at {full_path}")
                             file_found = True
                             
                             if file_type == 'photo':
                                 photo_file = FSInputFile(full_path)
                                 await bot.send_photo(chat_id=chat_id, photo=photo_file)
-                                logging.info(f"Sent educational photo from path: {full_path}")
+                                logger.info(f"Sent educational photo from path: {full_path}")
                             elif file_type == 'video':
                                 video_file = FSInputFile(full_path)
                                 await bot.send_video(chat_id=chat_id, video=video_file)
                                 logging.info(f"Sent educational video from path: {full_path}")
-                                
+                            
                             break
                 
                 # If file wasn't found in any of our directories, try as a Telegram file_id (last resort)
                 if not file_found:
                     # Only if it doesn't look like a local path pattern (no slashes)
                     if '/' not in file_id:
-                        logging.info(f"Trying as Telegram file_id: {file_id}")
+                        logger.info(f"Trying as Telegram file_id: {file_id}")
                         
                         try:
                             if file_type == 'photo':
                                 await bot.send_photo(chat_id=chat_id, photo=file_id)
-                                logging.info(f"Sent educational photo using file_id: {file_id}")
+                                logger.info(f"Sent educational photo using file_id: {file_id}")
                             elif file_type == 'video':
                                 await bot.send_video(chat_id=chat_id, video=file_id)
-                                logging.info(f"Sent educational video using file_id: {file_id}")
+                                logger.info(f"Sent educational video using file_id: {file_id}")
                         except Exception as e:
-                            logging.error(f"Failed to send educational media using file_id, error: {str(e)}")
+                            logger.error(f"Failed to send educational media using file_id, error: {str(e)}")
                             await bot.send_message(
                                 chat_id=chat_id, 
                                 text=f"⚠️ تصویر یا ویدیوی محتوای آموزشی موجود نیست"
                             )
                     else:
                         # It looks like a path but we couldn't find the file
-                        logging.error(f"Educational media file not found at path: {file_id}")
+                        logger.error(f"Educational media file not found at path: {file_id}")
                         await bot.send_message(
                             chat_id=chat_id, 
                             text=f"⚠️ تصویر یا ویدیوی محتوای آموزشی موجود نیست"
                         )
                     
         except Exception as e:
-            logging.error(f"Error sending educational media: {str(e)}")
-            logging.error(f"Full error details: {traceback.format_exc()}")
+            logger.error(f"Error sending educational media: {str(e)}\n{traceback.format_exc()}")
+																		  
             # Try sending a notification about the failed media
             try:
                 await bot.send_message(chat_id=chat_id, text=f"⚠️ خطا در نمایش فایل رسانه‌ای آموزشی")
-            except:
+            except Exception as inner_e:
+                logger.error(f"Failed to send error notification: {str(inner_e)}")
                 pass
 
 
@@ -1342,13 +1352,19 @@ async def send_educational_media_group(chat_id, media_files, caption="", keyboar
     if not media_files:
         # No media files, send just the text with keyboard
         if caption:
+            try:
             await bot.send_message(
                 chat_id=chat_id,
                 text=caption,
                 parse_mode="Markdown",
                 reply_markup=keyboard
             )
+                logger.info(f"Sent text-only message to chat_id {chat_id}")
+            except Exception as e:
+                logger.error(f"Failed to send text-only message: {str(e)}\n{traceback.format_exc()}")
         return
+    
+    logger.info(f"Attempting to send media group with {len(media_files)} files to chat_id {chat_id}")
     
     # Define possible paths to check
     media_paths = [
@@ -1365,7 +1381,7 @@ async def send_educational_media_group(chat_id, media_files, caption="", keyboar
     
     # Process media files to create a media group
     media_list = []
-    valid_media_count = 0
+    valid_media_count = False
     
     # For each media file
     for i, media in enumerate(media_files):
@@ -1373,17 +1389,17 @@ async def send_educational_media_group(chat_id, media_files, caption="", keyboar
         local_path = media.get('local_path')
         file_type = media.get('file_type', 'photo')  # Default to photo if not specified
         
-        logging.info(f"Processing media for group: file_id={file_id}, local_path={local_path}, file_type={file_type}")
+        logger.info(f"Processing media for group: file_id={file_id}, local_path={local_path}, file_type={file_type}")
         
         # Skip if no file_id or local_path
         if not file_id and not local_path:
-            logging.warning(f"Media has no file_id or local_path")
+            logger.warning(f"Media has no file_id or local_path: {media}")
             continue
         
         # If we have a local_path but no file_id, use local_path as file_id
         if not file_id and local_path:
             file_id = local_path
-            logging.info(f"Using local_path as file_id: {file_id}")
+            logger.info(f"Using local_path as file_id: {file_id}")
         
         try:
             file_found = False
@@ -1393,7 +1409,7 @@ async def send_educational_media_group(chat_id, media_files, caption="", keyboar
             if os.path.exists(file_id):
                 file_found = True
                 file_path = file_id
-                logging.info(f"Found media at direct path: {file_path}")
+                logger.info(f"Found media at direct path: {file_path}")
             
             # If file not found and the file_id looks like a path (has slashes)
             if not file_found and ('/' in file_id):
@@ -1426,7 +1442,7 @@ async def send_educational_media_group(chat_id, media_files, caption="", keyboar
                     if os.path.exists(path):
                         file_found = True
                         file_path = path
-                        logging.info(f"Found media at alternative path: {file_path}")
+                        logger.info(f"Found media at alternative path: {path}")
                         break
             
             # If file was found locally
@@ -1466,7 +1482,7 @@ async def send_educational_media_group(chat_id, media_files, caption="", keyboar
                         # This is our problem file, directly use the known correct path
                         file_found = True
                         file_path = "./static/media/educational/image_7.jpg"
-                        logging.info(f"Using hardcoded path for problem file: {file_path}")
+                        logger.info(f"Using hardcoded path for problem file: {file_path}")
                     else:
                         # Try common paths for educational content images
                         test_paths = [
@@ -1480,15 +1496,15 @@ async def send_educational_media_group(chat_id, media_files, caption="", keyboar
                     
                     # Try each possible path
                     for test_path in test_paths:
-                        logging.info(f"Checking path: {test_path} (exists: {os.path.exists(test_path)})")
+                        logger.info(f"Checking path: {test_path} (exists: {os.path.exists(test_path)})")
                         if os.path.exists(test_path):
                             file_found = True
                             file_path = test_path
-                            logging.info(f"Found auto-generated educational content image at: {file_path}")
+                            logger.info(f"Found auto-generated educational content image at: {file_path}")
                             break
                     
                     if not file_found:
-                        logging.error(f"Could not find image for educational content ID {content_id} after trying multiple paths")
+                        logger.error(f"Could not find image for educational content ID {content_id} after trying multiple paths")
                     
                     # If found, add to media group
                     if file_found and file_path:
@@ -1515,11 +1531,11 @@ async def send_educational_media_group(chat_id, media_files, caption="", keyboar
                             )
                             valid_media_count += 1
                 except Exception as e:
-                    logging.error(f"Error processing auto-generated educational content ID: {str(e)}")
+                    logger.error(f"Error processing auto-generated educational content ID: {str(e)}")
                     
             # If file wasn't found and it looks like a Telegram file_id (no slashes)
             elif '/' not in file_id:
-                logging.info(f"Trying as Telegram file_id: {file_id}")
+                logger.info(f"Trying as Telegram file_id: {file_id}")
                 
                 # For the first media, include the caption
                 media_caption = caption if i == 0 else ""
@@ -1546,18 +1562,18 @@ async def send_educational_media_group(chat_id, media_files, caption="", keyboar
             
             else:
                 # File couldn't be found as path or file_id
-                logging.error(f"Media file not found: {file_id}")
+                logger.error(f"Media file not found: {file_id}")
         
         except Exception as e:
-            logging.error(f"Error processing media for group: {str(e)}")
-            logging.error(traceback.format_exc())
+            logger.error(f"Error processing media for group: {str(e)}")
+            logger.error(traceback.format_exc())
     
     # Now send the media group if we have any valid media
     try:
         if valid_media_count > 0:
             # Send the media group using SendMediaGroup method
             await bot.send_media_group(chat_id=chat_id, media=media_list)
-            logging.info(f"Sent media group with {valid_media_count} files")
+            logger.info(f"Sent media group with {valid_media_count} files")
             
             # Send a separate message with keyboard if needed
             if keyboard:
@@ -1575,8 +1591,8 @@ async def send_educational_media_group(chat_id, media_files, caption="", keyboar
                 reply_markup=keyboard
             )
     except Exception as e:
-        logging.error(f"Error sending media group: {str(e)}")
-        logging.error(traceback.format_exc())
+        logger.error(f"Error sending media group: {str(e)}")
+        logger.error(traceback.format_exc())
         
         # Fallback to sending individual messages
         if caption:
@@ -1610,20 +1626,18 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
     from bot import bot  # Import bot here to avoid circular imports
     from utils import create_telegraph_page  # Import telegraph function
     
+   
     # Log what we received for debugging
     logging.debug(f"Product info received: {product_info}")
-    
     # Check if we have any media files
     if not media_files:
-        logging.warning(f"No media files provided to send_product_media for chat_id {chat_id}")
+        logger.warning(f"No media files provided to send_product_media for chat_id {chat_id}")
         
         # If we have product info but no media, send text message with keyboard
         if product_info:
             title = product_info.get('name', '')
             price = product_info.get('price', '')
             description = product_info.get('description', '')
-            
-            # Get additional product metadata
             brand = product_info.get('brand')
             model = product_info.get('model')
             model_number = product_info.get('model_number')
@@ -1668,11 +1682,11 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
                     reply_markup=reply_markup
                 )
             except Exception as e:
-                logging.error(f"Failed to send product message: {e}")
+                logger.error(f"Failed to send product message: {str(e)}\n{traceback.format_exc()}")
         
         return
         
-    logging.info(f"Attempting to send {len(media_files)} media files to chat_id {chat_id}")
+    logger.info(f"Attempting to send {len(media_files)} media files to chat_id {chat_id}")
     
     # Prepare the caption for the first media
     caption = ""
@@ -1695,7 +1709,7 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
         featured = product_info.get('featured')
         
         # Build caption
-        caption = f"🛒 {title}\n\n"
+        caption = f"🛒 *{title}*\n\n"
         if price:
             caption += f"💰 قیمت: {price} تومان\n\n"
         
@@ -1735,7 +1749,7 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
                 if telegraph_url:
                     caption += f"📄 [مشاهده توضیحات کامل]({telegraph_url})"
             except Exception as e:
-                logging.error(f"Error creating Telegraph page: {e}")
+                logger.error(f"Error creating Telegraph page: {str(e)}\n{traceback.format_exc()}")
                 # If Telegraph creation fails, use regular caption
                 caption += f"📝 توضیحات:\n{description}\n\n"
         else:
@@ -1763,12 +1777,12 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
     main_photo_added = False
     if product_info and 'photo_url' in product_info and product_info['photo_url']:
         photo_url = product_info.get('photo_url')
-        logging.info(f"Adding product main photo: {photo_url}")
+        logger.info(f"Adding product main photo: {photo_url}")
         
         # Check if the main photo exists as a file
         photo_path = f"static/{photo_url}"
         if os.path.isfile(photo_path):
-            logging.info(f"Main product photo file found at: {photo_path}")
+            logger.info(f"Main product photo file found at: {photo_path}")
             try:
                 # Add the main photo as the first item with caption
                 media_object = InputMediaPhoto(
@@ -1780,7 +1794,7 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
                 found_valid_media = True
                 main_photo_added = True
             except Exception as e:
-                logging.error(f"Error adding main product photo: {e}")
+                logger.error(f"Error adding main product photo: {str(e)}\n{traceback.format_exc()}")
 
     # Process the rest of media files
     for i, media in enumerate(media_files):
@@ -1791,10 +1805,10 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
             local_path = media.get('local_path', '')
             
             # Log the full media info for debugging
-            logging.info(f"Processing media: file_id={file_id}, file_type={file_type}, file_name={file_name}")
+            logger.info(f"Processing media: file_id={file_id}, file_type={file_type}, file_name={file_name}")
             
             if not file_id:
-                logging.warning(f"Empty file_id for media: {media}")
+                logger.warning(f"Empty file_id for media: {media}")
                 continue
             
             # Only add caption to the first item in media group, and only if main photo wasn't added
@@ -1805,14 +1819,14 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
                 test_file = './attached_assets/show.jpg'
                 if os.path.isfile(test_file):
                     file_id = test_file
-                    logging.info(f"Found test file at {test_file}")
+                    logger.info(f"Found test file at {test_file}")
             
             media_found = False
             media_object = None
             
             # Check if it's an URL
             if isinstance(file_id, str) and file_id.startswith('http'):
-                logging.info(f"File is a URL: {file_id}")
+                logger.info(f"File is a URL: {file_id}")
                 if file_type == 'photo':
                     media_object = InputMediaPhoto(
                         media=file_id,
@@ -1829,7 +1843,7 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
                 
             # Check if it's a local file with full path
             elif file_id and os.path.isfile(file_id):
-                logging.info(f"File is a local path that exists: {file_id}")
+                logger.info(f"File is a local path that exists: {file_id}")
                 if file_type == 'photo':
                     media_object = InputMediaPhoto(
                         media=FSInputFile(file_id),
@@ -1854,7 +1868,7 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
                     full_path = f"./{local_path}"
                     
                 if os.path.exists(full_path) and os.path.isfile(full_path):
-                    logging.info(f"Found media file using local_path: {full_path}")
+                    logger.info(f"Found media file using local_path: {full_path}")
                     if file_type == 'photo':
                         media_object = InputMediaPhoto(
                             media=FSInputFile(full_path),
@@ -1874,7 +1888,7 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
                 for path in media_paths:
                     full_path = f"{path}{file_id}"
                     if os.path.isfile(full_path):
-                        logging.info(f"Found file at {full_path}")
+                        logger.info(f"Found media file at {full_path}")
                         if file_type == 'photo':
                             media_object = InputMediaPhoto(
                                 media=FSInputFile(full_path),
@@ -1895,9 +1909,9 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
                 # تبدیل مسیر فایل به مسیر کامل
                 if file_id.startswith('uploads/'):
                     full_path = f"static/{file_id}"
-                    logging.info(f"Checking path: {full_path}")
+                    logger.info(f"Checking path: {full_path}")
                     if os.path.exists(full_path) and os.path.isfile(full_path):
-                        logging.info(f"Found media at constructed path: {full_path}")
+                        logger.info(f"Found media at constructed path: {full_path}")
                         if file_type == 'photo':
                             media_object = InputMediaPhoto(
                                 media=FSInputFile(full_path),
@@ -1912,11 +1926,11 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
                             )
                         media_found = True
                     else:
-                        logging.warning(f"File not found at: {full_path}")
+                        logger.warning(f"File not found at: {full_path}")
                 
                 # اگر هنوز پیدا نشد، فقط اگر file_id واقعاً شبیه Telegram file_id باشد (بدون /)
                 if not media_found and len(file_id) > 20 and not '/' in file_id and not file_id.startswith('uploads'):
-                    logging.info(f"Trying as Telegram file_id: {file_id}")
+                    logger.info(f"Trying as Telegram file_id: {file_id}")
                     if file_type == 'photo':
                         media_object = InputMediaPhoto(
                             media=file_id,
@@ -1933,7 +1947,7 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
                 else:
                     # اگر file_id مسیر محلی است ولی فایل وجود ندارد
                     if not media_found and file_id.startswith('uploads/'):
-                        logging.warning(f"Local file not found: ./static/{file_id}")
+                        logger.warning(f"Local file not found: ./static/{file_id}")
             
             # Add to media group if found
             if media_found and media_object:
@@ -1941,12 +1955,12 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
                 found_valid_media = True
                 
         except Exception as e:
-            logging.error(f"Error processing media file: {str(e)}")
+            logger.error(f"Error processing media file: {str(e)}")
             continue
     
     # Send the media group if we have valid media
     if found_valid_media and media_group:
-        logging.info(f"Sending media group with {len(media_group)} items")
+        logger.info(f"Sending media group with {len(media_group)} items")
         try:
             # First send media group
             await bot.send_media_group(
@@ -1963,7 +1977,7 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
                 )
                 
         except Exception as e:
-            logging.error(f"Error sending media group: {str(e)}")
+            logger.error(f"Error sending media group: {str(e)}")
             # Fallback to text-only message with description and telegraph link
             fallback_text = f"🛒 *{title}*\n\n"
             if product_info and product_info.get('price'):
@@ -1982,9 +1996,10 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
                     reply_markup=reply_markup
                 )
             except Exception as err:
-                logging.error(f"Failed to send fallback message: {err}")
+                logger.error(f"Failed to send fallback message: {err}")
     elif product_info:
         # No valid media found, send text-only message
+         logger.warning(f"No valid media found for product, sending text-only message")
         fallback_text = f"🛒 *{title}*\n\n"
         if product_info.get('price'):
             fallback_text += f"💰 قیمت: {product_info.get('price')} تومان\n\n"
@@ -2002,7 +2017,7 @@ async def send_product_media(chat_id, media_files, product_info=None, reply_mark
                 reply_markup=reply_markup
             )
         except Exception as e:
-            logging.error(f"Failed to send fallback message: {e}")
+            logger.error(f"Failed to send text-only message: {str(e)}\n{traceback.format_exc()}")
 
 async def send_service_media(chat_id, media_files, service_info=None, reply_markup=None):
     """
@@ -2014,28 +2029,29 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
         service_info: Optional dictionary with service information (name, price, description)
         reply_markup: Optional reply markup (keyboard) to include with the message
     """
-    logging.info(f"send_service_media called with {len(media_files) if media_files else 0} files")
+    logger.info(f"send_service_media called with {len(media_files) if media_files else 0} files")
     
     from bot import bot  # Import bot here to avoid circular imports
     from utils import create_telegraph_page  # Import telegraph function
     
     # Check if we have any media files
     if not media_files:
-        logging.warning(f"No media files provided to send_service_media for chat_id {chat_id}")
+        logger.warning(f"No media files provided to send_service_media for chat_id {chat_id}")
         
         # If we have service info but no media, send text message with keyboard
         if service_info:
             title = service_info.get('name', '')
             price = service_info.get('price', '')
             description = service_info.get('description', '')
-            tags = service_info.get('tags', '')
+            tags = service_info.get('tags')
+            available = service_info.get('available')
             featured = service_info.get('featured')
             
             # Add service emoji if not already present
             if not title.startswith('🛠️'):
-                title = f"🛠️ {title}"
+                title = f"🛠️ *{title}*"
                 
-            message_text = f"{title}\n\n"
+            message_text = f"*{title}*\n\n"
             if price:
                 message_text += f"💰 قیمت: {price} تومان\n\n"
                 
@@ -2043,6 +2059,8 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
             additional_info = []
             if tags:
                 additional_info.append(f"🏷️ برچسب‌ها: {tags}")
+            if available:
+                additional_info.append("✅ در دسترس")
             if featured:
                 additional_info.append("⭐ خدمت ویژه")
                 
@@ -2061,7 +2079,7 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
                     reply_markup=reply_markup
                 )
             except Exception as e:
-                logging.error(f"Failed to send service message: {e}")
+                logger.error(f"Failed to send service message: {str(e)}\n{traceback.format_exc()}")
         
         return
     
@@ -2072,14 +2090,15 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
         price = service_info.get('price', '')
         description = service_info.get('description', '')
         tags = service_info.get('tags', '')
+        available = service_info.get('available')
         featured = service_info.get('featured')
         
         # Add service emoji if not already present
         if not title.startswith('🛠️'):
-            title = f"🛠️ {title}"
+            title = f"🛠️ *{title}*"
             
         # Create caption
-        caption = f"{title}\n\n"
+        caption = f"*{title}*\n\n"
         if price:
             caption += f"💰 قیمت: {price} تومان\n\n"
             
@@ -2087,20 +2106,22 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
         additional_info = []
         
         # Log values for debugging
-        logging.info(f"Service tags: '{tags}' (type: {type(tags)})")
-        logging.info(f"Service featured: '{featured}' (type: {type(featured)})")
+        logger.info(f"Service tags: '{tags}' (type: {type(tags)})")
+        logger.info(f"Service featured: '{featured}' (type: {type(featured)})")
         
         if tags:
             additional_info.append(f"🏷️ برچسب‌ها: {tags}")
+        if available:
+            additional_info.append("✅ در دسترس")
         if featured:
             additional_info.append("⭐ خدمت ویژه")
             
         # Add additional info to caption if available
         if additional_info:
-            logging.info(f"Additional info to add: {additional_info}")
+            logger.info(f"Additional info to add: {additional_info}")
             caption += "\n".join(additional_info) + "\n\n"
         else:
-            logging.warning("No additional info was added to caption")
+            logger.warning("No additional info was added to caption")
         
         # Check if description is too long
         telegraph_url = None
@@ -2118,7 +2139,7 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
                 if telegraph_url:
                     caption += f"📄 [مشاهده توضیحات کامل]({telegraph_url})"
             except Exception as e:
-                logging.error(f"Error creating Telegraph page: {e}")
+                logger.error(f"Error creating Telegraph page: {str(e)}\n{traceback.format_exc()}")
                 # If Telegraph creation fails, use regular caption
                 caption += f"📝 توضیحات:\n{description}\n\n"
         else:
@@ -2134,7 +2155,7 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
         main_photo_added = False
         if service_info and 'photo_url' in service_info and service_info['photo_url']:
             photo_url = service_info.get('photo_url')
-            logging.info(f"Adding service main photo: {photo_url}")
+            logger.info(f"Adding service main photo: {photo_url}")
             
             # Check if the photo exists as a file - add all possible paths to try
             possible_paths = [
@@ -2152,18 +2173,18 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
             ]
             
             # Log all path attempts for debugging
-            logging.info(f"Trying to find main photo in these paths: {possible_paths}")
+            logger.info(f"Trying to find main photo in these paths: {possible_paths}")
             
             photo_path = None
             for path in possible_paths:
-                logging.info(f"Checking path: {path}")
+                logger.info(f"Checking path: {path}")
                 if os.path.isfile(path):
                     photo_path = path
-                    logging.info(f"Found main photo at path: {path}")
+                    logger.info(f"Found main photo at path: {path}")
                     break
                     
             if photo_path:
-                logging.info(f"Main service photo file found at: {photo_path}")
+                logger.info(f"Main service photo file found at: {photo_path}")
                 try:
                     # Add the main photo as the first item with caption
                     media_object = InputMediaPhoto(
@@ -2175,9 +2196,9 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
                     found_valid_media = True
                     main_photo_added = True
                 except Exception as e:
-                    logging.error(f"Error adding main service photo: {e}")
+                    logger.error(f"Error adding main service photo: {e}")
             else:
-                logging.warning(f"Main photo not found in any of the checked paths for photo_url: {photo_url}")
+                logger.warning(f"Main photo not found in any of the checked paths for photo_url: {photo_url}")
         
         # Filter the media files to remove invalid default media
         valid_media_files = []
@@ -2185,13 +2206,13 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
             file_id = media_file.get('file_id', '')
             # Skip default media files that are causing errors
             if file_id and file_id.startswith('default_media_'):
-                logging.warning(f"Skipping likely invalid default media file: {file_id}")
+                logger.warning(f"Skipping likely invalid default media file: {file_id}")
                 continue
             valid_media_files.append(media_file)
         
         # If no valid media files and no main photo, send text-only message
         if not valid_media_files and not main_photo_added:
-            logging.warning(f"All {len(media_files)} media files were filtered out as invalid and no main photo was found")
+            logger.warning(f"All {len(media_files)} media files were filtered out as invalid and no main photo was found")
             # Send text-only message with full service information
             service_text = f"🛠️ *{title}*\n\n"
             if price:
@@ -2210,10 +2231,10 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
                     parse_mode="Markdown",
                     reply_markup=reply_markup
                 )
-                logging.info(f"Sent text-only message for service with tags: {tags}, featured: {featured}")
+                logger.info(f"Sent text-only message for service with tags: {tags}, featured: {featured}")
                 return
             except Exception as e:
-                logging.error(f"Failed to send service text-only message: {e}")
+                logger.error(f"Failed to send service text-only message: {e}")
                 return
                 
         # Caption will only be used for the first media if main photo wasn't added
@@ -2240,7 +2261,7 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
                 media_object = None
                 media_found = False
                 
-                logging.info(f"Processing service media file {i+1}/{len(valid_media_files)}: {file_id}, type: {file_type}")
+                logger.info(f"Processing service media file {i+1}/{len(valid_media_files)}: {file_id}, type: {file_type}")
                 
                 # Try all possible paths for this service media file
                 possible_paths = [
@@ -2255,12 +2276,12 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
                 ]
                 
                 # Log all path attempts for debugging
-                logging.info(f"Trying to find service media file in these paths: {possible_paths}")
+                logger.info(f"Trying to find service media file in these paths: {possible_paths}")
                 
                 # Try all possible paths
                 for path in possible_paths:
                     if path and os.path.isfile(path):
-                        logging.info(f"Found service media file at path: {path}")
+                        logger.info(f"Found service media file at path: {path}")
                         if file_type == 'photo':
                             media_object = InputMediaPhoto(
                                 media=FSInputFile(path),
@@ -2289,9 +2310,9 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
                         ]
                         
                         for full_path in path_combinations:
-                            logging.info(f"Checking service media path: {full_path}")
+                            logger.info(f"Checking service media path: {full_path}")
                             if os.path.isfile(full_path):
-                                logging.info(f"Found service media file at: {full_path}")
+                                logger.info(f"Found service media file at: {full_path}")
                                 if file_type == 'photo':
                                     media_object = InputMediaPhoto(
                                         media=FSInputFile(full_path),
@@ -2315,9 +2336,9 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
                     # تبدیل مسیر فایل به مسیر کامل
                     if file_id.startswith('uploads/'):
                         full_path = f"static/{file_id}"
-                        logging.info(f"Checking path: {full_path}")
+                        logger.info(f"Checking path: {full_path}")
                         if os.path.exists(full_path) and os.path.isfile(full_path):
-                            logging.info(f"Found media at constructed path: {full_path}")
+                            logger.info(f"Found media at constructed path: {full_path}")
                             if file_type == 'photo':
                                 media_object = InputMediaPhoto(
                                     media=FSInputFile(full_path),
@@ -2332,11 +2353,11 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
                                 )
                             media_found = True
                         else:
-                            logging.warning(f"File not found at: {full_path}")
+                            logger.warning(f"File not found at: {full_path}")
                     
                     # اگر هنوز پیدا نشد، تلاش برای Telegram file_id (فقط اگر شبیه file_id واقعی باشد)
                     if not media_found and len(file_id) > 20 and not '/' in file_id:
-                        logging.info(f"Trying as Telegram file_id: {file_id}")
+                        logger.info(f"Trying as Telegram file_id: {file_id}")
                         if file_type == 'photo':
                             media_object = InputMediaPhoto(
                                 media=file_id,
@@ -2357,12 +2378,12 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
                     found_valid_media = True
                     
             except Exception as e:
-                logging.error(f"Error processing service media file: {str(e)}")
+                logger.error(f"Error processing service media file: {str(e)}")
                 continue
         
         # Send the media group if we have valid media
         if found_valid_media and media_group:
-            logging.info(f"Sending service media group with {len(media_group)} items")
+            logger.info(f"Sending service media group with {len(media_group)} items")
             try:
                 # First send media group
                 await bot.send_media_group(
@@ -2379,7 +2400,7 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
                     )
                     
             except Exception as e:
-                logging.error(f"Error sending service media group: {str(e)}")
+                logger.error(f"Error sending service media group: {str(e)}")
                 # Fallback to text-only message with description
                 fallback_text = f"🛠️ *{title}*\n\n"
                 if price:
@@ -2402,7 +2423,7 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
                         reply_markup=reply_markup
                     )
                 except Exception as err:
-                    logging.error(f"Failed to send service fallback message: {err}")
+                    logger.error(f"Failed to send service fallback message: {err}")
         else:
             # No valid media found, send text-only message
             fallback_text = f"🛠️ *{title}*\n\n"
@@ -2423,7 +2444,7 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
                     reply_markup=reply_markup
                 )
             except Exception as e:
-                logging.error(f"Failed to send service text-only message: {e}")
+                logger.error(f"Failed to send service text-only message: {e}")
     else:
         # If no service_info, send a generic message
         if media_files:
