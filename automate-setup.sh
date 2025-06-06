@@ -144,6 +144,14 @@ INSTALL_REQUIREMENTS=${INSTALL_REQUIREMENTS:-n}
 read -p "مسیر نصب برنامه [/var/www/rfbot]: " APP_DIR
 APP_DIR=${APP_DIR:-/var/www/rfbot}
 
+read -p "آیا می‌خواهید سیستم در حالت دیباگ اجرا شود؟ (y/n) [n]: " DEBUG_MODE
+DEBUG_MODE=${DEBUG_MODE:-n}
+if [ "$DEBUG_MODE" = "y" ] || [ "$DEBUG_MODE" = "Y" ]; then
+    DEBUG_MODE="true"
+else
+    DEBUG_MODE="false"
+fi
+
 # ===== به‌روزرسانی سیستم (وابسته به تأیید، پیش‌فرض خیر) =====
 if [ "$UPDATE_SYSTEM" = "y" ] || [ "$UPDATE_SYSTEM" = "Y" ]; then
     print_message "در حال به‌روزرسانی سیستم..."
@@ -364,6 +372,8 @@ ensure_load_dotenv
 # ===== ایجاد فایل تنظیمات (پیشنهادات 12, 13, 3) =====
 print_message "در حال ایجاد فایل .env..."
 SESSION_SECRET=$(openssl rand -hex 32)
+DEBUG_MODE=$DEBUG_MODE
+
 cat > "$APP_DIR/.env" << EOF
 DATABASE_URL=postgresql://$DB_USER:$DB_PASSWORD@localhost/$DB_NAME
 SQLALCHEMY_DATABASE_URI=postgresql://$DB_USER:$DB_PASSWORD@localhost/$DB_NAME
@@ -377,6 +387,7 @@ ADMIN_USERNAME=$ADMIN_USERNAME
 ADMIN_PASSWORD=$ADMIN_PASSWORD
 UPLOAD_FOLDER=$APP_DIR/static/uploads
 LOG_DIR=$APP_DIR/logs
+DEBUG_MODE=$DEBUG_MODE
 EOF
 chmod 600 "$APP_DIR/.env" >> "$LOG_FILE" 2>&1
 if [ $? -ne 0 ]; then
@@ -563,6 +574,7 @@ print_message "کاربر دیتابیس: $DB_USER"
 print_message "نام کاربری ادمین: $ADMIN_USERNAME"
 print_message "مسیر نصب: $APP_DIR"
 print_message "حالت بات: $BOT_MODE"
+
 if [ "$BOT_MODE" = "webhook" ]; then
     print_message "آدرس وب‌هوک: ${WEBHOOK_HOST}${WEBHOOK_PATH}"
 fi

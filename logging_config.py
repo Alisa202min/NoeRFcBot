@@ -49,7 +49,7 @@ def setup_logging():
     bot_logger.addHandler(bot_file_handler)
     
     # Console handler for bot logger (optional, only in debug mode)
-    if os.environ.get('DEBUG_MODE', 'False').lower() == 'true':
+    if os.environ.get('DEBUG_MODE', 'true').lower() == 'true':
         bot_console_handler = logging.StreamHandler()
         bot_console_handler.setFormatter(log_format)
         bot_logger.addHandler(bot_console_handler)
