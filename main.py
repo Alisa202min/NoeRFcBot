@@ -80,16 +80,19 @@ def read_last_lines(file_path, max_lines):
 def index():
     """Main page of the application"""
     try:
+        
+        log_file = os.path.join('logs', 'bot.log')  # Define log_file here
         # Fetch featured products and services
         products = Product.query.filter_by(featured=True).limit(6).all() or []
         services = Service.query.filter_by(featured=True).limit(6).all() or []
 
+        
         # Fetch recent educational content
         try:
             educational = EducationalContent.query.order_by(
                 EducationalContent.created_at.desc()).limit(3).all() or []
         except Exception as e:
-            logger.warning(f"Error loading educational content: {str(e)}")
+            logger.warning(f"Error loading system content: {str(e)}")
             educational = []
 
         # Fetch 'about' static content
@@ -104,7 +107,7 @@ def index():
         def check_bot_status():
             """Check bot status by analyzing recent log entries"""
             try:
-                log_file = os.path.join('logs', 'bot.log')  # Define log_file here
+              
                 if os.path.exists(log_file):
                     with open(log_file, 'r', encoding='utf-8') as f:
                         lines = f.readlines()

@@ -33,39 +33,6 @@ from configuration import (
 # دریافت لاگر برای بات
 logger = get_logger('bot')
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # Define FSM states
 class UserStates(StatesGroup):
     """States for the Telegram bot FSM"""
@@ -1001,7 +968,7 @@ async def show_services_list(message, services, category_id):
         await message.answer("⚖️ خطایی در نمایش خدمات رخ داد. لطفا دوباره تلاش کنید.")
 
 @router.callback_query(F.data.startswith("product:"))
-async def callback_product(call: types.CallbackQuery, state: FSMContext, db):
+async def callback_product(call: types.CallbackQuery, state: FSMContext):
     """
     Handle callback query for product selection.
     Extracts product_id from callback data, stores it in state, and displays product details.
@@ -1011,7 +978,7 @@ async def callback_product(call: types.CallbackQuery, state: FSMContext, db):
         state: FSMContext for managing user state
         db: Database instance for querying product details
     """
-    logger.info(f"Processing callback query with data: {call.data}")
+    logger.debug(f"Processing callback query with data: {call.data}")
 
     try:
         # Validate and parse callback data
@@ -1027,31 +994,82 @@ async def callback_product(call: types.CallbackQuery, state: FSMContext, db):
 
         # Store product_id in FSM state
         await state.update_data(product_id=product_id)
+        await state.set_state(UserStates.view_product)
         logger.info(f"Stored product_id: {product_id} in state")
 
         # Fetch product details from database (customize based on your Database class)
-        product = db.get_product_by_id(product_id)  # Assume this method exists
+        product = db.get_product(product_id)  # Assume this method exists
         if not product:
             logger.warning(f"Product not found for product_id: {product_id}")
             await call.message.answer("Sorry, this product is not available.")
             await call.answer()
             return
 
-        # Format product details for display
-        product_details = (
-            f"📦 *Product*: {product['name']}\n"
-            f"💰 *Price*: ${product['price']:.2f}\n"
-            f"📝 *Description*: {product.get('description', 'No description available')}"
-        )
 
-        # Send product details to user
+        # Add additional information if available
+        additional_info = []
+        # Add price information if available
+        if 'name' in product and product['name']:
+            additional_info.append(f"📦 نام محصول: {product['name']}\n\n")
+
+
+        # Add price information if available
+        if 'price' in product and product['price']:
+            additional_info.append(f"💰 قیمت: {product['price']}: تومان\n\n")
+
+        # Add description
+        if 'description' in product and product['description']:
+            additional_info.append(f"📝 توضیحات:\n{product['description']}\n\n")
+        # Add brand if available
+        if 'brand' in product and product['brand']:
+            additional_info.append(f"🏢 برند: {product['brand']}")
+
+        # Add model if available
+        if 'model' in product and product['model']:
+            additional_info.append(f"📱 مدل: {product['model']}")
+
+        # Add model_number if available
+        if 'model_number' in product and product['model_number']:
+            additional_info.append(f"📋 شماره مدل: {product['model_number']}")
+
+        # Add manufacturer if available
+        if 'manufacturer' in product and product['manufacturer']:
+            additional_info.append(f"🏭 سازنده: {product['manufacturer']}")
+
+        # Add tags if available
+        if 'tags' in product and product['tags']:
+            additional_info.append(f"🏷️ برچسب‌ها: {product['tags']}")
+
+        # Add in_stock status if available and true
+        if 'in_stock' in product and product['in_stock']:
+            additional_info.append("✅ موجود در انبار")
+
+        # Add featured status if available and true
+        if 'featured' in product and product['featured']:
+            additional_info.append("⭐ محصول ویژه")
+
+        
+
+        product_details = "\n"
+        # Add additional info to product text if available
+        if additional_info:
+            product_details = product_details.join(additional_info) + "\n\n"
+
+        # Add keyboard for inquiry and back
+        kb = InlineKeyboardBuilder()
+        kb.button(text="🛍️ استعلام قیمت", callback_data=f"inquiry:product:{product_id}")
+
+        # Get category for back button
+        kb.button(text="🔙", callback_data=f"category:{product['category_id']}")
+        kb.adjust(1)
+            # Send product details to user
         await call.message.answer(
-            product_details,
-            parse_mode="Markdown"
-        )
+                product_details,
+                parse_mode="Markdown"
+            )
 
-        # Acknowledge the callback query
-        await call.answer()
+            # Acknowledge the callback query
+        await call.answer()    
 
     except (IndexError, ValueError) as e:
         logger.error(f"Error parsing product_id from callback data {call.data}: {str(e)}")
