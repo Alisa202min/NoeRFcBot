@@ -3,25 +3,26 @@
 این ماژول مدیریت پیام‌ها و دستورات تلگرام را انجام می‌دهد.
 """
 
+
+import os
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
-import os
-
 import traceback
 from datetime import datetime
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, types
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Update,URLInputFile, FSInputFile, InputMediaPhoto, InputMediaVideo
+from aiogram.types import Message, CallbackQuery,URLInputFile, FSInputFile, InputMediaPhoto, InputMediaVideo
 from aiogram.filters import Command, StateFilter, CommandStart
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from database import Database
 from logging_config import get_logger
-from keyboards import get_main_keyboard, get_back_keyboard, get_categories_keyboard, get_admin_keyboard
+from keyboards import get_main_keyboard
 from bot import bot  # Import bot here to avoid circular imports
-import traceback
-from aiogram.types import FSInputFile, InputMediaPhoto, InputMediaVideo
-from aiogram.methods.send_media_group import SendMediaGroup    
-from utils import create_telegraph_page  # Import telegraph function
+from aiogram.exceptions import TelegramBadRequest
+#from tenacity import retry, stop_after_attempt, wait_exponential
+from configuration import EDUCATION_PREFIX, ADMIN_ID
+from keyboards import education_detail_keyboard
+from utils import create_telegraph_page, upload_file_to_telegram
 
 from configuration import (
     PRODUCTS_BTN, SERVICES_BTN, INQUIRY_BTN, EDUCATION_BTN, 
@@ -53,8 +54,6 @@ db = Database()
 
 # Initialize router and database - use name to better identify it in logs
 router = Router(name="main_router")
-
-
 
 
 # Get admin ID from environment variable
@@ -146,7 +145,7 @@ async def cmd_products(message: Message, state: FSMContext):
 async def cmd_services(message: Message, state: FSMContext):
     """Handle /services command or Services button"""
     try:
-        logger.info(f"Services requested by user: {message.from_user.id}")
+        logger.info(f"cmd_services Services requested by user: {message.from_user.id}")
 
         # تنظیم حالت برای خدمات
         await state.update_data(cat_type='service')
@@ -204,11 +203,12 @@ async def cmd_about(message: Message):
         await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
 
 # Education button handler
+@router.message(Command("education"))
 @router.message(lambda message: message.text == EDUCATION_BTN)
 async def cmd_education(message: Message):
     """Handle Education button"""
     try:
-        logger.info(f"Educational content requested by user: {message.from_user.id}")
+        logger.info(f"cmd_education Educational content requested by user: {message.from_user.id}")
         categories = db.get_educational_categories()
         if not categories:
             await message.answer("⚠️ محتوای آموزشی در حال حاضر در دسترس نیست. لطفا بعدا تلاش کنید.")
@@ -358,18 +358,21 @@ async def cmd_inquiry(message: Message, state: FSMContext):
 # Button callbacks
 @router.callback_query(F.data == "products")
 async def callback_products(callback: CallbackQuery, state: FSMContext):
+    logger.debug(f"callback_products called with data: {callback.data}")
     """Handle products button click"""
     await callback.answer()
-    await show_categories(callback.message, 'product', state)
+    await show_product_categories(callback.message, state)
 
 @router.callback_query(F.data == "services")
 async def callback_services(callback: CallbackQuery, state: FSMContext):
+    logger.debug(f"callback_services called with data: {callback.data}")
     """Handle services button click"""
     await callback.answer()
-    await show_categories(callback.message, 'service', state)
+    await show_service_categories(callback.message, state)
 
 @router.callback_query(F.data == "contact")
 async def callback_contact(callback: CallbackQuery):
+    logger.debug(f"callback_contact called with data: {callback.data}")
     """Handle contact button click"""
     await callback.answer()
     contact_text = db.get_static_content('contact')
@@ -377,6 +380,7 @@ async def callback_contact(callback: CallbackQuery):
 
 @router.callback_query(F.data == "about")
 async def callback_about(callback: CallbackQuery):
+    logger.debug(f"callback_about called with data: {callback.data}")
     """Handle about button click"""
     await callback.answer()
     about_text = db.get_static_content('about')
@@ -384,6 +388,7 @@ async def callback_about(callback: CallbackQuery):
 
 @router.callback_query(F.data == "educational")
 async def callback_educational(callback: CallbackQuery):
+    logger.debug(f"callback_educational called with data: {callback.data}")
     """Handle educational content button click"""
     await callback.answer()
 
@@ -426,6 +431,7 @@ async def callback_educational(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith(f"{EDUCATION_PREFIX}cat_"))
 async def callback_educational_category(callback: CallbackQuery):
+    logger.debug(f"callback_educational_category called with data: {callback.data}")
     """Handle educational category selection"""
     await callback.answer()
 
@@ -470,6 +476,7 @@ async def callback_educational_category(callback: CallbackQuery):
 
 @router.callback_query(F.data == f"{EDUCATION_PREFIX}categories")
 async def callback_educational_categories(callback: CallbackQuery):
+    logger.debug(f"callback_educational_categories called with data: {callback.data}")
     """Handle going back to educational categories"""
     await callback.answer()
 
@@ -492,210 +499,243 @@ def is_valid_telegram_file_id(file_id: str) -> bool:
     """Basic validation for Telegram file_id"""
     return bool(file_id and len(file_id) > 20 and all(c.isalnum() or c in ['-', '_'] for c in file_id))
 
-async def upload_file_to_telegram(file_path: str, bot) -> str:
-    """Upload a file to Telegram and return its file_id"""
-    with open(file_path, 'rb') as file:
-        result = await bot.send_photo(chat_id=bot.bot_id, photo=file)
-        return result.photo[-1].file_id
 
-async def process_media_file(media, bot, caption_text, idx):
-    file_id = media.get('file_id')
-    file_type = media.get('file_type', 'photo')
-    local_path = media.get('local_path')
 
-    if file_id.startswith('educational_content_image_'):
-        # Try to find and upload the local file
-        if local_path and os.path.exists(local_path):
-            try:
-                telegram_file_id = await upload_file_to_telegram(local_path, bot)
-                # Update the database with the new file_id
-                session = db.Session()
-                try:
-                    media_record = session.query(EducationalContentMedia).filter_by(id=media['id']).first()
-                    if media_record:
-                        media_record.file_id = telegram_file_id
-                        session.commit()
-                    return InputMediaPhoto(
-                        media=telegram_file_id,
-                        caption=caption_text if idx == 0 else "",
-                        parse_mode="Markdown"
-                    )
-                finally:
-                    session.close()
-            except Exception as e:
-                logger.error(f"Error uploading local file {local_path}: {str(e)}\n{traceback.format_exc()}")
-                return None
-        else:
-            logger.error(f"Local file not found: {local_path}")
-            return None
-    else:
-        # Use the file_id directly if it's a valid Telegram file_id
-        try:
-            return InputMediaPhoto(
-                media=file_id,
-                caption=caption_text if idx == 0 else "",
-                parse_mode="Markdown"
-            )
-        except Exception as e:
-            logger.error(f"Invalid file_id {file_id}: {str(e)}\n{traceback.format_exc()}")
-            return None
 
-@router.callback_query(
-    lambda c: c.data and c.data.startswith(f"{EDUCATION_PREFIX}") and "cat_" not in c.data and "categories" not in c.data
-)
-async def callback_educational_content(callback: CallbackQuery, bot):
-    """Handle educational content selection - direct navigation to content"""
+
+#@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=10))
+@router.callback_query(F.data.startswith(f"{EDUCATION_PREFIX}:"))
+async def callback_educational_content(callback: CallbackQuery, bot: Bot):
+    """
+    Handle educational content selection with callback_data format 'edu:<content_id>'.
+    Fetches content and associated media, processes media files, and sends them to the user.
+    """
+    logger.debug(f"Received callback data: {callback.data}")
     await callback.answer()
 
     try:
-        # Extract content ID (removing the prefix)
-        content_id = int(callback.data.replace(f"{EDUCATION_PREFIX}", ""))
+        # استخراج آیدی محتوا
+        if not callback.data.startswith(f"{EDUCATION_PREFIX}:"):
+            logger.error(f"Invalid callback data format: {callback.data}")
+            await callback.message.answer("⚠️ فرمت درخواست نامعتبر است.")
+            return
+        content_id = int(callback.data.replace(f"{EDUCATION_PREFIX}:", ""))
+        logger.info(f"Selected educational content ID: {content_id}")
 
-        # Get content details
+        # دریافت اطلاعات محتوا
         content = db.get_educational_content(content_id)
         if not content:
+            logger.error(f"Educational content not found for ID: {content_id}")
             await callback.message.answer("⚠️ محتوای آموزشی مورد نظر یافت نشد.")
+            if ADMIN_ID:
+                await bot.send_message(ADMIN_ID, f"Content not found: ID {content_id}")
             return
 
-        # Get category_id for back button
-        category_id = content.get('category_id')
-        from keyboards import education_detail_keyboard
-        keyboard = education_detail_keyboard(category_id or 0)
+        # دریافت category_id برای کیبورد بازگشت
+        category_id = content.get('category_id', 0)
+        keyboard = education_detail_keyboard(category_id)
 
-        # Get the associated media files
+        # دریافت فایل‌های مدیا
         media_files = db.get_educational_content_media(content_id)
-        logger.info(f"Found {len(media_files)} media files for educational content {content_id}")
+        logger.info(f"Found {len(media_files)} media files for content ID: {content_id}")
 
-        # Format the content title and text
+        # آماده‌سازی متن محتوا
         title = content['title']
         content_text = content.get('content', '')
         MAX_CAPTION_LENGTH = 850
-
         caption_text = f"📖 *{title}*\n\n"
         telegraph_url = None
 
         if len(content_text) > MAX_CAPTION_LENGTH:
-            short_text = content_text[:MAX_CAPTION_LENGTH] + "...\n\n"
-            short_text += "[(متن کامل)](https://telegra.ph/temp-link)"
+            short_text = content_text[:MAX_CAPTION_LENGTH] + "...\n\n[(متن کامل)](https://telegra.ph/temp-link)"
             caption_text += short_text
-
-            from utils import create_telegraph_page
             try:
                 telegraph_url = await create_telegraph_page(
-                    title=title,
-                    content=content_text,
-                    author="RFCatalogbot"
+                    title=title, content=content_text, author="RFCatalogbot"
                 )
                 logger.info(f"Created Telegraph page: {telegraph_url}")
                 if telegraph_url:
                     caption_text = caption_text.replace("https://telegra.ph/temp-link", telegraph_url)
             except Exception as e:
-                logger.error(f"Error creating Telegraph page: {e}\n{traceback.format_exc()}")
+                logger.error(f"Failed to create Telegraph page: {str(e)}\n{traceback.format_exc()}")
                 caption_text = f"📖 *{title}*\n\n{content_text[:MAX_CAPTION_LENGTH]}..."
         else:
             caption_text += content_text
 
-        # Process media files
+        # پردازش فایل‌های مدیا
         media_group = []
-        found_valid_media = False
-
-        async def process_media_file(media, idx):
-            file_id = media.get('file_id')
-            local_path = media.get('local_path')
-            file_type = media.get('file_type', 'photo')
-
-            def is_valid_telegram_file_id(file_id: str) -> bool:
-                return bool(file_id and len(file_id) > 20 and all(c.isalnum() or c in ['-', '_'] for c in file_id))
-
-            if not file_id:
-                logger.warning(f"Skipping media {media['id']} with empty file_id")
-                return None
-
-            if file_id.startswith('educational_content_image_'):
-                # Try to find and upload the local file
-                if local_path:
-                    full_path = local_path if local_path.startswith('static/') else f"static/{local_path}"
-                    if os.path.exists(full_path):
-                        try:
-                            telegram_file_id = await upload_file_to_telegram(full_path, bot)
-                            # Update the database with the new file_id
-                            session = db.Session()
-                            try:
-                                media_record = session.query(EducationalContentMedia).filter_by(id=media['id']).first()
-                                if media_record:
-                                    media_record.file_id = telegram_file_id
-                                    session.commit()
-                                    logger.info(f"Updated file_id for media {media['id']} to {telegram_file_id}")
-                            finally:
-                                session.close()
-                            return InputMediaPhoto(
-                                media=telegram_file_id,
-                                caption=caption_text if idx == 0 else "",
-                                parse_mode="Markdown"
-                            )
-                        except Exception as e:
-                            logger.error(f"Error uploading local file {full_path}: {str(e)}\n{traceback.format_exc()}")
-                            return None
-                    else:
-                        logger.error(f"Local file not found: {full_path}")
-                        return None
-                else:
-                    logger.error(f"No local path for media {media['id']} with file_id {file_id}")
-                    return None
-            elif is_valid_telegram_file_id(file_id):
-                try:
-                    return InputMediaPhoto(
-                        media=file_id,
-                        caption=caption_text if idx == 0 else "",
-                        parse_mode="Markdown"
-                    )
-                except Exception as e:
-                    logger.error(f"Invalid file_id {file_id}: {str(e)}\n{traceback.format_exc()}")
-                    return None
-            else:
-                logger.warning(f"Skipping invalid file_id: {file_id}")
-                return None
-
         for idx, media in enumerate(media_files):
-            logger.info(f"Processing media {media['id']}: file_id={media.get('file_id')}, local_path={media.get('local_path')}")
-            media_item = await process_media_file(media, idx)
+            media_item = await process_media_file(media, idx, bot, caption_text)
             if media_item:
+                logger.info(f"Added media item with file_id: {media_item.media} for media ID: {media['id']}")
                 media_group.append(media_item)
-                found_valid_media = True
 
-        if found_valid_media and media_group:
-            logger.info(f"Sending media group with {len(media_group)} items")
+        # ارسال محتوا و مدیا
+        if media_group:
             try:
                 await bot.send_media_group(
                     chat_id=callback.message.chat.id,
                     media=media_group
                 )
-                if keyboard:
-                    await bot.send_message(
-                        chat_id=callback.message.chat.id,
-                        text="🔍 گزینه‌های مرتبط با محتوای آموزشی:",
-                        reply_markup=keyboard
-                    )
-            except Exception as e:
-                logger.error(f"Error sending media group: {str(e)}\n{traceback.format_exc()}")
+                await bot.send_message(
+                    chat_id=callback.message.chat.id,
+                    text="🔍 گزینه‌های مرتبط با محتوای آموزشی:",
+                    reply_markup=keyboard
+                )
+            except TelegramBadRequest as e:
+                logger.error(f"Failed to send media group for content {content_id}: {str(e)}\n{traceback.format_exc()}")
                 content_text = f"📖 *{title}*\n\n{content_text}"
                 if telegraph_url:
                     content_text += f"\n\n[متن کامل]({telegraph_url})"
-                await callback.message.answer(content_text, parse_mode="Markdown", reply_markup=keyboard)
+                await callback.message.answer(
+                    content_text, parse_mode="Markdown", reply_markup=keyboard
+                )
+                if ADMIN_ID:
+                    bot.send_message(
+                        ADMIN_ID,
+                        f"Failed to send media group for content {content_id}: {str(e)}\nMedia: {[item.media for item in media_group]}"
+                    )
         else:
-            content_text = f"📖 *{title}*\n\n{content['content']}"
+            logger.warning(f"No valid media files found for content {content_id}")
+            content_text = f"📖 *{title}*\n\n{content_text}"
             if telegraph_url:
                 content_text += f"\n\n[متن کامل]({telegraph_url})"
-            await callback.message.answer(content_text, parse_mode="Markdown", reply_markup=keyboard)
+            await callback.message.answer(
+                content_text, parse_mode="Markdown", reply_markup=keyboard
+            )
+            if ADMIN_ID:
+                await bot.send_message(
+                    ADMIN_ID,
+                    f"No valid media for content {content_id}: {media_files}"
+                )
 
+    except ValueError:
+        logger.error(f"Invalid content ID in callback: {callback.data}")
+        await callback.message.answer("⚠️ خطا در انتخاب محتوا!")
     except Exception as e:
-        logger.error(f"Error displaying educational content: {str(e)}\n{traceback.format_exc()}")
+        logger.error(f"Error processing educational content: {str(e)}\n{traceback.format_exc()}")
+        await callback.message.answer("⚠️ خطایی در نمایش محتوا رخ داد.")
+        if ADMIN_ID:
+            await bot.send_message(
+                ADMIN_ID, f"Error displaying content {content_id}: {str(e)}"
+            )
 
-        await callback.message.answer("⚠️ خطایی در نمایش محتوا رخ داد. لطفا مجددا تلاش کنید.")
+async def process_media_file(media, idx, bot: Bot, caption_text: str):
+    """
+    Process a media file: use file_id if valid, otherwise upload local file and update database.
+    """
+    media_id = media.get('id')
+    file_id = media.get('file_id')
+    local_path = media.get('local_path')
+    file_type = media.get('file_type', 'photo')
 
+    def is_valid_telegram_file_id(file_id: str) -> bool:
+        if not file_id or not isinstance(file_id, str):
+            return False
+        file_id = file_id.strip()
+        return len(file_id) > 20 and all(c.isalnum() or c in ['-', '_', '.'] for c in file_id)
+
+    logger.info(f"Processing media {media_id}: file_id={file_id}, local_path={local_path}, type={file_type}")
+
+    if not file_id or file_id.startswith('educational_content_image_') or not is_valid_telegram_file_id(file_id):
+        if not local_path:
+            logger.error(f"No local path for media {media_id} with file_id {file_id}")
+            return None
+
+        full_path = local_path if local_path.startswith('static/') else f"static/{local_path}"
+        if not os.path.exists(full_path):
+            logger.error(f"Local file not found: {full_path} for media {media_id}")
+            return None
+
+        try:
+            telegram_file_id = await upload_file_to_telegram(full_path, bot, file_type)
+            if not telegram_file_id or not is_valid_telegram_file_id(telegram_file_id):
+                logger.error(f"Invalid file_id returned from upload: {telegram_file_id} for media {media_id}")
+                return None
+
+            session = db.Session()
+            try:
+                media_record = session.query(EducationalContentMedia).filter_by(id=media_id).first()
+                if media_record:
+                    media_record.file_id = telegram_file_id
+                    session.commit()
+                    logger.info(f"Updated file_id for media {media_id} to {telegram_file_id}")
+                else:
+                    logger.error(f"Media record {media_id} not found in database")
+                    return None
+            except Exception as e:
+                logger.error(f"Failed to update database for media {media_id}: {str(e)}\n{traceback.format_exc()}")
+                return None
+            finally:
+                session.close()
+
+            file_id = telegram_file_id
+        except Exception as e:
+            logger.error(f"Error uploading local file {full_path} for media {media_id}: {str(e)}\n{traceback.format_exc()}")
+            return None
+    else:
+        try:
+            await bot.get_file(file_id)
+            logger.info(f"Validated file_id {file_id} for media {media_id}")
+        except TelegramBadRequest as e:
+            logger.warning(f"File_id {file_id} for media {media_id} is inaccessible: {str(e)}")
+            if local_path:
+                full_path = local_path if local_path.startswith('static/') else f"static/{local_path}"
+                if os.path.exists(full_path):
+                    try:
+                        telegram_file_id = await upload_file_to_telegram(full_path, bot, file_type)
+                        if not telegram_file_id or not is_valid_telegram_file_id(telegram_file_id):
+                            logger.error(f"Invalid file_id returned from upload: {telegram_file_id} for media {media_id}")
+                            return None
+
+                        session = db.Session()
+                        try:
+                            media_record = session.query(EducationalContentMedia).filter_by(id=media_id).first()
+                            if media_record:
+                                media_record.file_id = telegram_file_id
+                                session.commit()
+                                logger.info(f"Updated file_id for media {media_id} to {telegram_file_id}")
+                            else:
+                                logger.error(f"Media record {media_id} not found in database")
+                                return None
+                        except Exception as e:
+                            logger.error(f"Failed to update database for media {media_id}: {str(e)}\n{traceback.format_exc()}")
+                            return None
+                        finally:
+                            session.close()
+                        file_id = telegram_file_id
+                    except Exception as e:
+                        logger.error(f"Error re-uploading local file {full_path} for media {media_id}: {str(e)}\n{traceback.format_exc()}")
+                        return None
+                else:
+                    logger.error(f"Local file not found for re-upload: {full_path} for media {media_id}")
+                    return None
+            else:
+                logger.error(f"No local path to re-upload for media {media_id}")
+                return None
+
+    try:
+        if file_type == 'video':
+            media_item = InputMediaVideo(
+                media=file_id,
+                caption=caption_text if idx == 0 else "",
+                parse_mode="Markdown"
+            )
+        else:
+            media_item = InputMediaPhoto(
+                media=file_id,
+                caption=caption_text if idx == 0 else "",
+                parse_mode="Markdown"
+            )
+        logger.info(f"Created media item with file_id {file_id} for media {media_id}")
+        return media_item
+    except Exception as e:
+        logger.error(f"Failed to create media item for file_id {file_id} in media {media_id}: {str(e)}\n{traceback.format_exc()}")
+        return None
 
 @router.callback_query(F.data == "back_to_main")
 async def callback_back_to_main(callback: CallbackQuery, state: FSMContext):
+    logger.debug(f"callback_back_to_main called with data: {callback.data}")
     """Handle back to main menu button"""
     await callback.answer()
     await state.clear()
@@ -861,6 +901,7 @@ async def show_service_categories(message, state, parent_id=None):
 
 @router.callback_query(F.data.startswith("category:"))
 async def callback_category(callback: CallbackQuery, state: FSMContext):
+    logger.debug(f"callback_category called with data: {callback.data}")
     """Handle category selection"""
     await callback.answer()
 
@@ -968,28 +1009,29 @@ async def show_services_list(message, services, category_id):
         await message.answer("⚖️ خطایی در نمایش خدمات رخ داد. لطفا دوباره تلاش کنید.")
 
 @router.callback_query(F.data.startswith("product:"))
-async def callback_product(call: types.CallbackQuery, state: FSMContext):
+async def callback_product(callback: types.CallbackQuery, state: FSMContext):
+    logger.debug(f"callback_product called with data: {callback.data}")
     """
     Handle callback query for product selection.
     Extracts product_id from callback data, stores it in state, and displays product details.
 
     Args:
-        call: CallbackQuery object from aiogram
+        callback: CallbackQuery object from aiogram
         state: FSMContext for managing user state
         db: Database instance for querying product details
     """
-    logger.debug(f"Processing callback query with data: {call.data}")
+    logger.debug(f"Processing callback query with data: {callback.data}")
 
     try:
         # Validate and parse callback data
-        if not call.data.startswith('product:'):
-            logger.error(f"Invalid callback data format: {call.data}")
-            await call.message.answer("Invalid selection. Please try again.")
-            await call.answer()
+        if not callback.data.startswith('product:'):
+            logger.error(f"Invalid callback data format: {callback.data}")
+            await callback.message.answer("Invalid selection. Please try again.")
+            await callback.answer()
             return
 
         # Extract product_id
-        product_id = int(call.data.split(':', 1)[1])
+        product_id = int(callback.data.split(':', 1)[1])
         logger.info(f"Extracted product_id: {product_id}")
 
         # Store product_id in FSM state
@@ -1001,8 +1043,8 @@ async def callback_product(call: types.CallbackQuery, state: FSMContext):
         product = db.get_product(product_id)  # Assume this method exists
         if not product:
             logger.warning(f"Product not found for product_id: {product_id}")
-            await call.message.answer("Sorry, this product is not available.")
-            await call.answer()
+            await callback.message.answer("Sorry, this product is not available.")
+            await callback.answer()
             return
 
 
@@ -1063,26 +1105,27 @@ async def callback_product(call: types.CallbackQuery, state: FSMContext):
         kb.button(text="🔙", callback_data=f"category:{product['category_id']}")
         kb.adjust(1)
             # Send product details to user
-        await call.message.answer(
+        await callback.message.answer(
                 product_details,
                 parse_mode="Markdown"
             )
 
             # Acknowledge the callback query
-        await call.answer()    
+        await callback.answer()    
 
     except (IndexError, ValueError) as e:
-        logger.error(f"Error parsing product_id from callback data {call.data}: {str(e)}")
-        await call.message.answer("Error processing selection. Please try again.")
-        await call.answer()
+        logger.error(f"Error parsing product_id from callback data {callback.data}: {str(e)}")
+        await callback.message.answer("Error processing selection. Please try again.")
+        await callback.answer()
 
     except Exception as e:
         logger.error(f"Unexpected error in callback_product: {str(e)}")
-        await call.message.answer("An error occurred. Please try again later.")
-        await call.answer()
+        await callback.message.answer("An error occurred. Please try again later.")
+        await callback.answer()
 
 @router.callback_query(F.data.startswith("service:"))
 async def callback_service(callback: CallbackQuery, state: FSMContext):
+    logger.debug(f"callback_service called with data: {callback.data}")
     """Handle service selection"""
     await callback.answer()
 
@@ -2447,6 +2490,7 @@ async def send_service_media(chat_id, media_files, service_info=None, reply_mark
 # Inquiry process handlers
 @router.callback_query(F.data.startswith("inquiry:"))
 async def callback_inquiry(callback: CallbackQuery, state: FSMContext):
+    logger.debug(f"callback_inquiry called with data: {callback.data}")
     """Handle inquiry initiation"""
     await callback.answer()
 
@@ -2557,6 +2601,7 @@ async def process_inquiry_description(message: Message, state: FSMContext):
 
 @router.callback_query(F.data == "confirm_inquiry", UserStates.waiting_for_confirmation)
 async def callback_confirm_inquiry(callback: CallbackQuery, state: FSMContext):
+    logger.debug(f"callback_confirm_inquiry called with data: {callback.data}")
     """Handle inquiry confirmation"""
     await callback.answer()
 
@@ -2664,6 +2709,7 @@ async def callback_confirm_inquiry(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "cancel_inquiry")
 async def callback_cancel_inquiry(callback: CallbackQuery, state: FSMContext):
+    logger.debug(f"callback_cancel_inquiry called with data: {callback.data}")
     """Handle inquiry cancellation"""
     await callback.answer()
     await state.clear()
@@ -2681,6 +2727,20 @@ async def callback_cancel_inquiry(callback: CallbackQuery, state: FSMContext):
 
     await callback.message.answer("می‌توانید به استفاده از ربات ادامه دهید:", 
                                reply_markup=kb.as_markup())
+
+
+# Handle all callback queries
+@router.callback_query()
+async def handle_unknown_callback(callback: CallbackQuery):
+    logger.debug(f"handle_unknown_callback called with data: {callback.data}")
+    """Handle unknown callback queries"""
+    logger.debug(
+        f"Unknown callback: update_id={callback.id}, "
+        f"user_id={callback.from_user.id}, data={callback.data} "
+        
+    )
+    await callback.message.answer("این عملیات پشتیبانی نمی‌شود!", reply_markup=get_main_keyboard())
+    await callback.answer()
 
 '''
 
@@ -2990,21 +3050,12 @@ async def handle_unprocessed(message: Message):
     )
     await message.answer("این نوع پیام پشتیبانی نمی‌شود!", reply_markup=get_main_keyboard())
 
-# Handle all callback queries
-@router.callback_query()
-async def handle_unknown_callback(callback: CallbackQuery):
-    """Handle unknown callback queries"""
-    logger.warning(
-        f"Unknown callback: update_id={callback.id}, "
-        f"user_id={callback.from_user.id}, data={callback.data}, "
-        f"full_update={callback.to_python()}"
-    )
-    await callback.message.answer("این عملیات پشتیبانی نمی‌شود!", reply_markup=get_main_keyboard())
-    await callback.answer()
+
 
 # Handle edited messages
 @router.edited_message()
 async def handle_edited_message(message: Message):
+    logger.debug(f"handle_edited_message called with data: {callback.data}")
     """Handle edited messages"""
     logger.info(
         f"Edited message received: update_id={message.message_id}, "

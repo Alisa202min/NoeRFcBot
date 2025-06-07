@@ -1,11 +1,16 @@
 import os
 import csv
-import logging
+from logging_config import get_logger
 import aiohttp
 import json
 from typing import Dict, List, Optional, Any, Tuple, Union
 from datetime import datetime
 from werkzeug.utils import secure_filename
+from aiogram import Bot, types
+
+
+logger = get_logger('bot')
+
 
 def format_price(price: int) -> str:
     """
@@ -456,3 +461,17 @@ def create_directory(directory):
         directory: مسیر دایرکتوری
     """
     os.makedirs(directory, exist_ok=True)
+
+async def upload_file_to_telegram(file_path: str, bot:  Bot, file_type: str = 'photo') -> str:
+    logger.debug(f"Uploading file to Telegram: {file_path}, type: {file_type}")
+    try:
+        with open(file_path, 'rb') as file:
+            if file_type == 'video':
+                response = await bot.send_video(chat_id=bot.id, video=file)
+                return response.video.file_id
+            else:
+                response = await bot.send_photo(chat_id=bot.id, photo=file)
+                return response.photo[-1].file_id
+    except Exception as e:
+        logger.error(f"Failed to upload file {file_path}: {str(e)}\n{traceback.format_exc()}")
+        return None

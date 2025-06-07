@@ -57,7 +57,7 @@ def load_config():
             "WEBHOOK_HOST": os.environ.get("WEBHOOK_HOST", "https://example.com"),
             "WEBHOOK_PATH": os.environ.get("WEBHOOK_PATH", "/api/webhook"),
             "DATABASE_URL": os.environ.get("DATABASE_URL"),
-            "LOG_LEVEL": os.environ.get("LOG_LEVEL", "INFO"),
+            "LOG_LEVEL": os.environ.get("LOG_LEVEL", "DEBUG"),
             "UPLOAD_FOLDER": os.environ.get("UPLOAD_FOLDER", "data/uploads")
         }
 
@@ -146,3 +146,4 @@ WEBHOOK_HOST = config.get("WEBHOOK_HOST", "https://example.com")
 WEBHOOK_PATH = config.get("WEBHOOK_PATH", "/api/webhook")
 DATABASE_URL = config.get("DATABASE_URL", os.environ.get("DATABASE_URL"))
 UPLOAD_FOLDER = config.get("UPLOAD_FOLDER", "data/uploads")
+ADMIN_ID = config.get("ADMIN_ID", os.environ.get("ADMIN_ID"))

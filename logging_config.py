@@ -19,7 +19,7 @@ def setup_logging():
 
     # General application logger (for critical errors and shared logs)
     app_logger = logging.getLogger('app')
-    app_logger.setLevel(logging.INFO)
+    app_logger.setLevel(logging.DEBUG)
     
     # File handler for app logger with rotation
     app_file_handler = logging.handlers.RotatingFileHandler(
@@ -37,7 +37,7 @@ def setup_logging():
 
     # Bot logger
     bot_logger = logging.getLogger('bot')
-    bot_logger.setLevel(logging.INFO)
+    bot_logger.setLevel(logging.DEBUG)
     
     # File handler for bot logger with rotation
     bot_file_handler = logging.handlers.RotatingFileHandler(
@@ -56,7 +56,7 @@ def setup_logging():
 
     # Webpanel logger
     webpanel_logger = logging.getLogger('webpanel')
-    webpanel_logger.setLevel(logging.INFO)
+    webpanel_logger.setLevel(logging.DEBUG)
     
     # File handler for webpanel logger with rotation
     webpanel_file_handler = logging.handlers.RotatingFileHandler(

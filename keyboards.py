@@ -209,6 +209,7 @@ def education_categories_keyboard(categories: List[Dict]) -> InlineKeyboardMarku
     
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
+
 def education_content_keyboard(contents: List[Dict], category_id: int) -> InlineKeyboardMarkup:
     """
     Create a keyboard for educational content listing
@@ -220,20 +221,15 @@ def education_content_keyboard(contents: List[Dict], category_id: int) -> Inline
     Returns:
         InlineKeyboardMarkup for educational content
     """
-    keyboard = []
-    
-    # Add content buttons
+    builder = InlineKeyboardBuilder()
     for content in contents:
-        callback_data = f"{EDUCATION_PREFIX}{content['id']}"
-        keyboard.append([InlineKeyboardButton(text=content['title'], callback_data=callback_data)])
-    
-    # Add back button - بازگشت به لیست دسته‌بندی‌ها
-    keyboard.append([InlineKeyboardButton(text=BACK_BTN, callback_data=f"{EDUCATION_PREFIX}categories")])
-    
-    # اضافه کردن دکمه بازگشت به منوی اصلی
-    keyboard.append([InlineKeyboardButton(text="🏠 بازگشت به منوی اصلی", callback_data="back_to_main")])
-    
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+        builder.button(text=content['title'], callback_data=f"{EDUCATION_PREFIX}:{content['id']}")
+    builder.button(text=BACK_BTN, callback_data=f"{EDUCATION_PREFIX}:cat_{category_id}")
+    builder.button(text="🏠 بازگشت به منوی اصلی", callback_data="back_to_main")
+    builder.adjust(1)
+    return builder.as_markup()
+
+
 
 def education_detail_keyboard(category_id: int, category_name: Optional[str] = None) -> InlineKeyboardMarkup:
     """
