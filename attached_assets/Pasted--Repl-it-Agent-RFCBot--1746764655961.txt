@@ -1,0 +1,529 @@
+پرامپت زیر برای Repl.it Agent بازنویسی شده است تا وضعیت و مشخصات کد فعلی پروژه RFCBot را با تمرکز بر ویژگی‌های ربات تلگرامی توضیح دهد، شامل ساختار پایگاه داده PostgreSQL، مهاجرت به `aiogram`، و ویژگی‌های درخواست‌شده (آپلود چند عکس و ویدیو، مدیریت کارآمد فایل‌ها در تلگرام، داده‌های نمونه، بهبود بررسی NULL در متدهای پایگاه داده، رفع خطاهای LSP در `handlers.py`، و تست‌های PostgreSQL) باشد. پرامپت دقیق، کامل، و مختصر است، از افزودن ویژگی‌های جدید یا توضیحات غیرضروری اجتناب می‌کند، و در یک کادر برای کپی آسان قرار دارد. هدف، اطمینان از عملکرد صحیح ربات با ویژگی‌های موجود و نمایش کامل قابلیت‌ها با داده‌های نمونه است.
+
+```plaintext
+You are a Repl.it Agent tasked with analyzing, enhancing, and ensuring the functionality of an existing Telegram bot project called RFCBot, designed as a catalog for a store specializing in radio frequency and telecommunications devices. The project includes a Telegram bot (migrating from python-telegram-bot v20.x to aiogram) and a Flask-based web interface for basic administration, tailored for Persian users with a dark-themed, RTL Bootstrap 5 UI. Your primary focus is to ensure the bot’s core features work correctly, integrate with a PostgreSQL database, support multiple photo/video uploads for products/services, implement efficient file handling in Telegram, add sample data, improve database methods, fix LSP errors, and provide tests. Below is the current state of the project, including code structure, database schema, and key functionalities. Please review, implement the requested enhancements, and ensure the bot operates reliably with all features fully demonstrated.
+
+### Project Overview
+- **Purpose**: A Telegram bot acting as a product and service catalog for radio frequency and telecommunications devices, allowing users to browse hierarchically categorized products/services, request price inquiries, and access educational content. A Flask web interface provides basic content management.
+- **Priority**: Ensure the Telegram bot’s core features (main menu, 4-level category navigation, price inquiries, educational content, admin panel) function correctly with aiogram and PostgreSQL, supporting multiple photo/video uploads and efficient file handling.
+- **Language**: Persian, with RTL UI (lang="fa" dir="rtl"). No multi-language support required.
+- **Deployment**: Bot uses webhooks, Flask server runs on port 5000.
+
+### Core Bot Features
+- **Main Menu**: Buttons for Products, Services, Price Inquiry, Educational Content, Contact, About, and Search, defined in `configuration.py`:
+  ```python
+  PRODUCTS_BTN = "محصولات"
+  SERVICES_BTN = "خدمات"
+  INQUIRY_BTN = "استعلام قیمت"
+  EDUCATION_BTN = "مطالب آموزشی"
+  CONTACT_BTN = "تماس با ما"
+  ABOUT_BTN = "درباره ما"
+  BACK_BTN = "بازگشت"
+  SEARCH_BTN = "جستجو"
+  ADMIN_BTN = "پنل ادمین"
+  ```
+- **Category Navigation**: Hierarchical navigation up to 4 levels for products (e.g., محصولات → دستگاه‌های رادیوفرکانسی → اسیلوسکوپ → اسیلوسکوپ اچ‌پی PPU400) and services (e.g., خدمات → تست و تعمیر دستگاه‌های رادیوفرکانسی → تعمیر اسیلوسکوپ → تعمیر اساسی اسیلوسکوپ اچ‌پی 400), stored in `categories` table.
+- **Price Inquiry**: Form capturing user’s name, phone, and optional description, stored in `inquiries` table, with admin notifications via Telegram. Accessible for both products and services.
+- **Educational Content**: Categorized content (text, links, or files) stored in `educational_content` table, accessible via the bot.
+- **Admin Panel**: Manage content (categories, products, services, inquiries, educational content, static pages) via Telegram commands and inline keyboards, using prefixes:
+  ```python
+  PRODUCT_PREFIX = "product_"
+  SERVICE_PREFIX = "service_"
+  CATEGORY_PREFIX = "category_"
+  BACK_PREFIX = "back_"
+  INQUIRY_PREFIX = "inquiry_"
+  EDUCATION_PREFIX = "edu_"
+  ADMIN_PREFIX = "admin_"
+  ```
+- **Static Content**: Contact and About sections, with additional dynamic pages stored in `pages` table, displayed in the bot.
+- **Photo/Video Uploads**: Support multiple photos/videos for products/services, stored in `product_media`/`service_media` tables with Telegram `file_id` for efficient reuse without re-uploading.
+- **Text Constants** (from `configuration.py`):
+  ```python
+  START_TEXT = """به ربات جامع محصولات و خدمات خوش آمدید! این ربات امکانات زیر را در اختیار شما قرار می‌دهد:
+  محصولات:
+  • مشاهده محصولات در دسته‌بندی‌های مختلف
+  • جزئیات کامل هر محصول شامل قیمت و توضیحات
+  • امکان مشاهده تصاویر محصولات
+  خدمات:
+  • دسترسی به لیست خدمات قابل ارائه
+  • اطلاعات کامل هر خدمت و شرایط ارائه
+  • امکان استعلام قیمت مستقیم
+  استعلام قیمت:
+  • درخواست استعلام قیمت برای محصولات و خدمات
+  • فرم ساده و سریع برای ثبت درخواست
+  • پیگیری آسان درخواست‌ها
+  مطالب آموزشی:
+  • دسترسی به محتوای آموزشی دسته‌بندی شده
+  • مقالات و راهنماهای کاربردی
+  • به‌روزرسانی مستمر محتوا
+  امکانات دیگر:
+  • جستجو در محصولات و خدمات
+  • تماس مستقیم با پشتیبانی
+  • اطلاعات تماس و درباره ما
+  لطفاً از منوی زیر بخش مورد نظر خود را انتخاب کنید:"""
+  NOT_FOUND_TEXT = "موردی یافت نشد."
+  CONTACT_DEFAULT = "با ما از طریق شماره 1234567890+ یا ایمیل info@example.com در تماس باشید."
+  ABOUT_DEFAULT = "ما یک شرکت فعال در زمینه تجهیزات الکترونیکی هستیم."
+  INQUIRY_START = "لطفاً فرم استعلام قیمت را کامل کنید. نام خود را وارد کنید:"
+  INQUIRY_PHONE = "لطفاً شماره تماس خود را وارد کنید:"
+  INQUIRY_DESC = "لطفاً توضیحات بیشتر را وارد کنید (اختیاری):"
+  INQUIRY_COMPLETE = "استعلام قیمت شما با موفقیت ثبت شد. به زودی با شما تماس خواهیم گرفت."
+  ADMIN_WELCOME = "به پنل مدیریت خوش آمدید. لطفاً یکی از گزینه‌های زیر را انتخاب کنید:"
+  ADMIN_ACCESS_DENIED = "شما دسترسی به پنل مدیریت ندارید."
+  SEARCH_PROMPT = "لطفاً عبارت جستجو را وارد کنید:"
+  ERROR_MESSAGE = "خطایی رخ داد. لطفاً دوباره تلاش کنید."
+  ```
+
+### Flask Web Interface (Secondary)
+- **Dashboard** (`index.html`): Displays bot status, environment variables (`BOT_TOKEN`, `ADMIN_ID`, `DB_TYPE`), database status, and logs (auto-refresh every 5s with filtering/export).
+- **Configuration** (`configuration.html`): Form to edit settings, with `BOT_TOKEN` masked as password input.
+- **Database Status** (`database.html`): Shows PostgreSQL connection details and table data viewer (`/database/view/<table>`).
+- **Admin Panel** (`admin_layout.html`):
+  - **Categories** (`admin_categories.html`): Manage product/service categories.
+  - **Products/Services** (`admin_products.html`): Unified list with search/filter, forms for adding/editing with multiple photo/video uploads.
+  - **Educational Content** (`admin_education.html`): List/edit content with rich text editor (Summernote).
+  - **Inquiries** (`admin_inquiries.html`): List inquiries with filters and Excel export.
+  - **Static Content** (`admin_content.html`): Manage dynamic pages.
+  - **Import/Export** (`admin_import_export.html`): CSV export/import, database backup/restore.
+- **UI Features**: Bootstrap 5 (dark theme, RTL), consistent pagination, responsive sidebar/top navbar, flash messages, JavaScript for dynamic UI (modals, log filtering).
+
+### Database Schema (PostgreSQL)
+- **categories**:
+  ```sql
+  CREATE TABLE categories (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      parent_id INTEGER,
+      cat_type TEXT NOT NULL,
+      CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE CASCADE
+  );
+  ```
+- **products**:
+  ```sql
+  CREATE TABLE products (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      price INTEGER NOT NULL,
+      description TEXT,
+      category_id INTEGER NOT NULL,
+      CONSTRAINT fk_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+  );
+  ```
+- **services**:
+  ```sql
+  CREATE TABLE services (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      price INTEGER NOT NULL,
+      description TEXT,
+      category_id INTEGER NOT NULL,
+      CONSTRAINT fk_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+  );
+  ```
+- **product_media**:
+  ```sql
+  CREATE TABLE product_media (
+      id SERIAL PRIMARY KEY,
+      product_id INTEGER NOT NULL,
+      file_id TEXT NOT NULL,
+      file_type TEXT NOT NULL,
+      CONSTRAINT fk_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+  );
+  ```
+- **service_media**:
+  ```sql
+  CREATE TABLE service_media (
+      id SERIAL PRIMARY KEY,
+      service_id INTEGER NOT NULL,
+      file_id TEXT NOT NULL,
+      file_type TEXT NOT NULL,
+      CONSTRAINT fk_service FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE
+  );
+  ```
+- **inquiries**:
+  ```sql
+  CREATE TABLE inquiries (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      description TEXT,
+      product_id INTEGER,
+      service_id INTEGER,
+      date TEXT NOT NULL,
+      CONSTRAINT fk_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
+      CONSTRAINT fk_service FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE SET NULL
+  );
+  ```
+- **educational_content**:
+  ```sql
+  CREATE TABLE educational_content (
+      id SERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      category TEXT NOT NULL,
+      type TEXT NOT NULL
+  );
+  ```
+- **pages**:
+  ```sql
+  CREATE TABLE pages (
+      id SERIAL PRIMARY KEY,
+      slug TEXT NOT NULL UNIQUE,
+      title TEXT NOT NULL,
+      content TEXT
+  );
+  ```
+
+### Code Structure
+- **Python Files**:
+  - `configuration.py`: Manages settings via `data/current_config.json` and environment variables.
+  - `bot.py`: Core bot logic using `aiogram` with routers for commands/callbacks.
+  - `keyboards.py`: Defines inline/reply keyboards.
+  - `main.py`: Initializes Flask app and aiogram webhooks.
+  - `database.py`: PostgreSQL operations (CRUD for all tables, improved NULL checking).
+  - `handlers.py`: Aiogram command/callback handlers (fix LSP errors).
+- **Templates** (Jinja2, Bootstrap 5):
+  - `layout.html`: Navbar with consistent active page highlighting.
+  - `index.html`: Dashboard with log filtering/export.
+  - `configuration.html`: Settings form with Summernote for rich text.
+  - `database.html`: Table data viewer.
+  - `admin_layout.html`: Sidebar for admin sections.
+  - `admin_*.html`: Templates for managing categories, products, services, etc., with pagination macro.
+  - Pagination macro:
+    ```html
+    {% macro render_pagination(pagination) %}
+      <nav>
+        <ul class="pagination">
+          <li class="page-item {{ 'disabled' if not pagination.prev_url }}">
+            <a class="page-link" href="{{ pagination.prev_url }}">قبلی</a>
+          </li>
+          {% for page in pagination.pages %}
+            <li class="page-item {{ 'active' if page == pagination.page }}">
+              <a class="page-link" href="{{ pagination.url_for_page(page) }}">{{ page }}</a>
+            </li>
+          {% endfor %}
+          <li class="page-item {{ 'disabled' if not pagination.next_url }}">
+            <a class="page-link" href="{{ pagination.next_url }}">بعدی</a>
+          </li>
+        </ul>
+      </nav>
+    {% endmacro %}
+    ```
+  - Consolidated JavaScript in `static/js/admin.js`:
+    ```javascript
+    function setupDeleteModal(modalId, idAttr, titleAttr, idInputId, titleSpanId) {
+      document.getElementById(modalId).addEventListener('show.bs.modal', event => {
+        const button = event.relatedTarget;
+        document.getElementById(idInputId).value = button.getAttribute(idAttr);
+        document.getElementById(titleSpanId).textContent = button.getAttribute(titleAttr);
+      });
+    }
+    ```
+- **Static Files**: CSS, Bootstrap 5, Bootstrap Icons, Summernote.
+
+### Tech Stack
+- **Backend**: Python 3.8+, `aiogram`, Flask, PostgreSQL (`psycopg2`).
+- **Frontend**: Bootstrap 5 (dark theme, RTL), Bootstrap Icons, Summernote, custom CSS.
+- **Dependencies**: `python-dotenv`, `flask`, `flask-uploads`, `aiogram`, `psycopg2`.
+- **Configuration**: Environment variables (`BOT_TOKEN`, `ADMIN_ID`, `DB_TYPE`, `DATABASE_URL`), JSON config (`data/current_config.json`).
+
+### Identified Issues
+- **Database**: `inquiries` table previously referenced non-existent `products_services`; now fixed to reference `products`/`services`. Some `database.py` methods lack proper NULL checking.
+- **Code**: Hardcoded URLs in templates, repeated JavaScript, LSP errors in `handlers.py`.
+- **UI**: Inconsistent pagination, basic log display, no file upload support.
+- **Functionality**: No multiple photo/video uploads, no efficient Telegram file handling, no sample data.
+
+### Tasks
+1. **Migrate to aiogram**:
+   - Implement `bot.py` with routers:
+     ```python
+     from aiogram import Router, Bot, Dispatcher
+     from aiogram.fsm.context import FSMContext
+     from aiogram.types import Message
+     router = Router()
+     dp = Dispatcher()
+     dp.include_router(router)
+     @router.message(commands=["start"])
+     async def start_command(message: Message, state: FSMContext):
+         await message.answer(START_TEXT, reply_markup=main_menu_keyboard())
+     ```
+   - Set up webhooks in `main.py`:
+     ```python
+     from flask import request, Response
+     from aiogram.types import Update
+     @app.post('/webhook')
+     async def webhook():
+         update = await request.json()
+         await dp.feed_update(bot, Update.de_json(update, bot))
+         return {"status": "ok"}
+     ```
+   - Migrate handlers (inquiry, admin panel) to `aiogram.fsm` in `handlers.py`.
+2. **Integrate PostgreSQL**:
+   - Update `database.py` to use `psycopg2` for all CRUD operations, ensuring proper NULL checking:
+     ```python
+     import psycopg2
+     def get_product(product_id):
+         with psycopg2.connect(os.getenv('DATABASE_URL')) as conn:
+             with conn.cursor() as cur:
+                 cur.execute("SELECT * FROM products WHERE id = %s", (product_id,))
+                 return cur.fetchone() or None
+     ```
+3. **Implement Photo/Video Uploads**:
+   - Use `flask-uploads` in `admin_product_form.html`/`admin_service_form.html` for multiple uploads:
+     ```python
+     from flask_uploads import UploadSet, IMAGES, configure_uploads
+     photos = UploadSet('photos', IMAGES)
+     app.config['UPLOADED_PHOTOS_DEST'] = 'static/uploads'
+     configure_uploads(app, photos)
+     @app.route('/admin/products/add', methods=['POST'])
+     def add_product():
+         product_id = db.add_product(...)
+         for file in request.files.getlist('media'):
+             filename = photos.save(file)
+             file_path = photos.url(filename)
+             # Upload to Telegram and store file_id
+             with open(file_path, 'rb') as f:
+                 msg = bot.send_photo(chat_id=ADMIN_ID, photo=f)
+                 db.add_product_media(product_id, msg.photo[-1].file_id, 'photo')
+     ```
+   - Store `file_id` in `product_media`/`service_media` for reuse:
+     ```python
+     def send_product(product_id, chat_id):
+         product = db.get_product(product_id)
+         media = db.get_product_media(product_id)
+         for m in media:
+             if m['file_type'] == 'photo':
+                 bot.send_photo(chat_id, m['file_id'])
+             elif m['file_type'] == 'video':
+                 bot.send_video(chat_id, m['file_id'])
+     ```
+4. **Add Sample Data**:
+Atleast 20 sample data generate and put to database 
+for example
+   - Insert 4-level category hierarchies, products, services, inquiries, and media:
+     ```sql
+     -- Categories (Products)
+     INSERT INTO categories (name, cat_type) VALUES ('محصولات', 'product') RETURNING id;
+     INSERT INTO categories (name, parent_id, cat_type) VALUES ('دستگاه‌های رادیوفرکانسی', 1, 'product') RETURNING id;
+     INSERT INTO categories (name, parent_id, cat_type) VALUES ('اسیلوسکوپ', 2, 'product') RETURNING id;
+     INSERT INTO categories (name, parent_id, cat_type) VALUES ('اسیلوسکوپ اچ‌پی PPU400', 3, 'product');
+     -- Categories (Services)
+     INSERT INTO categories (name, cat_type) VALUES ('خدمات', 'service') RETURNING id;
+     INSERT INTO categories (name, parent_id, cat_type) VALUES ('تست و تعمیر دستگاه‌های رادیوفرکانسی', 5, 'service') RETURNING id;
+     INSERT INTO categories (name, parent_id, cat_type) VALUES ('تعمیر اسیلوسکوپ', 6, 'service') RETURNING id;
+     INSERT INTO categories (name, parent_id, cat_type) VALUES ('تعمیر اساسی اسیلوسکوپ اچ‌پی 400', 7, 'service');
+     -- Products
+     INSERT INTO products (name, price, description, category_id) VALUES (
+         'اسیلوسکوپ اچ‌پی PPU400', 5000, 'اسیلوسکوپ پیشرفته برای تست فرکانس', 4
+     ) RETURNING id;
+     INSERT INTO product_media (product_id, file_id, file_type) VALUES (1, 'sample_photo_id_1', 'photo');
+     INSERT INTO product_media (product_id, file_id, file_type) VALUES (1, 'sample_video_id_1', 'video');
+     -- Services
+     INSERT INTO services (name, price, description, category_id) VALUES (
+         'تعمیر اسیلوسکوپ اچ‌پی 400', 2000, 'تعمیر کامل با گارانتی', 8
+     ) RETURNING id;
+     INSERT INTO service_media (service_id, file_id, file_type) VALUES (1, 'sample_photo_id_2', 'photo');
+     -- Inquiries
+     INSERT INTO inquiries (user_id, name, phone, description, product_id, date) VALUES (
+         123, 'علی محمدی', '09123456789', 'درخواست قیمت', 1, '2025-05-09'
+     );
+     ```
+5. **Improve Database Methods**:
+   - Add NULL checks in `database.py`:
+     ```python
+     def get_category(category_id):
+         with psycopg2.connect(os.getenv('DATABASE_URL')) as conn:
+             with conn.cursor() as cur:
+                 cur.execute("SELECT * FROM categories WHERE id = %s", (category_id,))
+                 return cur.fetchone() or None
+     ```
+6. **Fix LSP Errors**:
+   - Resolve type hints and import issues in `handlers.py`:
+     ```python
+     from aiogram.types import Message
+     from typing import Optional
+     async def handle_inquiry(message: Message, state: FSMContext) -> None:
+         ...
+     ```
+7. **Refactor Templates**:
+   - Replace hardcoded URLs with `url_for`:
+     ```html
+     <a href="{{ url_for('admin_categories_add') }}">افزودن دسته‌بندی جدید</a>
+     ```
+   - Add pagination macro to `admin_categories.html`, `admin_products.html`.
+   - Consolidate JavaScript in `static/js/admin.js`.
+8. **Implement Requested Features**:
+   - **Masked BOT_TOKEN**:
+     ```html
+     <input type="password" class="form-control" name="BOT_TOKEN" value="{{ config.BOT_TOKEN }}">
+     ```
+   - **Summernote**:
+     ```html
+     <textarea class="summernote" name="content">{{ content }}</textarea>
+     <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote.min.js"></script>
+     <script>
+       $(document).ready(function() { $('.summernote').summernote(); });
+     </script>
+     ```
+   - **Log Filtering/Export**:
+     ```html
+     <input type="text" id="logFilter" placeholder="جستجو در لاگ‌ها..." class="form-control mb-3">
+     <div id="log-container" class="log-box"></div>
+     <a href="{{ url_for('export_logs') }}" class="btn btn-primary">خروجی لاگ‌ها</a>
+     <script>
+       function filterLogs() {
+         const filter = document.getElementById('logFilter').value.toLowerCase();
+         const logs = document.querySelectorAll('#log-container div');
+         logs.forEach(log => {
+           log.style.display = log.textContent.toLowerCase().includes(filter) ? '' : 'none';
+         });
+       }
+       document.getElementById('logFilter').addEventListener('input', filterLogs);
+     </script>
+     ```
+     ```python
+     from flask import Response
+     @app.route('/logs/export')
+     def export_logs():
+         with open('bot.log') as f:
+             return Response(f.read(), mimetype='text/plain', headers={'Content-Disposition': 'attachment;filename=bot.log'})
+     ```
+   - **Navigation Highlighting**:
+     ```html
+     <li class="nav-item">
+       <a class="nav-link {{ 'active' if active_page == 'dashboard' }}" href="/">داشبورد</a>
+     </li>
+     ```
+   - **Database Viewer**:
+     ```html
+     <form method="get">
+       <select name="table" class="form-control">
+         <option value="categories">دسته‌بندی‌ها</option>
+         <option value="products">محصولات</option>
+         <option value="services">خدمات</option>
+       </select>
+       <button type="submit" class="btn btn-primary">نمایش</button>
+     </form>
+     {% if table_data %}
+       <table class="table">
+         {% for row in table_data %}
+           <tr>
+             {% for col in row %}
+               <td>{{ col }}</td>
+             {% endfor %}
+           </tr>
+         {% endfor %}
+       </table>
+     {% endif %}
+     ```
+     ```python
+     @app.route('/database/view/<table>')
+     def view_table(table):
+         data = db.get_table_data(table)
+         return render_template('database.html', table_data=data, table=table)
+     ```
+   - **Log Rotation**:
+     ```python
+     import logging.handlers
+     handler = logging.handlers.RotatingFileHandler('bot.log', maxBytes=10*1024*1024, backupCount=5)
+     logging.getLogger().addHandler(handler)
+     ```
+   - **Error Handling**:
+     ```python
+     @app.errorhandler(Exception)
+     def handle_error(error):
+         logging.error(f"Flask error: {error}")
+         return render_template('error.html'), 500
+     ```
+     ```html
+     {% if errors %}
+       <div class="alert alert-danger">
+         {% for error in errors %}
+           <p>{{ error }}</p>
+         {% endfor %}
+       </div>
+     {% endif %}
+     ```
+   - **Documentation**:
+     - Inline comments:
+       ```html
+       <!-- index.html: داشبورد اصلی برای وضعیت و لاگ‌های ربات -->
+       ```
+     - Update `README.md`:
+       ```markdown
+       ## رابط وب
+       - داشبورد: کنترل ربات و مشاهده لاگ‌ها (`/`)
+       - پیکربندی: ویرایش تنظیمات (`/configuration`)
+       - پایگاه داده: مشاهده وضعیت (`/database`)
+       - پنل مدیریتی: مدیریت محتوا (`/admin`)
+       ```
+     - Create `docs/templates.md`:
+       ```markdown
+       # ارجاع به قالب‌ها
+       - `index.html`: داشبورد اصلی، مسیر `/`
+       - `configuration.html`: تنظیمات، مسیر `/configuration`
+       ...
+       ```
+9. **Test Suite**:
+   - Aiogram tests:
+     ```python
+     import pytest
+     from aiogram.types import Message
+     @pytest.mark.asyncio
+     async def test_start_command():
+         message = Message(text="/start", chat_id=123)
+         response = await start_command(message, None)
+         assert response.text == START_TEXT
+     ```
+   - PostgreSQL tests:
+     ```python
+     import pytest
+     import psycopg2
+     @pytest.fixture
+     def db_conn():
+         conn = psycopg2.connect(os.getenv('DATABASE_URL'))
+         yield conn
+         conn.close()
+     def test_get_product(db_conn):
+         with db_conn.cursor() as cur:
+             cur.execute("SELECT * FROM products WHERE id = 1")
+             assert cur.fetchone() is not None
+     ```
+   - Frontend tests (pytest-playwright):
+     ```python
+     from playwright.sync_api import Page
+     def test_dashboard(page: Page):
+         page.goto('http://localhost:5000/')
+         assert page.title() == 'وضعیت ربات | RFCBot'
+         page.click('a[href="/configuration"]')
+         assert page.url.endswith('/configuration')
+     ```
+   - JavaScript tests (Jest):
+     ```javascript
+     test('filterLogs filters log entries', () => {
+       document.body.innerHTML = `
+         <input id="logFilter">
+         <div id="log-container">
+           <div>Log 1</div>
+           <div>Log 2</div>
+         </div>
+       `;
+       document.getElementById('logFilter').value = '1';
+       filterLogs();
+       expect(document.querySelectorAll('#log-container div')[0].style.display).toBe('');
+       expect(document.querySelectorAll('#log-container div')[1].style.display).toBe('none');
+     });
+     ```
+
+### Deliverables
+- Updated code (`bot.py`, `main.py`, `database.py`, `handlers.py`, templates) with aiogram, PostgreSQL, file uploads, and sample data.
+- Fixed `inquiries` table and improved NULL checks in `database.py`.
+- Resolved LSP errors in `handlers.py`.
+- Sample data SQL script for categories, products, services, media, and inquiries.
+- Test suite (`tests/test_bot.py`, `tests/test_db.py`, `tests/test_templates.py`).
+- Documentation (`README.md`, `docs/templates.md`, inline comments).
+- Report listing verified functionalities, fixes, and instructions to run on Repl.it.
+
+Please proceed with the implementation, ensuring the bot functions as a reliable catalog with all features fully demonstrated.
+```

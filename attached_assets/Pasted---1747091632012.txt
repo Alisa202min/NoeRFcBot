@@ -1,0 +1,200 @@
+هدف: توسعه و اجرای تست‌های جامع برای شناسایی و رفع باگ‌های فرایند آپلود، ذخیره، پیش‌نمایش، و نمایش تصاویر محصولات و خدمات در پروژه RFCBot، همراه با لاگ‌گذاری مناسب برای دیباگ. پروژه در Replit.com اجرا می‌شود و از Flask، PostgreSQL، و python-telegram-bot استفاده می‌کند. تست‌ها باید تمامی مراحل (انتخاب تصویر، آپلود، پیش‌نمایش، ذخیره، نمایش در لیست، و آپلود تصاویر اضافی) را پوشش دهند و عیوب سیستم را شناسایی کنند. هوش مصنوعی Replit Agent از پروژه و ساختار آن آگاه است.
+
+**نیازمندی‌ها**:
+1. **لاگ‌گذاری**:
+   - افزودن لاگ‌گذاری دقیق (با `logging`) در `app.py` و `database.py` برای ردیابی مراحل آپلود تصویر (انتخاب، اعتبارسنجی، ذخیره در سرور، ثبت در پایگاه داده).
+   - لاگ‌گذاری برای پیش‌نمایش تصویر، ذخیره محصول/خدمت، و رندر تصاویر در لیست.
+   - لاگ‌گذاری برای آپلود تصاویر اضافی و خطاها (مثلاً فرمت نامعتبر، اندازه بیش‌ازحد).
+   - لاگ‌ها باید شامل سطح `DEBUG`، `INFO`، و `ERROR` باشند و در فایل `logs/rfcbot.log` ذخیره شوند.
+2. **تست‌های واحد**:
+   - تست اعتبارسنجی آپلود تصویر (فقط JPG/PNG، حداکثر 5MB) در مسیرهای Flask.
+   - تست ذخیره مسیر تصویر در ستون `photo_url` جداول `products` و `services`.
+   - تست پیش‌نمایش تصویر در فرم ایجاد/ویرایش (`templates/product_form.html`, `templates/service_form.html`).
+   - تست رندر کادر کوچک تصویر در لیست محصولات/خدمات (`templates/product_list.html`, `templates/service_list.html`).
+3. **تست‌های یکپارچگی**:
+   - تست کل فرایند: آپلود تصویر، پیش‌نمایش در فرم، ذخیره محصول/خدمت، نمایش تصویر اصلی در کادر کوچک لیست.
+   - تست یکپارچگی لیست محصولات/خدمات پس از ناوبری به صفحات ایجاد/ویرایش و بازگشت (بدون خرابی ترتیب، تصاویر، یا داده‌ها).
+   - تست نمایش تصاویر اضافی در صفحه جزئیات محصول/خدمت.
+4. **تست‌های سناریوهای خطا**:
+   - آپلود فایل با فرمت نامعتبر (مثلاً PDF) و بررسی نمایش پیام خطای مناسب.
+   - آپلود تصویر بزرگ‌تر از 5MB و بررسی خطا.
+   - عدم انتخاب تصویر هنگام ذخیره و بررسی خطای اعتبارسنجی.
+   - شبیه‌سازی خرابی سرور هنگام ذخیره تصویر و بررسی لاگ خطا.
+5. **تست‌های تصاویر اضافی**:
+   - تست آپلود و ذخیره تصاویر اضافی در جدول `additional_images` (ایجاد جدول اگر وجود ندارد).
+   - تست نمایش تصاویر اضافی در صفحه جزئیات محصول/خدمت.
+   - تست حذف یا جایگزینی تصاویر اضافی و بررسی یکپارچگی پایگاه داده.
+6. **محیط تست**:
+   - استفاده از پایگاه داده تست: `rfcbot_test` (PostgreSQL).
+   - ابزارها: Pytest، pytest-mock، Flask test client.
+   - شبیه‌سازی آپلود فایل با `werkzeug.datastructures.FileStorage`.
+   - استفاده از تصاویر نمونه (JPG/PNG) در دایرکتوری `tests/fixtures/images/`.
+7. **اجرای تست‌ها**:
+   - اجرای خودکار تست‌ها با `pytest tests/` و تولید گزارش با `pytest --junitxml=report.xml`.
+   - بررسی لاگ‌ها برای شناسایی باگ‌ها و ارائه پیشنهادات رفع آن‌ها.
+
+**ساختار پایگاه داده (بخش مرتبط)**:
+```sql
+CREATE TABLE products (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    price INTEGER NOT NULL,
+    description TEXT,
+    photo_url TEXT,
+    category_id INTEGER NOT NULL,
+    FOREIGN KEY (category_id) REFERENCES product_categories(id)
+);
+
+CREATE TABLE services (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    price INTEGER NOT NULL,
+    description TEXT,
+    photo_url TEXT,
+    category_id INTEGER NOT NULL,
+    FOREIGN KEY (category_id) REFERENCES service_categories(id)
+);
+
+CREATE TABLE additional_images (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER,
+    service_id INTEGER,
+    image_url TEXT NOT NULL,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
+    CHECK ((product_id IS NOT NULL AND service_id IS NULL) OR (product_id IS NULL AND service_id IS NOT NULL))
+);
+وظایف:
+لاگ‌گذاری:
+در app.py: لاگ‌گذاری برای مسیرهای آپلود تصویر (/admin/products/add, /admin/services/add, /admin/products/edit/<id>, /admin/services/edit/<id>).
+در database.py: لاگ‌گذاری برای متدهای ذخیره تصویر و بازیابی.
+تنظیمات لاگ‌گذاری:
+python
+import logging
+logging.basicConfig(
+    filename='logs/rfcbot.log',
+    level=logging.DEBUG,
+    format='%(asctime)s %(levelname)s %(name)s %(message)s'
+)
+ایجاد دایرکتوری‌های لازم:
+ایجاد logs/ برای لاگ‌ها.
+ایجاد static/uploads/ برای ذخیره تصاویر.
+ایجاد tests/fixtures/images/ با تصاویر نمونه (sample.jpg, sample.png, invalid.pdf).
+تست‌ها:
+افزودن تست‌ها به tests/test_images.py:
+python
+import pytest
+from flask import url_for
+from werkzeug.datastructures import FileStorage
+import os
+
+@pytest.fixture
+def image_file():
+    return FileStorage(
+        stream=open('tests/fixtures/images/sample.jpg', 'rb'),
+        filename='sample.jpg',
+        content_type='image/jpeg'
+    )
+
+@pytest.fixture
+def invalid_file():
+    return FileStorage(
+        stream=open('tests/fixtures/images/invalid.pdf', 'rb'),
+        filename='invalid.pdf',
+        content_type='application/pdf'
+    )
+
+def test_upload_product_image(flask_client, db, image_file):
+    response = flask_client.post(
+        '/admin/products/add',
+        data={
+            'name': 'تست محصول',
+            'price': 1000,
+            'description': 'توضیحات',
+            'category_id': 1,
+            'photo': image_file
+        },
+        content_type='multipart/form-data',
+        follow_redirects=True
+    )
+    assert response.status_code == 200
+    assert b'محصول با موفقیت ایجاد شد' in response.data
+    with db.conn.cursor() as cur:
+        cur.execute("SELECT photo_url FROM products WHERE name = %s", ('تست محصول',))
+        photo_url = cur.fetchone()[0]
+        assert photo_url
+        assert os.path.exists(f'static/uploads/{photo_url}')
+
+def test_invalid_image_format(flask_client, invalid_file):
+    response = flask_client.post(
+        '/admin/products/add',
+        data={
+            'name': 'تست محصول',
+            'price': 1000,
+            'description': 'توضیحات',
+            'category_id': 1,
+            'photo': invalid_file
+        },
+        content_type='multipart/form-data',
+        follow_redirects=True
+    )
+    assert response.status_code == 200
+    assert b'فرمت فایل نامعتبر است' in response.data
+
+def test_list_image_display(flask_client, db, image_file):
+    with db.conn.cursor() as cur:
+        cur.execute("INSERT INTO products (name, price, description, category_id, photo_url) VALUES (%s, %s, %s, %s, %s) RETURNING id",
+                    ('تست محصول', 1000, 'توضیحات', 1, 'sample.jpg'))
+        db.conn.commit()
+    response = flask_client.get('/admin/products')
+    assert response.status_code == 200
+    assert b'<img src="/static/uploads/sample.jpg"' in response.data
+
+def test_additional_image_upload(flask_client, db, image_file):
+    with db.conn.cursor() as cur:
+        cur.execute("INSERT INTO products (name, price, description, category_id) VALUES (%s, %s, %s, %s) RETURNING id",
+                    ('تست محصول', 1000, 'توضیحات', 1))
+        product_id = cur.fetchone()[0]
+        db.conn.commit()
+    response = flask_client.post(
+        f'/admin/products/{product_id}/add_image',
+        data={'image': image_file},
+        content_type='multipart/form-data',
+        follow_redirects=True
+    )
+    assert response.status_code == 200
+    with db.conn.cursor() as cur:
+        cur.execute("SELECT image_url FROM additional_images WHERE product_id = %s", (product_id,))
+        image_url = cur.fetchone()[0]
+        assert image_url
+        assert os.path.exists(f'static/uploads/{image_url}')
+به‌روزرسانی tests/conftest.py برای پشتیبانی از تست‌های تصویر:
+python
+import pytest
+import os
+from flask import Flask
+
+@pytest.fixture
+def flask_client():
+    from app import app
+    app.config['TESTING'] = True
+    app.config['UPLOAD_FOLDER'] = 'static/uploads'
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    with app.test_client() as client:
+        yield client
+    for file in os.listdir(app.config['UPLOAD_FOLDER']):
+        os.remove(os.path.join(app.config['UPLOAD_FOLDER'], file))
+اجرای تست‌ها:
+اجرای pytest tests/test_images.py -v و بررسی لاگ‌ها در logs/rfcbot.log.
+تولید گزارش تست: pytest tests/test_images.py --junitxml=report.xml.
+رفع باگ‌ها:
+شناسایی باگ‌ها از نتایج تست و لاگ‌ها.
+اصلاح app.py برای مدیریت خطاهای آپلود (مثلاً فرمت نامعتبر، اندازه زیاد).
+اصلاح قالب‌های HTML برای اطمینان از نمایش صحیح تصاویر.
+به‌روزرسانی database.py برای پشتیبانی از تصاویر اضافی.
+اقدامات:
+ایجاد فایل tests/test_images.py با تست‌های بالا.
+به‌روزرسانی app.py و database.py با لاگ‌گذاری مناسب.
+ایجاد جدول additional_images اگر وجود ندارد.
+ایجاد دایرکتوری‌های logs/, static/uploads/, و tests/fixtures/images/.
+اجرای تست‌ها و ارائه گزارش باگ‌ها و پیشنهادات رفع آن‌ها.

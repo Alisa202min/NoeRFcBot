@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}پنل مدیریت RFCBot{% endblock %}</title>
+    
+    <!-- Bootstrap RTL -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
+    <style>
+        /* Custom styles */
+        body {
+            font-family: Vazirmatn, Tahoma, Arial, sans-serif;
+            background-color: #f8f9fa;
+        }
+        
+        .sidebar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 250px;
+            padding: 1rem;
+            background-color: #212529;
+            color: #fff;
+            z-index: 100;
+            overflow-y: auto;
+        }
+        
+        .sidebar .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 1rem;
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.75);
+            padding: 0.75rem 0;
+            border-radius: 0.25rem;
+            transition: all 0.2s;
+        }
+        
+        .sidebar .nav-link:hover {
+            color: #fff;
+            background-color: rgba(255, 255, 255, 0.1);
+            padding-right: 0.5rem;
+        }
+        
+        .sidebar .nav-link.active {
+            color: #fff;
+            background-color: #0d6efd;
+        }
+        
+        .sidebar .nav-link i {
+            margin-left: 0.5rem;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .main-content {
+            margin-right: 250px;
+            min-height: 100vh;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+            }
+            
+            .main-content {
+                margin-right: 0;
+            }
+        }
+        
+        /* Dark mode enhancement */
+        .dark-mode {
+            background-color: #222;
+            color: #e4e4e4;
+        }
+        
+        .dark-mode .card {
+            background-color: #333;
+            border-color: #444;
+        }
+        
+        .dark-mode .card-header {
+            background-color: #284b8f;
+        }
+        
+        .dark-mode .card-footer {
+            background-color: #333;
+            border-top-color: #444;
+        }
+        
+        .dark-mode .table {
+            color: #e4e4e4;
+        }
+        
+        .dark-mode .table th {
+            border-color: #444;
+        }
+        
+        .dark-mode .table td {
+            border-color: #444;
+        }
+        
+        .dark-mode .form-control, 
+        .dark-mode .form-select {
+            background-color: #444;
+            color: #e4e4e4;
+            border-color: #555;
+        }
+        
+        .dark-mode .form-control:focus, 
+        .dark-mode .form-select:focus {
+            background-color: #444;
+            color: #e4e4e4;
+        }
+        
+        .dark-mode .breadcrumb {
+            background-color: #333;
+        }
+        
+        /* Custom styles for file inputs */
+        .custom-file-input {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            height: calc(1.5em + .75rem + 2px);
+            margin: 0;
+            opacity: 0;
+        }
+        
+        .custom-file-label {
+            position: absolute;
+            top: 0;
+            right: 0;
+            left: 0;
+            z-index: 1;
+            height: calc(1.5em + .75rem + 2px);
+            padding: .375rem .75rem;
+            font-weight: 400;
+            line-height: 1.5;
+            color: #495057;
+            background-color: #fff;
+            border: 1px solid #ced4da;
+            border-radius: .25rem;
+        }
+        
+        .custom-file-label::after {
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            z-index: 3;
+            display: block;
+            height: calc(1.5em + .75rem);
+            padding: .375rem .75rem;
+            line-height: 1.5;
+            color: #495057;
+            content: "انتخاب فایل";
+            background-color: #e9ecef;
+            border-right: inherit;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+            border-top-left-radius: .25rem;
+            border-bottom-left-radius: .25rem;
+        }
+        
+        /* Pagination RTL fix */
+        .pagination {
+            padding-right: 0;
+        }
+        
+        /* Animations */
+        .fade-in {
+            animation: fadeIn 0.5s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+    
+    {% block styles %}{% endblock %}
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar d-none d-md-block">
+        <div class="logo">
+            <i class="bi bi-robot"></i> RFCBot
+        </div>
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" href="{{ url_for('index') }}">
+                    <i class="bi bi-house-door"></i> داشبورد اصلی
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_page == 'configuration' %}active{% endif %}" href="{{ url_for('loadConfig') }}">
+                    <i class="bi bi-gear"></i> پیکربندی
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_page == 'admin' %}active{% endif %}" href="{{ url_for('admin_index') }}">
+                    <i class="bi bi-speedometer2"></i> پنل مدیریت
+                </a>
+            </li>
+            <li class="nav-item dropdown mt-4">
+                <a class="nav-link dropdown-toggle" href="#" id="displayModeDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-palette"></i> نمایش
+                </a>
+                <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="displayModeDropdown">
+                    <li>
+                        <a class="dropdown-item" href="javascript:setLightMode()">
+                            <i class="bi bi-sun"></i> حالت روز
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="javascript:setDarkMode()">
+                            <i class="bi bi-moon"></i> حالت شب
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            <li class="nav-item mt-auto">
+                {% if current_user.is_authenticated %}
+                <a class="nav-link" href="{{ url_for('logout') }}">
+                    <i class="bi bi-box-arrow-right"></i> خروج
+                </a>
+                {% else %}
+                <a class="nav-link" href="{{ url_for('login') }}">
+                    <i class="bi bi-box-arrow-in-left"></i> ورود
+                </a>
+                {% endif %}
+            </li>
+        </ul>
+    </div>
+    
+    <!-- Mobile navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark d-md-none">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="bi bi-robot"></i> RFCBot
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" href="{{ url_for('index') }}">
+                            <i class="bi bi-house-door"></i> داشبورد اصلی
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'configuration' %}active{% endif %}" href="{{ url_for('loadConfig') }}">
+                            <i class="bi bi-gear"></i> پیکربندی
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'admin' %}active{% endif %}" href="{{ url_for('admin_index') }}">
+                            <i class="bi bi-speedometer2"></i> پنل مدیریت
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="mobileDisplayModeDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-palette"></i> نمایش
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="mobileDisplayModeDropdown">
+                            <li>
+                                <a class="dropdown-item" href="javascript:setLightMode()">
+                                    <i class="bi bi-sun"></i> حالت روز
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="javascript:setDarkMode()">
+                                    <i class="bi bi-moon"></i> حالت شب
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        {% if current_user.is_authenticated %}
+                        <a class="nav-link" href="{{ url_for('logout') }}">
+                            <i class="bi bi-box-arrow-right"></i> خروج
+                        </a>
+                        {% else %}
+                        <a class="nav-link" href="{{ url_for('login') }}">
+                            <i class="bi bi-box-arrow-in-left"></i> ورود
+                        </a>
+                        {% endif %}
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main content -->
+    <div class="main-content">
+        {% if active_page not in ['dashboard', 'configuration', 'admin'] %}
+       
+        {% endif %}
+        
+        <div class="content-wrapper fade-in">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+    
+    <!-- JavaScript Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Dark/Light mode functions
+        function setDarkMode() {
+            document.body.classList.add('dark-mode');
+            localStorage.setItem('darkMode', 'enabled');
+            updateModeIcons();
+        }
+        
+        function setLightMode() {
+            document.body.classList.remove('dark-mode');
+            localStorage.setItem('darkMode', 'disabled');
+            updateModeIcons();
+        }
+        
+        function toggleDarkMode() {
+            if (document.body.classList.contains('dark-mode')) {
+                setLightMode();
+            } else {
+                setDarkMode();
+            }
+        }
+        
+        function updateModeIcons() {
+            const isDarkMode = document.body.classList.contains('dark-mode');
+            const moonIcons = document.querySelectorAll('.bi-moon');
+            const sunIcons = document.querySelectorAll('.bi-sun');
+            
+            // Optional visual feedback
+            if (isDarkMode) {
+                moonIcons.forEach(icon => icon.parentElement.classList.add('active'));
+                sunIcons.forEach(icon => icon.parentElement.classList.remove('active'));
+            } else {
+                moonIcons.forEach(icon => icon.parentElement.classList.remove('active'));
+                sunIcons.forEach(icon => icon.parentElement.classList.add('active'));
+            }
+        }
+        
+        // Check for saved dark mode preference
+        document.addEventListener('DOMContentLoaded', function() {
+            if (localStorage.getItem('darkMode') === 'enabled') {
+                setDarkMode();
+            } else {
+                setLightMode();
+            }
+        });
+    </script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

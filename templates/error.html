@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>خطا در سیستم</title>
+    <!-- Bootstrap RTL CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.rtl.min.css">
+    <style>
+        body {
+            font-family: 'Vazir', 'Tahoma', sans-serif;
+            background-color: #f8f9fa;
+            padding: 20px;
+        }
+        .error-container {
+            max-width: 800px;
+            margin: 50px auto;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+        .error-title {
+            color: #dc3545;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        .error-details {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 15px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        .back-button {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="error-container">
+            <h1 class="error-title">خطا در سیستم</h1>
+            
+            <p>متأسفانه خطایی در پردازش درخواست شما رخ داده است.</p>
+            
+            <h4 class="mt-4">جزئیات خطا:</h4>
+            <div class="error-details">{{ error }}</div>
+            
+            {% if traceback %}
+            <h4 class="mt-4">اطلاعات بیشتر:</h4>
+            <div class="error-details">{{ traceback }}</div>
+            {% endif %}
+            
+            <div class="back-button">
+                <a href="{{ url_for('admin_index') }}" class="btn btn-primary">بازگشت به پنل مدیریت</a>
+                <a href="{{ url_for('index') }}" class="btn btn-secondary">بازگشت به صفحه اصلی</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

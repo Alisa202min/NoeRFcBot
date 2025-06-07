@@ -1,2229 +1,3087 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+"""
+ماژول هندلرهای بات تلگرام
+این ماژول مدیریت پیام‌ها و دستورات تلگرام را انجام می‌دهد.
+"""
 
-import logging
+
 import os
-import csv
-import tempfile
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.context import FSMContext
+import traceback
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Union, Tuple
-
-from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, ConversationHandler
-from telegram.constants import ParseMode
+from aiogram import Bot, types
+from aiogram import Router, F
+from aiogram.types import Message, CallbackQuery,URLInputFile, FSInputFile, InputMediaPhoto, InputMediaVideo
+from aiogram.filters import Command, StateFilter, CommandStart
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+from database import Database
+from logging_config import get_logger
+from keyboards import get_main_keyboard
+from bot import bot  # Import bot here to avoid circular imports
+from aiogram.exceptions import TelegramBadRequest
+#from tenacity import retry, stop_after_attempt, wait_exponential
+from configuration import EDUCATION_PREFIX, ADMIN_ID
+from keyboards import education_detail_keyboard
+from utils import create_telegraph_page, upload_file_to_telegram
 
 from configuration import (
-    ADMIN_ID, START_TEXT, PRODUCTS_BTN, SERVICES_BTN, INQUIRY_BTN, EDUCATION_BTN, 
-    CONTACT_BTN, ABOUT_BTN, BACK_BTN, ADMIN_BTN, SEARCH_BTN,
-    PRODUCT_PREFIX, SERVICE_PREFIX, CATEGORY_PREFIX, BACK_PREFIX, INQUIRY_PREFIX, 
-    EDUCATION_PREFIX, ADMIN_PREFIX, NOT_FOUND_TEXT, SEARCH_PROMPT, ERROR_MESSAGE,
-    INQUIRY_START, INQUIRY_PHONE, INQUIRY_DESC, INQUIRY_COMPLETE, ADMIN_ACCESS_DENIED,
-    ADMIN_WELCOME
-)
-from database import Database
-from keyboards import (
-    main_menu_keyboard, admin_keyboard, categories_keyboard, products_keyboard,
-    product_detail_keyboard, education_categories_keyboard, education_content_keyboard,
-    education_detail_keyboard, cancel_keyboard, confirm_keyboard
-)
-from utils import (
-    format_price, format_product_details, format_inquiry_details, format_educational_content,
-    is_valid_phone_number, get_category_path, create_sample_data, import_initial_data,
-    generate_csv_template
-)
+    PRODUCTS_BTN, SERVICES_BTN, INQUIRY_BTN, EDUCATION_BTN, 
+    CONTACT_BTN, ABOUT_BTN, SEARCH_BTN, EDUCATION_PREFIX, 
+    PRODUCT_PREFIX, SERVICE_PREFIX, CATEGORY_PREFIX,
+    BACK_PREFIX, INQUIRY_PREFIX, ADMIN_PREFIX
+) 
 
-# Initialize database
+# دریافت لاگر برای بات
+logger = get_logger('bot')
+
+# Define FSM states
+class UserStates(StatesGroup):
+    """States for the Telegram bot FSM"""
+    browse_categories = State()
+    view_product = State()
+    view_service = State()
+    view_category = State()
+    view_educational_content = State()
+    inquiry_name = State()
+    inquiry_phone = State()
+    inquiry_description = State()
+    waiting_for_confirmation = State()
+    waiting_for_search = State()
+
+# Database instance
 db = Database()
 
-# Conversation states for inquiry form
-INQUIRY_NAME, INQUIRY_PHONE, INQUIRY_DESC = range(3)
 
-# Conversation states for admin actions
-ADMIN_EDIT_CAT, ADMIN_EDIT_PRODUCT, ADMIN_EDIT_EDU, ADMIN_EDIT_STATIC, ADMIN_UPLOAD_CSV = range(5)
+# Initialize router and database - use name to better identify it in logs
+router = Router(name="main_router")
 
-# User state dictionary to store temporary data
-user_states = {}
 
-async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle the /start command."""
-    # Clear any user state
-    user_id = update.effective_user.id
-    if user_id in user_states:
-        del user_states[user_id]
-    
-    # Send welcome message with main menu
-    await update.message.reply_text(
-        START_TEXT,
-        reply_markup=main_menu_keyboard()
-    )
-
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle text messages."""
-    message = update.message.text
-    user_id = update.effective_user.id
-    
-    # Handle main menu options
-    if message == PRODUCTS_BTN:
-        # Show product categories
-        categories = db.get_categories(parent_id=None, cat_type='product')
-        if categories:
-            await update.message.reply_text(
-                "لطفاً یک گروه محصول را انتخاب کنید:",
-                reply_markup=categories_keyboard(categories)
-            )
-        else:
-            await update.message.reply_text(NOT_FOUND_TEXT)
-            
-    elif message == SERVICES_BTN:
-        # Show service categories
-        categories = db.get_categories(parent_id=None, cat_type='service')
-        if categories:
-            await update.message.reply_text(
-                "لطفاً یک گروه خدمات را انتخاب کنید:",
-                reply_markup=categories_keyboard(categories)
-            )
-        else:
-            await update.message.reply_text(NOT_FOUND_TEXT)
-            
-    elif message == INQUIRY_BTN:
-        # Show direct inquiry form
-        await update.message.reply_text(
-            INQUIRY_START,
-            reply_markup=cancel_keyboard()
-        )
-        return INQUIRY_NAME
-            
-    elif message == EDUCATION_BTN:
-        # Show educational content categories
-        categories = db.get_educational_categories()
-        if categories:
-            await update.message.reply_text(
-                "لطفاً یک دسته‌بندی آموزشی را انتخاب کنید:",
-                reply_markup=education_categories_keyboard(categories)
-            )
-        else:
-            await update.message.reply_text(
-                "هنوز مطلب آموزشی ثبت نشده است."
-            )
-            
-    elif message == CONTACT_BTN:
-        # Show contact info
-        contact_text = db.get_static_content('contact')
-        await update.message.reply_text(contact_text)
-            
-    elif message == ABOUT_BTN:
-        # Show about info
-        about_text = db.get_static_content('about')
-        await update.message.reply_text(about_text)
-            
-    elif message == BACK_BTN:
-        # Return to main menu
-        await start_handler(update, context)
-            
-    elif message == ADMIN_BTN:
-        # Access admin panel
-        await admin_handlers.start_admin(update, context)
-        
-    else:
-        # Unknown message
-        await update.message.reply_text(
-            "لطفاً یکی از گزینه‌های منو را انتخاب کنید.",
-            reply_markup=main_menu_keyboard()
-        )
-
-async def handle_button_press(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle inline button presses."""
-    query = update.callback_query
-    await query.answer()
-    
-    data = query.data
-    user_id = update.effective_user.id
-    
+# Get admin ID from environment variable
+ADMIN_ID = os.environ.get('ADMIN_ID')
+if ADMIN_ID:
     try:
-        # Handle category navigation
-        if data.startswith(CATEGORY_PREFIX):
-            category_id = int(data[len(CATEGORY_PREFIX):])
-            category = db.get_category(category_id)
-            
-            if category:
-                # Check for subcategories
-                subcategories = db.get_categories(parent_id=category_id)
-                
-                if subcategories:
-                    # Show subcategories
-                    await query.edit_message_text(
-                        f"زیرگروه‌های {category['name']}:",
-                        reply_markup=categories_keyboard(subcategories, category_id)
-                    )
-                else:
-                    # No subcategories, show products
-                    products = db.get_products_by_category(category_id)
-                    
-                    if products:
-                        await query.edit_message_text(
-                            f"محصولات/خدمات {category['name']}:",
-                            reply_markup=products_keyboard(products, category_id)
-                        )
-                    else:
-                        await query.edit_message_text(
-                            "هیچ محصول/خدماتی در این گروه یافت نشد.",
-                            reply_markup=categories_keyboard([], category_id)
-                        )
-        
-        # Handle product selection
-        elif data.startswith(PRODUCT_PREFIX):
-            product_id = int(data[len(PRODUCT_PREFIX):])
-            product = db.get_product(product_id)
-            
-            if product:
-                # Show product details
-                product_text = format_product_details(product)
-                
-                # Get category for back button
-                category_id = product['category_id']
-                
-                # Check if product has photo
-                if product['photo_url']:
-                    # Send photo with caption
-                    await context.bot.send_photo(
-                        chat_id=user_id,
-                        photo=product['photo_url'],
-                        caption=product_text,
-                        parse_mode=ParseMode.MARKDOWN,
-                        reply_markup=product_detail_keyboard(product_id, category_id)
-                    )
-                    # Delete the original message
-                    await query.delete_message()
-                else:
-                    # No photo, just update message
-                    await query.edit_message_text(
-                        product_text,
-                        parse_mode=ParseMode.MARKDOWN,
-                        reply_markup=product_detail_keyboard(product_id, category_id)
-                    )
-        
-        # Handle back navigation
-        elif data.startswith(BACK_PREFIX):
-            back_data = data[len(BACK_PREFIX):]
-            
-            if back_data == "main":
-                # Back to main menu
-                await query.edit_message_text(
-                    "لطفاً یکی از گزینه‌های منو را انتخاب کنید:",
-                    reply_markup=None
-                )
-            else:
-                try:
-                    # Back to parent category
-                    category_id = int(back_data)
-                    category = db.get_category(category_id)
-                    
-                    if category:
-                        # If parent is None, show top-level categories
-                        if category['parent_id'] is None:
-                            categories = db.get_categories(
-                                parent_id=None, 
-                                cat_type=category['type']
-                            )
-                            
-                            await query.edit_message_text(
-                                f"گروه‌های {category['type'] == 'product' and 'محصولات' or 'خدمات'}:",
-                                reply_markup=categories_keyboard(categories)
-                            )
-                        else:
-                            # Show parent category with its subcategories
-                            parent_id = category['parent_id']
-                            parent = db.get_category(parent_id)
-                            subcategories = db.get_categories(parent_id=parent_id)
-                            
-                            await query.edit_message_text(
-                                f"زیرگروه‌های {parent['name']}:",
-                                reply_markup=categories_keyboard(subcategories, parent_id)
-                            )
-                    else:
-                        # Category not found
-                        await query.edit_message_text(
-                            "خطایی رخ داد. لطفاً دوباره تلاش کنید.",
-                            reply_markup=None
-                        )
-                except ValueError:
-                    # Invalid category ID
-                    await query.edit_message_text(
-                        "خطایی رخ داد. لطفاً دوباره تلاش کنید.",
-                        reply_markup=None
-                    )
-        
-        # Handle educational content navigation
-        elif data.startswith(EDUCATION_PREFIX):
-            edu_data = data[len(EDUCATION_PREFIX):]
-            
-            if edu_data == "categories":
-                # Show all educational categories
-                categories = db.get_educational_categories()
-                
-                if categories:
-                    await query.edit_message_text(
-                        "دسته‌بندی‌های مطالب آموزشی:",
-                        reply_markup=education_categories_keyboard(categories)
-                    )
-                else:
-                    await query.edit_message_text(
-                        "هنوز مطلب آموزشی ثبت نشده است.",
-                        reply_markup=InlineKeyboardMarkup([[
-                            InlineKeyboardButton(BACK_BTN, callback_data=f"{BACK_PREFIX}main")
-                        ]])
-                    )
-            elif edu_data.startswith("cat_"):
-                # Show content in a specific category
-                category = edu_data[4:]
-                contents = db.get_all_educational_content(category)
-                
-                if contents:
-                    await query.edit_message_text(
-                        f"مطالب آموزشی دسته {category}:",
-                        reply_markup=education_content_keyboard(contents, category)
-                    )
-                else:
-                    await query.edit_message_text(
-                        f"هیچ مطلبی در دسته {category} یافت نشد.",
-                        reply_markup=education_categories_keyboard(db.get_educational_categories())
-                    )
-            else:
-                try:
-                    # Show specific content
-                    content_id = int(edu_data)
-                    content = db.get_educational_content(content_id)
-                    
-                    if content:
-                        content_text = format_educational_content(content)
-                        
-                        await query.edit_message_text(
-                            content_text,
-                            parse_mode=ParseMode.MARKDOWN,
-                            reply_markup=education_detail_keyboard(content['category']),
-                            disable_web_page_preview=False
-                        )
-                    else:
-                        await query.edit_message_text(
-                            "مطلب مورد نظر یافت نشد.",
-                            reply_markup=education_categories_keyboard(db.get_educational_categories())
-                        )
-                except ValueError:
-                    # Invalid content ID
-                    await query.edit_message_text(
-                        "خطایی رخ داد. لطفاً دوباره تلاش کنید.",
-                        reply_markup=education_categories_keyboard(db.get_educational_categories())
-                    )
-        
-        # Handle admin actions
-        elif data.startswith(ADMIN_PREFIX):
-            # Check if user is admin
-            if user_id != ADMIN_ID:
-                await query.edit_message_text(ADMIN_ACCESS_DENIED)
-                return
-            
-            await admin_handlers.handle_admin_action(update, context)
-    
+        ADMIN_ID = int(ADMIN_ID)
+    except ValueError:
+        logger.error(f"Invalid ADMIN_ID: {ADMIN_ID}")
+        ADMIN_ID = None
+else:
+    logger.warning("ADMIN_ID not set")
+
+
+
+
+# Start command handler - add a debug message to see if it's being called
+@router.message(CommandStart())
+async def cmd_start(message: Message, state: FSMContext):
+    """Handle /start command - initial entry point"""
+    try:
+        logger.info(f"Start command received from user: {message.from_user.id}")
+        await state.clear()
+
+        # Welcome message
+        welcome_text = (
+            f"🎉 سلام {message.from_user.first_name}!\n\n"
+            "به ربات فروشگاه محصولات و خدمات ارتباطی خوش آمدید.\n"
+            "از منوی زیر گزینه مورد نظر خود را انتخاب کنید:"
+        )
+
+        # Import the keyboard function from keyboards.py
+        from keyboards import main_menu_keyboard
+
+        # Get the main menu keyboard
+        keyboard = main_menu_keyboard()
+
+        # Log that we're about to send the message with buttons
+        logger.info("Sending welcome message with keyboard buttons")
+
+        # Send the message with the solid buttons
+        await message.answer(welcome_text, reply_markup=keyboard)
+        logger.info("Start command response sent successfully")
     except Exception as e:
-        logging.error(f"Error in handle_button_press: {e}")
-        await query.edit_message_text(
-            ERROR_MESSAGE,
-            reply_markup=None
-        )
+        logger.error(f"Error in start command handler: {e}\n{traceback.format_exc()}")
 
-# Inquiry handlers
-class handle_inquiry:
-    @staticmethod
-    async def start_inquiry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Start inquiry process."""
-        query = update.callback_query
-        await query.answer()
-        
-        user_id = update.effective_user.id
-        data = query.data
-        
-        try:
-            # Extract product ID from callback data
-            product_id = int(data[len(INQUIRY_PREFIX):])
-            product = db.get_product(product_id)
-            
-            if not product:
-                await query.edit_message_text("محصول مورد نظر یافت نشد.")
-                return ConversationHandler.END
-            
-            # Store product ID in user state
-            if user_id not in user_states:
-                user_states[user_id] = {}
-            user_states[user_id]['inquiry_product_id'] = product_id
-            
-            # Send inquiry form message
-            await query.edit_message_text(
-                f"استعلام قیمت برای محصول/خدمت: {product['name']}\n\n"
-                f"{INQUIRY_START}",
-                reply_markup=cancel_keyboard()
-            )
-            
-            return INQUIRY_NAME
-        
-        except Exception as e:
-            logging.error(f"Error in start_inquiry: {e}")
-            await query.edit_message_text(ERROR_MESSAGE)
-            return ConversationHandler.END
-    
-    @staticmethod
-    async def process_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Process name input and ask for phone number."""
-        user_id = update.effective_user.id
-        name = update.message.text
-        
-        if not name or len(name) < 2:
-            await update.message.reply_text(
-                "لطفاً یک نام معتبر وارد کنید (حداقل 2 کاراکتر):",
-                reply_markup=cancel_keyboard()
-            )
-            return INQUIRY_NAME
-        
-        # Store name in user state
-        if user_id not in user_states:
-            user_states[user_id] = {}
-        user_states[user_id]['inquiry_name'] = name
-        
-        # Ask for phone number
-        await update.message.reply_text(
-            INQUIRY_PHONE,
-            reply_markup=cancel_keyboard()
-        )
-        
-        return INQUIRY_PHONE
-    
-    @staticmethod
-    async def process_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Process phone input and ask for description."""
-        user_id = update.effective_user.id
-        phone = update.message.text
-        
-        if not is_valid_phone_number(phone):
-            await update.message.reply_text(
-                "لطفاً یک شماره تماس معتبر وارد کنید (حداقل 10 رقم):",
-                reply_markup=cancel_keyboard()
-            )
-            return INQUIRY_PHONE
-        
-        # Store phone in user state
-        if user_id not in user_states:
-            user_states[user_id] = {}
-        user_states[user_id]['inquiry_phone'] = phone
-        
-        # Ask for description
-        await update.message.reply_text(
-            INQUIRY_DESC,
-            reply_markup=cancel_keyboard()
-        )
-        
-        return INQUIRY_DESC
-    
-    @staticmethod
-    async def process_description(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Process description and complete inquiry."""
-        user_id = update.effective_user.id
-        description = update.message.text
-        
-        if user_id not in user_states:
-            await update.message.reply_text(ERROR_MESSAGE)
-            return ConversationHandler.END
-        
-        # Store description in user state
-        user_states[user_id]['inquiry_description'] = description
-        
-        # Get data from user state
-        name = user_states[user_id].get('inquiry_name', '')
-        phone = user_states[user_id].get('inquiry_phone', '')
-        product_id = user_states[user_id].get('inquiry_product_id')
-        
-        # Add inquiry to database
-        inquiry_id = db.add_inquiry(
-            user_id=user_id,
-            name=name,
-            phone=phone,
-            description=description,
-            product_id=product_id
-        )
-        
-        # Get product name if available
-        product_name = ""
-        if product_id:
-            product = db.get_product(product_id)
-            if product:
-                product_name = f"\nمحصول/خدمت: {product['name']}"
-        
-        # Send confirmation message
-        await update.message.reply_text(
-            f"{INQUIRY_COMPLETE}\n\n"
-            f"نام: {name}\n"
-            f"شماره تماس: {phone}{product_name}",
-            reply_markup=main_menu_keyboard()
-        )
-        
-        # Notify admin if admin ID is set
-        if ADMIN_ID:
-            inquiry = db.get_inquiry(inquiry_id)
-            if inquiry:
-                admin_message = format_inquiry_details(inquiry)
-                try:
-                    await context.bot.send_message(
-                        chat_id=ADMIN_ID,
-                        text=f"📣 استعلام قیمت جدید دریافت شد:\n\n{admin_message}",
-                        parse_mode=ParseMode.MARKDOWN
-                    )
-                except Exception as e:
-                    logging.error(f"Failed to notify admin: {e}")
-        
-        # Clear user state
-        if user_id in user_states:
-            del user_states[user_id]
-        
-        return ConversationHandler.END
-    
-    @staticmethod
-    async def cancel_inquiry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Cancel inquiry process."""
-        user_id = update.effective_user.id
-        
-        # Clear user state
-        if user_id in user_states:
-            del user_states[user_id]
-        
-        # Check if it's a callback query or a message
-        if update.callback_query:
-            await update.callback_query.answer()
-            await update.callback_query.edit_message_text(
-                "استعلام قیمت لغو شد.",
-                reply_markup=None
-            )
-        else:
-            await update.message.reply_text(
-                "استعلام قیمت لغو شد.",
-                reply_markup=main_menu_keyboard()
-            )
-        
-        return ConversationHandler.END
+        await message.answer("متأسفانه خطایی رخ داد. لطفاً مجدداً تلاش کنید.")
 
-# Search handlers
-class handle_search:
-    @staticmethod
-    async def start_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Start search process."""
-        await update.message.reply_text(
-            SEARCH_PROMPT,
-            reply_markup=cancel_keyboard()
-        )
-        return 1
-    
-    @staticmethod
-    async def process_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Process search query."""
-        query = update.message.text
-        
-        if not query or len(query) < 2:
-            await update.message.reply_text(
-                "لطفاً عبارت جستجو را با حداقل 2 کاراکتر وارد کنید:",
-                reply_markup=cancel_keyboard()
-            )
-            return 1
-        
-        # Search products
-        results = db.search_products(query)
-        
-        if results:
-            await update.message.reply_text(
-                f"نتایج جستجو برای «{query}»:",
-                reply_markup=products_keyboard(results)
-            )
-        else:
-            await update.message.reply_text(
-                f"هیچ نتیجه‌ای برای «{query}» یافت نشد.",
-                reply_markup=main_menu_keyboard()
-            )
-        
-        return ConversationHandler.END
-    
-    @staticmethod
-    async def cancel_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Cancel search process."""
-        await update.message.reply_text(
-            "جستجو لغو شد.",
-            reply_markup=main_menu_keyboard()
-        )
-        return ConversationHandler.END
+@router.message(Command("help"))
+async def cmd_help(message: Message):
+    """Handle /help command"""
+    logger.debug(f"Processing /help command from user {message.from_user.id}")
+    help_text = (
+        "راهنمای استفاده از ربات RFCBot:\n\n"
+        "👉 برای مشاهده محصولات: /products یا دکمه «محصولات»\n"
+        "👉 برای مشاهده خدمات: /services یا دکمه «خدمات»\n"
+        "👉 برای استعلام قیمت: /inquiry یا دکمه «استعلام قیمت»\n"
+        "👉 برای محتوای آموزشی: /education یا دکمه «محتوای آموزشی»\n"
+        "👉 برای اطلاعات تماس: /contact یا دکمه «تماس با ما»\n"
+        "👉 برای اطلاعات درباره ما: /about یا دکمه «درباره ما»"
+    )
+    await message.answer(help_text, reply_markup=get_main_keyboard())
 
-# Admin handlers
-class admin_handlers:
-    @staticmethod
-    async def start_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Start admin panel."""
-        user_id = update.effective_user.id
-        
-        # Check if user is admin
-        if user_id != ADMIN_ID:
-            await update.message.reply_text(ADMIN_ACCESS_DENIED)
+
+
+
+# Products command handler
+@router.message(Command("products"))
+@router.message(lambda message: message.text == PRODUCTS_BTN)
+async def cmd_products(message: Message, state: FSMContext):
+    """Handle /products command or Products button"""
+    try:
+        logger.info(f"Products requested by user: {message.from_user.id}")
+
+        # تنظیم حالت برای محصولات
+        await state.update_data(cat_type='product')
+
+        # نمایش دسته‌بندی‌های محصولات با استفاده از تابع مخصوص محصولات
+        await show_product_categories(message, state)
+
+    except Exception as e:
+        logger.error(f"Error in cmd_products: {str(e)}\n{traceback.format_exc()}")
+
+        await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
+
+# Services command handler
+@router.message(Command("services"))
+@router.message(lambda message: message.text == SERVICES_BTN)
+async def cmd_services(message: Message, state: FSMContext):
+    """Handle /services command or Services button"""
+    try:
+        logger.info(f"cmd_services Services requested by user: {message.from_user.id}")
+
+        # تنظیم حالت برای خدمات
+        await state.update_data(cat_type='service')
+
+        # نمایش دسته‌بندی‌های خدمات با استفاده از تابع مخصوص خدمات
+        await show_service_categories(message, state)
+
+    except Exception as e:
+        logger.error(f"Error in cmd_services: {str(e)}\n{traceback.format_exc()}")
+
+        await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
+
+# Contact command handler
+@router.message(Command("contact"))
+@router.message(lambda message: message.text == CONTACT_BTN)
+async def cmd_contact(message: Message):
+    """Handle /contact command or Contact button"""
+    try:
+        logger.info(f"Contact information requested by user: {message.from_user.id}")
+        contact_text = db.get_static_content('contact')
+        if not contact_text:
+            await message.answer("⚠️ اطلاعات تماس در حال حاضر در دسترس نیست. لطفا بعدا تلاش کنید.")
+            logger.warning("Contact information not found in database")
             return
-        
-        # Show admin menu
-        await update.message.reply_text(
-            ADMIN_WELCOME,
-            reply_markup=admin_keyboard()
+
+        # Format the message nicely
+        formatted_text = f"📞 *اطلاعات تماس*\n\n{contact_text}"
+        await message.answer(formatted_text, parse_mode="Markdown")
+        logger.info("Contact information sent successfully")
+    except Exception as e:
+
+        logger.error(f"Error in cmd_contact: {str(e)}\n{traceback.format_exc()}")
+        await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
+
+# About command handler
+@router.message(Command("about"))
+@router.message(lambda message: message.text == ABOUT_BTN)
+async def cmd_about(message: Message):
+    """Handle /about command or About button"""
+    try:
+        logger.info(f"About information requested by user: {message.from_user.id}")
+        about_text = db.get_static_content('about')
+        if not about_text:
+            await message.answer("⚠️ اطلاعات درباره ما در حال حاضر در دسترس نیست. لطفا بعدا تلاش کنید.")
+            logger.warning("About information not found in database")
+            return
+
+        # Format the message nicely
+        formatted_text = f"ℹ️ *درباره ما*\n\n{about_text}"
+        await message.answer(formatted_text, parse_mode="Markdown")
+        logger.info("About information sent successfully")
+    except Exception as e:
+
+        logger.error(f"Error in cmd_about: {str(e)}\n{traceback.format_exc()}")
+        await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
+
+# Education button handler
+@router.message(Command("education"))
+@router.message(lambda message: message.text == EDUCATION_BTN)
+async def cmd_education(message: Message):
+    """Handle Education button"""
+    try:
+        logger.info(f"cmd_education Educational content requested by user: {message.from_user.id}")
+        categories = db.get_educational_categories()
+        if not categories:
+            await message.answer("⚠️ محتوای آموزشی در حال حاضر در دسترس نیست. لطفا بعدا تلاش کنید.")
+            logger.warning("No educational categories found in database")
+            return
+
+        # Format the message nicely
+        from keyboards import education_categories_keyboard
+        keyboard = education_categories_keyboard(categories)
+        await message.answer(
+            "📚 *محتوای آموزشی*\n\nلطفا یکی از دسته‌بندی‌های زیر را انتخاب کنید:", 
+            reply_markup=keyboard,
+            parse_mode="Markdown"
         )
-    
-    @staticmethod
-    async def handle_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[int]:
-        """Handle admin actions from inline buttons."""
-        query = update.callback_query
-        data = query.data
-        admin_data = data[len(ADMIN_PREFIX):]
-        
-        # Back to main admin menu
-        if admin_data == "back_main":
-            await query.edit_message_text(
-                ADMIN_WELCOME,
-                reply_markup=None
-            )
-            return None
-        
-        # Manage products - show categories
-        elif admin_data == "manage_products":
-            categories = db.get_categories(parent_id=None, cat_type='product')
-            
-            if categories:
-                await query.edit_message_text(
-                    "مدیریت دسته‌بندی‌های محصولات:",
-                    reply_markup=admin_keyboards.admin_categories_keyboard(categories, None, 'product')
-                )
-            else:
-                await query.edit_message_text(
-                    "هیچ دسته‌بندی محصولی یافت نشد. دسته‌بندی جدید ایجاد کنید.",
-                    reply_markup=admin_keyboards.admin_categories_keyboard([], None, 'product')
-                )
-        
-        # Manage services - show categories
-        elif admin_data == "manage_services":
-            categories = db.get_categories(parent_id=None, cat_type='service')
-            
-            if categories:
-                await query.edit_message_text(
-                    "مدیریت دسته‌بندی‌های خدمات:",
-                    reply_markup=admin_keyboards.admin_categories_keyboard(categories, None, 'service')
-                )
-            else:
-                await query.edit_message_text(
-                    "هیچ دسته‌بندی خدماتی یافت نشد. دسته‌بندی جدید ایجاد کنید.",
-                    reply_markup=admin_keyboards.admin_categories_keyboard([], None, 'service')
-                )
-        
-        # Manage category
-        elif admin_data.startswith("cat_"):
-            category_id = int(admin_data[4:])
-            category = db.get_category(category_id)
-            
-            if category:
-                parent_id = category['parent_id']
-                
-                await query.edit_message_text(
-                    f"مدیریت دسته‌بندی: {category['name']}\n"
-                    f"نوع: {category['type'] == 'product' and 'محصول' or 'خدمات'}\n"
-                    f"مسیر: {get_category_path(db, category_id)}",
-                    reply_markup=admin_keyboards.admin_category_detail_keyboard(category_id, parent_id)
-                )
-            else:
-                await query.edit_message_text(
-                    "دسته‌بندی مورد نظر یافت نشد.",
-                    reply_markup=None
-                )
-        
-        # Category subcategories
-        elif admin_data.startswith("subcats_"):
-            category_id = int(admin_data[8:])
-            category = db.get_category(category_id)
-            
-            if category:
-                subcategories = db.get_categories(parent_id=category_id)
-                
-                await query.edit_message_text(
-                    f"زیرگروه‌های {category['name']}:",
-                    reply_markup=admin_keyboards.admin_categories_keyboard(
-                        subcategories, category_id, category['type']
-                    )
-                )
-            else:
-                await query.edit_message_text(
-                    "دسته‌بندی مورد نظر یافت نشد.",
-                    reply_markup=None
-                )
-        
-        # Category products
-        elif admin_data.startswith("products_"):
-            category_id = int(admin_data[9:])
-            category = db.get_category(category_id)
-            
-            if category:
-                products = db.get_products_by_category(category_id)
-                
-                await query.edit_message_text(
-                    f"محصولات/خدمات {category['name']}:",
-                    reply_markup=admin_keyboards.admin_products_keyboard(products, category_id)
-                )
-            else:
-                await query.edit_message_text(
-                    "دسته‌بندی مورد نظر یافت نشد.",
-                    reply_markup=None
-                )
-        
-        # Product detail
-        elif admin_data.startswith("product_"):
-            product_id = int(admin_data[8:])
-            product = db.get_product(product_id)
-            
-            if product:
-                category_id = product['category_id']
-                
-                product_text = (
-                    f"محصول/خدمت: {product['name']}\n"
-                    f"قیمت: {format_price(product['price'])}\n"
-                    f"توضیحات: {product['description'] or 'بدون توضیحات'}\n"
-                    f"تصویر: {product['photo_url'] or 'بدون تصویر'}\n"
-                    f"دسته‌بندی: {get_category_path(db, category_id)}"
-                )
-                
-                await query.edit_message_text(
-                    product_text,
-                    reply_markup=admin_keyboards.admin_product_detail_keyboard(product_id, category_id)
-                )
-            else:
-                await query.edit_message_text(
-                    "محصول/خدمت مورد نظر یافت نشد.",
-                    reply_markup=None
-                )
-        
-        # Edit category - start conversation
-        elif admin_data.startswith("edit_cat_"):
-            return await admin_handlers.start_edit_category(update, context)
-        
-        # Add category - start conversation
-        elif admin_data.startswith("add_cat_"):
-            return await admin_handlers.start_add_category(update, context)
-        
-        # Edit product - start conversation
-        elif admin_data.startswith("edit_product_"):
-            return await admin_handlers.start_edit_product(update, context)
-        
-        # Add product - start conversation
-        elif admin_data.startswith("add_product_"):
-            return await admin_handlers.start_add_product(update, context)
-        
-        # Delete category - confirm
-        elif admin_data.startswith("delete_cat_"):
-            category_id = int(admin_data[11:])
-            category = db.get_category(category_id)
-            
-            if category:
-                await query.edit_message_text(
-                    f"آیا از حذف دسته‌بندی «{category['name']}» و تمام زیرگروه‌ها و محصولات آن اطمینان دارید؟",
-                    reply_markup=confirm_keyboard("delete_cat", category_id)
-                )
-            else:
-                await query.edit_message_text(
-                    "دسته‌بندی مورد نظر یافت نشد.",
-                    reply_markup=None
-                )
-        
-        # Delete product - confirm
-        elif admin_data.startswith("delete_product_"):
-            product_id = int(admin_data[15:])
-            product = db.get_product(product_id)
-            
-            if product:
-                await query.edit_message_text(
-                    f"آیا از حذف محصول/خدمت «{product['name']}» اطمینان دارید؟",
-                    reply_markup=confirm_keyboard("delete_product", product_id)
-                )
-            else:
-                await query.edit_message_text(
-                    "محصول/خدمت مورد نظر یافت نشد.",
-                    reply_markup=None
-                )
-        
-        # Confirm delete category
-        elif admin_data.startswith("confirm_delete_cat_"):
-            category_id = int(admin_data[19:])
-            category = db.get_category(category_id)
-            
-            if category:
-                parent_id = category['parent_id']
-                success = db.delete_category(category_id)
-                
-                if success:
-                    if parent_id is None:
-                        # If top-level category, show all categories
-                        categories = db.get_categories(parent_id=None, cat_type=category['type'])
-                        
-                        await query.edit_message_text(
-                            f"دسته‌بندی «{category['name']}» با موفقیت حذف شد.",
-                            reply_markup=admin_keyboards.admin_categories_keyboard(
-                                categories, None, category['type']
-                            )
-                        )
-                    else:
-                        # Show parent's subcategories
-                        parent = db.get_category(parent_id)
-                        subcategories = db.get_categories(parent_id=parent_id)
-                        
-                        await query.edit_message_text(
-                            f"دسته‌بندی «{category['name']}» با موفقیت حذف شد.",
-                            reply_markup=admin_keyboards.admin_categories_keyboard(
-                                subcategories, parent_id, parent['type']
-                            )
-                        )
-                else:
-                    await query.edit_message_text(
-                        "خطا در حذف دسته‌بندی. لطفاً دوباره تلاش کنید.",
-                        reply_markup=None
-                    )
-            else:
-                await query.edit_message_text(
-                    "دسته‌بندی مورد نظر یافت نشد.",
-                    reply_markup=None
-                )
-        
-        # Confirm delete product
-        elif admin_data.startswith("confirm_delete_product_"):
-            product_id = int(admin_data[23:])
-            product = db.get_product(product_id)
-            
-            if product:
-                category_id = product['category_id']
-                success = db.delete_product(product_id)
-                
-                if success:
-                    # Show category products
-                    products = db.get_products_by_category(category_id)
-                    
-                    await query.edit_message_text(
-                        f"محصول/خدمت «{product['name']}» با موفقیت حذف شد.",
-                        reply_markup=admin_keyboards.admin_products_keyboard(products, category_id)
-                    )
-                else:
-                    await query.edit_message_text(
-                        "خطا در حذف محصول/خدمت. لطفاً دوباره تلاش کنید.",
-                        reply_markup=None
-                    )
-            else:
-                await query.edit_message_text(
-                    "محصول/خدمت مورد نظر یافت نشد.",
-                    reply_markup=None
-                )
-        
-        # Cancel delete
-        elif admin_data.startswith("cancel_delete_"):
-            if "cat_" in admin_data:
-                category_id = int(admin_data.split("_")[-1])
-                category = db.get_category(category_id)
-                
-                if category:
-                    await query.edit_message_text(
-                        f"حذف دسته‌بندی «{category['name']}» لغو شد.",
-                        reply_markup=admin_keyboards.admin_category_detail_keyboard(
-                            category_id, category['parent_id']
-                        )
-                    )
-                else:
-                    await query.edit_message_text(
-                        "دسته‌بندی مورد نظر یافت نشد.",
-                        reply_markup=None
-                    )
-            elif "product_" in admin_data:
-                product_id = int(admin_data.split("_")[-1])
-                product = db.get_product(product_id)
-                
-                if product:
-                    await query.edit_message_text(
-                        f"حذف محصول/خدمت «{product['name']}» لغو شد.",
-                        reply_markup=admin_keyboards.admin_product_detail_keyboard(
-                            product_id, product['category_id']
-                        )
-                    )
-                else:
-                    await query.edit_message_text(
-                        "محصول/خدمت مورد نظر یافت نشد.",
-                        reply_markup=None
-                    )
-        
-        # Manage educational content
-        elif admin_data == "educational":
-            contents = db.get_all_educational_content()
-            
-            await query.edit_message_text(
-                "مدیریت مطالب آموزشی:",
-                reply_markup=admin_keyboards.admin_educational_keyboard(contents)
-            )
-        
-        # Educational content detail
-        elif admin_data.startswith("edu_"):
-            content_id = int(admin_data[4:])
-            content = db.get_educational_content(content_id)
-            
-            if content:
-                content_text = (
-                    f"عنوان: {content['title']}\n"
-                    f"دسته‌بندی: {content['category']}\n"
-                    f"نوع: {content['type']}\n\n"
-                    f"محتوا:\n{content['content']}"
-                )
-                
-                await query.edit_message_text(
-                    content_text,
-                    reply_markup=admin_keyboards.admin_edu_detail_keyboard(content_id)
-                )
-            else:
-                await query.edit_message_text(
-                    "مطلب مورد نظر یافت نشد.",
-                    reply_markup=None
-                )
-        
-        # Edit educational content - start conversation
-        elif admin_data.startswith("edit_edu_"):
-            return await admin_handlers.start_edit_edu(update, context)
-        
-        # Add educational content - start conversation
-        elif admin_data == "add_edu":
-            return await admin_handlers.start_add_edu(update, context)
-        
-        # Delete educational content - confirm
-        elif admin_data.startswith("delete_edu_"):
-            content_id = int(admin_data[11:])
-            content = db.get_educational_content(content_id)
-            
-            if content:
-                await query.edit_message_text(
-                    f"آیا از حذف مطلب «{content['title']}» اطمینان دارید؟",
-                    reply_markup=confirm_keyboard("delete_edu", content_id)
-                )
-            else:
-                await query.edit_message_text(
-                    "مطلب مورد نظر یافت نشد.",
-                    reply_markup=None
-                )
-        
-        # Confirm delete educational content
-        elif admin_data.startswith("confirm_delete_edu_"):
-            content_id = int(admin_data[19:])
-            content = db.get_educational_content(content_id)
-            
-            if content:
-                success = db.delete_educational_content(content_id)
-                
-                if success:
-                    # Show all educational content
-                    contents = db.get_all_educational_content()
-                    
-                    await query.edit_message_text(
-                        f"مطلب «{content['title']}» با موفقیت حذف شد.",
-                        reply_markup=admin_keyboards.admin_educational_keyboard(contents)
-                    )
-                else:
-                    await query.edit_message_text(
-                        "خطا در حذف مطلب. لطفاً دوباره تلاش کنید.",
-                        reply_markup=None
-                    )
-            else:
-                await query.edit_message_text(
-                    "مطلب مورد نظر یافت نشد.",
-                    reply_markup=None
-                )
-        
-        # Cancel delete educational content
-        elif admin_data.startswith("cancel_delete_edu_"):
-            content_id = int(admin_data[19:])
-            content = db.get_educational_content(content_id)
-            
-            if content:
-                await query.edit_message_text(
-                    f"حذف مطلب «{content['title']}» لغو شد.",
-                    reply_markup=admin_keyboards.admin_edu_detail_keyboard(content_id)
-                )
-            else:
-                await query.edit_message_text(
-                    "مطلب مورد نظر یافت نشد.",
-                    reply_markup=None
-                )
-        
-        # Manage inquiries
-        elif admin_data == "inquiries":
-            inquiries = db.get_inquiries()
-            
-            if inquiries:
-                await query.edit_message_text(
-                    "استعلام‌های دریافت شده:",
-                    reply_markup=admin_keyboards.admin_inquiries_keyboard(inquiries)
-                )
-            else:
-                await query.edit_message_text(
-                    "هیچ استعلامی یافت نشد.",
-                    reply_markup=InlineKeyboardMarkup([[
-                        InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}back_main")
-                    ]])
-                )
-        
-        # Inquiry detail
-        elif admin_data.startswith("inquiry_"):
-            inquiry_id = int(admin_data[8:])
-            inquiry = db.get_inquiry(inquiry_id)
-            
-            if inquiry:
-                inquiry_text = format_inquiry_details(inquiry)
-                
-                await query.edit_message_text(
-                    inquiry_text,
-                    parse_mode=ParseMode.MARKDOWN,
-                    reply_markup=InlineKeyboardMarkup([[
-                        InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}inquiries")
-                    ]])
-                )
-            else:
-                await query.edit_message_text(
-                    "استعلام مورد نظر یافت نشد.",
-                    reply_markup=None
-                )
-        
-        # Filter inquiries - not implemented yet
-        elif admin_data == "filter_inquiries":
-            await query.edit_message_text(
-                "این قابلیت هنوز پیاده‌سازی نشده است.",
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}inquiries")
-                ]])
-            )
-        
-        # Export inquiries to CSV
-        elif admin_data == "export_inquiries":
-            # Create CSV file in temp directory
-            with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as temp_file:
-                temp_path = temp_file.name
-            
-            success = db.export_to_csv('inquiries', temp_path)
-            
-            if success:
-                # Send CSV file
-                with open(temp_path, 'rb') as file:
-                    await context.bot.send_document(
-                        chat_id=update.effective_user.id,
-                        document=file,
-                        filename='inquiries.csv',
-                        caption="خروجی CSV استعلام‌ها"
-                    )
-                
-                # Delete temp file
-                os.unlink(temp_path)
-                
-                await query.edit_message_text(
-                    "خروجی CSV استعلام‌ها با موفقیت ارسال شد.",
-                    reply_markup=InlineKeyboardMarkup([[
-                        InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}inquiries")
-                    ]])
-                )
-            else:
-                await query.edit_message_text(
-                    "خطا در ایجاد خروجی CSV. لطفاً دوباره تلاش کنید.",
-                    reply_markup=InlineKeyboardMarkup([[
-                        InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}inquiries")
-                    ]])
-                )
-        
-        # Manage static content
-        elif admin_data == "static_content":
-            await query.edit_message_text(
-                "مدیریت صفحات ثابت:",
-                reply_markup=admin_keyboards.admin_static_keyboard()
-            )
-        
-        # Edit static content - start conversation
-        elif admin_data.startswith("edit_static_"):
-            return await admin_handlers.start_edit_static(update, context)
-        
-        # Export menu
-        elif admin_data == "export":
-            await query.edit_message_text(
-                "انتخاب داده برای خروجی CSV:",
-                reply_markup=admin_keyboards.admin_export_keyboard()
-            )
-        
-        # Export to CSV
-        elif admin_data.startswith("export_"):
-            entity_type = admin_data[7:]
-            
-            # Create CSV file in temp directory
-            with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as temp_file:
-                temp_path = temp_file.name
-            
-            success = db.export_to_csv(entity_type, temp_path)
-            
-            if success:
-                # Send CSV file
-                with open(temp_path, 'rb') as file:
-                    await context.bot.send_document(
-                        chat_id=update.effective_user.id,
-                        document=file,
-                        filename=f'{entity_type}.csv',
-                        caption=f"خروجی CSV {entity_type}"
-                    )
-                
-                # Delete temp file
-                os.unlink(temp_path)
-                
-                await query.edit_message_text(
-                    f"خروجی CSV {entity_type} با موفقیت ارسال شد.",
-                    reply_markup=admin_keyboards.admin_export_keyboard()
-                )
-            else:
-                await query.edit_message_text(
-                    "خطا در ایجاد خروجی CSV. لطفاً دوباره تلاش کنید.",
-                    reply_markup=admin_keyboards.admin_export_keyboard()
-                )
-        
-        # Import menu
-        elif admin_data == "import":
-            await query.edit_message_text(
-                "انتخاب داده برای ورود از CSV:",
-                reply_markup=admin_keyboards.admin_import_keyboard()
-            )
-        
-        # Import from CSV - start conversation
-        elif admin_data.startswith("import_"):
-            return await admin_handlers.start_import_data(update, context)
-        
-        # Generate CSV template
-        elif admin_data.startswith("template_"):
-            entity_type = admin_data[9:]
-            
-            # Create CSV file in temp directory
-            with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as temp_file:
-                temp_path = temp_file.name
-            
-            success = generate_csv_template(temp_path, entity_type)
-            
-            if success:
-                # Send CSV file
-                with open(temp_path, 'rb') as file:
-                    await context.bot.send_document(
-                        chat_id=update.effective_user.id,
-                        document=file,
-                        filename=f'{entity_type}_template.csv',
-                        caption=f"قالب CSV {entity_type}"
-                    )
-                
-                # Delete temp file
-                os.unlink(temp_path)
-                
-                await query.edit_message_text(
-                    f"قالب CSV {entity_type} با موفقیت ارسال شد.",
-                    reply_markup=admin_keyboards.admin_import_keyboard()
-                )
-            else:
-                await query.edit_message_text(
-                    "خطا در ایجاد قالب CSV. لطفاً دوباره تلاش کنید.",
-                    reply_markup=admin_keyboards.admin_import_keyboard()
-                )
-        
-        return None  # No conversation started
-    
-    @staticmethod
-    async def start_edit_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Start editing a category."""
-        query = update.callback_query
-        await query.answer()
-        
-        user_id = update.effective_user.id
-        data = query.data
-        category_id = int(data[len(ADMIN_PREFIX + "edit_cat_"):])
-        
-        category = db.get_category(category_id)
-        if not category:
-            await query.edit_message_text("دسته‌بندی مورد نظر یافت نشد.")
-            return ConversationHandler.END
-        
-        # Store category ID and current data in user state
-        if user_id not in user_states:
-            user_states[user_id] = {}
-        user_states[user_id]['edit_category_id'] = category_id
-        user_states[user_id]['edit_category_name'] = category['name']
-        user_states[user_id]['edit_category_type'] = category['type']
-        user_states[user_id]['edit_category_parent_id'] = category['parent_id']
-        
-        # Send edit form
-        await query.edit_message_text(
-            f"ویرایش دسته‌بندی «{category['name']}»\n\n"
-            f"لطفاً نام جدید را وارد کنید:",
-            reply_markup=cancel_keyboard()
+        logger.info(f"Educational categories sent: {len(categories)} categories")
+    except Exception as e:
+
+        logger.error(f"Error in cmd_education: {str(e)}\n{traceback.format_exc()}")
+        await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
+
+# Search button handler
+@router.message(lambda message: message.text == SEARCH_BTN)
+async def cmd_search(message: Message, state: FSMContext):
+    """Handle Search button"""
+    try:
+        logger.info(f"Search requested by user: {message.from_user.id}")
+
+        search_text = (
+            "🔍 *جستجو در محتوا*\n\n"
+            "برای جستجو در تمام محصولات، خدمات و محتوای آموزشی، "
+            "کلمه کلیدی خود را تایپ کنید:\n\n"
+            "• حداقل ۳ حرف وارد کنید\n"
+            "• می‌توانید به فارسی یا انگلیسی جستجو کنید\n"
+            "• جستجو در نام، توضیحات، برندها و دسته‌بندی‌ها انجام می‌شود"
         )
-        
-        return ADMIN_EDIT_CAT
-    
-    @staticmethod
-    async def process_edit_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Process category edit."""
-        user_id = update.effective_user.id
-        name = update.message.text
-        
-        if user_id not in user_states:
-            await update.message.reply_text(ERROR_MESSAGE)
-            return ConversationHandler.END
-        
-        category_id = user_states[user_id]['edit_category_id']
-        parent_id = user_states[user_id]['edit_category_parent_id']
-        cat_type = user_states[user_id]['edit_category_type']
-        
-        # Update category
-        success = db.update_category(
-            category_id=category_id,
-            name=name,
-            parent_id=parent_id,
-            cat_type=cat_type
+
+        await message.answer(search_text, parse_mode="Markdown")
+        await state.set_state(UserStates.waiting_for_search)
+        logger.info(f"User {message.from_user.id} entered search state")
+    except Exception as e:
+        logger.error(f"Error in cmd_search: {str(e)}\n{traceback.format_exc()}")
+        await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
+
+# Search input handler
+@router.message(StateFilter(UserStates.waiting_for_search))
+async def handle_search_input(message: Message, state: FSMContext):
+    """Handle search input from user"""
+    try:
+        search_query = message.text.strip()
+        logger.info(f"Search query received from user {message.from_user.id}: {search_query}")
+
+        if len(search_query) < 3:
+            await message.answer("⚠️ لطفا حداقل ۳ حرف وارد کنید.")
+            return
+
+        # Perform the unified search
+        search_results = db.unified_search(search_query)
+
+        total_results = (len(search_results['products']) + 
+                        len(search_results['services']) + 
+                        len(search_results['educational']))
+
+        if total_results == 0:
+            await message.answer(
+                f"🔍 نتایج جستجو برای: *{search_query}*\n\n"
+                "❌ هیچ نتیجه‌ای یافت نشد.\n\n"
+                "💡 پیشنهاد: کلمات کلیدی دیگری امتحان کنید یا از واژه‌های کلی‌تر استفاده کنید.",
+                parse_mode="Markdown"
+            )
+            await state.clear()
+            return
+
+        # Display search results
+        response_text = f"🔍 نتایج جستجو برای: *{search_query}*\n\n"
+        response_text += f"📊 تعداد کل نتایج: {total_results}\n\n"
+
+        # Display Products
+        if search_results['products']:
+            response_text += f"🛍️ *محصولات ({len(search_results['products'])})*\n"
+            for product in search_results['products'][:5]:  # Show max 5 products
+                price_text = f"{product['price']:,} تومان" if product['price'] else "قیمت نامشخص"
+                stock_text = "✅ موجود" if product.get('in_stock') else "❌ ناموجود"
+                featured_text = "⭐" if product.get('featured') else ""
+
+                response_text += (f"• {featured_text}{product['name']}\n"
+                                f"  💰 {price_text} | {stock_text}\n"
+                                f"  📁 {product.get('category_name', 'بدون دسته‌بندی')}\n\n")
+
+        # Display Services  
+        if search_results['services']:
+            response_text += f"🔧 *خدمات ({len(search_results['services'])})*\n"
+            for service in search_results['services'][:5]:  # Show max 5 services
+                price_text = f"{service['price']:,} تومان" if service['price'] else "قیمت نامشخص"
+                featured_text = "⭐" if service.get('featured') else ""
+
+                response_text += (f"• {featured_text}{service['name']}\n"
+                                f"  💰 {price_text}\n"
+                                f"  📁 {service.get('category_name', 'بدون دسته‌بندی')}\n\n")
+
+        # Display Educational Content
+        if search_results['educational']:
+            response_text += f"📚 *محتوای آموزشی ({len(search_results['educational'])})*\n"
+            for edu in search_results['educational'][:5]:  # Show max 5 educational items
+                response_text += (f"• {edu['title']}\n"
+                                f"  📁 {edu.get('category_name', edu.get('category', 'بدون دسته‌بندی'))}\n\n")
+
+        # Add navigation hint
+        response_text += "💡 برای مشاهده جزئیات بیشتر، از منوی اصلی به بخش مربوطه مراجعه کنید."
+
+        await message.answer(response_text, parse_mode="Markdown")
+        await state.clear()
+
+        logger.info(f"Search results sent to user {message.from_user.id}: {total_results} total results")
+
+    except Exception as e:
+        logger.error(f"Error in handle_search_input: {str(e)}\n{traceback.format_exc()}")
+        await message.answer("⚠️ متأسفانه در جستجو خطایی رخ داد. لطفا مجددا تلاش کنید.")
+        await state.clear()
+
+# Inquiry button handler
+@router.message(lambda message: message.text == INQUIRY_BTN)
+async def cmd_inquiry(message: Message, state: FSMContext):
+    """Handle Inquiry button"""
+    try:
+        logger.info(f"Inquiry process started by user: {message.from_user.id}")
+
+        # Format the message nicely
+        inquiry_text = (
+            "📝 *استعلام قیمت*\n\n"
+            "برای ارسال استعلام قیمت، لطفا اطلاعات زیر را به ترتیب وارد کنید:\n"
+            "1️⃣ نام و نام خانوادگی\n"
+            "2️⃣ شماره تماس\n"
+            "3️⃣ شرح محصول یا خدمات درخواستی\n\n"
+            "لطفا نام و نام خانوادگی خود را وارد کنید:"
         )
-        
-        if success:
-            category = db.get_category(category_id)
-            
-            await update.message.reply_text(
-                f"دسته‌بندی با موفقیت به «{name}» تغییر نام یافت.",
-                reply_markup=admin_keyboard()
-            )
-            
-            # Send updated category detail
-            if category:
-                await update.message.reply_text(
-                    f"اطلاعات دسته‌بندی:\n"
-                    f"نام: {category['name']}\n"
-                    f"نوع: {category['type'] == 'product' and 'محصول' or 'خدمات'}\n"
-                    f"مسیر: {get_category_path(db, category_id)}",
-                    reply_markup=admin_keyboards.admin_category_detail_keyboard(category_id, parent_id)
-                )
-        else:
-            await update.message.reply_text(
-                "خطا در ویرایش دسته‌بندی. لطفاً دوباره تلاش کنید.",
-                reply_markup=admin_keyboard()
-            )
-        
-        # Clear user state
-        if user_id in user_states:
-            del user_states[user_id]
-        
-        return ConversationHandler.END
-    
-    @staticmethod
-    async def start_add_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Start adding a new category."""
-        query = update.callback_query
-        await query.answer()
-        
-        user_id = update.effective_user.id
-        data = query.data
-        
-        # Extract parent ID and type
-        parts = data[len(ADMIN_PREFIX + "add_cat_"):].split("_")
-        parent_id = int(parts[0]) if parts[0] != "0" else None
-        cat_type = parts[1]
-        
-        # Store data in user state
-        if user_id not in user_states:
-            user_states[user_id] = {}
-        user_states[user_id]['add_category_parent_id'] = parent_id
-        user_states[user_id]['add_category_type'] = cat_type
-        
-        # Send add form
-        parent_info = ""
-        if parent_id is not None:
-            parent = db.get_category(parent_id)
-            if parent:
-                parent_info = f"\nدسته‌بندی والد: {parent['name']}"
-        
-        await query.edit_message_text(
-            f"افزودن دسته‌بندی جدید{parent_info}\n\n"
-            f"لطفاً نام دسته‌بندی را وارد کنید:",
-            reply_markup=cancel_keyboard()
-        )
-        
-        return ADMIN_EDIT_CAT
-    
-    @staticmethod
-    async def process_add_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Process new category addition."""
-        user_id = update.effective_user.id
-        name = update.message.text
-        
-        if user_id not in user_states:
-            await update.message.reply_text(ERROR_MESSAGE)
-            return ConversationHandler.END
-        
-        parent_id = user_states[user_id]['add_category_parent_id']
-        cat_type = user_states[user_id]['add_category_type']
-        
-        # Add category
-        category_id = db.add_category(
-            name=name,
-            parent_id=parent_id,
-            cat_type=cat_type
-        )
-        
-        if category_id:
-            await update.message.reply_text(
-                f"دسته‌بندی «{name}» با موفقیت ایجاد شد.",
-                reply_markup=admin_keyboard()
-            )
-            
-            # If parent exists, show updated subcategories
-            if parent_id is not None:
-                parent = db.get_category(parent_id)
-                if parent:
-                    subcategories = db.get_categories(parent_id=parent_id)
-                    
-                    await update.message.reply_text(
-                        f"زیرگروه‌های {parent['name']}:",
-                        reply_markup=admin_keyboards.admin_categories_keyboard(
-                            subcategories, parent_id, cat_type
-                        )
-                    )
-            else:
-                # Show all top-level categories
-                categories = db.get_categories(parent_id=None, cat_type=cat_type)
-                
-                await update.message.reply_text(
-                    f"دسته‌بندی‌های {cat_type == 'product' and 'محصولات' or 'خدمات'}:",
-                    reply_markup=admin_keyboards.admin_categories_keyboard(
-                        categories, None, cat_type
-                    )
-                )
-        else:
-            await update.message.reply_text(
-                "خطا در ایجاد دسته‌بندی. لطفاً دوباره تلاش کنید.",
-                reply_markup=admin_keyboard()
-            )
-        
-        # Clear user state
-        if user_id in user_states:
-            del user_states[user_id]
-        
-        return ConversationHandler.END
-    
-    @staticmethod
-    async def start_edit_product(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Start editing a product."""
-        query = update.callback_query
-        await query.answer()
-        
-        user_id = update.effective_user.id
-        data = query.data
-        product_id = int(data[len(ADMIN_PREFIX + "edit_product_"):])
-        
-        product = db.get_product(product_id)
-        if not product:
-            await query.edit_message_text("محصول/خدمت مورد نظر یافت نشد.")
-            return ConversationHandler.END
-        
-        # Store product ID and current data in user state
-        if user_id not in user_states:
-            user_states[user_id] = {}
-        user_states[user_id]['edit_product_id'] = product_id
-        user_states[user_id]['edit_product_name'] = product['name']
-        user_states[user_id]['edit_product_price'] = product['price']
-        user_states[user_id]['edit_product_description'] = product['description']
-        user_states[user_id]['edit_product_photo_url'] = product['photo_url']
-        user_states[user_id]['edit_product_category_id'] = product['category_id']
-        user_states[user_id]['edit_product_step'] = 0  # 0: name, 1: price, 2: description, 3: photo_url
-        
-        # Send edit form - start with name
-        await query.edit_message_text(
-            f"ویرایش محصول/خدمت «{product['name']}»\n\n"
-            f"مرحله 1/4: لطفاً نام جدید را وارد کنید (یا 'skip' برای رد کردن):",
-            reply_markup=cancel_keyboard()
-        )
-        
-        return ADMIN_EDIT_PRODUCT
-    
-    @staticmethod
-    async def process_edit_product(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Process product edit, step by step."""
-        user_id = update.effective_user.id
-        text = update.message.text
-        
-        if user_id not in user_states:
-            await update.message.reply_text(ERROR_MESSAGE)
-            return ConversationHandler.END
-        
-        product_id = user_states[user_id]['edit_product_id']
-        step = user_states[user_id]['edit_product_step']
-        
-        # Process current step
-        if step == 0:  # Name
-            if text.lower() != 'skip':
-                user_states[user_id]['edit_product_name'] = text
-            
-            # Move to price
-            user_states[user_id]['edit_product_step'] = 1
-            
-            await update.message.reply_text(
-                f"مرحله 2/4: لطفاً قیمت جدید را به عدد وارد کنید (یا 'skip' برای رد کردن):",
-                reply_markup=cancel_keyboard()
-            )
-            
-            return ADMIN_EDIT_PRODUCT
-            
-        elif step == 1:  # Price
-            if text.lower() != 'skip':
-                try:
-                    price = int(text.replace(',', ''))
-                    user_states[user_id]['edit_product_price'] = price
-                except ValueError:
-                    await update.message.reply_text(
-                        "لطفاً یک عدد معتبر وارد کنید (یا 'skip' برای رد کردن):",
-                        reply_markup=cancel_keyboard()
-                    )
-                    return ADMIN_EDIT_PRODUCT
-            
-            # Move to description
-            user_states[user_id]['edit_product_step'] = 2
-            
-            await update.message.reply_text(
-                f"مرحله 3/4: لطفاً توضیحات جدید را وارد کنید (یا 'skip' برای رد کردن):",
-                reply_markup=cancel_keyboard()
-            )
-            
-            return ADMIN_EDIT_PRODUCT
-            
-        elif step == 2:  # Description
-            if text.lower() != 'skip':
-                user_states[user_id]['edit_product_description'] = text
-            
-            # Move to photo URL
-            user_states[user_id]['edit_product_step'] = 3
-            
-            await update.message.reply_text(
-                f"مرحله 4/4: لطفاً آدرس عکس جدید را وارد کنید (یا 'skip' برای رد کردن یا 'none' برای حذف):",
-                reply_markup=cancel_keyboard()
-            )
-            
-            return ADMIN_EDIT_PRODUCT
-            
-        elif step == 3:  # Photo URL
-            if text.lower() == 'none':
-                user_states[user_id]['edit_product_photo_url'] = None
-            elif text.lower() != 'skip':
-                user_states[user_id]['edit_product_photo_url'] = text
-            
-            # Update product
-            name = user_states[user_id]['edit_product_name']
-            price = user_states[user_id]['edit_product_price']
-            description = user_states[user_id]['edit_product_description']
-            photo_url = user_states[user_id]['edit_product_photo_url']
-            category_id = user_states[user_id]['edit_product_category_id']
-            
-            success = db.update_product(
-                product_id=product_id,
-                name=name,
-                price=price,
-                description=description,
-                photo_url=photo_url,
-                category_id=category_id
-            )
-            
-            if success:
-                product = db.get_product(product_id)
-                
-                await update.message.reply_text(
-                    f"محصول/خدمت «{name}» با موفقیت به‌روزرسانی شد.",
-                    reply_markup=admin_keyboard()
-                )
-                
-                # Send updated product detail
-                if product:
-                    product_text = (
-                        f"محصول/خدمت: {product['name']}\n"
-                        f"قیمت: {format_price(product['price'])}\n"
-                        f"توضیحات: {product['description'] or 'بدون توضیحات'}\n"
-                        f"تصویر: {product['photo_url'] or 'بدون تصویر'}\n"
-                        f"دسته‌بندی: {get_category_path(db, category_id)}"
-                    )
-                    
-                    await update.message.reply_text(
-                        product_text,
-                        reply_markup=admin_keyboards.admin_product_detail_keyboard(product_id, category_id)
-                    )
-            else:
-                await update.message.reply_text(
-                    "خطا در به‌روزرسانی محصول/خدمت. لطفاً دوباره تلاش کنید.",
-                    reply_markup=admin_keyboard()
-                )
-            
-            # Clear user state
-            if user_id in user_states:
-                del user_states[user_id]
-            
-            return ConversationHandler.END
-    
-    @staticmethod
-    async def start_add_product(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Start adding a new product."""
-        query = update.callback_query
-        await query.answer()
-        
-        user_id = update.effective_user.id
-        data = query.data
-        category_id = int(data[len(ADMIN_PREFIX + "add_product_"):])
-        
-        category = db.get_category(category_id)
-        if not category:
-            await query.edit_message_text("دسته‌بندی مورد نظر یافت نشد.")
-            return ConversationHandler.END
-        
-        # Store data in user state
-        if user_id not in user_states:
-            user_states[user_id] = {}
-        user_states[user_id]['add_product_category_id'] = category_id
-        user_states[user_id]['add_product_step'] = 0  # 0: name, 1: price, 2: description, 3: photo_url
-        
-        # Send add form - start with name
-        await query.edit_message_text(
-            f"افزودن محصول/خدمت جدید به دسته‌بندی «{category['name']}»\n\n"
-            f"مرحله 1/4: لطفاً نام را وارد کنید:",
-            reply_markup=cancel_keyboard()
-        )
-        
-        return ADMIN_EDIT_PRODUCT
-    
-    @staticmethod
-    async def process_add_product(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Process new product addition, step by step."""
-        user_id = update.effective_user.id
-        text = update.message.text
-        
-        if user_id not in user_states:
-            await update.message.reply_text(ERROR_MESSAGE)
-            return ConversationHandler.END
-        
-        step = user_states[user_id]['add_product_step']
-        
-        # Process current step
-        if step == 0:  # Name
-            user_states[user_id]['add_product_name'] = text
-            
-            # Move to price
-            user_states[user_id]['add_product_step'] = 1
-            
-            await update.message.reply_text(
-                f"مرحله 2/4: لطفاً قیمت را به عدد وارد کنید:",
-                reply_markup=cancel_keyboard()
-            )
-            
-            return ADMIN_EDIT_PRODUCT
-            
-        elif step == 1:  # Price
-            try:
-                price = int(text.replace(',', ''))
-                user_states[user_id]['add_product_price'] = price
-            except ValueError:
-                await update.message.reply_text(
-                    "لطفاً یک عدد معتبر وارد کنید:",
-                    reply_markup=cancel_keyboard()
-                )
-                return ADMIN_EDIT_PRODUCT
-            
-            # Move to description
-            user_states[user_id]['add_product_step'] = 2
-            
-            await update.message.reply_text(
-                f"مرحله 3/4: لطفاً توضیحات را وارد کنید (یا 'none' برای خالی گذاشتن):",
-                reply_markup=cancel_keyboard()
-            )
-            
-            return ADMIN_EDIT_PRODUCT
-            
-        elif step == 2:  # Description
-            description = None if text.lower() == 'none' else text
-            user_states[user_id]['add_product_description'] = description
-            
-            # Move to photo URL
-            user_states[user_id]['add_product_step'] = 3
-            
-            await update.message.reply_text(
-                f"مرحله 4/4: لطفاً آدرس عکس را وارد کنید (یا 'none' برای بدون عکس):",
-                reply_markup=cancel_keyboard()
-            )
-            
-            return ADMIN_EDIT_PRODUCT
-            
-        elif step == 3:  # Photo URL
-            photo_url = None if text.lower() == 'none' else text
-            
-            # Add product
-            name = user_states[user_id]['add_product_name']
-            price = user_states[user_id]['add_product_price']
-            description = user_states[user_id]['add_product_description']
-            category_id = user_states[user_id]['add_product_category_id']
-            
-            product_id = db.add_product(
-                name=name,
-                price=price,
-                description=description,
-                photo_url=photo_url,
-                category_id=category_id
-            )
-            
-            if product_id:
-                await update.message.reply_text(
-                    f"محصول/خدمت «{name}» با موفقیت ایجاد شد.",
-                    reply_markup=admin_keyboard()
-                )
-                
-                # Show category products
-                category = db.get_category(category_id)
-                if category:
-                    products = db.get_products_by_category(category_id)
-                    
-                    await update.message.reply_text(
-                        f"محصولات/خدمات {category['name']}:",
-                        reply_markup=admin_keyboards.admin_products_keyboard(products, category_id)
-                    )
-            else:
-                await update.message.reply_text(
-                    "خطا در ایجاد محصول/خدمت. لطفاً دوباره تلاش کنید.",
-                    reply_markup=admin_keyboard()
-                )
-            
-            # Clear user state
-            if user_id in user_states:
-                del user_states[user_id]
-            
-            return ConversationHandler.END
-    
-    @staticmethod
-    async def start_edit_edu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Start editing educational content."""
-        query = update.callback_query
-        await query.answer()
-        
-        user_id = update.effective_user.id
-        data = query.data
-        content_id = int(data[len(ADMIN_PREFIX + "edit_edu_"):])
-        
+
+        await message.answer(inquiry_text, parse_mode="Markdown")
+        await state.set_state(UserStates.inquiry_name)
+        logger.info(f"User {message.from_user.id} entered inquiry name state")
+    except Exception as e:
+
+        logger.error(f"Error in cmd_inquiry: {str(e)}\n{traceback.format_exc()}")
+        await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
+
+
+
+# Button callbacks
+@router.callback_query(F.data == "products")
+async def callback_products(callback: CallbackQuery, state: FSMContext):
+    logger.debug(f"callback_products called with data: {callback.data}")
+    """Handle products button click"""
+    await callback.answer()
+    await show_product_categories(callback.message, state)
+
+@router.callback_query(F.data == "services")
+async def callback_services(callback: CallbackQuery, state: FSMContext):
+    logger.debug(f"callback_services called with data: {callback.data}")
+    """Handle services button click"""
+    await callback.answer()
+    await show_service_categories(callback.message, state)
+
+@router.callback_query(F.data == "contact")
+async def callback_contact(callback: CallbackQuery):
+    logger.debug(f"callback_contact called with data: {callback.data}")
+    """Handle contact button click"""
+    await callback.answer()
+    contact_text = db.get_static_content('contact')
+    await callback.message.answer(contact_text)
+
+@router.callback_query(F.data == "about")
+async def callback_about(callback: CallbackQuery):
+    logger.debug(f"callback_about called with data: {callback.data}")
+    """Handle about button click"""
+    await callback.answer()
+    about_text = db.get_static_content('about')
+    await callback.message.answer(about_text)
+
+@router.callback_query(F.data == "educational")
+async def callback_educational(callback: CallbackQuery):
+    logger.debug(f"callback_educational called with data: {callback.data}")
+    """Handle educational content button click"""
+    await callback.answer()
+
+    logger.info(f"Educational content requested by user: {callback.from_user.id}")
+
+    # Get educational categories
+    try:
+        categories = db.get_educational_categories()
+    except Exception as e:
+        logger.error(f"Failed to fetch categories: {e}\n{traceback.format_exc()}")
+        await callback.message.answer("خطایی در دریافت محتوای آموزشی رخ داد.")
+        return
+
+    if not categories:
+        await callback.message.answer("در حال حاضر محتوای آموزشی موجود نیست.")
+        return
+
+    # Update categories with legacy content counts
+    for category in categories:
+        try:
+            category_id = category['id']
+            legacy_content = db.get_all_educational_content(category_id=category_id)
+            legacy_count = len(legacy_content) if legacy_content else 0
+            content_count = int(category.get('content_count', 0))
+            category['content_count'] = content_count + legacy_count
+            logger.info(f"Category '{category.get('name', 'Unknown')}' (ID: {category_id}): "
+                        f"content_count={content_count}, legacy_count={legacy_count}, "
+                        f"total={category['content_count']}")
+        except Exception as e:
+            logger.error(f"Error processing category {category.get('id')}: {e}\n{traceback.format_exc()}")
+            category['content_count'] = 0  # Fallback to avoid breaking the keyboard
+
+    logger.info(f"Educational categories sent: {len(categories)} categories")
+
+    # Create and send keyboard
+    from keyboards import education_categories_keyboard
+    keyboard = education_categories_keyboard(categories)
+    await callback.message.answer("🎓 دسته‌بندی محتوای آموزشی را انتخاب کنید:", 
+                               reply_markup=keyboard)
+
+@router.callback_query(F.data.startswith(f"{EDUCATION_PREFIX}cat_"))
+async def callback_educational_category(callback: CallbackQuery):
+    logger.debug(f"callback_educational_category called with data: {callback.data}")
+    """Handle educational category selection"""
+    await callback.answer()
+
+    try:
+        # Extract category ID
+        category_id = int(callback.data.replace(f"{EDUCATION_PREFIX}cat_", ""))
+        logger.info(f"Selected educational category ID: {category_id}")
+
+        # Fetch category information directly
+        category_info = db.get_educational_category(category_id)
+        if not category_info:
+            logger.error(f"Category not found for ID: {category_id}")
+            await callback.message.answer("⚠️ دسته‌بندی مورد نظر یافت نشد.")
+            return
+
+        category_name = category_info['name']
+        logger.info(f"Category name: {category_name}")
+
+        # Fetch educational content for this category
+        content_list = db.get_all_educational_content(category_id=category_id)
+        logger.info(f"Content list for category {category_id}: {content_list}")
+
+        if not content_list:
+            logger.warning(f"No educational content found for category ID: {category_id}")
+            await callback.message.answer(f"⚠️ محتوای آموزشی برای دسته‌بندی '{category_name}' موجود نیست.")
+            return
+
+        # Build keyboard with content items
+        from keyboards import education_content_keyboard
+        keyboard = education_content_keyboard(content_list, category_id)
+
+        await callback.message.answer(f"📚 محتوای آموزشی در دسته‌بندی '{category_name}':", 
+                                   reply_markup=keyboard)
+    except ValueError as e:
+        logger.error(f"Invalid category ID format: {callback.data}, error: {str(e)}\n{traceback.format_exc()}")
+        await callback.message.answer("⚠️ خطایی در پردازش دسته‌بندی رخ داد.")
+    except Exception as e:
+        logger.error(f"Error displaying educational content for category: {str(e)}\n{traceback.format_exc()}")
+
+        await callback.message.answer("⚠️ خطایی در نمایش محتوای آموزشی رخ داد. لطفا مجددا تلاش کنید.")
+
+
+@router.callback_query(F.data == f"{EDUCATION_PREFIX}categories")
+async def callback_educational_categories(callback: CallbackQuery):
+    logger.debug(f"callback_educational_categories called with data: {callback.data}")
+    """Handle going back to educational categories"""
+    await callback.answer()
+
+    # Get educational categories
+    categories = db.get_educational_categories()
+
+    if not categories:
+        await callback.message.answer("در حال حاضر محتوای آموزشی موجود نیست.")
+        return
+
+    # Create keyboard with educational categories
+    from keyboards import education_categories_keyboard
+    keyboard = education_categories_keyboard(categories)
+
+    await callback.message.answer("🎓 دسته‌بندی محتوای آموزشی را انتخاب کنید:", 
+                           reply_markup=keyboard)
+
+
+def is_valid_telegram_file_id(file_id: str) -> bool:
+    """Basic validation for Telegram file_id"""
+    return bool(file_id and len(file_id) > 20 and all(c.isalnum() or c in ['-', '_'] for c in file_id))
+
+
+
+
+
+#@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=10))
+@router.callback_query(F.data.startswith(f"{EDUCATION_PREFIX}:"))
+async def callback_educational_content(callback: CallbackQuery, bot: Bot):
+    """
+    Handle educational content selection with callback_data format 'edu:<content_id>'.
+    Fetches content and associated media, processes media files, and sends them to the user.
+    """
+    logger.debug(f"Received callback data: {callback.data}")
+    await callback.answer()
+
+    try:
+        # استخراج آیدی محتوا
+        if not callback.data.startswith(f"{EDUCATION_PREFIX}:"):
+            logger.error(f"Invalid callback data format: {callback.data}")
+            await callback.message.answer("⚠️ فرمت درخواست نامعتبر است.")
+            return
+        content_id = int(callback.data.replace(f"{EDUCATION_PREFIX}:", ""))
+        logger.info(f"Selected educational content ID: {content_id}")
+
+        # دریافت اطلاعات محتوا
         content = db.get_educational_content(content_id)
         if not content:
-            await query.edit_message_text("مطلب مورد نظر یافت نشد.")
-            return ConversationHandler.END
-        
-        # Store content ID and current data in user state
-        if user_id not in user_states:
-            user_states[user_id] = {}
-        user_states[user_id]['edit_edu_id'] = content_id
-        user_states[user_id]['edit_edu_title'] = content['title']
-        user_states[user_id]['edit_edu_content'] = content['content']
-        user_states[user_id]['edit_edu_category'] = content['category']
-        user_states[user_id]['edit_edu_type'] = content['type']
-        user_states[user_id]['edit_edu_step'] = 0  # 0: title, 1: content, 2: category, 3: type
-        
-        # Send edit form - start with title
-        await query.edit_message_text(
-            f"ویرایش مطلب «{content['title']}»\n\n"
-            f"مرحله 1/4: لطفاً عنوان جدید را وارد کنید (یا 'skip' برای رد کردن):",
-            reply_markup=cancel_keyboard()
-        )
-        
-        return ADMIN_EDIT_EDU
-    
-    @staticmethod
-    async def process_edit_edu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Process educational content edit, step by step."""
-        user_id = update.effective_user.id
-        text = update.message.text
-        
-        if user_id not in user_states:
-            await update.message.reply_text(ERROR_MESSAGE)
-            return ConversationHandler.END
-        
-        content_id = user_states[user_id]['edit_edu_id']
-        step = user_states[user_id]['edit_edu_step']
-        
-        # Process current step
-        if step == 0:  # Title
-            if text.lower() != 'skip':
-                user_states[user_id]['edit_edu_title'] = text
-            
-            # Move to content
-            user_states[user_id]['edit_edu_step'] = 1
-            
-            await update.message.reply_text(
-                f"مرحله 2/4: لطفاً محتوای جدید را وارد کنید (یا 'skip' برای رد کردن):",
-                reply_markup=cancel_keyboard()
-            )
-            
-            return ADMIN_EDIT_EDU
-            
-        elif step == 1:  # Content
-            if text.lower() != 'skip':
-                user_states[user_id]['edit_edu_content'] = text
-            
-            # Move to category
-            user_states[user_id]['edit_edu_step'] = 2
-            
-            await update.message.reply_text(
-                f"مرحله 3/4: لطفاً دسته‌بندی جدید را وارد کنید (یا 'skip' برای رد کردن):",
-                reply_markup=cancel_keyboard()
-            )
-            
-            return ADMIN_EDIT_EDU
-            
-        elif step == 2:  # Category
-            if text.lower() != 'skip':
-                user_states[user_id]['edit_edu_category'] = text
-            
-            # Move to type
-            user_states[user_id]['edit_edu_step'] = 3
-            
-            await update.message.reply_text(
-                f"مرحله 4/4: لطفاً نوع محتوا را وارد کنید (text یا link) (یا 'skip' برای رد کردن):",
-                reply_markup=cancel_keyboard()
-            )
-            
-            return ADMIN_EDIT_EDU
-            
-        elif step == 3:  # Type
-            if text.lower() != 'skip':
-                content_type = text.lower()
-                if content_type not in ['text', 'link']:
-                    await update.message.reply_text(
-                        "لطفاً یکی از انواع معتبر (text یا link) را وارد کنید:",
-                        reply_markup=cancel_keyboard()
-                    )
-                    return ADMIN_EDIT_EDU
-                user_states[user_id]['edit_edu_type'] = content_type
-            
-            # Update content
-            title = user_states[user_id]['edit_edu_title']
-            content = user_states[user_id]['edit_edu_content']
-            category = user_states[user_id]['edit_edu_category']
-            content_type = user_states[user_id]['edit_edu_type']
-            
-            success = db.update_educational_content(
-                content_id=content_id,
-                title=title,
-                content=content,
-                category=category,
-                content_type=content_type
-            )
-            
-            if success:
-                edu_content = db.get_educational_content(content_id)
-                
-                await update.message.reply_text(
-                    f"مطلب «{title}» با موفقیت به‌روزرسانی شد.",
-                    reply_markup=admin_keyboard()
-                )
-                
-                # Send updated content detail
-                if edu_content:
-                    content_text = (
-                        f"عنوان: {edu_content['title']}\n"
-                        f"دسته‌بندی: {edu_content['category']}\n"
-                        f"نوع: {edu_content['type']}\n\n"
-                        f"محتوا:\n{edu_content['content']}"
-                    )
-                    
-                    await update.message.reply_text(
-                        content_text,
-                        reply_markup=admin_keyboards.admin_edu_detail_keyboard(content_id)
-                    )
-            else:
-                await update.message.reply_text(
-                    "خطا در به‌روزرسانی مطلب. لطفاً دوباره تلاش کنید.",
-                    reply_markup=admin_keyboard()
-                )
-            
-            # Clear user state
-            if user_id in user_states:
-                del user_states[user_id]
-            
-            return ConversationHandler.END
-    
-    @staticmethod
-    async def start_add_edu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Start adding new educational content."""
-        query = update.callback_query
-        await query.answer()
-        
-        user_id = update.effective_user.id
-        
-        # Store data in user state
-        if user_id not in user_states:
-            user_states[user_id] = {}
-        user_states[user_id]['add_edu_step'] = 0  # 0: title, 1: content, 2: category, 3: type
-        
-        # Send add form - start with title
-        await query.edit_message_text(
-            f"افزودن مطلب آموزشی جدید\n\n"
-            f"مرحله 1/4: لطفاً عنوان را وارد کنید:",
-            reply_markup=cancel_keyboard()
-        )
-        
-        return ADMIN_EDIT_EDU
-    
-    @staticmethod
-    async def process_add_edu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Process new educational content addition, step by step."""
-        user_id = update.effective_user.id
-        text = update.message.text
-        
-        if user_id not in user_states:
-            await update.message.reply_text(ERROR_MESSAGE)
-            return ConversationHandler.END
-        
-        step = user_states[user_id]['add_edu_step']
-        
-        # Process current step
-        if step == 0:  # Title
-            user_states[user_id]['add_edu_title'] = text
-            
-            # Move to content
-            user_states[user_id]['add_edu_step'] = 1
-            
-            await update.message.reply_text(
-                f"مرحله 2/4: لطفاً محتوا را وارد کنید:",
-                reply_markup=cancel_keyboard()
-            )
-            
-            return ADMIN_EDIT_EDU
-            
-        elif step == 1:  # Content
-            user_states[user_id]['add_edu_content'] = text
-            
-            # Move to category
-            user_states[user_id]['add_edu_step'] = 2
-            
-            # Show existing categories as suggestions
-            categories = db.get_educational_categories()
-            category_list = "\n".join([f"- {cat}" for cat in categories]) if categories else "هنوز دسته‌بندی ثبت نشده است."
-            
-            await update.message.reply_text(
-                f"مرحله 3/4: لطفاً دسته‌بندی را وارد کنید:\n\n"
-                f"دسته‌بندی‌های موجود:\n{category_list}",
-                reply_markup=cancel_keyboard()
-            )
-            
-            return ADMIN_EDIT_EDU
-            
-        elif step == 2:  # Category
-            user_states[user_id]['add_edu_category'] = text
-            
-            # Move to type
-            user_states[user_id]['add_edu_step'] = 3
-            
-            await update.message.reply_text(
-                f"مرحله 4/4: لطفاً نوع محتوا را وارد کنید (text یا link):",
-                reply_markup=cancel_keyboard()
-            )
-            
-            return ADMIN_EDIT_EDU
-            
-        elif step == 3:  # Type
-            content_type = text.lower()
-            if content_type not in ['text', 'link']:
-                await update.message.reply_text(
-                    "لطفاً یکی از انواع معتبر (text یا link) را وارد کنید:",
-                    reply_markup=cancel_keyboard()
-                )
-                return ADMIN_EDIT_EDU
-            
-            # Add content
-            title = user_states[user_id]['add_edu_title']
-            content = user_states[user_id]['add_edu_content']
-            category = user_states[user_id]['add_edu_category']
-            
-            content_id = db.add_educational_content(
-                title=title,
-                content=content,
-                category=category,
-                content_type=content_type
-            )
-            
-            if content_id:
-                await update.message.reply_text(
-                    f"مطلب «{title}» با موفقیت ایجاد شد.",
-                    reply_markup=admin_keyboard()
-                )
-                
-                # Show all educational content
-                contents = db.get_all_educational_content()
-                
-                await update.message.reply_text(
-                    "مدیریت مطالب آموزشی:",
-                    reply_markup=admin_keyboards.admin_educational_keyboard(contents)
-                )
-            else:
-                await update.message.reply_text(
-                    "خطا در ایجاد مطلب. لطفاً دوباره تلاش کنید.",
-                    reply_markup=admin_keyboard()
-                )
-            
-            # Clear user state
-            if user_id in user_states:
-                del user_states[user_id]
-            
-            return ConversationHandler.END
-    
-    @staticmethod
-    async def start_edit_static(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Start editing static content."""
-        query = update.callback_query
-        await query.answer()
-        
-        user_id = update.effective_user.id
-        data = query.data
-        content_type = data[len(ADMIN_PREFIX + "edit_static_"):]
-        
-        if content_type not in ['contact', 'about']:
-            await query.edit_message_text("نوع محتوا نامعتبر است.")
-            return ConversationHandler.END
-        
-        content = db.get_static_content(content_type)
-        
-        # Store type and current content in user state
-        if user_id not in user_states:
-            user_states[user_id] = {}
-        user_states[user_id]['edit_static_type'] = content_type
-        user_states[user_id]['edit_static_content'] = content
-        
-        # Send edit form
-        title = "تماس با ما" if content_type == 'contact' else "درباره ما"
-        await query.edit_message_text(
-            f"ویرایش {title}\n\n"
-            f"محتوای فعلی:\n{content}\n\n"
-            f"لطفاً محتوای جدید را وارد کنید:",
-            reply_markup=cancel_keyboard()
-        )
-        
-        return ADMIN_EDIT_STATIC
-    
-    @staticmethod
-    async def process_edit_static(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Process static content edit."""
-        user_id = update.effective_user.id
-        text = update.message.text
-        
-        if user_id not in user_states:
-            await update.message.reply_text(ERROR_MESSAGE)
-            return ConversationHandler.END
-        
-        content_type = user_states[user_id]['edit_static_type']
-        
-        # Update static content
-        success = db.update_static_content(content_type, text)
-        
-        if success:
-            title = "تماس با ما" if content_type == 'contact' else "درباره ما"
-            await update.message.reply_text(
-                f"محتوای {title} با موفقیت به‌روزرسانی شد.",
-                reply_markup=admin_keyboard()
-            )
-            
-            # Show updated content
-            await update.message.reply_text(
-                f"محتوای جدید {title}:\n\n{text}",
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}static_content")
-                ]])
-            )
-        else:
-            await update.message.reply_text(
-                "خطا در به‌روزرسانی محتوا. لطفاً دوباره تلاش کنید.",
-                reply_markup=admin_keyboard()
-            )
-        
-        # Clear user state
-        if user_id in user_states:
-            del user_states[user_id]
-        
-        return ConversationHandler.END
-    
-    @staticmethod
-    async def start_import_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Start importing data from CSV."""
-        query = update.callback_query
-        await query.answer()
-        
-        user_id = update.effective_user.id
-        data = query.data
-        entity_type = data[len(ADMIN_PREFIX + "import_"):]
-        
-        if entity_type not in ['products', 'categories', 'educational']:
-            await query.edit_message_text("نوع داده نامعتبر است.")
-            return ConversationHandler.END
-        
-        # Store entity type in user state
-        if user_id not in user_states:
-            user_states[user_id] = {}
-        user_states[user_id]['import_entity_type'] = entity_type
-        
-        # Send instruction
-        await query.edit_message_text(
-            f"ورود داده‌های {entity_type} از فایل CSV\n\n"
-            f"لطفاً فایل CSV را آپلود کنید.\n"
-            f"توجه: فایل باید شامل ستون‌های مناسب باشد.",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("دریافت قالب", callback_data=f"{ADMIN_PREFIX}template_{entity_type}"),
-                InlineKeyboardButton("انصراف", callback_data="cancel")
-            ]])
-        )
-        
-        return ADMIN_UPLOAD_CSV
-    
-    @staticmethod
-    async def process_import_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Process CSV import."""
-        user_id = update.effective_user.id
-        file = update.message.document
-        
-        if user_id not in user_states:
-            await update.message.reply_text(ERROR_MESSAGE)
-            return ConversationHandler.END
-        
-        entity_type = user_states[user_id]['import_entity_type']
-        
-        # Download file
-        file_info = await context.bot.get_file(file.file_id)
-        
-        with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as temp_file:
-            temp_path = temp_file.name
-        
-        await file_info.download_to_drive(custom_path=temp_path)
-        
-        # Import data
-        success_count, error_count = db.import_from_csv(entity_type, temp_path)
-        
-        # Delete temp file
-        os.unlink(temp_path)
-        
-        # Send result
-        await update.message.reply_text(
-            f"نتیجه ورود داده‌ها:\n"
-            f"تعداد موارد موفق: {success_count}\n"
-            f"تعداد خطاها: {error_count}",
-            reply_markup=admin_keyboard()
-        )
-        
-        # Clear user state
-        if user_id in user_states:
-            del user_states[user_id]
-        
-        return ConversationHandler.END
-    
-    @staticmethod
-    async def cancel_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Cancel admin action."""
-        user_id = update.effective_user.id
-        
-        # Clear user state
-        if user_id in user_states:
-            del user_states[user_id]
-        
-        # Check if it's a callback query or a message
-        if update.callback_query:
-            await update.callback_query.answer()
-            await update.callback_query.edit_message_text(
-                "عملیات لغو شد.",
-                reply_markup=None
-            )
-        else:
-            await update.message.reply_text(
-                "عملیات لغو شد.",
-                reply_markup=admin_keyboard()
-            )
-        
-        return ConversationHandler.END
+            logger.error(f"Educational content not found for ID: {content_id}")
+            await callback.message.answer("⚠️ محتوای آموزشی مورد نظر یافت نشد.")
+            if ADMIN_ID:
+                await bot.send_message(ADMIN_ID, f"Content not found: ID {content_id}")
+            return
 
-# Admin keyboard utilities (defined here to avoid circular imports)
-class admin_keyboards:
-    @staticmethod
-    def admin_categories_keyboard(categories: List[Dict], parent_id: Optional[int] = None, 
-                                 entity_type: str = 'product') -> InlineKeyboardMarkup:
-        """Create keyboard for admin category management."""
-        keyboard = []
-        
-        # Add category buttons
+        # دریافت category_id برای کیبورد بازگشت
+        category_id = content.get('category_id', 0)
+        keyboard = education_detail_keyboard(category_id)
+
+        # دریافت فایل‌های مدیا
+        media_files = db.get_educational_content_media(content_id)
+        logger.info(f"Found {len(media_files)} media files for content ID: {content_id}")
+
+        # آماده‌سازی متن محتوا
+        title = content['title']
+        content_text = content.get('content', '')
+        MAX_CAPTION_LENGTH = 850
+        caption_text = f"📖 *{title}*\n\n"
+        telegraph_url = None
+
+        if len(content_text) > MAX_CAPTION_LENGTH:
+            short_text = content_text[:MAX_CAPTION_LENGTH] + "...\n\n[(متن کامل)](https://telegra.ph/temp-link)"
+            caption_text += short_text
+            try:
+                telegraph_url = await create_telegraph_page(
+                    title=title, content=content_text, author="RFCatalogbot"
+                )
+                logger.info(f"Created Telegraph page: {telegraph_url}")
+                if telegraph_url:
+                    caption_text = caption_text.replace("https://telegra.ph/temp-link", telegraph_url)
+            except Exception as e:
+                logger.error(f"Failed to create Telegraph page: {str(e)}\n{traceback.format_exc()}")
+                caption_text = f"📖 *{title}*\n\n{content_text[:MAX_CAPTION_LENGTH]}..."
+        else:
+            caption_text += content_text
+
+        # پردازش فایل‌های مدیا
+        media_group = []
+        for idx, media in enumerate(media_files):
+            media_item = await process_media_file(media, idx, bot, caption_text)
+            if media_item:
+                logger.info(f"Added media item with file_id: {media_item.media} for media ID: {media['id']}")
+                media_group.append(media_item)
+
+        # ارسال محتوا و مدیا
+        if media_group:
+            try:
+                await bot.send_media_group(
+                    chat_id=callback.message.chat.id,
+                    media=media_group
+                )
+                await bot.send_message(
+                    chat_id=callback.message.chat.id,
+                    text="🔍 گزینه‌های مرتبط با محتوای آموزشی:",
+                    reply_markup=keyboard
+                )
+            except TelegramBadRequest as e:
+                logger.error(f"Failed to send media group for content {content_id}: {str(e)}\n{traceback.format_exc()}")
+                content_text = f"📖 *{title}*\n\n{content_text}"
+                if telegraph_url:
+                    content_text += f"\n\n[متن کامل]({telegraph_url})"
+                await callback.message.answer(
+                    content_text, parse_mode="Markdown", reply_markup=keyboard
+                )
+                if ADMIN_ID:
+                    bot.send_message(
+                        ADMIN_ID,
+                        f"Failed to send media group for content {content_id}: {str(e)}\nMedia: {[item.media for item in media_group]}"
+                    )
+        else:
+            logger.warning(f"No valid media files found for content {content_id}")
+            content_text = f"📖 *{title}*\n\n{content_text}"
+            if telegraph_url:
+                content_text += f"\n\n[متن کامل]({telegraph_url})"
+            await callback.message.answer(
+                content_text, parse_mode="Markdown", reply_markup=keyboard
+            )
+            if ADMIN_ID:
+                await bot.send_message(
+                    ADMIN_ID,
+                    f"No valid media for content {content_id}: {media_files}"
+                )
+
+    except ValueError:
+        logger.error(f"Invalid content ID in callback: {callback.data}")
+        await callback.message.answer("⚠️ خطا در انتخاب محتوا!")
+    except Exception as e:
+        logger.error(f"Error processing educational content: {str(e)}\n{traceback.format_exc()}")
+        await callback.message.answer("⚠️ خطایی در نمایش محتوا رخ داد.")
+        if ADMIN_ID:
+            await bot.send_message(
+                ADMIN_ID, f"Error displaying content {content_id}: {str(e)}"
+            )
+
+async def process_media_file(media, idx, bot: Bot, caption_text: str):
+    """
+    Process a media file: use file_id if valid, otherwise upload local file and update database.
+    """
+    media_id = media.get('id')
+    file_id = media.get('file_id')
+    local_path = media.get('local_path')
+    file_type = media.get('file_type', 'photo')
+
+    def is_valid_telegram_file_id(file_id: str) -> bool:
+        if not file_id or not isinstance(file_id, str):
+            return False
+        file_id = file_id.strip()
+        return len(file_id) > 20 and all(c.isalnum() or c in ['-', '_', '.'] for c in file_id)
+
+    logger.info(f"Processing media {media_id}: file_id={file_id}, local_path={local_path}, type={file_type}")
+
+    if not file_id or file_id.startswith('educational_content_image_') or not is_valid_telegram_file_id(file_id):
+        if not local_path:
+            logger.error(f"No local path for media {media_id} with file_id {file_id}")
+            return None
+
+        full_path = local_path if local_path.startswith('static/') else f"static/{local_path}"
+        if not os.path.exists(full_path):
+            logger.error(f"Local file not found: {full_path} for media {media_id}")
+            return None
+
+        try:
+            telegram_file_id = await upload_file_to_telegram(full_path, bot, file_type)
+            if not telegram_file_id or not is_valid_telegram_file_id(telegram_file_id):
+                logger.error(f"Invalid file_id returned from upload: {telegram_file_id} for media {media_id}")
+                return None
+
+            session = db.Session()
+            try:
+                media_record = session.query(EducationalContentMedia).filter_by(id=media_id).first()
+                if media_record:
+                    media_record.file_id = telegram_file_id
+                    session.commit()
+                    logger.info(f"Updated file_id for media {media_id} to {telegram_file_id}")
+                else:
+                    logger.error(f"Media record {media_id} not found in database")
+                    return None
+            except Exception as e:
+                logger.error(f"Failed to update database for media {media_id}: {str(e)}\n{traceback.format_exc()}")
+                return None
+            finally:
+                session.close()
+
+            file_id = telegram_file_id
+        except Exception as e:
+            logger.error(f"Error uploading local file {full_path} for media {media_id}: {str(e)}\n{traceback.format_exc()}")
+            return None
+    else:
+        try:
+            await bot.get_file(file_id)
+            logger.info(f"Validated file_id {file_id} for media {media_id}")
+        except TelegramBadRequest as e:
+            logger.warning(f"File_id {file_id} for media {media_id} is inaccessible: {str(e)}")
+            if local_path:
+                full_path = local_path if local_path.startswith('static/') else f"static/{local_path}"
+                if os.path.exists(full_path):
+                    try:
+                        telegram_file_id = await upload_file_to_telegram(full_path, bot, file_type)
+                        if not telegram_file_id or not is_valid_telegram_file_id(telegram_file_id):
+                            logger.error(f"Invalid file_id returned from upload: {telegram_file_id} for media {media_id}")
+                            return None
+
+                        session = db.Session()
+                        try:
+                            media_record = session.query(EducationalContentMedia).filter_by(id=media_id).first()
+                            if media_record:
+                                media_record.file_id = telegram_file_id
+                                session.commit()
+                                logger.info(f"Updated file_id for media {media_id} to {telegram_file_id}")
+                            else:
+                                logger.error(f"Media record {media_id} not found in database")
+                                return None
+                        except Exception as e:
+                            logger.error(f"Failed to update database for media {media_id}: {str(e)}\n{traceback.format_exc()}")
+                            return None
+                        finally:
+                            session.close()
+                        file_id = telegram_file_id
+                    except Exception as e:
+                        logger.error(f"Error re-uploading local file {full_path} for media {media_id}: {str(e)}\n{traceback.format_exc()}")
+                        return None
+                else:
+                    logger.error(f"Local file not found for re-upload: {full_path} for media {media_id}")
+                    return None
+            else:
+                logger.error(f"No local path to re-upload for media {media_id}")
+                return None
+
+    try:
+        if file_type == 'video':
+            media_item = InputMediaVideo(
+                media=file_id,
+                caption=caption_text if idx == 0 else "",
+                parse_mode="Markdown"
+            )
+        else:
+            media_item = InputMediaPhoto(
+                media=file_id,
+                caption=caption_text if idx == 0 else "",
+                parse_mode="Markdown"
+            )
+        logger.info(f"Created media item with file_id {file_id} for media {media_id}")
+        return media_item
+    except Exception as e:
+        logger.error(f"Failed to create media item for file_id {file_id} in media {media_id}: {str(e)}\n{traceback.format_exc()}")
+        return None
+
+@router.callback_query(F.data == "back_to_main")
+async def callback_back_to_main(callback: CallbackQuery, state: FSMContext):
+    logger.debug(f"callback_back_to_main called with data: {callback.data}")
+    """Handle back to main menu button"""
+    await callback.answer()
+    await state.clear()
+
+    # Create main menu keyboard
+    kb = InlineKeyboardBuilder()
+    kb.button(text="🛒 محصولات", callback_data="products")
+    kb.button(text="🛠️ خدمات", callback_data="services")
+    kb.button(text="📚 محتوای آموزشی", callback_data="educational")
+    kb.button(text="📞 تماس با ما", callback_data="contact")
+    kb.button(text="ℹ️ درباره ما", callback_data="about")
+    kb.adjust(2, 2, 1)
+
+    await callback.message.answer("به منوی اصلی بازگشتید:", reply_markup=kb.as_markup())
+
+# Helper functions for category navigation
+async def show_product_categories(message, state, parent_id=None):
+    """Show product categories only - separate function for products"""
+    try:
+        # ذخیره نوع دسته‌بندی در حالت
+        await state.update_data(cat_type='product')
+
+        # ثبت گزارش در لاگ
+        logger.info(f"show_product_categories called with parent_id={parent_id}")
+
+        # فقط از جدول محصولات استفاده می‌کنیم
+        categories = db.get_product_categories(parent_id=parent_id)
+        logger.info(f"Product categories: {categories}")
+
+        # اگر هیچ دسته‌بندی یافت نشد، بررسی کنیم آیا این یک دسته‌بندی نهایی است که محصول دارد
+        if not categories:
+            # If no categories but we're in a subcategory, show products
+            if parent_id is not None:
+                # نمایش محصولات
+                products = db.get_products(parent_id)
+                logger.info(f"Retrieved {len(products)} products for category ID {parent_id}")
+                if products:
+                    await show_products_list(message, products, parent_id)
+                else:
+                    await message.answer("محصولی در این دسته‌بندی وجود ندارد.")
+            else:
+                # No top-level categories
+                await message.answer("دسته‌بندی محصولات موجود نیست.")
+            return
+
+        # نمایش دسته‌بندی‌ها
+        kb = InlineKeyboardBuilder()
+
+        # ساخت دکمه‌ها با نمایش تعداد زیرمجموعه‌ها و محصولات
         for category in categories:
-            callback_data = f"{ADMIN_PREFIX}cat_{category['id']}"
-            keyboard.append([InlineKeyboardButton(category['name'], callback_data=callback_data)])
-        
-        # Add action buttons
-        keyboard.append([
-            InlineKeyboardButton("➕ افزودن", callback_data=f"{ADMIN_PREFIX}add_cat_{parent_id or 0}_{entity_type}"),
-        ])
-        
-        # Add back button
-        if parent_id is None:
-            # Back to admin menu
-            keyboard.append([InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}back_main")])
+            # بررسی وجود اطلاعات تعداد زیرمجموعه‌ها و محصولات
+            subcategory_count = category.get('subcategory_count', 0)
+            product_count = category.get('product_count', 0)
+
+            # محاسبه مجموع تعداد آیتم‌ها
+            total_items = subcategory_count + product_count
+
+            # ساخت نام نمایشی برای دکمه
+            display_name = category['name']
+            if total_items > 0:
+                display_name = f"{category['name']} ({total_items})"
+
+            # اضافه کردن دکمه به کیبورد
+            kb.button(text=display_name, callback_data=f"category:{category['id']}")
+
+        # اضافه کردن دکمه بازگشت
+        if parent_id is not None:
+            parent_category = db.get_product_category(parent_id)
+            if parent_category and parent_category.get('parent_id') is not None:
+                kb.button(text="🔙 بازگشت", callback_data=f"category:{parent_category['parent_id']}")
+            else:
+                kb.button(text="🔙 بازگشت به دسته‌بندی‌های اصلی", callback_data="products")
         else:
-            # Back to parent category
-            keyboard.append([InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}cat_{parent_id}")])
-        
-        return InlineKeyboardMarkup(keyboard)
-    
-    @staticmethod
-    def admin_category_detail_keyboard(category_id: int, parent_id: Optional[int] = None) -> InlineKeyboardMarkup:
-        """Create keyboard for admin category detail."""
-        keyboard = [
-            [
-                InlineKeyboardButton("✏️ ویرایش", callback_data=f"{ADMIN_PREFIX}edit_cat_{category_id}"),
-                InlineKeyboardButton("❌ حذف", callback_data=f"{ADMIN_PREFIX}delete_cat_{category_id}")
-            ],
-            [
-                InlineKeyboardButton("📝 محصولات", callback_data=f"{ADMIN_PREFIX}products_{category_id}"),
-                InlineKeyboardButton("📁 زیرگروه‌ها", callback_data=f"{ADMIN_PREFIX}subcats_{category_id}")
-            ]
-        ]
-        
-        # Add back button
-        if parent_id is None:
-            keyboard.append([InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}back_main")])
+            kb.button(text="🔙 بازگشت به منوی اصلی", callback_data="back_to_main")
+
+        # تنظیم نمایش دکمه‌ها در یک ستون
+        kb.adjust(1)
+
+        # ارسال پیام
+        await message.answer("دسته‌بندی محصولات را انتخاب کنید:", reply_markup=kb.as_markup())
+
+        # تنظیم حالت کاربر
+        await state.set_state(UserStates.browse_categories)
+
+    except Exception as e:
+        logger.error(f"Error in show_product_categories: {str(e)}\n{traceback.format_exc()}")
+
+        await message.answer("⚠️ متأسفانه در نمایش دسته‌بندی‌های محصولات خطایی رخ داد. لطفا مجددا تلاش کنید یا با پشتیبانی تماس بگیرید.")
+
+
+async def show_service_categories(message, state, parent_id=None):
+    """Show service categories only - separate function for services"""
+    try:
+        # ذخیره نوع دسته‌بندی در حالت
+        await state.update_data(cat_type='service')
+
+        # ثبت گزارش در لاگ
+        logger.info(f"show_service_categories called with parent_id={parent_id}")
+
+        # فقط از جدول خدمات استفاده می‌کنیم
+        categories = db.get_service_categories(parent_id=parent_id)
+        logger.info(f"Service categories: {categories}")
+
+        # اگر هیچ دسته‌بندی یافت نشد، بررسی کنیم آیا این یک دسته‌بندی نهایی است که خدمت دارد
+        if not categories:
+            # If no categories but we're in a subcategory, show services
+            if parent_id is not None:
+                # نمایش خدمات
+                services = db.get_services(parent_id)
+                logger.info(f"Retrieved {len(services)} services for category ID {parent_id}")
+                if services:
+                    await show_services_list(message, services, parent_id)
+                else:
+                    await message.answer("خدمتی در این دسته‌بندی وجود ندارد.")
+            else:
+                # No top-level categories
+                await message.answer("دسته‌بندی خدمات موجود نیست.")
+            return
+
+        # نمایش دسته‌بندی‌ها
+        kb = InlineKeyboardBuilder()
+
+        # ساخت دکمه‌ها با نمایش تعداد زیرمجموعه‌ها و خدمات
+        for category in categories:
+            # بررسی وجود اطلاعات تعداد زیرمجموعه‌ها و خدمات
+            subcategory_count = category.get('subcategory_count', 0)
+            service_count = category.get('service_count', 0)
+
+            # محاسبه مجموع تعداد آیتم‌ها
+            total_items = subcategory_count + service_count
+
+            # ساخت نام نمایشی برای دکمه
+            display_name = category['name']
+            if total_items > 0:
+                display_name = f"{category['name']} ({total_items})"
+
+            # اضافه کردن دکمه به کیبورد
+            kb.button(text=display_name, callback_data=f"category:{category['id']}")
+
+        # اضافه کردن دکمه بازگشت
+        if parent_id is not None:
+            parent_category = db.get_service_category(parent_id)
+            if parent_category and parent_category.get('parent_id') is not None:
+                kb.button(text="🔙 بازگشت", callback_data=f"category:{parent_category['parent_id']}")
+            else:
+                kb.button(text="🔙 بازگشت به دسته‌بندی‌های اصلی", callback_data="services")
         else:
-            keyboard.append([InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}cat_{parent_id}")])
-        
-        return InlineKeyboardMarkup(keyboard)
-    
-    @staticmethod
-    def admin_products_keyboard(products: List[Dict], category_id: int) -> InlineKeyboardMarkup:
-        """Create keyboard for admin product management."""
-        keyboard = []
-        
-        # Add product buttons
+            kb.button(text="🔙 بازگشت به منوی اصلی", callback_data="back_to_main")
+
+        # تنظیم نمایش دکمه‌ها در یک ستون
+        kb.adjust(1)
+
+        # ارسال پیام
+        await message.answer("دسته‌بندی خدمات را انتخاب کنید:", reply_markup=kb.as_markup())
+
+        # تنظیم حالت کاربر
+        await state.set_state(UserStates.browse_categories)
+
+    except Exception as e:
+        logger.error(f"Error in show_service_categories: {str(e)}\n{traceback.format_exc()}")
+
+        await message.answer("⚠️ متأسفانه در نمایش دسته‌بندی‌های خدمات خطایی رخ داد. لطفا مجددا تلاش کنید یا با پشتیبانی تماس بگیرید.")
+
+@router.callback_query(F.data.startswith("category:"))
+async def callback_category(callback: CallbackQuery, state: FSMContext):
+    logger.debug(f"callback_category called with data: {callback.data}")
+    """Handle category selection"""
+    await callback.answer()
+
+    try:
+        # ثبت گزارش درباره درخواست
+        logger.info(f"Category callback received: {callback.data}")
+
+        # استخراج شناسه دسته‌بندی
+        category_id = int(callback.data.split(':', 1)[1])
+
+        # دریافت اطلاعات حالت
+        state_data = await state.get_data()
+
+        # نوع دسته‌بندی (محصول یا خدمت) را قطعی از حالت دریافت می‌کنیم
+        cat_type = state_data.get('cat_type', 'product')
+
+        logger.info(f"Processing category ID {category_id} as {cat_type} type")
+
+        # براساس نوع دسته‌بندی، تابع مناسب را فراخوانی می‌کنیم
+        if cat_type == 'product':
+            # فقط دسته‌بندی‌های محصول را بررسی می‌کنیم
+            is_valid = db.check_product_category_exists(category_id)
+            if not is_valid:
+                logger.warning(f"Category {category_id} is not found in product_categories")
+                await callback.message.answer("⚠️ این دسته‌بندی محصول وجود ندارد. لطفا دسته‌بندی دیگری انتخاب کنید.")
+                return
+
+            # نمایش زیردسته‌بندی‌های محصول یا محصولات
+            await show_product_categories(callback.message, state, category_id)
+
+        elif cat_type == 'service':
+            # فقط دسته‌بندی‌های خدمت را بررسی می‌کنیم
+            is_valid = db.check_service_category_exists(category_id)
+            logger.debug(f"Checked service category_id: {category_id}, valid={is_valid}")
+            if not is_valid:
+                logger.warning(f"Category {category_id} not found in service_categories")
+                await callback.message.answer("⚠️ این دسته‌بندی خدمت وجود ندارد. لطفا دسته‌بندی دیگری انتخاب کنید.")
+                return
+
+            # نمایش زیردسته‌بندی‌های خدمت یا خدمات
+            await show_service_categories(callback.message, state, category_id)
+
+        else:
+            logger.error(f"Unknown category type: {cat_type}")
+            await callback.message.answer("⚠️ نوع دسته‌بندی نامشخص است. لطفا دوباره تلاش کنید.")
+
+    except Exception as e:
+        logger.error(f"Error in callback_category: {str(e)}\n{traceback.format_exc()}")
+
+        await callback.message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفاً مجدداً تلاش کنید یا با پشتیبانی تماس بگیرید.")
+
+
+
+async def show_products_list(message, products, category_id):
+
+    """Show list of products in a category"""
+    logger.debug(f"show_products_list called with category_id={category_id}, products={len(products)}")
+
+    try:
+        # Build keyboard with products
+        kb = InlineKeyboardBuilder()
         for product in products:
-            callback_data = f"{ADMIN_PREFIX}product_{product['id']}"
-            keyboard.append([InlineKeyboardButton(product['name'], callback_data=callback_data)])
-        
-        # Add action buttons
-        keyboard.append([
-            InlineKeyboardButton("➕ افزودن", callback_data=f"{ADMIN_PREFIX}add_product_{category_id}"),
-        ])
-        
+            logger.debug(f"Adding product: {product['name']} with id: {product['id']}")
+            kb.button(text=product['name'], callback_data=f"product:{product['id']}")
+
         # Add back button
-        keyboard.append([InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}cat_{category_id}")])
-        
-        return InlineKeyboardMarkup(keyboard)
-    
-    @staticmethod
-    def admin_product_detail_keyboard(product_id: int, category_id: int) -> InlineKeyboardMarkup:
-        """Create keyboard for admin product detail."""
-        keyboard = [
-            [
-                InlineKeyboardButton("✏️ ویرایش", callback_data=f"{ADMIN_PREFIX}edit_product_{product_id}"),
-                InlineKeyboardButton("❌ حذف", callback_data=f"{ADMIN_PREFIX}delete_product_{product_id}")
-            ],
-            [InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}products_{category_id}")]
-        ]
-        return InlineKeyboardMarkup(keyboard)
-    
-    @staticmethod
-    def admin_educational_keyboard(contents: List[Dict]) -> InlineKeyboardMarkup:
-        """Create keyboard for admin educational content management."""
-        keyboard = []
-        
-        # Add content buttons
-        for content in contents:
-            callback_data = f"{ADMIN_PREFIX}edu_{content['id']}"
-            keyboard.append([InlineKeyboardButton(content['title'], callback_data=callback_data)])
-        
-        # Add action buttons
-        keyboard.append([
-            InlineKeyboardButton("➕ افزودن", callback_data=f"{ADMIN_PREFIX}add_edu"),
-        ])
-        
+        logger.debug(f"Adding back button with callback_data: category:{category_id}")
+        kb.button(text="🔙", callback_data=f"category:{category_id}")
+        kb.adjust(1)
+
+        await message.answer("محصولات موجود در این دسته‌بندی:", reply_markup=kb.as_markup())
+        logger.info("Products list sent successfully")
+
+    except Exception as e:
+        logger.error(f"Error in show_products_list: {str(e)}\n{traceback.format_exc()}")
+        await message.answer("⚠️ خطایی در نمایش محصولات رخ داد. لطفا دوباره تلاش کنید.")
+
+
+
+
+
+
+
+async def show_services_list(message, services, category_id):
+    """Show list of services in a category"""
+    logger.debug(f"show_services_list called with category_id={category_id}, services={len(services)}")
+
+    try:
+        # Build keyboard with services
+        kb = InlineKeyboardBuilder()
+        for service in services:
+            logger.debug(f"Adding service: {service['name']} with id: {service['id']}")
+            kb.button(text=service['name'], callback_data=f"service:{service['id']}")
+
         # Add back button
-        keyboard.append([InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}back_main")])
+        logger.debug(f"Adding back button with callback_data: category:{category_id}")
+        kb.button(text="🔙", callback_data=f"category:{category_id}")
+        kb.adjust(1)
+
+        await message.answer("خدمات موجود در این دسته‌بندی:", reply_markup=kb.as_markup())
+        logger.info("Services list sent successfully")
+
+    except Exception as e:
+        logger.error(f"Error in show_services_list: {str(e)}\n{traceback.format_exc()}")
+        await message.answer("⚖️ خطایی در نمایش خدمات رخ داد. لطفا دوباره تلاش کنید.")
+
+@router.callback_query(F.data.startswith("product:"))
+async def callback_product(callback: types.CallbackQuery, state: FSMContext):
+    logger.debug(f"callback_product called with data: {callback.data}")
+    """
+    Handle callback query for product selection.
+    Extracts product_id from callback data, stores it in state, and displays product details.
+
+    Args:
+        callback: CallbackQuery object from aiogram
+        state: FSMContext for managing user state
+        db: Database instance for querying product details
+    """
+    logger.debug(f"Processing callback query with data: {callback.data}")
+
+    try:
+        # Validate and parse callback data
+        if not callback.data.startswith('product:'):
+            logger.error(f"Invalid callback data format: {callback.data}")
+            await callback.message.answer("Invalid selection. Please try again.")
+            await callback.answer()
+            return
+
+        # Extract product_id
+        product_id = int(callback.data.split(':', 1)[1])
+        logger.info(f"Extracted product_id: {product_id}")
+
+        # Store product_id in FSM state
+        await state.update_data(product_id=product_id)
+        await state.set_state(UserStates.view_product)
+        logger.info(f"Stored product_id: {product_id} in state")
+
+        # Fetch product details from database (customize based on your Database class)
+        product = db.get_product(product_id)  # Assume this method exists
+        if not product:
+            logger.warning(f"Product not found for product_id: {product_id}")
+            await callback.message.answer("Sorry, this product is not available.")
+            await callback.answer()
+            return
+
+
+        # Add additional information if available
+        additional_info = []
+        # Add price information if available
+        if 'name' in product and product['name']:
+            additional_info.append(f"📦 نام محصول: {product['name']}\n\n")
+
+
+        # Add price information if available
+        if 'price' in product and product['price']:
+            additional_info.append(f"💰 قیمت: {product['price']}: تومان\n\n")
+
+        # Add description
+        if 'description' in product and product['description']:
+            additional_info.append(f"📝 توضیحات:\n{product['description']}\n\n")
+        # Add brand if available
+        if 'brand' in product and product['brand']:
+            additional_info.append(f"🏢 برند: {product['brand']}")
+
+        # Add model if available
+        if 'model' in product and product['model']:
+            additional_info.append(f"📱 مدل: {product['model']}")
+
+        # Add model_number if available
+        if 'model_number' in product and product['model_number']:
+            additional_info.append(f"📋 شماره مدل: {product['model_number']}")
+
+        # Add manufacturer if available
+        if 'manufacturer' in product and product['manufacturer']:
+            additional_info.append(f"🏭 سازنده: {product['manufacturer']}")
+
+        # Add tags if available
+        if 'tags' in product and product['tags']:
+            additional_info.append(f"🏷️ برچسب‌ها: {product['tags']}")
+
+        # Add in_stock status if available and true
+        if 'in_stock' in product and product['in_stock']:
+            additional_info.append("✅ موجود در انبار")
+
+        # Add featured status if available and true
+        if 'featured' in product and product['featured']:
+            additional_info.append("⭐ محصول ویژه")
+
         
-        return InlineKeyboardMarkup(keyboard)
-    
-    @staticmethod
-    def admin_edu_detail_keyboard(content_id: int) -> InlineKeyboardMarkup:
-        """Create keyboard for admin educational content detail."""
-        keyboard = [
-            [
-                InlineKeyboardButton("✏️ ویرایش", callback_data=f"{ADMIN_PREFIX}edit_edu_{content_id}"),
-                InlineKeyboardButton("❌ حذف", callback_data=f"{ADMIN_PREFIX}delete_edu_{content_id}")
-            ],
-            [InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}educational")]
+
+        product_details = "\n"
+        # Add additional info to product text if available
+        if additional_info:
+            product_details = product_details.join(additional_info) + "\n\n"
+
+        # Add keyboard for inquiry and back
+        kb = InlineKeyboardBuilder()
+        kb.button(text="🛍️ استعلام قیمت", callback_data=f"inquiry:product:{product_id}")
+
+        # Get category for back button
+        kb.button(text="🔙", callback_data=f"category:{product['category_id']}")
+        kb.adjust(1)
+            # Send product details to user
+        await callback.message.answer(
+                product_details,
+                parse_mode="Markdown"
+            )
+
+            # Acknowledge the callback query
+        await callback.answer()    
+
+    except (IndexError, ValueError) as e:
+        logger.error(f"Error parsing product_id from callback data {callback.data}: {str(e)}")
+        await callback.message.answer("Error processing selection. Please try again.")
+        await callback.answer()
+
+    except Exception as e:
+        logger.error(f"Unexpected error in callback_product: {str(e)}")
+        await callback.message.answer("An error occurred. Please try again later.")
+        await callback.answer()
+
+@router.callback_query(F.data.startswith("service:"))
+async def callback_service(callback: CallbackQuery, state: FSMContext):
+    logger.debug(f"callback_service called with data: {callback.data}")
+    """Handle service selection"""
+    await callback.answer()
+
+    # Extract service ID
+    service_id = int(callback.data.split(':', 1)[1])
+
+    # Get service details
+    service = db.get_service(service_id)
+
+    if not service:
+        await callback.message.answer("خدمت مورد نظر یافت نشد.")
+        return
+
+    # Save service_id in state for inquiry
+    await state.update_data(service_id=service_id)
+    await state.set_state(UserStates.view_service)
+
+    # Get service media
+    media_files = db.get_service_media(service_id)
+
+    # Log service details for debugging
+    logger.debug(f"Service details: {service}")
+
+    # Format the service details with additional information
+    service_text = f"🛠️ {service['name']}\n\n"
+
+    # Add price information if available
+    if 'price' in service and service['price']:
+        service_text += f"💰 قیمت: {service['price']} تومان\n\n"
+
+    # Add additional information if available
+    additional_info = []
+
+    # Add tags if available
+    if 'tags' in service and service['tags']:
+        additional_info.append(f"🏷️ برچسب‌ها: {service['tags']}")
+
+    # Add featured status if available and true
+    if 'featured' in service and service['featured']:
+        additional_info.append("⭐ خدمت ویژه")
+
+    # Add available status if available and true
+    if 'available' in service and service['available']:
+        additional_info.append("✅ در دسترس")
+
+    # Add additional info to service text if available
+    if additional_info:
+        service_text += "\n\n".join(additional_info) + "\n\n"
+
+    # Add description
+    if 'description' in  service and service['description']:
+        service_text += f"📝 توضیحات:\n{service['description']}\n\n"
+
+    # Add keyboard for inquiry and back
+    kb = InlineKeyboardBuilder()
+    kb.button(text="🛍️ استعلام قیمت", callback_data=f"inquiry:service:{service_id}")
+
+    # Get category for back button
+    kb.button(text="🔙 بازگشت", callback_data=f"category:{service['category_id']}")
+    kb.adjust(1)
+
+    # Create keyboard with inquiry button
+    keyboard = kb.as_markup()
+
+    # Send media files with service info and keyboard
+    if media_files:
+        try:
+            await send_service_media(callback.message.chat_id, media_files, service, keyboard)
+
+        # If no media, send text-only message
+        except Exception as e:
+            logger.debug(f"Error sending service media: {str(e)}\n{traceback.format_exc()}")
+            await callback.message.reply("⚠️ خطایی در ارسال رسانه‌های خدمت رخ داد.")
+
+        await callback.message.answer(service_text, reply_markup=keyboard)
+
+# Media handling functions
+async def send_educational_media(chat_id, media_files):
+    """Send educational content media files to user"""
+    from bot import bot  # Import bot here to avoid circular imports
+
+    # Check if we have any media files
+    if not media_files:
+        logger.warning(f"No media files provided to send_educational_media for chat_id {chat_id}")
+        return
+
+    logger.info(f"Attempting to send {len(media_files)} educational media files to chat_id {chat_id}")
+
+    # Define possible paths to check
+    media_paths = [
+        './', 
+        './static/', 
+        './static/images/', 
+        './static/photos/',
+        './static/uploads/',
+        './static/media/',
+        './static/media/educational/',
+        './static/products/',
+        './static/services/', 
+        './attached_assets/',
+        './data/',
+    ]
+
+    for media in media_files:
+        try:
+            file_id = media.get('file_id', '')
+            local_path = media.get('local_path', '')
+            file_type = media.get('file_type', 'photo')
+
+            # Log the full media info for debugging
+            logger.debug(f"Processing educational media: file_id={file_id}, local_path={file_path}, file_type={file_type}")
+
+            # Check if we have any valid path to use
+            if not file_id and not local_path:
+                logger.warning(f"Skipping media with empty file_id and local_path: {media}")
+                continue
+
+            # Prioritize checking local_path if available
+            if local_path and os.path.isfile(local_path):
+                logger.info(f"Using educational media local_path that exists: {local_path}")
+
+                if file_type == 'photo':
+                    photo_file = FSInputFile(local_path)
+                    await bot.send_photo(chat_id=chat_id, photo=photo_file)
+                    logger.info(f"Sent educational photo from local_path: {local_path}")
+                    continue                    
+                # Skip the rest of the loop for this media item
+                elif file_type == 'video':
+                    video_file = FSInputFile(local_path)
+                    await bot.send_video(chat_id=chat_id, video=video_file)
+                    logger.info(f"Sent educational video from local_path: {local_path}")
+                    continue  # Skip the rest of the loop for this media item
+
+            # Handle different file location scenarios for file_id
+            if isinstance(file_id, str) and file_id.startswith('http'):
+                # It's a URL, use URLInputFile
+                logger.info(f"Educational media file is a URL: {file_id}")
+                file = URLInputFile(file_id)
+
+                if file_type == 'photo':
+                    await bot.send_photo(chat_id=chat_id, photo=file)
+                    logger.info(f"Sent educational photo from URL: {file_id}")
+                elif file_type == 'video':
+                    await bot.send_video(chat_id=chat_id, video=file)
+                    logger.info(f"Sent educational video from URL: {file_id}")
+
+            elif file_id and os.path.isfile(file_id):
+                # It's a local file that exists at the given path
+                logger.info(f"Educational media file is a local path that exists: {file_id}")
+
+                if file_type == 'photo':
+                    photo_file = FSInputFile(file_id)
+                    await bot.send_photo(chat_id=chat_id, photo=photo_file)
+                    logger.info(f"Sent educational photo from local file: {file_id}")
+                elif file_type == 'video':
+                    video_file = FSInputFile(file_id)
+                    await bot.send_video(chat_id=chat_id, video=video_file)
+                    logger.info(f"Sent educational video from local file: {file_id}")
+            else:
+                # Try to find the file in various directories
+                file_found = False
+
+                # If a path pattern starts with 'media/' or 'static/' (non-Telegram file_id format)
+                if file_id and ('/' in file_id):
+                    # Handle common path patterns by checking root and with './static/' prefix
+                    possible_paths = [
+                        file_id,                # As is
+                        f"./{file_id}",         # With ./ prefix
+                        f"./static/{file_id}",  # With ./static/ prefix
+                    ]
+
+                    for path in possible_paths:
+                        if os.path.isfile(path):
+                            logger.info(f"Found educational media at alternative path: {path}")
+                            file_found = True
+
+
+                            if file_type == 'photo':
+                                photo_file = FSInputFile(path)
+                                await bot.send_photo(chat_id=chat_id, photo=photo_file)
+                                logger.info(f"Sent educational photo from alt path: {path}")
+                            elif file_type == 'video':
+                                video_file = FSInputFile(path)
+                                await bot.send_video(chat_id=chat_id, video=video_file)
+                                logger.info(f"Sent educational video from alt path: {path}")
+
+                            break
+
+                # If file not found yet and path doesn't contain '/', try all media directories
+                if not file_found and '/' not in file_id:
+                    for path in media_paths:
+                        full_path = f"{path}{file_id}"
+                        if os.path.isfile(full_path):
+                            logger.info(f"Found educational media file at {full_path}")
+                            file_found = True
+
+                            if file_type == 'photo':
+                                photo_file = FSInputFile(full_path)
+                                await bot.send_photo(chat_id=chat_id, photo=photo_file)
+                                logger.info(f"Sent educational photo from path: {full_path}")
+                            elif file_type == 'video':
+                                video_file = FSInputFile(full_path)
+                                await bot.send_video(chat_id=chat_id, video=video_file)
+                                logging.info(f"Sent educational video from path: {full_path}")
+
+                            break
+
+                # If file wasn't found in any of our directories, try as a Telegram file_id (last resort)
+                if not file_found:
+                    # Only if it doesn't look like a local path pattern (no slashes)
+                    if '/' not in file_id:
+                        logger.info(f"Trying as Telegram file_id: {file_id}")
+
+                        try:
+                            if file_type == 'photo':
+                                await bot.send_photo(chat_id=chat_id, photo=file_id)
+                                logger.info(f"Sent educational photo using file_id: {file_id}")
+                            elif file_type == 'video':
+                                await bot.send_video(chat_id=chat_id, video=file_id)
+                                logger.info(f"Sent educational video using file_id: {file_id}")
+                        except Exception as e:
+                            logger.error(f"Failed to send educational media using file_id, error: {str(e)}")
+                            await bot.send_message(
+                                chat_id=chat_id, 
+                                text=f"⚠️ تصویر یا ویدیوی محتوای آموزشی موجود نیست"
+                            )
+                    else:
+                        # It looks like a path but we couldn't find the file
+                        logger.error(f"Educational media file not found at path: {file_id}")
+                        await bot.send_message(
+                            chat_id=chat_id, 
+                            text=f"⚠️ تصویر یا ویدیوی محتوای آموزشی موجود نیست"
+                        )
+
+        except Exception as e:
+            logger.error(f"Error sending educational media: {str(e)}\n{traceback.format_exc()}")
+
+            # Try sending a notification about the failed media
+            try:
+                await bot.send_message(chat_id=chat_id, text=f"⚠️ خطا در نمایش فایل رسانه‌ای آموزشی")
+            except Exception as inner_e:
+                logger.error(f"Failed to send error notification: {str(inner_e)}")
+                pass
+
+
+async def send_educational_media_group(chat_id, media_files, caption="", keyboard=None):
+    """
+    Send educational content as a media group with caption
+
+    Args:
+        chat_id: Telegram chat ID to send to
+        media_files: List of media file dictionaries
+        caption: Caption text for the first media (supports Markdown)
+        keyboard: Optional inline keyboard to attach to the last message
+    """
+
+    # Check if we have any media files
+    if not media_files:
+        # No media files, send just the text with keyboard
+        if caption:
+            try:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=caption,
+                    parse_mode="Markdown",
+                    reply_markup=keyboard
+                )
+                logger.info(f"Sent text-only message to chat_id {chat_id}")
+            except Exception as e:
+                logger.error(f"Failed to send text-only message: {str(e)}\n{traceback.format_exc()}")
+        return
+
+    logger.info(f"Attempting to send media group with {len(media_files)} files to chat_id {chat_id}")
+
+    # Define possible paths to check
+    media_paths = [
+        './', 
+        './static/', 
+        './static/images/', 
+        './static/photos/',
+        './static/uploads/',
+        './static/media/',
+        './static/media/educational/',
+        './static/products/',
+        './static/services/',
+    ]
+
+    # Process media files to create a media group
+    media_list = []
+    valid_media_count = 0
+
+    # For each media file
+    for i, media in enumerate(media_files):
+        file_id = media.get('file_id')
+        local_path = media.get('local_path')
+        file_type = media.get('file_type', 'photo')  # Default to photo if not specified
+
+        logger.info(f"Processing media for group: file_id={file_id}, local_path={local_path}, file_type={file_type}")
+
+        # Skip if no file_id or local_path
+        if not file_id and not local_path:
+            logger.warning(f"Media has no file_id or local_path: {media}")
+            continue
+
+        # If we have a local_path but no file_id, use local_path as file_id
+        if not file_id and local_path:
+            file_id = local_path
+            logger.info(f"Using local_path as file_id: {file_id}")
+
+        try:
+            file_found = False
+            file_path = None
+
+            # First check if the path exists as is
+            if os.path.exists(file_id):
+                file_found = True
+                file_path = file_id
+                logger.info(f"Found media at direct path: {file_path}")
+
+            # If file not found and the file_id looks like a path (has slashes)
+            if not file_found and ('/' in file_id):
+                # Handle common path patterns by checking root and with './static/' prefix
+                possible_paths = [
+                    file_id,                # As is
+                    f"./{file_id}",         # With ./ prefix
+                    f"./static/{file_id}",  # With ./static/ prefix
+                ]
+
+                # Check all paths in our list
+                for media_path in media_paths:
+                    # If the path already has a common prefix like 'media/' or 'static/', we take just the filename part
+                    if file_id.startswith(('media/', 'static/')):
+                        # Extract just the filename part
+                        parts = file_id.split('/')
+                        filename = parts[-1]  # Get the last part (filename)
+
+                        # Create a path with our media_path + filename
+                        test_path = os.path.join(media_path, filename)
+                    else:
+                        # Use the full file_id with the media_path
+                        test_path = os.path.join(media_path, file_id)
+
+                    # Add this to our possible paths
+                    possible_paths.append(test_path)
+
+                # Try all possible paths
+                for path in possible_paths:
+                    if os.path.exists(path):
+                        file_found = True
+                        file_path = path
+                        logger.info(f"Found media at alternative path: {path}")
+                        break
+
+            # If file was found locally
+            if file_found and file_path:
+                # For the first media, include the caption
+                media_caption = caption if i == 0 else ""
+
+                # Add to media group based on file type
+                if file_type == 'photo':
+                    media_list.append(
+                        InputMediaPhoto(
+                            media=FSInputFile(file_path),
+                            caption=media_caption,
+                            parse_mode="Markdown"
+                        )
+                    )
+                    valid_media_count += 1
+                elif file_type == 'video':
+                    media_list.append(
+                        InputMediaVideo(
+                            media=FSInputFile(file_path),
+                            caption=media_caption,
+                            parse_mode="Markdown"
+                        )
+                    )
+                    valid_media_count += 1
+
+            # Handle auto-generated educational content IDs specially
+            elif file_id.startswith('educational_content_image_'):
+                # Extract the content ID and search for the associated image
+                try:
+                    # Extract content ID from file_id
+                    content_id = file_id.split('_')[3]  # educational_content_image_56_timestamp
+
+                    # Special case for known problem files
+                    if file_id == "educational_content_image_56_1747350587":
+                        # This is our problem file, directly use the known correct path
+                        file_found = True
+                        file_path = "./static/media/educational/image_7.jpg"
+                        logger.info(f"Using hardcoded path for problem file: {file_path}")
+                    else:
+                        # Try common paths for educational content images
+                        test_paths = [
+                            f"./static/media/educational/image_{content_id}.jpg",
+                            f"./media/educational/image_{content_id}.jpg",
+                            f"./static/media/educational/content_{content_id}.jpg",
+                            f"./media/educational/content_{content_id}.jpg",
+                            "./static/media/educational/image_7.jpg",  # Specific path from logs
+                            "./media/educational/image_7.jpg"         # Alternative path
+                        ]
+
+                    # Try each possible path
+                    for test_path in test_paths:
+                        logger.info(f"Checking path: {test_path} (exists: {os.path.exists(test_path)})")
+                        if os.path.exists(test_path):
+                            file_found = True
+                            file_path = test_path
+                            logger.info(f"Found auto-generated educational content image at: {file_path}")
+                            break
+
+                    if not file_found:
+                        logger.error(f"Could not find image for educational content ID {content_id} after trying multiple paths")
+
+                    # If found, add to media group
+                    if file_found and file_path:
+                        # For the first media, include the caption
+                        media_caption = caption if i == 0 else ""
+
+                        # Add to media group based on file type
+                        if file_type == 'photo':
+                            media_list.append(
+                                InputMediaPhoto(
+                                    media=FSInputFile(file_path),
+                                    caption=media_caption,
+                                    parse_mode="Markdown"
+                                )
+                            )
+                            valid_media_count += 1
+                        elif file_type == 'video':
+                            media_list.append(
+                                InputMediaVideo(
+                                    media=FSInputFile(file_path),
+                                    caption=media_caption,
+                                    parse_mode="Markdown"
+                                )
+                            )
+                            valid_media_count += 1
+                except Exception as e:
+                    logger.error(f"Error processing auto-generated educational content ID: {str(e)}")
+
+            # If file wasn't found and it looks like a Telegram file_id (no slashes)
+            elif '/' not in file_id:
+                logger.info(f"Trying as Telegram file_id: {file_id}")
+
+                # For the first media, include the caption
+                media_caption = caption if i == 0 else ""
+
+                # Add to media group based on file type
+                if file_type == 'photo':
+                    media_list.append(
+                        InputMediaPhoto(
+                            media=file_id,
+                            caption=media_caption,
+                            parse_mode="Markdown"
+                        )
+                    )
+                    valid_media_count += 1
+                elif file_type == 'video':
+                    media_list.append(
+                        InputMediaVideo(
+                            media=file_id,
+                            caption=media_caption,
+                            parse_mode="Markdown"
+                        )
+                    )
+                    valid_media_count += 1
+
+            else:
+                # File couldn't be found as path or file_id
+                logger.error(f"Media file not found: {file_id}")
+
+        except Exception as e:
+            logger.error(f"Error processing media for group: {str(e)}")
+            logger.error(traceback.format_exc())
+
+    # Now send the media group if we have any valid media
+    try:
+        if valid_media_count > 0:
+            # Send the media group using SendMediaGroup method
+            await bot.send_media_group(chat_id=chat_id, media=media_list)
+            logger.info(f"Sent media group with {valid_media_count} files")
+
+            # Send a separate message with keyboard if needed
+            if keyboard:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text="🔍 گزینه‌های زیر را انتخاب کنید:",
+                    reply_markup=keyboard
+                )
+        elif caption:
+            # If we couldn't send any media but have a caption, send as text message
+            await bot.send_message(
+                chat_id=chat_id,
+                text=caption,
+                parse_mode="Markdown",
+                reply_markup=keyboard
+            )
+    except Exception as e:
+        logger.error(f"Error sending media group: {str(e)}")
+        logger.error(traceback.format_exc())
+
+        # Fallback to sending individual messages
+        if caption:
+            await bot.send_message(
+                chat_id=chat_id,
+                text=caption,
+                parse_mode="Markdown",
+                reply_markup=keyboard
+            )
+
+        # Try to send notification about error
+        try:
+            await bot.send_message(
+                chat_id=chat_id, 
+                text=f"⚠️ خطا در نمایش مجموعه فایل‌های رسانه‌ای"
+            )
+        except:
+            pass
+
+
+async def send_product_media(chat_id, media_files, product_info=None, reply_markup=None):
+    """
+    Send product media files to user as a media group with caption
+
+    Args:
+        chat_id: Telegram chat ID to send media to
+        media_files: List of media file information
+        product_info: Optional dictionary with product information (name, price, description)
+        reply_markup: Optional reply markup (keyboard) to include with the message
+    """
+
+
+
+    # Log what we received for debugging
+    logger.debug(f"Product info received: {product_info}")
+    # Check if we have any media files
+    if not media_files:
+        logger.warning(f"No media files provided to send_product_media for chat_id {chat_id}")
+
+        # If we have product info but no media, send text message with keyboard
+        if product_info:
+            title = product_info.get('name', '')
+            price = product_info.get('price', '')
+            description = product_info.get('description', '')
+            brand = product_info.get('brand')
+            model = product_info.get('model')
+            model_number = product_info.get('model_number')
+            manufacturer = product_info.get('manufacturer')
+            tags = product_info.get('tags')
+            in_stock = product_info.get('in_stock')
+            featured = product_info.get('featured')
+
+            message_text = f"🛒 *{title}*\n\n"
+            if price:
+                message_text += f"💰 قیمت: {price} تومان\n\n"
+
+            # Add additional information if available
+            additional_info = []
+            if brand:
+                additional_info.append(f"🏢 برند: {brand}")
+            if model:
+                additional_info.append(f"📱 مدل: {model}")
+            if model_number:
+                additional_info.append(f"📋 شماره مدل: {model_number}")
+            if manufacturer:
+                additional_info.append(f"🏭 سازنده: {manufacturer}")
+            if tags:
+                additional_info.append(f"🏷️ برچسب‌ها: {tags}")
+            if in_stock:
+                additional_info.append("✅ موجود در انبار")
+            if featured:
+                additional_info.append("⭐ محصول ویژه")
+
+            # Add additional info to message_text if available
+            if additional_info:
+                message_text += "\n".join(additional_info) + "\n\n"
+
+            message_text += f"📝 توضیحات:\n{description}\n\n"
+
+            # Send message with keyboard
+            try:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=message_text,
+                    parse_mode="Markdown",
+                    reply_markup=reply_markup
+                )
+            except Exception as e:
+                logger.error(f"Failed to send product message: {str(e)}\n{traceback.format_exc()}")
+
+        return
+
+    logger.info(f"Attempting to send {len(media_files)} media files to chat_id {chat_id}")
+
+    # Prepare the caption for the first media
+    caption = ""
+    title = ""
+    description = ""
+    telegraph_url = None
+
+    if product_info:
+        title = product_info.get('name', '')
+        price = product_info.get('price', '')
+        description = product_info.get('description', '')
+
+        # Get additional product metadata
+        brand = product_info.get('brand')
+        model = product_info.get('model')
+        model_number = product_info.get('model_number')
+        manufacturer = product_info.get('manufacturer')
+        tags = product_info.get('tags')
+        in_stock = product_info.get('in_stock')
+        featured = product_info.get('featured')
+
+        # Build caption
+        caption = f"🛒 *{title}*\n\n"
+        if price:
+            caption += f"💰 قیمت: {price} تومان\n\n"
+
+        # Add additional information if available
+        additional_info = []
+        if brand:
+            additional_info.append(f"🏢 برند: {brand}")
+        if model:
+            additional_info.append(f"📱 مدل: {model}")
+        if model_number:
+            additional_info.append(f"📋 شماره مدل: {model_number}")
+        if manufacturer:
+            additional_info.append(f"🏭 سازنده: {manufacturer}")
+        if tags:
+            additional_info.append(f"🏷️ برچسب‌ها: {tags}")
+        if in_stock:
+            additional_info.append("✅ موجود در انبار")
+        if featured:
+            additional_info.append("⭐ محصول ویژه")
+
+        # Add additional info to caption if available
+        if additional_info:
+            caption += "\n".join(additional_info) + "\n\n"
+
+        # Check if description is too long (limit around 1000 characters for captions)
+        if description and len(description) > 800:
+            # Create Telegraph page for long descriptions
+            try:
+                telegraph_url = await create_telegraph_page(
+                    title=title,
+                    content=description,
+                    author="RFCatalogbot"
+                )
+
+                # Add shortened description + link
+                caption += f"📝 توضیحات:\n{description[:300]}...\n\n"
+                if telegraph_url:
+                    caption += f"📄 [مشاهده توضیحات کامل]({telegraph_url})"
+            except Exception as e:
+                logger.error(f"Error creating Telegraph page: {str(e)}\n{traceback.format_exc()}")
+                # If Telegraph creation fails, use regular caption
+                caption += f"📝 توضیحات:\n{description}\n\n"
+        else:
+            # Description fits in caption
+            caption += f"📝 توضیحات:\n{description}\n\n"
+
+    # Create a media group for sending multiple files
+    media_group = []
+    found_valid_media = False
+
+    # Define possible paths to check
+    media_paths = [
+        './', 
+        './static/', 
+        './static/images/', 
+        './static/photos/',
+        './static/uploads/',
+        './static/media/',
+        './static/products/',
+        './attached_assets/',
+        './data/',
+    ]
+
+    # Add product main image first if it exists and we're processing a product
+    main_photo_added = False
+    if product_info and 'photo_url' in product_info and product_info['photo_url']:
+        photo_url = product_info.get('photo_url')
+        logger.info(f"Adding product main photo: {photo_url}")
+
+        # Check if the main photo exists as a file
+        photo_path = f"static/{photo_url}"
+        if os.path.isfile(photo_path):
+            logger.info(f"Main product photo file found at: {photo_path}")
+            try:
+                # Add the main photo as the first item with caption
+                media_object = InputMediaPhoto(
+                    media=FSInputFile(photo_path),
+                    caption=caption,
+                    parse_mode="Markdown"
+                )
+                media_group.append(media_object)
+                found_valid_media = True
+                main_photo_added = True
+            except Exception as e:
+                logger.error(f"Error adding main product photo: {str(e)}\n{traceback.format_exc()}")
+
+    # Process the rest of media files
+    for i, media in enumerate(media_files):
+        try:
+            file_id = media.get('file_id', '')
+            file_type = media.get('file_type', 'photo')
+            file_name = media.get('file_name', 'unknown')
+            local_path = media.get('local_path', '')
+
+            # Log the full media info for debugging
+            logger.info(f"Processing media: file_id={file_id}, file_type={file_type}, file_name={file_name}")
+
+            if not file_id:
+                logger.warning(f"Empty file_id for media: {media}")
+                continue
+
+            # Only add caption to the first item in media group, and only if main photo wasn't added
+            item_caption = caption if i == 0 and not main_photo_added else None
+
+            # Try a few sample files from attached_assets (this is temporary for testing)
+            if file_id == 'show.jpg' and not os.path.isfile(file_id):
+                test_file = './attached_assets/show.jpg'
+                if os.path.isfile(test_file):
+                    file_id = test_file
+                    logger.info(f"Found test file at {test_file}")
+
+            media_found = False
+            media_object = None
+
+            # Check if it's an URL
+            if isinstance(file_id, str) and file_id.startswith('http'):
+                logger.info(f"File is a URL: {file_id}")
+                if file_type == 'photo':
+                    media_object = InputMediaPhoto(
+                        media=file_id,
+                        caption=item_caption,
+                        parse_mode="Markdown"
+                    )
+                elif file_type == 'video':
+                    media_object = InputMediaVideo(
+                        media=file_id,
+                        caption=item_caption,
+                        parse_mode="Markdown"
+                    )
+                media_found = True
+
+            # Check if it's a local file with full path
+            elif file_id and os.path.isfile(file_id):
+                logger.info(f"File is a local path that exists: {file_id}")
+                if file_type == 'photo':
+                    media_object = InputMediaPhoto(
+                        media=FSInputFile(file_id),
+                        caption=item_caption,
+                        parse_mode="Markdown"
+                    )
+                elif file_type == 'video':
+                    media_object = InputMediaVideo(
+                        media=FSInputFile(file_id),
+                        caption=item_caption,
+                        parse_mode="Markdown"
+                    )
+                media_found = True
+
+            # Try with local_path if available
+            elif local_path:
+                full_path = None
+                # Check if it's a relative path or starts with static
+                if not local_path.startswith('static/'):
+                    full_path = f"./static/{local_path}"
+                else:
+                    full_path = f"./{local_path}"
+
+                if os.path.exists(full_path) and os.path.isfile(full_path):
+                    logger.info(f"Found media file using local_path: {full_path}")
+                    if file_type == 'photo':
+                        media_object = InputMediaPhoto(
+                            media=FSInputFile(full_path),
+                            caption=item_caption,
+                            parse_mode="Markdown"
+                        )
+                    elif file_type == 'video':
+                        media_object = InputMediaVideo(
+                            media=FSInputFile(full_path),
+                            caption=item_caption,
+                            parse_mode="Markdown"
+                        )
+                    media_found = True
+
+            # Try with filename in various directories
+            if not media_found and '/' not in file_id:
+                for path in media_paths:
+                    full_path = f"{path}{file_id}"
+                    if os.path.isfile(full_path):
+                        logger.info(f"Found media file at {full_path}")
+                        if file_type == 'photo':
+                            media_object = InputMediaPhoto(
+                                media=FSInputFile(full_path),
+                                caption=item_caption,
+                                parse_mode="Markdown"
+                            )
+                        elif file_type == 'video':
+                            media_object = InputMediaVideo(
+                                media=FSInputFile(full_path),
+                                caption=item_caption,
+                                parse_mode="Markdown"
+                            )
+                        media_found = True
+                        break
+
+            # If not found yet, try to construct proper file path
+            if not media_found and file_id:
+                # تبدیل مسیر فایل به مسیر کامل
+                if file_id.startswith('uploads/'):
+                    full_path = f"static/{file_id}"
+                    logger.info(f"Checking path: {full_path}")
+                    if os.path.exists(full_path) and os.path.isfile(full_path):
+                        logger.info(f"Found media at constructed path: {full_path}")
+                        if file_type == 'photo':
+                            media_object = InputMediaPhoto(
+                                media=FSInputFile(full_path),
+                                caption=item_caption,
+                                parse_mode="Markdown"
+                            )
+                        elif file_type == 'video':
+                            media_object = InputMediaVideo(
+                                media=FSInputFile(full_path),
+                                caption=item_caption,
+                                parse_mode="Markdown"
+                            )
+                        media_found = True
+                    else:
+                        logger.warning(f"File not found at: {full_path}")
+
+                # اگر هنوز پیدا نشد، فقط اگر file_id واقعاً شبیه Telegram file_id باشد (بدون /)
+                if not media_found and len(file_id) > 20 and not '/' in file_id and not file_id.startswith('uploads'):
+                    logger.info(f"Trying as Telegram file_id: {file_id}")
+                    if file_type == 'photo':
+                        media_object = InputMediaPhoto(
+                            media=file_id,
+                            caption=item_caption,
+                            parse_mode="Markdown"
+                        )
+                    elif file_type == 'video':
+                        media_object = InputMediaVideo(
+                            media=file_id,
+                            caption=item_caption,
+                            parse_mode="Markdown"
+                        )
+                    media_found = True
+                else:
+                    # اگر file_id مسیر محلی است ولی فایل وجود ندارد
+                    if not media_found and file_id.startswith('uploads/'):
+                        logger.warning(f"Local file not found: ./static/{file_id}")
+
+            # Add to media group if found
+            if media_found and media_object:
+                media_group.append(media_object)
+                found_valid_media = True
+
+        except Exception as e:
+            logger.error(f"Error processing media file: {str(e)}")
+            continue
+
+    # Send the media group if we have valid media
+    if found_valid_media and media_group:
+        logger.info(f"Sending media group with {len(media_group)} items")
+        try:
+            # First send media group
+            await bot.send_media_group(
+                chat_id=chat_id,
+                media=media_group
+            )
+
+            # Then send inquiry button and back in a separate message
+            if reply_markup:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text="🔽 گزینه‌های محصول:",
+                    reply_markup=reply_markup
+                )
+
+        except Exception as e:
+            logger.error(f"Error sending media group: {str(e)}")
+            # Fallback to text-only message with description and telegraph link
+            fallback_text = f"🛒 *{title}*\n\n"
+            if product_info and product_info.get('price'):
+                fallback_text += f"💰 قیمت: {product_info.get('price')} تومان\n\n"
+
+            fallback_text += f"📝 توضیحات:\n{description[:500]}...\n\n"
+
+            if telegraph_url:
+                fallback_text += f"📄 [مشاهده توضیحات کامل]({telegraph_url})"
+
+            try:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=fallback_text,
+                    parse_mode="Markdown",
+                    reply_markup=reply_markup
+                )
+            except Exception as err:
+                logger.error(f"Failed to send fallback message: {err}")
+    elif product_info:
+        # No valid media found, send text-only message
+        logger.warning(f"No valid media found for product, sending text-only message")
+        fallback_text = f"🛒 *{title}*\n\n"
+        if product_info.get('price'):
+            fallback_text += f"💰 قیمت: {product_info.get('price')} تومان\n\n"
+
+        fallback_text += f"📝 توضیحات:\n{description}\n\n"
+
+        if telegraph_url:
+            fallback_text += f"📄 [مشاهده توضیحات کامل]({telegraph_url})"
+
+        try:
+            await bot.send_message(
+                chat_id=chat_id,
+                text=fallback_text,
+                parse_mode="Markdown",
+                reply_markup=reply_markup
+            )
+        except Exception as e:
+            logger.error(f"Failed to send text-only message: {str(e)}\n{traceback.format_exc()}")
+
+async def send_service_media(chat_id, media_files, service_info=None, reply_markup=None):
+    """
+    Send service media files to user as a media group with caption
+
+    Args:
+        chat_id: Telegram chat ID to send media to
+        media_files: List of media file information
+        service_info: Optional dictionary with service information (name, price, description)
+        reply_markup: Optional reply markup (keyboard) to include with the message
+    """
+    logger.info(f"send_service_media called with {len(media_files) if media_files else 0} files")
+
+    from bot import bot  # Import bot here to avoid circular imports
+    from utils import create_telegraph_page  # Import telegraph function
+
+    # Check if we have any media files
+    if not media_files:
+        logger.warning(f"No media files provided to send_service_media for chat_id {chat_id}")
+
+        # If we have service info but no media, send text message with keyboard
+        if service_info:
+            title = service_info.get('name', '')
+            price = service_info.get('price', '')
+            description = service_info.get('description', '')
+            tags = service_info.get('tags')
+            available = service_info.get('available')
+            featured = service_info.get('featured')
+
+            # Add service emoji if not already present
+            if not title.startswith('🛠️'):
+                title = f"🛠️ *{title}*"
+
+            message_text = f"*{title}*\n\n"
+            if price:
+                message_text += f"💰 قیمت: {price} تومان\n\n"
+
+            # Add additional information if available
+            additional_info = []
+            if tags:
+                additional_info.append(f"🏷️ برچسب‌ها: {tags}")
+            if available:
+                additional_info.append("✅ در دسترس")
+            if featured:
+                additional_info.append("⭐ خدمت ویژه")
+
+            # Add additional info to message_text if available
+            if additional_info:
+                message_text += "\n".join(additional_info) + "\n\n"
+
+            message_text += f"📝 توضیحات:\n{description}\n\n"
+
+            # Send message with keyboard
+            try:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=message_text,
+                    parse_mode="Markdown",
+                    reply_markup=reply_markup
+                )
+            except Exception as e:
+                logger.error(f"Failed to send service message: {str(e)}\n{traceback.format_exc()}")
+
+        return
+
+    # Check if service_info exists
+    if service_info:
+        # Customize service information for display
+        title = service_info.get('name', '')
+        price = service_info.get('price', '')
+        description = service_info.get('description', '')
+        tags = service_info.get('tags', '')
+        available = service_info.get('available')
+        featured = service_info.get('featured')
+
+        # Add service emoji if not already present
+        if not title.startswith('🛠️'):
+            title = f"🛠️ *{title}*"
+
+        # Create caption
+        caption = f"*{title}*\n\n"
+        if price:
+            caption += f"💰 قیمت: {price} تومان\n\n"
+
+        # Add additional information if available
+        additional_info = []
+
+        # Log values for debugging
+        logger.info(f"Service tags: '{tags}' (type: {type(tags)})")
+        logger.info(f"Service featured: '{featured}' (type: {type(featured)})")
+
+        if tags:
+            additional_info.append(f"🏷️ برچسب‌ها: {tags}")
+        if available:
+            additional_info.append("✅ در دسترس")
+        if featured:
+            additional_info.append("⭐ خدمت ویژه")
+
+        # Add additional info to caption if available
+        if additional_info:
+            logger.info(f"Additional info to add: {additional_info}")
+            caption += "\n".join(additional_info) + "\n\n"
+        else:
+            logger.warning("No additional info was added to caption")
+
+        # Check if description is too long
+        telegraph_url = None
+        if description and len(description) > 800:
+            # Create Telegraph page for long descriptions
+            try:
+                telegraph_url = await create_telegraph_page(
+                    title=title,
+                    content=description,
+                    author="RFCatalogbot"
+                )
+
+                # Add shortened description + link
+                caption += f"📝 توضیحات:\n{description[:300]}...\n\n"
+                if telegraph_url:
+                    caption += f"📄 [مشاهده توضیحات کامل]({telegraph_url})"
+            except Exception as e:
+                logger.error(f"Error creating Telegraph page: {str(e)}\n{traceback.format_exc()}")
+                # If Telegraph creation fails, use regular caption
+                caption += f"📝 توضیحات:\n{description}\n\n"
+        else:
+            # Description fits in caption
+            caption += f"📝 توضیحات:\n{description}\n\n"
+
+        # Process and send service media files
+        # First create an empty media group
+        found_valid_media = False
+        media_group = []
+
+        # Add service main image first if it exists
+        main_photo_added = False
+        if service_info and 'photo_url' in service_info and service_info['photo_url']:
+            photo_url = service_info.get('photo_url')
+            logger.info(f"Adding service main photo: {photo_url}")
+
+            # Check if the photo exists as a file - add all possible paths to try
+            possible_paths = [
+                f"static/{photo_url}",
+                photo_url,
+                f"static/uploads/services/{photo_url}",
+                f"static/uploads/{photo_url}",
+                # Try without 'main' in the path
+                photo_url.replace('main/', ''),
+                f"static/{photo_url.replace('main/', '')}",
+
+                # Try with explicit main path
+                f"./static/{photo_url}",
+                f"./{photo_url}"
+            ]
+
+            # Log all path attempts for debugging
+            logger.info(f"Trying to find main photo in these paths: {possible_paths}")
+
+            photo_path = None
+            for path in possible_paths:
+                logger.info(f"Checking path: {path}")
+                if os.path.isfile(path):
+                    photo_path = path
+                    logger.info(f"Found main photo at path: {path}")
+                    break
+
+            if photo_path:
+                logger.info(f"Main service photo file found at: {photo_path}")
+                try:
+                    # Add the main photo as the first item with caption
+                    media_object = InputMediaPhoto(
+                        media=FSInputFile(photo_path),
+                        caption=caption,
+                        parse_mode="Markdown"
+                    )
+                    media_group.append(media_object)
+                    found_valid_media = True
+                    main_photo_added = True
+                except Exception as e:
+                    logger.error(f"Error adding main service photo: {e}")
+            else:
+                logger.warning(f"Main photo not found in any of the checked paths for photo_url: {photo_url}")
+
+        # Filter the media files to remove invalid default media
+        valid_media_files = []
+        for media_file in media_files:
+            file_id = media_file.get('file_id', '')
+            # Skip default media files that are causing errors
+            if file_id and file_id.startswith('default_media_'):
+                logger.warning(f"Skipping likely invalid default media file: {file_id}")
+                continue
+            valid_media_files.append(media_file)
+
+        # If no valid media files and no main photo, send text-only message
+        if not valid_media_files and not main_photo_added:
+            logger.warning(f"All {len(media_files)} media files were filtered out as invalid and no main photo was found")
+            # Send text-only message with full service information
+            service_text = f"🛠️ *{title}*\n\n"
+            if price:
+                service_text += f"💰 قیمت: {price} تومان\n\n"
+
+            # Add additional information if available
+            if additional_info:
+                service_text += "\n".join(additional_info) + "\n\n"
+
+            service_text += f"📝 توضیحات:\n{description}\n\n"
+
+            try:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=service_text,
+                    parse_mode="Markdown",
+                    reply_markup=reply_markup
+                )
+                logger.info(f"Sent text-only message for service with tags: {tags}, featured: {featured}")
+                return
+            except Exception as e:
+                logger.error(f"Failed to send service text-only message: {e}")
+                return
+
+        # Caption will only be used for the first media if main photo wasn't added
+        item_caption = None if main_photo_added else caption
+
+        # Define possible paths to check for media files
+        media_paths = [
+            './', 
+            'static/media/services/', 
+            'static/uploads/services/',
+            'media/services/'
         ]
-        return InlineKeyboardMarkup(keyboard)
-    
-    @staticmethod
-    def admin_inquiries_keyboard(inquiries: List[Dict]) -> InlineKeyboardMarkup:
-        """Create keyboard for admin inquiries management."""
-        keyboard = []
+
+        # Process each media file
+        for i, media_file in enumerate(valid_media_files):
+            try:
+                file_id = media_file.get('file_id', '')
+                file_type = media_file.get('file_type', 'photo')  # Default to photo if not specified
+                local_path = media_file.get('local_path', '')
+
+                # Only the first item should have the caption if main photo wasn't already added
+                item_caption = caption if i == 0 and not main_photo_added else ""
+
+                media_object = None
+                media_found = False
+
+                logger.info(f"Processing service media file {i+1}/{len(valid_media_files)}: {file_id}, type: {file_type}")
+
+                # Try all possible paths for this service media file
+                possible_paths = [
+                    local_path,
+                    file_id,
+                    f"static/{file_id}",
+                    f"./{file_id}",
+                    f"./static/{file_id}",
+                    # For services with paths that include 'uploads/services/'
+                    f"static/uploads/services/{os.path.basename(file_id)}",
+                    f"static/uploads/services/21/{os.path.basename(file_id)}"
+                ]
+
+                # Log all path attempts for debugging
+                logger.info(f"Trying to find service media file in these paths: {possible_paths}")
+
+                # Try all possible paths
+                for path in possible_paths:
+                    if path and os.path.isfile(path):
+                        logger.info(f"Found service media file at path: {path}")
+                        if file_type == 'photo':
+                            media_object = InputMediaPhoto(
+                                media=FSInputFile(path),
+                                caption=item_caption,
+                                parse_mode="Markdown"
+                            )
+                        elif file_type == 'video':
+                            media_object = InputMediaVideo(
+                                media=FSInputFile(path),
+                                caption=item_caption,
+                                parse_mode="Markdown"
+                            )
+                        media_found = True
+                        break
+
+                # If still not found, try with various directory combinations
+                if not media_found:
+                    # Try with all media paths
+                    for path in media_paths:
+                        # Try with various combinations
+                        path_combinations = [
+                            f"{path}{file_id}",
+                            f"{path}{os.path.basename(file_id)}",
+                            f"{path}21/{os.path.basename(file_id)}",
+                            f"{path}main/{os.path.basename(file_id)}"
+                        ]
+
+                        for full_path in path_combinations:
+                            logger.info(f"Checking service media path: {full_path}")
+                            if os.path.isfile(full_path):
+                                logger.info(f"Found service media file at: {full_path}")
+                                if file_type == 'photo':
+                                    media_object = InputMediaPhoto(
+                                        media=FSInputFile(full_path),
+                                        caption=item_caption,
+                                        parse_mode="Markdown"
+                                    )
+                                elif file_type == 'video':
+                                    media_object = InputMediaVideo(
+                                        media=FSInputFile(full_path),
+                                        caption=item_caption,
+                                        parse_mode="Markdown"
+                                    )
+                                media_found = True
+                                break
+
+                        if media_found:
+                            break
+
+                # If not found yet, try to construct proper file path
+                if not media_found and file_id and not file_id.startswith('default_media_'):
+                    # تبدیل مسیر فایل به مسیر کامل
+                    if file_id.startswith('uploads/'):
+                        full_path = f"static/{file_id}"
+                        logger.info(f"Checking path: {full_path}")
+                        if os.path.exists(full_path) and os.path.isfile(full_path):
+                            logger.info(f"Found media at constructed path: {full_path}")
+                            if file_type == 'photo':
+                                media_object = InputMediaPhoto(
+                                    media=FSInputFile(full_path),
+                                    caption=item_caption,
+                                    parse_mode="Markdown"
+                                )
+                            elif file_type == 'video':
+                                media_object = InputMediaVideo(
+                                    media=FSInputFile(full_path),
+                                    caption=item_caption,
+                                    parse_mode="Markdown"
+                                )
+                            media_found = True
+                        else:
+                            logger.warning(f"File not found at: {full_path}")
+
+                    # اگر هنوز پیدا نشد، تلاش برای Telegram file_id (فقط اگر شبیه file_id واقعی باشد)
+                    if not media_found and len(file_id) > 20 and not '/' in file_id:
+                        logger.info(f"Trying as Telegram file_id: {file_id}")
+                        if file_type == 'photo':
+                            media_object = InputMediaPhoto(
+                                media=file_id,
+                                caption=item_caption,
+                                parse_mode="Markdown"
+                            )
+                        elif file_type == 'video':
+                            media_object = InputMediaVideo(
+                                media=file_id,
+                                caption=item_caption,
+                                parse_mode="Markdown"
+                            )
+                        media_found = True
+
+                # Add to media group if found
+                if media_found and media_object:
+                    media_group.append(media_object)
+                    found_valid_media = True
+
+            except Exception as e:
+                logger.error(f"Error processing service media file: {str(e)}")
+                continue
+
+        # Send the media group if we have valid media
+        if found_valid_media and media_group:
+            logger.info(f"Sending service media group with {len(media_group)} items")
+            try:
+                # First send media group
+                await bot.send_media_group(
+                    chat_id=chat_id,
+                    media=media_group
+                )
+
+                # Then send inquiry button and back in a separate message
+                if reply_markup:
+                    await bot.send_message(
+                        chat_id=chat_id,
+                        text="🔽 گزینه‌های خدمت:",
+                        reply_markup=reply_markup
+                    )
+
+            except Exception as e:
+                logger.error(f"Error sending service media group: {str(e)}")
+                # Fallback to text-only message with description
+                fallback_text = f"🛠️ *{title}*\n\n"
+                if price:
+                    fallback_text += f"💰 قیمت: {price} تومان\n\n"
+
+                # Add additional information if available
+                if additional_info:
+                    fallback_text += "\n".join(additional_info) + "\n\n"
+
+                fallback_text += f"📝 توضیحات:\n{description[:500]}...\n\n"
+
+                if telegraph_url:
+                    fallback_text += f"📄 [مشاهده توضیحات کامل]({telegraph_url})"
+
+                try:
+                    await bot.send_message(
+                        chat_id=chat_id,
+                        text=fallback_text,
+                        parse_mode="Markdown",
+                        reply_markup=reply_markup
+                    )
+                except Exception as err:
+                    logger.error(f"Failed to send service fallback message: {err}")
+        else:
+            # No valid media found, send text-only message
+            fallback_text = f"🛠️ *{title}*\n\n"
+            if price:
+                fallback_text += f"💰 قیمت: {price} تومان\n\n"
+
+            # Add additional information if available
+            if additional_info:
+                fallback_text += "\n".join(additional_info) + "\n\n"
+
+            fallback_text += f"📝 توضیحات:\n{description}\n\n"
+
+            try:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=fallback_text,
+                    parse_mode="Markdown",
+                    reply_markup=reply_markup
+                )
+            except Exception as e:
+                logger.error(f"Failed to send service text-only message: {e}")
+    else:
+        # If no service_info, send a generic message
+        if media_files:
+            await bot.send_message(
+                chat_id=chat_id,
+                text="⚠️ اطلاعات خدمت موجود نیست.",
+                reply_markup=reply_markup
+            )
+
+# Inquiry process handlers
+@router.callback_query(F.data.startswith("inquiry:"))
+async def callback_inquiry(callback: CallbackQuery, state: FSMContext):
+    logger.debug(f"callback_inquiry called with data: {callback.data}")
+    """Handle inquiry initiation"""
+    await callback.answer()
+
+    try:
+        # Extract item type and ID
+        _, item_type, item_id = callback.data.split(':', 2)
+        item_id = int(item_id)
+
+        # Save inquiry details in state
+        if item_type == 'product':
+            await state.update_data(product_id=item_id, service_id=None)
+            product = db.get_product(item_id)
+            if product and 'name' in product:
+                await callback.message.answer(f"شما در حال استعلام قیمت برای محصول «{product['name']}» هستید.")
+            else:
+                await callback.message.answer("شما در حال استعلام قیمت برای یک محصول هستید.")
+                logger.error(f"Product not found or missing name: {item_id}")
+        else:  # service
+            await state.update_data(service_id=item_id, product_id=None)
+            service = db.get_service(item_id)
+            if service and 'name' in service:
+                await callback.message.answer(f"شما در حال استعلام قیمت برای خدمت «{service['name']}» هستید.")
+            else:
+                await callback.message.answer("شما در حال استعلام قیمت برای یک خدمت هستید.")
+                logger.error(f"Service not found or missing name: {item_id}")
+    except Exception as e:
+        logger.error(f"Error in inquiry callback: {e}")
+        await callback.message.answer("خطایی در شروع فرآیند استعلام قیمت رخ داد. لطفا دوباره تلاش کنید.")
+
+    # Ask for name
+    await callback.message.answer("لطفاً نام خود را وارد کنید:")
+    await state.set_state(UserStates.inquiry_name)
+
+@router.message(UserStates.inquiry_name)
+async def process_inquiry_name(message: Message, state: FSMContext):
+    """Process name input for inquiry"""
+    # Save name
+    await state.update_data(name=message.text)
+
+    # Ask for phone
+    await message.answer("لطفاً شماره تماس خود را وارد کنید:")
+    await state.set_state(UserStates.inquiry_phone)
+
+@router.message(UserStates.inquiry_phone)
+async def process_inquiry_phone(message: Message, state: FSMContext):
+    """Process phone input for inquiry"""
+    # Simple phone validation
+    phone = message.text.strip()
+    if not phone.isdigit() or len(phone) < 10:
+        await message.answer("لطفاً یک شماره تماس معتبر وارد کنید:")
+        return
+
+    # Save phone
+    await state.update_data(phone=phone)
+
+    # Ask for description
+    await message.answer("لطفاً توضیحات درخواست خود را وارد کنید:")
+    await state.set_state(UserStates.inquiry_description)
+
+@router.message(UserStates.inquiry_description)
+async def process_inquiry_description(message: Message, state: FSMContext):
+    """Process description input for inquiry"""
+    # Save description
+    await state.update_data(description=message.text)
+
+    try:
+        # Get all inquiry data
+        inquiry_data = await state.get_data()
+
+        # Format confirmation message
+        confirmation = (
+            "📋 لطفاً اطلاعات درخواست خود را تأیید کنید:\n\n"
+            f"👤 نام: {inquiry_data.get('name', 'نامشخص')}\n"
+            f"📞 شماره تماس: {inquiry_data.get('phone', 'نامشخص')}\n"
+            f"📝 توضیحات: {inquiry_data.get('description', 'بدون توضیحات')}\n\n"
+        )
+
+        # Add product/service info
+        product_id = inquiry_data.get('product_id')
+        service_id = inquiry_data.get('service_id')
+
+        if product_id:
+            product = db.get_product(product_id)
+            if product and 'name' in product:
+                confirmation += f"🛒 محصول: {product['name']}\n"
+            else:
+                confirmation += "🛒 محصول: نامشخص\n"
+                logger.error(f"Product not found or missing name in confirmation: {product_id}")
+        elif service_id:
+            service = db.get_service(service_id)
+            if service and 'name' in service:
+                confirmation += f"🛠️ خدمت: {service['name']}\n"
+            else:
+                confirmation += "🛠️ خدمت: نامشخص\n"
+                logger.error(f"Service not found or missing name in confirmation: {service_id}")
+    except Exception as e:
+        logger.error(f"Error formatting inquiry confirmation: {e}")
+        confirmation = "📋 لطفاً اطلاعات درخواست خود را تأیید کنید (بدون جزئیات به دلیل خطای فنی)"
+
+    # Add confirmation keyboard
+    kb = InlineKeyboardBuilder()
+    kb.button(text="✅ تأیید", callback_data="confirm_inquiry")
+    kb.button(text="❌ انصراف", callback_data="cancel_inquiry")
+    kb.adjust(2)
+
+    await message.answer(confirmation, reply_markup=kb.as_markup())
+    await state.set_state(UserStates.waiting_for_confirmation)
+
+@router.callback_query(F.data == "confirm_inquiry", UserStates.waiting_for_confirmation)
+async def callback_confirm_inquiry(callback: CallbackQuery, state: FSMContext):
+    logger.debug(f"callback_confirm_inquiry called with data: {callback.data}")
+    """Handle inquiry confirmation"""
+    await callback.answer()
+
+    # Get all inquiry data
+    inquiry_data = await state.get_data()
+
+    try:
+        # Add inquiry to database
+        user_id = callback.from_user.id
+        name = inquiry_data.get('name', 'نامشخص')
+        phone = inquiry_data.get('phone', 'نامشخص')
+        description = inquiry_data.get('description', 'بدون توضیحات')
+        product_id = inquiry_data.get('product_id')
+        service_id = inquiry_data.get('service_id')
+
+        # Safely add the inquiry
+        try:
+            # تبدیل user_id به int برای اطمینان از سازگاری
+            user_id_int = int(user_id)
+            # تبدیل product_id و service_id به int در صورت لزوم
+            product_id_int = int(product_id) if product_id else None
+            service_id_int = int(service_id) if service_id else None
+
+            # ثبت درخواست
+            db.add_inquiry(user_id_int, name, phone, description, product_id_int, service_id_int)
+
+            # ارسال پیام موفقیت
+            await callback.message.answer(
+                "✅ درخواست شما با موفقیت ثبت شد.\n"
+                "کارشناسان ما در اسرع وقت با شما تماس خواهند گرفت."
+            )
+            logger.info(f"Inquiry successfully added for user: {user_id_int}")
+        except ValueError as e:
+            # خطای تبدیل نوع داده
+            logger.error(f"Value conversion error in inquiry: {e}")
+            await callback.message.answer(
+                "❌ خطا در ثبت درخواست. لطفاً مجدداً تلاش کنید.\n"
+                "دلیل: مقادیر نامعتبر"
+            )
+        except Exception as e:
+            # سایر خطاها
+            logger.error(f"Database error adding inquiry: {e}")
+            logger.error(traceback.format_exc())
+            await callback.message.answer(
+                "❌ خطا در ثبت درخواست. لطفاً مجدداً تلاش کنید."
+            )
+
+        # Notify admin if ADMIN_ID is set
+        if ADMIN_ID:
+            # Format admin notification
+            notification = (
+                "🔔 استعلام قیمت جدید:\n\n"
+                f"👤 نام: {name}\n"
+                f"📞 شماره تماس: {phone}\n"
+                f"📝 توضیحات: {description}\n\n"
+            )
+
+            # Add product/service info
+            try:
+                if product_id:
+                    product = db.get_product(product_id)
+                    if product and 'name' in product:
+                        notification += f"🛒 محصول: {product['name']}\n"
+                    else:
+                        notification += f"🛒 محصول: (ID: {product_id})\n"
+                elif service_id:
+                    service = db.get_service(service_id)
+                    if service and 'name' in service:
+                        notification += f"🛠️ خدمت: {service['name']}\n"
+                    else:
+                        notification += f"🛠️ خدمت: (ID: {service_id})\n"
+            except Exception as e:
+                logger.error(f"Error getting product/service details for admin notification: {e}")
+                notification += "مشکل در نمایش اطلاعات محصول/خدمت\n"
+
+            notification += f"\n📅 تاریخ: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+
+            try:
+                # به جای واردکردن bot که ممکن است باعث خطای دور (circular import) شود
+                # از آرگومان callback استفاده می‌کنیم
+                await callback.bot.send_message(chat_id=ADMIN_ID, text=notification)
+            except Exception as e:
+                logger.error(f"Failed to notify admin: {e}")
+
+        # Clear state and return to main menu
+        await state.clear()
+
+        # Show main menu
+        kb = InlineKeyboardBuilder()
+        kb.button(text="🛒 محصولات", callback_data="products")
+        kb.button(text="🛠️ خدمات", callback_data="services")
+        kb.button(text="📚 محتوای آموزشی", callback_data="educational")
+        kb.button(text="📞 تماس با ما", callback_data="contact")
+        kb.button(text="ℹ️ درباره ما", callback_data="about")
+        kb.adjust(2, 2, 1)
+
+        await callback.message.answer("می‌توانید به استفاده از ربات ادامه دهید:", 
+                                    reply_markup=kb.as_markup())
+    except Exception as e:
+        logger.error(f"Error processing inquiry: {e}")
+        logger.error(traceback.format_exc())
+        await callback.message.answer(
+            "❌ خطا در ثبت درخواست. لطفاً مجدداً تلاش کنید."
+        )
+
+@router.callback_query(F.data == "cancel_inquiry")
+async def callback_cancel_inquiry(callback: CallbackQuery, state: FSMContext):
+    logger.debug(f"callback_cancel_inquiry called with data: {callback.data}")
+    """Handle inquiry cancellation"""
+    await callback.answer()
+    await state.clear()
+
+    await callback.message.answer("درخواست استعلام قیمت لغو شد.")
+
+    # Show main menu
+    kb = InlineKeyboardBuilder()
+    kb.button(text="🛒 محصولات", callback_data="products")
+    kb.button(text="🛠️ خدمات", callback_data="services")
+    kb.button(text="📚 محتوای آموزشی", callback_data="educational")
+    kb.button(text="📞 تماس با ما", callback_data="contact")
+    kb.button(text="ℹ️ درباره ما", callback_data="about")
+    kb.adjust(2, 2, 1)
+
+    await callback.message.answer("می‌توانید به استفاده از ربات ادامه دهید:", 
+                               reply_markup=kb.as_markup())
+
+
+# Handle all callback queries
+@router.callback_query()
+async def handle_unknown_callback(callback: CallbackQuery):
+    logger.debug(f"handle_unknown_callback called with data: {callback.data}")
+    """Handle unknown callback queries"""
+    logger.debug(
+        f"Unknown callback: update_id={callback.id}, "
+        f"user_id={callback.from_user.id}, data={callback.data} "
         
-        # Add inquiry buttons (limited to 10)
-        for i, inquiry in enumerate(inquiries[:10]):
-            name = inquiry['name']
-            date = inquiry['date'].split('T')[0]  # Just the date part
-            product_name = inquiry.get('product_name', 'بدون محصول')
-            
-            callback_data = f"{ADMIN_PREFIX}inquiry_{inquiry['id']}"
-            button_text = f"{name} - {date} - {product_name}"
-            keyboard.append([InlineKeyboardButton(button_text, callback_data=callback_data)])
-        
-        # Add filter options
-        keyboard.append([
-            InlineKeyboardButton("🔍 فیلتر", callback_data=f"{ADMIN_PREFIX}filter_inquiries"),
-            InlineKeyboardButton("📊 خروجی CSV", callback_data=f"{ADMIN_PREFIX}export_inquiries")
-        ])
-        
+    )
+    await callback.message.answer("این عملیات پشتیبانی نمی‌شود!", reply_markup=get_main_keyboard())
+    await callback.answer()
+
+'''
+
+# Text message handlers
+@router.message(F.text == PRODUCTS_BTN)
+async def text_products(message: Message):
+    """Handle 'Products' button press"""
+    logger.debug(f"Processing 'Products' button from user {message.from_user.id}")
+    await cmd_products(message)
+
+@router.message(F.text == SERVICES_BTN)
+async def text_services(message: Message):
+    """Handle 'Services' button press"""
+    logger.debug(f"Processing 'Services' button from user {message.from_user.id}")
+    await cmd_services(message)
+
+@router.message(F.text == EDUCATION_BTN)
+async def text_education(message: Message):
+    """Handle 'Educational Content' button press"""
+    logger.debug(f"Processing 'Education' button from user {message.from_user.id}")
+    await cmd_education(message)
+
+@router.message(F.text == ABOUT_BTN)
+async def text_about(message: Message):
+    """Handle 'About' button press"""
+    logger.debug(f"Processing 'About' button from user {message.from_user.id}")
+    await cmd_about(message)
+
+@router.message(F.text == CONTACT_BTN)
+async def text_contact(message: Message):
+    """Handle 'Contact' button press"""
+    logger.debug(f"Processing 'Contact' button from user {message.from_user.id}")
+    await cmd_contact(message)
+
+@router.message(F.text == INQUIRY_BTN)
+async def text_inquiry(message: Message, state: FSMContext):
+    """Handle 'Inquiry' button press"""
+    logger.debug(f"Processing 'Inquiry' button from user {message.from_user.id}")
+    await cmd_inquiry(message, state)
+
+@router.message(F.text == BACK_BTN)
+async def text_back(message: Message, state: FSMContext):
+    """Handle 'Back' button press"""
+    logger.debug(f"Processing 'Back' button from user {message.from_user.id}")
+    await state.clear()  # Reset FSM state
+    await cmd_start(message)
+
+# Inquiry FSM handlers
+
+# Callback query handlers
+@router.callback_query(F.data.startswith(PRODUCT_PREFIX))
+async def handle_product_callback(callback: CallbackQuery):
+    """Handle product selection callback"""
+    logger.debug(f"Processing product callback: {callback.data}")
+    try:
+        product_id = int(callback.data[len(PRODUCT_PREFIX):])
+        product = db.get_product(product_id)
+        if product:
+            media = db.get_product_media(product_id)
+            media_text = f"\nرسانه‌ها: {len(media)} فایل" if media else ""
+            await callback.message.answer(
+                f"محصول: {product['name']}\n"
+                f"قیمت: {product['price']}\n"
+                f"توضیحات: {product['description']}\n"
+                f"برند: {product['brand']}\n"
+                f"مدل: {product['model']}\n"
+                f"موجودی: {'موجود' if product['in_stock'] else 'ناموجود'}\n"
+                f"برچسب‌ها: {product['tags']}{media_text}",
+                reply_markup=get_back_keyboard()
+            )
+            # Send media if available
+            for m in media:
+                try:
+                    if m['file_type'] == 'photo':
+                        await callback.message.answer_photo(m['file_id'])
+                    elif m['file_type'] == 'video':
+                        await callback.message.answer_video(m['file_id'])
+                except Exception as e:
+                    logger.error(f"Error sending media {m['file_id']}: {str(e)}")
+        else:
+            logger.warning(f"Product not found: ID={product_id}")
+            await callback.message.answer("محصول یافت نشد!", reply_markup=get_back_keyboard())
+    except ValueError:
+        logger.error(f"Invalid product ID in callback: {callback.data}")
+        await callback.message.answer("خطای ناشناخته در انتخاب محصول!", reply_markup=get_back_keyboard())
+    await callback.answer()
+
+@router.callback_query(F.data.startswith(SERVICE_PREFIX))
+async def handle_service_callback(callback: CallbackQuery):
+    """Handle service selection callback"""
+    logger.debug(f"Processing service callback: {callback.data}")
+    try:
+        service_id = int(callback.data[len(SERVICE_PREFIX):])
+        service = db.get_service(service_id)
+        if service:
+            media = db.get_service_media(service_id)
+            media_text = f"\nرسانه‌ها: {len(media)} فایل" if media else ""
+            await callback.message.answer(
+                f"خدمت: {service['name']}\n"
+                f"قیمت: {service['price']}\n"
+                f"توضیحات: {service['description']}\n"
+                f"برچسب‌ها: {service['tags']}{media_text}",
+                reply_markup=get_back_keyboard()
+            )
+            # Send media if available
+            for m in media:
+                try:
+                    if m['file_type'] == 'photo':
+                        await callback.message.answer_photo(m['file_id'])
+                    elif m['file_type'] == 'video':
+                        await callback.message.answer_video(m['file_id'])
+                except Exception as e:
+                    logger.error(f"Error sending media {m['file_id']}: {str(e)}")
+        else:
+            logger.warning(f"Service not found: ID={service_id}")
+            await callback.message.answer("خدمت یافت نشد!", reply_markup=get_back_keyboard())
+    except ValueError:
+        logger.error(f"Invalid service ID in callback: {callback.data}")
+        await callback.message.answer("خطای ناشناخته در انتخاب خدمت!", reply_markup=get_back_keyboard())
+    await callback.answer()
+
+@router.callback_query(F.data.startswith(CATEGORY_PREFIX))
+async def handle_product_category_callback(callback: CallbackQuery):
+    """Handle product category selection callback"""
+    logger.debug(f"Processing product category callback: {callback.data}")
+    try:
+        category_id = int(callback.data[len(CATEGORY_PREFIX):])
+        categories = db.get_product_categories_by_parent(category_id)
+        products = db.get_products(category_id)
+        builder = InlineKeyboardBuilder()
+        # Add subcategories
+        for category in categories:
+            builder.add(InlineKeyboardButton(
+                text=category['name'],
+                callback_data=f"{CATEGORY_PREFIX}{category['id']}"
+            ))
+        # Add products
+        for product in products:
+            builder.add(InlineKeyboardButton(
+                text=product['name'],
+                callback_data=f"{PRODUCT_PREFIX}{product['id']}"
+            ))
+        builder.adjust(2)  # 2 buttons per row
         # Add back button
-        keyboard.append([InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}back_main")])
-        
-        return InlineKeyboardMarkup(keyboard)
-    
-    @staticmethod
-    def admin_static_keyboard() -> InlineKeyboardMarkup:
-        """Create keyboard for admin static content management."""
-        keyboard = [
-            [
-                InlineKeyboardButton("ویرایش تماس با ما", callback_data=f"{ADMIN_PREFIX}edit_static_contact"),
-                InlineKeyboardButton("ویرایش درباره ما", callback_data=f"{ADMIN_PREFIX}edit_static_about")
-            ],
-            [InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}back_main")]
-        ]
-        return InlineKeyboardMarkup(keyboard)
-    
-    @staticmethod
-    def admin_export_keyboard() -> InlineKeyboardMarkup:
-        """Create keyboard for admin export options."""
-        keyboard = [
-            [
-                InlineKeyboardButton("محصولات", callback_data=f"{ADMIN_PREFIX}export_products"),
-                InlineKeyboardButton("دسته‌بندی‌ها", callback_data=f"{ADMIN_PREFIX}export_categories")
-            ],
-            [
-                InlineKeyboardButton("استعلام‌ها", callback_data=f"{ADMIN_PREFIX}export_inquiries"),
-                InlineKeyboardButton("مطالب آموزشی", callback_data=f"{ADMIN_PREFIX}export_educational")
-            ],
-            [InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}back_main")]
-        ]
-        return InlineKeyboardMarkup(keyboard)
-    
-    @staticmethod
-    def admin_import_keyboard() -> InlineKeyboardMarkup:
-        """Create keyboard for admin import options."""
-        keyboard = [
-            [
-                InlineKeyboardButton("محصولات", callback_data=f"{ADMIN_PREFIX}import_products"),
-                InlineKeyboardButton("دسته‌بندی‌ها", callback_data=f"{ADMIN_PREFIX}import_categories")
-            ],
-            [
-                InlineKeyboardButton("مطالب آموزشی", callback_data=f"{ADMIN_PREFIX}import_educational")
-            ],
-            [InlineKeyboardButton(BACK_BTN, callback_data=f"{ADMIN_PREFIX}back_main")]
-        ]
-        return InlineKeyboardMarkup(keyboard)
+        parent_id = db.get_product_category(category_id)['parent_id'] if db.get_product_category(category_id) else None
+        builder.row(InlineKeyboardButton(
+            text=BACK_BTN,
+            callback_data=f"{BACK_PREFIX}{parent_id or 0}"
+        ))
+        if categories or products:
+            await callback.message.answer(
+                "لطفاً یک دسته‌بندی یا محصول انتخاب کنید:",
+                reply_markup=builder.as_markup()
+            )
+        else:
+            logger.warning(f"No content in product category: ID={category_id}")
+            await callback.message.answer(
+                "محتوایی در این دسته‌بندی یافت نشد!",
+                reply_markup=get_back_keyboard()
+            )
+    except ValueError:
+        logger.error(f"Invalid category ID in callback: {callback.data}")
+        await callback.message.answer("خطای ناشناخته در انتخاب دسته‌بندی!", reply_markup=get_back_keyboard())
+    await callback.answer()
+
+@router.callback_query(F.data.startswith(CATEGORY_PREFIX))
+async def handle_service_category_callback(callback: CallbackQuery):
+    """Handle service category selection callback"""
+    logger.debug(f"Processing service category callback: {callback.data}")
+    try:
+        category_id = int(callback.data[len(CATEGORY_PREFIX):])
+        categories = db.get_service_categories_by_parent(category_id)
+        services = db.get_services(category_id)
+        builder = InlineKeyboardBuilder()
+        # Add subcategories
+        for category in categories:
+            builder.add(InlineKeyboardButton(
+                text=category['name'],
+                callback_data=f"{CATEGORY_PREFIX}{category['id']}"
+            ))
+        # Add services
+        for service in services:
+            builder.add(InlineKeyboardButton(
+                text=service['name'],
+                callback_data=f"{SERVICE_PREFIX}{service['id']}"
+            ))
+        builder.adjust(2)  # 2 buttons per row
+        # Add back button
+        parent_id = db.get_service_category(category_id)['parent_id'] if db.get_service_category(category_id) else None
+        builder.row(InlineKeyboardButton(
+            text=BACK_BTN,
+            callback_data=f"{BACK_PREFIX}{parent_id or 0}"
+        ))
+        if categories or services:
+            await callback.message.answer(
+                "لطفاً یک دسته‌بندی یا خدمت انتخاب کنید:",
+                reply_markup=builder.as_markup()
+            )
+        else:
+            logger.warning(f"No content in service category: ID={category_id}")
+            await callback.message.answer(
+                "محتوایی در این دسته‌بندی یافت نشد!",
+                reply_markup=get_back_keyboard()
+            )
+    except ValueError:
+        logger.error(f"Invalid category ID in callback: {callback.data}")
+        await callback.message.answer("خطای ناشناخته در انتخاب دسته‌بندی!", reply_markup=get_back_keyboard())
+    await callback.answer()
+
+@router.callback_query(F.data.startswith(EDUCATION_PREFIX))
+async def handle_education_category_callback(callback: CallbackQuery):
+    """Handle educational category selection callback"""
+    logger.debug(f"Processing education category callback: {callback.data}")
+    try:
+        if callback.data.startswith(f"{EDUCATION_PREFIX}content_"):
+            content_id = int(callback.data[len(f"{EDUCATION_PREFIX}content_"):])
+            content = db.get_educational_content(content_id)
+            if content:
+                media_text = f"\nرسانه‌ها: {len(content['media'])} فایل" if content['media'] else ""
+                await callback.message.answer(
+                    f"عنوان: {content['title']}\n"
+                    f"دسته‌بندی: {content['category_name'] or content['category']}\n"
+                    f"محتوا: {content['content']}{media_text}",
+                    reply_markup=get_back_keyboard()
+                )
+                # Send media if available
+                for m in content['media']:
+                    try:
+                        if m['file_type'] == 'photo':
+                            await callback.message.answer_photo(m['file_id'])
+                        elif m['file_type'] == 'video':
+                            await callback.message.answer_video(m['file_id'])
+                    except Exception as e:
+                        logger.error(f"Error sending media {m['file_id']}: {str(e)}")
+            else:
+                logger.warning(f"Educational content not found: ID={content_id}")
+                await callback.message.answer(
+                    "محتوای آموزشی یافت نشد!",
+                    reply_markup=get_back_keyboard()
+                )
+        else:
+            category_id = int(callback.data[len(EDUCATION_PREFIX):])
+            contents = db.get_all_educational_content(category_id=category_id)
+            if not contents:
+                logger.warning(f"No educational content in category: ID={category_id}")
+                await callback.message.answer(
+                    "هیچ محتوای آموزشی در این دسته‌بندی یافت نشد!",
+                    reply_markup=get_back_keyboard()
+                )
+                await callback.answer()
+                return
+            builder = InlineKeyboardBuilder()
+            for content in contents:
+                builder.add(InlineKeyboardButton(
+                    text=content['title'],
+                    callback_data=f"{EDUCATION_PREFIX}content_{content['id']}"
+                ))
+            builder.adjust(2)  # 2 buttons per row
+            builder.row(InlineKeyboardButton(
+                text=BACK_BTN,
+                callback_data=f"{BACK_PREFIX}0"
+            ))
+            await callback.message.answer(
+                "محتوای آموزشی موجود:",
+                reply_markup=builder.as_markup()
+            )
+    except ValueError:
+        logger.error(f"Invalid education ID in callback: {callback.data}")
+        await callback.message.answer("خطای ناشناخته در انتخاب محتوای آموزشی!", reply_markup=get_back_keyboard())
+    await callback.answer()
+
+@router.callback_query(F.data.startswith(BACK_PREFIX))
+async def handle_back_callback(callback: CallbackQuery):
+    """Handle back button callback"""
+    logger.debug(f"Processing back callback: {callback.data}")
+    try:
+        parent_id = int(callback.data[len(BACK_PREFIX):])
+        if parent_id == 0:
+            await cmd_start(callback.message)
+        else:
+            # Try product categories first
+            categories = db.get_product_categories_by_parent(parent_id)
+            if not categories:
+                # Try service categories if no product categories found
+                categories = db.get_service_categories_by_parent(parent_id)
+            if categories:
+                await callback.message.answer(
+                    "لطفاً یک دسته‌بندی انتخاب کنید:",
+                    reply_markup=get_categories_keyboard(categories, parent_id=parent_id)
+                )
+            else:
+                logger.warning(f"No parent categories found for ID={parent_id}")
+                await cmd_start(callback.message)
+    except ValueError:
+        logger.error(f"Invalid parent ID in back callback: {callback.data}")
+        await cmd_start(callback.message)
+    await callback.answer()
+
+# Handle all message types
+@router.message()
+async def handle_unprocessed(message: Message):
+    """Handle unprocessed messages of any type"""
+    logger.info(
+        f"Unprocessed message: update_id={message.message_id}, "
+        f"user_id={message.from_user.id}, text={message.text}, "
+        f"type={message.content_type}, full_update={message.to_python()}"
+    )
+    await message.answer("این نوع پیام پشتیبانی نمی‌شود!", reply_markup=get_main_keyboard())
+
+
+
+# Handle edited messages
+@router.edited_message()
+async def handle_edited_message(message: Message):
+    logger.debug(f"handle_edited_message called with data: {callback.data}")
+    """Handle edited messages"""
+    logger.info(
+        f"Edited message received: update_id={message.message_id}, "
+        f"user_id={message.from_user.id}, text={message.text}, "
+        f"type={message.content_type}"
+    )
+    await message.answer("ویرایش پیام پشتیبانی نمی‌شود!", reply_markup=get_main_keyboard())
+
+# Handle channel posts and edited channel posts
+@router.channel_post()
+async def handle_channel_post(message: Message):
+    """Handle channel posts"""
+    logger.info(
+        f"Channel post received: update_id={message.message_id}, "
+        f"chat_id={message.chat.id}, text={message.text}"
+    )
+    # No response since channel posts don't expect replies
+
+@router.edited_channel_post()
+async def handle_edited_channel_post(message: Message):
+    """Handle edited channel posts"""
+    logger.info(
+        f"Edited channel post received: update_id={message.message_id}, "
+        f"chat_id={message.chat.id}, text={message.text}"
+    )
+    # No response since channel posts don't expect replies
+'''
+
+

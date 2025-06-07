@@ -1,97 +1,116 @@
-{% extends "layout.html" %}
+{% extends 'layout.html' %}
+{% set active_page = 'dashboard' %}
+
+{% block title %}داشبورد اصلی RFCBot{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-8">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h4>وضعیت ربات</h4>
-            </div>
-            <div class="card-body">
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <div class="alert alert-{{ 'success' if bot_status == 'running' else 'warning' }}">
-                            وضعیت فعلی: 
-                            {% if bot_status == 'running' %}
-                                <strong>در حال اجرا</strong>
-                            {% elif bot_status == 'error' %}
-                                <strong>خطا</strong>
-                            {% else %}
-                                <strong>متوقف</strong>
-                            {% endif %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">وضعیت ربات</h5>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                    <div class="messages mb-4">
+                        {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="me-3 text-{{ 'success' if bot_status == 'running' else 'danger' }}">
+                                    <i class="bi bi-{{ 'circle-fill' if bot_status == 'running' else 'exclamation-triangle-fill' }}" style="font-size: 2rem;"></i>
+                                </div>
+                                <div>
+                                    <h5 class="mb-0">وضعیت فعلی: 
+                                        <span class="badge bg-{{ 'success' if bot_status == 'running' else 'danger' }}">
+                                            {{ 'در حال اجرا' if bot_status == 'running' else 'متوقف شده' }}
+                                        </span>
+                                    </h5>
+                                    <small class="text-muted">آخرین بررسی: {{ datetime.now().strftime('%Y-%m-%d %H:%M:%S') if datetime and datetime.now else '' }}</small>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex mt-4">
+                                <form method="POST" action="{{ url_for('control_start') }}" class="me-2">
+                                    <button type="submit" class="btn btn-success" {{ 'disabled' if bot_status == 'running' else '' }}>
+                                        <i class="bi bi-play-fill"></i> شروع ربات
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('control_stop') }}">
+                                    <button type="submit" class="btn btn-danger" {{ 'disabled' if bot_status != 'running' else '' }}>
+                                        <i class="bi bi-stop-fill"></i> توقف ربات
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-header bg-light">متغیرهای محیطی</div>
+                                <div class="card-body">
+                                    <ul class="list-group">
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            BOT_TOKEN
+                                            <span class="badge bg-{{ 'success' if env_status.BOT_TOKEN == 'Set' else 'danger' }}">
+                                                {{ env_status.BOT_TOKEN }}
+                                            </span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            ADMIN_ID
+                                            <span class="badge bg-{{ 'success' if env_status.ADMIN_ID == 'Set' else 'danger' }}">
+                                                {{ env_status.ADMIN_ID }}
+                                            </span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            نوع پایگاه داده
+                                            <span class="badge bg-info">
+                                                {{ env_status.DB_TYPE }}
+                                            </span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <form action="{{ url_for('control_start') }}" method="post" class="d-inline">
-                            <button type="submit" class="btn btn-success" {{ 'disabled' if bot_status == 'running' else '' }}>
-                                <i class="bi bi-play-fill"></i> شروع
-                            </button>
-                        </form>
-                        <form action="{{ url_for('control_stop') }}" method="post" class="d-inline">
-                            <button type="submit" class="btn btn-danger" {{ 'disabled' if bot_status != 'running' else '' }}>
-                                <i class="bi bi-stop-fill"></i> توقف
-                            </button>
-                        </form>
+                </div>
+            </div>
+            
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">لاگ‌های ربات</h5>
+                </div>
+                <div class="card-body">
+                    <div class="log-container bg-dark text-light p-3 rounded" style="max-height: 400px; overflow-y: auto;">
+                        <pre id="logContent" style="white-space: pre-wrap;">{{ '\n'.join(bot_logs) }}</pre>
                     </div>
                 </div>
-                
-                <div class="mb-3">
-                    <h5>وضعیت متغیرهای محیطی:</h5>
-                    <ul class="list-group">
-                        <li class="list-group-item">BOT_TOKEN: 
-                            <span class="badge {{ 'bg-success' if env_status.BOT_TOKEN == 'Set' else 'bg-danger' }}">
-                                {{ env_status.BOT_TOKEN }}
-                            </span>
-                        </li>
-                        <li class="list-group-item">ADMIN_ID: 
-                            <span class="badge {{ 'bg-success' if env_status.ADMIN_ID == 'Set' else 'bg-danger' }}">
-                                {{ env_status.ADMIN_ID }}
-                            </span>
-                        </li>
-                        <li class="list-group-item">DB_TYPE: 
-                            <span class="badge bg-info">{{ env_status.DB_TYPE }}</span>
-                        </li>
-                    </ul>
+                <div class="card-footer">
+                    <button id="refreshLogsBtn" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-arrow-repeat"></i> بروزرسانی لاگ‌ها
+                    </button>
                 </div>
-                
-                <div>
-                    <h5>وضعیت دیتابیس:</h5>
-                    <div class="alert {{ 'alert-success' if db_exists else 'alert-warning' }}">
-                        {% if db_exists %}
-                            دیتابیس PostgreSQL فعال است.
-                        {% else %}
-                            خطا در اتصال به دیتابیس.
-                        {% endif %}
+            </div>
+            
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">درباره RFCBot</h5>
+                </div>
+                <div class="card-body">
+                    <div class="readme-content">
+                       یک ربات تلگرام برای مدیریت محصولات، خدمات و محتوای آموزشی در حوزه محصولات و خدمات صنعت ارتباطات رادیویی است
+                        <!–– {{ readme_content|safe }} ––>
                     </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h4>گزارش‌های ربات</h4>
-                <button id="refresh-logs" class="btn btn-sm btn-primary">بروزرسانی</button>
-            </div>
-            <div class="card-body">
-                <div id="log-container" class="log-box">
-                    {% for log in bot_logs %}
-                        <div>{{ log }}</div>
-                    {% else %}
-                        <div class="text-muted">هنوز گزارشی موجود نیست...</div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
-                <h4>راهنمای ربات</h4>
-            </div>
-            <div class="card-body">
-                <div class="code-box">
-                    {{ readme_content | replace('\n', '<br>') | safe }}
                 </div>
             </div>
         </div>
@@ -101,42 +120,54 @@
 
 {% block scripts %}
 <script>
+    // Auto-refresh logs
     document.addEventListener('DOMContentLoaded', function() {
-        const refreshBtn = document.getElementById('refresh-logs');
-        const logContainer = document.getElementById('log-container');
+        const logContent = document.getElementById('logContent');
+        const refreshLogsBtn = document.getElementById('refreshLogsBtn');
         
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', function() {
-                fetch('/logs')
-                    .then(response => response.json())
-                    .then(data => {
-                        logContainer.innerHTML = '';
-                        if (data.logs && data.logs.length > 0) {
-                            data.logs.forEach(log => {
-                                const div = document.createElement('div');
-                                div.textContent = log;
-                                logContainer.appendChild(div);
-                            });
-                        } else {
-                            const div = document.createElement('div');
-                            div.textContent = 'هنوز گزارشی موجود نیست...';
-                            div.className = 'text-muted';
-                            logContainer.appendChild(div);
-                        }
-                        
-                        // Scroll to bottom
-                        logContainer.scrollTop = logContainer.scrollHeight;
-                    })
-                    .catch(error => {
-                        console.error('Error fetching logs:', error);
-                    });
+        // Function to fetch logs
+        function fetchLogs() {
+            fetch('{{ url_for("get_logs_json") }}', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Cache-Control': 'no-cache'
+                },
+                credentials: 'same-origin'  // برای ارسال کوکی‌های احراز هویت
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                // اگر داده‌ها در فیلد logs موجود باشند
+                if (data && data.logs) {
+                    logContent.textContent = data.logs;
+                } else {
+                    logContent.textContent = "لاگی موجود نیست یا فرمت داده‌ها نادرست است.";
+                }
+                // Scroll to bottom
+                logContent.parentElement.scrollTop = logContent.parentElement.scrollHeight;
+            })
+            .catch(error => {
+                console.error('Error fetching logs:', error);
+                logContent.textContent = "خطا در دریافت لاگ‌ها: " + error.message;
             });
         }
         
-        // Auto scroll log to bottom
-        if (logContainer) {
-            logContainer.scrollTop = logContainer.scrollHeight;
-        }
+        // Refresh logs button
+        refreshLogsBtn.addEventListener('click', fetchLogs);
+        
+        // Auto-refresh logs every 10 seconds if bot is running
+        {% if bot_status == 'running' %}
+        setInterval(fetchLogs, 10000);
+        {% endif %}
+        
+        // Initial scroll to bottom
+        logContent.parentElement.scrollTop = logContent.parentElement.scrollHeight;
     });
 </script>
 {% endblock %}

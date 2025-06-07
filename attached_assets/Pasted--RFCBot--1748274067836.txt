@@ -1,0 +1,682 @@
+========================================================
+           تست کامل سیستم RFCBot
+========================================================
+
+[INFO] فایل لاگ: /tmp/rfbot_test_20250526_153506.log
+
+
+🖥️  اطلاعات سیستم عمومی
+=======================
+
+📦 تست پکیج‌های مورد نیاز
+========================
+[PASS] PostgreSQL نصب شده - psql (PostgreSQL) 16.9 (Ubuntu 16.9-0ubuntu0.24.04.1)
+[PASS] Python3 نصب شده - Python 3.12.0
+[PASS] Nginx نصب شده - nginx version: nginx/1.24.0 (Ubuntu)
+[PASS] Git نصب شده - git version 2.43.0
+
+🔧 تست وضعیت سرویس‌ها
+====================
+[PASS] سرویس PostgreSQL فعال است
+[PASS] سرویس Nginx فعال است
+[FAIL] سرویس RFBot Web غیرفعال است
+[PASS] سرویس RFBot Telegram فعال است
+
+🌐 تست شبکه و پورت‌ها
+====================
+[PASS] اتصال به اینترنت برقرار است
+[PASS] DNS کار می‌کند
+[PASS] پورت 80 باز است
+[WARN] پورت 443 بسته است
+[PASS] پورت 5000 باز است
+[PASS] پورت 5432 باز است
+[PASS] پورت 22 باز است
+
+📁 تست فایل‌های پروژه
+====================
+[PASS] پوشه پروژه (/var/www/rfbot) موجود است
+[PASS] فایل main.py موجود است
+[PASS] فایل bot.py موجود است
+[PASS] فایل database.py موجود است
+[PASS] فایل handlers.py موجود است
+[PASS] فایل keyboards.py موجود است
+[PASS] پوشه static موجود است
+[PASS] پوشه templates موجود است
+[PASS] پوشه logs موجود است
+[PASS] محیط مجازی Python موجود است
+
+⚙️  تست فایل‌های تنظیمات
+========================
+[PASS] فایل .env موجود است
+[PASS] فایل requirements.txt موجود است
+
+🗄️  تست دیتابیس
+===============
+
+root@5677gh:~# ^C
+root@5677gh:~# mc
+
+root@5677gh:~# cd ..
+root@5677gh:/# cd tmp
+root@5677gh:/tmp# dir
+apt-key.91q0rO.asc
+apt-key.aGUfUB.asc
+apt-key.aiEIyS.asc
+apt-key.fFogNW.asc
+mc-root
+neondb_backup_2025-05-25_163109.sql
+neondb_backup_2025-05-25_163140.sql
+rfbot_debug_20250523_131242.log
+rfbot_diagnose_20250524_213605.log
+rfbot_final_fix_2025-05-25_113737.log
+rfbot_fix_20250524_215315.log
+rfbot_fix_20250524_215713.log
+rfbot_fix_20250525_001936.log
+rfbot_fix_20250525_003250.log
+rfbot_fix_20250525_003836.log
+rfbot_fix_20250525_004351.log
+rfbot_fix_20250525_005436.log
+rfbot_fix_20250525_011521.log
+rfbot_fix_2025-05-25_105405.log
+rfbot_fix_2025-05-25_130644.log
+rfbot_install_20250521_180524.log
+rfbot_install_20250521_181919.log
+rfbot_install_20250521_182542.log
+rfbot_install_20250521_192038.log
+rfbot_install_20250521_192653.log
+rfbot_install_20250521_195013.log
+rfbot_install_20250521_195617.log
+rfbot_install_20250521_200934.log
+rfbot_install_20250521_201721.log
+rfbot_install_20250521_204513.log
+rfbot_install_20250521_211520.log
+rfbot_install_20250521_212233.log
+rfbot_install_20250521_213454.log
+rfbot_install_20250521_214655.log
+rfbot_install_20250521_215718.log
+rfbot_install_20250521_220244.log
+rfbot_install_20250521_220518.log
+rfbot_install_20250521_220702.log
+rfbot_install_20250521_222102.log
+rfbot_install_20250521_222630.log
+rfbot_install_20250521_223027.log
+rfbot_install_20250521_223916.log
+rfbot_install_20250521_230050.log
+rfbot_install_20250521_232300.log
+rfbot_install_20250521_232621.log
+rfbot_install_20250521_232804.log
+rfbot_install_20250521_234407.log
+rfbot_install_20250522_000301.log
+rfbot_install_20250522_000446.log
+rfbot_install_20250522_000728.log
+rfbot_install_20250522_004056.log
+rfbot_install_20250522_095541.log
+rfbot_install_20250522_110447.log
+rfbot_install_20250522_111614.log
+rfbot_install_20250522_113008.log
+rfbot_install_20250522_121452.log
+rfbot_install_20250522_130021.log
+rfbot_install_20250522_151217.log
+rfbot_install_20250522_161949.log
+rfbot_install_20250522_180751.log
+rfbot_install_20250522_185319.log
+rfbot_install_20250523_081922.log
+rfbot_install_20250523_082329.log
+rfbot_install_20250523_083258.log
+rfbot_install_20250523_090408.log
+rfbot_install_20250523_092343.log
+rfbot_install_20250523_105054.log
+rfbot_install_20250524_100625.log
+rfbot_install_20250524_101529.log
+rfbot_install_20250524_105213.log
+rfbot_install_20250524_110259.log
+rfbot_install_20250524_110932.log
+rfbot_install_20250524_204634.log
+rfbot_install_20250525_025558.log
+rfbot_install_20250526_152102.log
+rfbot_quick_fix_2025-05-25_111723.log
+rfbot_set_token_20250525_023827.log
+rfbot_set_token_20250525_024853.log
+rfbot_test_20250526_143400.log
+rfbot_test_20250526_144229.log
+rfbot_test_20250526_150954.log
+rfbot_test_20250526_153506.log
+seed_admin_data.log
+snap-private-tmp
+systemd-private-9e34a088bf1c4686a9aefeaf2ed65aad-fwupd.service-A1x3AG
+systemd-private-9e34a088bf1c4686a9aefeaf2ed65aad-ModemManager.service-pN20iy
+systemd-private-9e34a088bf1c4686a9aefeaf2ed65aad-polkit.service-jjxOKD
+systemd-private-9e34a088bf1c4686a9aefeaf2ed65aad-systemd-logind.service-TAfs4l
+systemd-private-9e34a088bf1c4686a9aefeaf2ed65aad-systemd-timesyncd.service-n607RQ
+systemd-private-9e34a088bf1c4686a9aefeaf2ed65aad-upower.service-yo4ayo
+root@5677gh:/tmp# cd..
+-bash: cd..: command not found
+root@5677gh:/tmp# cd ..
+root@5677gh:/# cd root
+root@5677gh:~# cd ..
+root@5677gh:/# cd root
+root@5677gh:~# cd ..
+root@5677gh:/# cd tmp
+root@5677gh:/tmp# cat rfbot_install_20250526_152102.log
+[INFO] فایل لاگ در مسیر /tmp/rfbot_install_20250526_152102.log ذخیره می‌شود.
+[INFO] در حال به‌روزرسانی سیستم...
+
+WARNING: apt does not have a stable CLI interface. Use with caution in scripts.
+
+Hit:1 http://de.archive.ubuntu.com/ubuntu noble InRelease
+Get:2 http://de.archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+Get:3 http://de.archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+Get:4 http://security.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+Hit:5 https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu noble InRelease
+Get:6 http://de.archive.ubuntu.com/ubuntu noble-updates/main amd64 Components [161 kB]
+Get:7 http://de.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Components [212 B]
+Get:8 http://de.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Components [376 kB]
+Get:9 http://de.archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Components [940 B]
+Get:10 http://de.archive.ubuntu.com/ubuntu noble-backports/main amd64 Components [7,076 B]
+Get:11 http://de.archive.ubuntu.com/ubuntu noble-backports/restricted amd64 Components [216 B]
+Get:12 http://de.archive.ubuntu.com/ubuntu noble-backports/universe amd64 Components [16.4 kB]
+Get:13 http://de.archive.ubuntu.com/ubuntu noble-backports/multiverse amd64 Components [212 B]
+Get:14 http://security.ubuntu.com/ubuntu noble-security/main amd64 Packages [859 kB]
+Get:15 http://security.ubuntu.com/ubuntu noble-security/main Translation-en [157 kB]
+Get:16 http://security.ubuntu.com/ubuntu noble-security/main amd64 Components [21.6 kB]
+Get:17 http://security.ubuntu.com/ubuntu noble-security/restricted amd64 Components [212 B]
+Get:18 http://security.ubuntu.com/ubuntu noble-security/universe amd64 Packages [843 kB]
+Get:19 http://security.ubuntu.com/ubuntu noble-security/universe amd64 Components [52.2 kB]
+Get:20 http://security.ubuntu.com/ubuntu noble-security/multiverse amd64 Components [212 B]
+Fetched 2,873 kB in 8s (379 kB/s)
+Reading package lists...
+Building dependency tree...
+Reading state information...
+4 packages can be upgraded. Run 'apt list --upgradable' to see them.
+
+WARNING: apt does not have a stable CLI interface. Use with caution in scripts.
+
+Reading package lists...
+Building dependency tree...
+Reading state information...
+Calculating upgrade...
+The following packages were automatically installed and are no longer required:
+  alsa-topology-conf alsa-ucm-conf apport-symptoms aspell aspell-en
+  at-spi2-common at-spi2-core bc bubblewrap dictionaries-common distro-info
+  docbook-xml eatmydata emacsen-common enchant-2 fdisk gdisk gir1.2-amtk-5
+  gir1.2-atk-1.0 gir1.2-freedesktop gir1.2-gdkpixbuf-2.0 gir1.2-gtk-3.0
+  gir1.2-gtksource-300 gir1.2-harfbuzz-0.0 gir1.2-pango-1.0 gir1.2-peas-1.0
+  gir1.2-tepl-6 glib-networking glib-networking-common
+  glib-networking-services gsettings-desktop-schemas gstreamer1.0-plugins-good
+  gstreamer1.0-x hunspell-en-us ieee-data libaa1 libasound2-data libasound2t64
+  libaspell15 libasyncns0 libatk-bridge2.0-0t64 libatk1.0-0t64
+  libatspi2.0-0t64 libavc1394-0 libcaca0 libdv4t64 libeatmydata1
+  libefiboot1t64 libefivar1t64 libenchant-2-2 libflac12t64 libgedit-amtk-5-0
+  libgedit-amtk-5-common libgedit-gtksourceview-300-0
+  libgedit-gtksourceview-300-common libgles2 libgspell-1-2 libgspell-1-common
+  libgstreamer-plugins-good1.0-0 libgtk-3-0t64 libgtk-3-bin libgtk-3-common
+  libhandy-1-0 libharfbuzz-gobject0 libharfbuzz-icu0 libhunspell-1.7-0
+  libhyphen0 libiec61883-0 libinih1 libjavascriptcoregtk-4.1-0
+  libmanette-0.2-0 libmp3lame0 libmpg123-0t64 libnetplan1 libpangoxft-1.0-0
+  libpeas-1.0-0 libpeas-common libpipewire-0.3-0t64 libpipewire-0.3-common
+  libproxy1v5 libpulse0 libraw1394-11 libsecret-1-0 libsecret-common libshout3
+  libsndfile1 libsoup-3.0-0 libsoup-3.0-common libspa-0.2-modules libspeex1
+  libtag1v5 libtag1v5-vanilla libtepl-6-4 libtepl-common libtwolame0
+  libv4l-0t64 libv4lconvert0t64 libvpx9 libwavpack1 libwebkit2gtk-4.1-0
+  libwebpdemux2 libwebpmux3 libwebrtc-audio-processing1 libwoff1
+  libxcomposite1 libxtst6 libxv1 libyelp0 netplan-generator
+  python-babel-localedata run-one session-migration sgml-data xdg-dbus-proxy
+  xdg-desktop-portal xdg-desktop-portal-gtk yelp-xsl
+Use 'apt autoremove' to remove them.
+The following packages will be upgraded:
+  gir1.2-glib-2.0 libglib2.0-0t64 libglib2.0-bin libglib2.0-data
+4 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+Need to get 1,874 kB of archives.
+After this operation, 0 B of additional disk space will be used.
+Get:1 http://security.ubuntu.com/ubuntu noble-security/main amd64 libglib2.0-data all 2.80.0-6ubuntu3.4 [48.7 kB]
+Get:2 http://security.ubuntu.com/ubuntu noble-security/main amd64 libglib2.0-bin amd64 2.80.0-6ubuntu3.4 [97.9 kB]
+Get:3 http://security.ubuntu.com/ubuntu noble-security/main amd64 gir1.2-glib-2.0 amd64 2.80.0-6ubuntu3.4 [183 kB]
+Get:4 http://security.ubuntu.com/ubuntu noble-security/main amd64 libglib2.0-0t64 amd64 2.80.0-6ubuntu3.4 [1,544 kB]
+Fetched 1,874 kB in 2s (1,215 kB/s)
+(Reading database ... 142762 files and directories currently installed.)
+Preparing to unpack .../libglib2.0-data_2.80.0-6ubuntu3.4_all.deb ...
+Unpacking libglib2.0-data (2.80.0-6ubuntu3.4) over (2.80.0-6ubuntu3.2) ...
+Preparing to unpack .../libglib2.0-bin_2.80.0-6ubuntu3.4_amd64.deb ...
+Unpacking libglib2.0-bin (2.80.0-6ubuntu3.4) over (2.80.0-6ubuntu3.2) ...
+Preparing to unpack .../gir1.2-glib-2.0_2.80.0-6ubuntu3.4_amd64.deb ...
+Unpacking gir1.2-glib-2.0:amd64 (2.80.0-6ubuntu3.4) over (2.80.0-6ubuntu3.2) ...
+Preparing to unpack .../libglib2.0-0t64_2.80.0-6ubuntu3.4_amd64.deb ...
+Unpacking libglib2.0-0t64:amd64 (2.80.0-6ubuntu3.4) over (2.80.0-6ubuntu3.2) ...
+Setting up libglib2.0-0t64:amd64 (2.80.0-6ubuntu3.4) ...
+Setting up libglib2.0-data (2.80.0-6ubuntu3.4) ...
+Setting up gir1.2-glib-2.0:amd64 (2.80.0-6ubuntu3.4) ...
+Setting up libglib2.0-bin (2.80.0-6ubuntu3.4) ...
+Processing triggers for libc-bin (2.39-0ubuntu8.4) ...
+Processing triggers for man-db (2.12.0-4build2) ...
+
+Running kernel seems to be up-to-date.
+
+Restarting services...
+ systemctl restart fwupd.service packagekit.service polkit.service qemu-guest-agent.service udisks2.service upower.service
+
+Service restarts being deferred:
+ systemctl restart ModemManager.service
+ systemctl restart unattended-upgrades.service
+
+No containers need to be restarted.
+
+User sessions running outdated binaries:
+ root @ session #930: bash[209586]
+
+No VM guests are running outdated hypervisor (qemu) binaries on this host.
+[SUCCESS] سیستم با موفقیت به‌روزرسانی شد.
+[INFO] در حال نصب نیازمندی‌های سیستم...
+[INFO] python3 قبلاً نصب شده است.
+[INFO] python3-pip قبلاً نصب شده است.
+[INFO] python3-venv قبلاً نصب شده است.
+[INFO] postgresql قبلاً نصب شده است.
+[INFO] postgresql-contrib قبلاً نصب شده است.
+[INFO] nginx قبلاً نصب شده است.
+[INFO] git قبلاً نصب شده است.
+[INFO] curl قبلاً نصب شده است.
+[INFO] در حال راه‌اندازی پایگاه داده PostgreSQL...
+Synchronizing state of postgresql.service with SysV service script with /usr/lib/systemd/systemd-sysv-install.
+Executing: /usr/lib/systemd/systemd-sysv-install enable postgresql
+ERROR:  role "neondb_owner" already exists
+[INFO] کاربر پایگاه داده ایجاد شد یا قبلاً وجود داشت.
+ERROR:  database "neondb" already exists
+[INFO] پایگاه داده ایجاد شد یا قبلاً وجود داشت.
+GRANT
+[SUCCESS] پایگاه داده PostgreSQL با موفقیت راه‌اندازی شد.
+[INFO] تست اتصال به دیتابیس neondb با کاربر neondb_owner...
+ ?column?
+----------
+        1
+(1 row)
+
+[SUCCESS] اتصال به دیتابیس موفق بود.
+[INFO] در حال راه‌اندازی پوشه برنامه در /var/www/rfbot...
+[INFO] در حال راه‌اندازی فایل‌های پروژه در /var/www/rfbot...
+[INFO] آدرس مخزن وارد نشده. استفاده از مقدار پیش‌فرض: Alisa202min/NoeRFcBot
+[WARNING] پوشه /var/www/rfbot از قبل وجود دارد.
+[INFO] در حال حذف پوشه /var/www/rfbot (تخمین زمان: کمتر از 1 دقیقه)...
+[SUCCESS] پوشه /var/www/rfbot با موفقیت حذف شد.
+[INFO] در حال کلون کردن مخزن گیت (تخمین زمان: 1-3 دقیقه)...
+Cloning into '/var/www/rfbot'...
+[SUCCESS] مخزن گیت با موفقیت کلون شد.
+[SUCCESS] مخزن گیت با موفقیت کلون شد.
+[INFO] در حال بررسی فایل‌های پروژه...
+[SUCCESS] همه فایل‌های مورد نیاز پروژه موجود هستند.
+[INFO] بررسی وجود load_dotenv در /var/www/rfbot/app.py...
+[SUCCESS] load_dotenv در app.py وجود دارد.
+[INFO] در حال راه‌اندازی پوشه برنامه در /var/www/rfbot...
+[SUCCESS] پوشه‌های برنامه با موفقیت ایجاد شدند.
+[INFO] در حال بررسی فایل‌های پروژه...
+[SUCCESS] همه فایل‌های مورد نیاز پروژه موجود هستند.
+[INFO] در حال بررسی نسخه‌های پایتون نصب‌شده...
+[INFO] پایتون 3.11 یافت شد: Python 3.11.12
+[INFO] ادامه با پایتون 3.11 موجود...
+[INFO] بررسی ماژول venv برای پایتون 3.11...
+[SUCCESS] python3.11-venv آماده است.
+[INFO] در حال ایجاد محیط مجازی با پایتون 3.11...
+[INFO] در حال ایجاد محیط مجازی با پایتون 3.11 (تخمین زمان: 1 دقیقه)...
+[SUCCESS] محیط مجازی با موفقیت ایجاد شد.
+[INFO] در حال ایجاد فایل .env (تخمین زمان: کمتر از 1 دقیقه)...
+[INFO] در حال ایجاد فایل .env...
+[SUCCESS] فایل .env با موفقیت ایجاد شد.
+[INFO] در حال نصب وابستگی‌های پروژه...
+[SUCCESS] فایل .env با موفقیت ایجاد شد.
+[INFO] در حال نصب وابستگی‌های پروژه از requirements.txt (تخمین زمان: 2-5 دقیقه)...
+Requirement already satisfied: pip in ./venv/lib/python3.11/site-packages (24.0)
+Collecting pip
+  Using cached pip-25.1.1-py3-none-any.whl.metadata (3.6 kB)
+Using cached pip-25.1.1-py3-none-any.whl (1.8 MB)
+Installing collected packages: pip
+  Attempting uninstall: pip
+    Found existing installation: pip 24.0
+    Uninstalling pip-24.0:
+      Successfully uninstalled pip-24.0
+Successfully installed pip-25.1.1
+Collecting flask==3.1.0 (from -r /var/www/rfbot/requirements.txt (line 2))
+  Using cached flask-3.1.0-py3-none-any.whl.metadata (2.7 kB)
+Collecting Flask-SQLAlchemy==3.1.1 (from -r /var/www/rfbot/requirements.txt (line 3))
+  Using cached flask_sqlalchemy-3.1.1-py3-none-any.whl.metadata (3.4 kB)
+Collecting Flask-Login==0.6.3 (from -r /var/www/rfbot/requirements.txt (line 4))
+  Using cached Flask_Login-0.6.3-py3-none-any.whl.metadata (5.8 kB)
+Collecting Flask-WTF==1.2.2 (from -r /var/www/rfbot/requirements.txt (line 5))
+  Using cached flask_wtf-1.2.2-py3-none-any.whl.metadata (3.4 kB)
+Collecting SQLAlchemy==2.0.40 (from -r /var/www/rfbot/requirements.txt (line 6))
+  Using cached sqlalchemy-2.0.40-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (9.6 kB)
+Collecting psycopg2-binary==2.9.10 (from -r /var/www/rfbot/requirements.txt (line 7))
+  Using cached psycopg2_binary-2.9.10-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.9 kB)
+Collecting Werkzeug==3.1.3 (from -r /var/www/rfbot/requirements.txt (line 8))
+  Using cached werkzeug-3.1.3-py3-none-any.whl.metadata (3.7 kB)
+Collecting Jinja2==3.1.6 (from -r /var/www/rfbot/requirements.txt (line 9))
+  Using cached jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)
+Collecting gunicorn==23.0.0 (from -r /var/www/rfbot/requirements.txt (line 10))
+  Using cached gunicorn-23.0.0-py3-none-any.whl.metadata (4.4 kB)
+Collecting python-telegram-bot==20.7 (from -r /var/www/rfbot/requirements.txt (line 13))
+  Using cached python_telegram_bot-20.7-py3-none-any.whl.metadata (15 kB)
+Collecting aiogram==3.20.0 (from -r /var/www/rfbot/requirements.txt (line 14))
+  Using cached aiogram-3.20.0-py3-none-any.whl.metadata (7.6 kB)
+Collecting aiohttp==3.11.18 (from -r /var/www/rfbot/requirements.txt (line 15))
+  Using cached aiohttp-3.11.18-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (7.7 kB)
+Collecting python-dotenv==1.1.0 (from -r /var/www/rfbot/requirements.txt (line 16))
+  Using cached python_dotenv-1.1.0-py3-none-any.whl.metadata (24 kB)
+Collecting Pillow==11.2.1 (from -r /var/www/rfbot/requirements.txt (line 19))
+  Using cached pillow-11.2.1-cp311-cp311-manylinux_2_28_x86_64.whl.metadata (8.9 kB)
+Collecting email-validator==2.2.0 (from -r /var/www/rfbot/requirements.txt (line 20))
+  Using cached email_validator-2.2.0-py3-none-any.whl.metadata (25 kB)
+Collecting pytest==8.3.5 (from -r /var/www/rfbot/requirements.txt (line 23))
+  Using cached pytest-8.3.5-py3-none-any.whl.metadata (7.6 kB)
+Collecting pytest-flask==1.3.0 (from -r /var/www/rfbot/requirements.txt (line 24))
+  Using cached pytest_flask-1.3.0-py3-none-any.whl.metadata (14 kB)
+Collecting pytest-asyncio==0.26.0 (from -r /var/www/rfbot/requirements.txt (line 25))
+  Using cached pytest_asyncio-0.26.0-py3-none-any.whl.metadata (4.0 kB)
+Collecting PyJWT==2.10.1 (from -r /var/www/rfbot/requirements.txt (line 28))
+  Using cached PyJWT-2.10.1-py3-none-any.whl.metadata (4.0 kB)
+Collecting oauthlib==3.2.2 (from -r /var/www/rfbot/requirements.txt (line 29))
+  Using cached oauthlib-3.2.2-py3-none-any.whl.metadata (7.5 kB)
+Collecting requests==2.32.3 (from -r /var/www/rfbot/requirements.txt (line 32))
+  Using cached requests-2.32.3-py3-none-any.whl.metadata (4.6 kB)
+Collecting replit==4.1.1 (from -r /var/www/rfbot/requirements.txt (line 33))
+  Using cached replit-4.1.1-py3-none-any.whl.metadata (2.6 kB)
+Collecting locust==2.37.1 (from -r /var/www/rfbot/requirements.txt (line 34))
+  Using cached locust-2.37.1-py3-none-any.whl.metadata (9.4 kB)
+Collecting itsdangerous>=2.2 (from flask==3.1.0->-r /var/www/rfbot/requirements.txt (line 2))
+  Using cached itsdangerous-2.2.0-py3-none-any.whl.metadata (1.9 kB)
+Collecting click>=8.1.3 (from flask==3.1.0->-r /var/www/rfbot/requirements.txt (line 2))
+  Using cached click-8.2.1-py3-none-any.whl.metadata (2.5 kB)
+Collecting blinker>=1.9 (from flask==3.1.0->-r /var/www/rfbot/requirements.txt (line 2))
+  Using cached blinker-1.9.0-py3-none-any.whl.metadata (1.6 kB)
+Collecting wtforms (from Flask-WTF==1.2.2->-r /var/www/rfbot/requirements.txt (line 5))
+  Using cached wtforms-3.2.1-py3-none-any.whl.metadata (5.3 kB)
+Collecting greenlet>=1 (from SQLAlchemy==2.0.40->-r /var/www/rfbot/requirements.txt (line 6))
+  Using cached greenlet-3.2.2-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (4.1 kB)
+Collecting typing-extensions>=4.6.0 (from SQLAlchemy==2.0.40->-r /var/www/rfbot/requirements.txt (line 6))
+  Using cached typing_extensions-4.13.2-py3-none-any.whl.metadata (3.0 kB)
+Collecting MarkupSafe>=2.1.1 (from Werkzeug==3.1.3->-r /var/www/rfbot/requirements.txt (line 8))
+  Using cached MarkupSafe-3.0.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.0 kB)
+Collecting packaging (from gunicorn==23.0.0->-r /var/www/rfbot/requirements.txt (line 10))
+  Using cached packaging-25.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting httpx~=0.25.2 (from python-telegram-bot==20.7->-r /var/www/rfbot/requirements.txt (line 13))
+  Using cached httpx-0.25.2-py3-none-any.whl.metadata (6.9 kB)
+Collecting aiofiles<24.2,>=23.2.1 (from aiogram==3.20.0->-r /var/www/rfbot/requirements.txt (line 14))
+  Using cached aiofiles-24.1.0-py3-none-any.whl.metadata (10 kB)
+Collecting certifi>=2023.7.22 (from aiogram==3.20.0->-r /var/www/rfbot/requirements.txt (line 14))
+  Using cached certifi-2025.4.26-py3-none-any.whl.metadata (2.5 kB)
+Collecting magic-filter<1.1,>=1.0.12 (from aiogram==3.20.0->-r /var/www/rfbot/requirements.txt (line 14))
+  Using cached magic_filter-1.0.12-py3-none-any.whl.metadata (1.5 kB)
+Collecting pydantic<2.12,>=2.4.1 (from aiogram==3.20.0->-r /var/www/rfbot/requirements.txt (line 14))
+  Using cached pydantic-2.11.5-py3-none-any.whl.metadata (67 kB)
+Collecting aiohappyeyeballs>=2.3.0 (from aiohttp==3.11.18->-r /var/www/rfbot/requirements.txt (line 15))
+  Using cached aiohappyeyeballs-2.6.1-py3-none-any.whl.metadata (5.9 kB)
+Collecting aiosignal>=1.1.2 (from aiohttp==3.11.18->-r /var/www/rfbot/requirements.txt (line 15))
+  Using cached aiosignal-1.3.2-py2.py3-none-any.whl.metadata (3.8 kB)
+Collecting attrs>=17.3.0 (from aiohttp==3.11.18->-r /var/www/rfbot/requirements.txt (line 15))
+  Using cached attrs-25.3.0-py3-none-any.whl.metadata (10 kB)
+Collecting frozenlist>=1.1.1 (from aiohttp==3.11.18->-r /var/www/rfbot/requirements.txt (line 15))
+  Using cached frozenlist-1.6.0-cp311-cp311-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (16 kB)
+Collecting multidict<7.0,>=4.5 (from aiohttp==3.11.18->-r /var/www/rfbot/requirements.txt (line 15))
+  Using cached multidict-6.4.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (5.3 kB)
+Collecting propcache>=0.2.0 (from aiohttp==3.11.18->-r /var/www/rfbot/requirements.txt (line 15))
+  Using cached propcache-0.3.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (10 kB)
+Collecting yarl<2.0,>=1.17.0 (from aiohttp==3.11.18->-r /var/www/rfbot/requirements.txt (line 15))
+  Using cached yarl-1.20.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (72 kB)
+Collecting dnspython>=2.0.0 (from email-validator==2.2.0->-r /var/www/rfbot/requirements.txt (line 20))
+  Using cached dnspython-2.7.0-py3-none-any.whl.metadata (5.8 kB)
+Collecting idna>=2.0.0 (from email-validator==2.2.0->-r /var/www/rfbot/requirements.txt (line 20))
+  Using cached idna-3.10-py3-none-any.whl.metadata (10 kB)
+Collecting iniconfig (from pytest==8.3.5->-r /var/www/rfbot/requirements.txt (line 23))
+  Using cached iniconfig-2.1.0-py3-none-any.whl.metadata (2.7 kB)
+Collecting pluggy<2,>=1.5 (from pytest==8.3.5->-r /var/www/rfbot/requirements.txt (line 23))
+  Using cached pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
+Collecting charset-normalizer<4,>=2 (from requests==2.32.3->-r /var/www/rfbot/requirements.txt (line 32))
+  Using cached charset_normalizer-3.4.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (35 kB)
+Collecting urllib3<3,>=1.21.1 (from requests==2.32.3->-r /var/www/rfbot/requirements.txt (line 32))
+  Using cached urllib3-2.4.0-py3-none-any.whl.metadata (6.5 kB)
+Collecting aiohttp-retry<3.0.0,>=2.8.3 (from replit==4.1.1->-r /var/www/rfbot/requirements.txt (line 33))
+  Using cached aiohttp_retry-2.9.1-py3-none-any.whl.metadata (8.8 kB)
+Collecting cryptography>=44.0.1 (from replit==4.1.1->-r /var/www/rfbot/requirements.txt (line 33))
+  Downloading cryptography-45.0.3-cp311-abi3-manylinux_2_34_x86_64.whl.metadata (5.7 kB)
+Collecting protobuf<5.0.0,>=4.21.8 (from replit==4.1.1->-r /var/www/rfbot/requirements.txt (line 33))
+  Using cached protobuf-4.25.7-cp37-abi3-manylinux2014_x86_64.whl.metadata (541 bytes)
+Collecting pyseto<2.0.0,>=1.6.11 (from replit==4.1.1->-r /var/www/rfbot/requirements.txt (line 33))
+  Using cached pyseto-1.8.4-py3-none-any.whl.metadata (17 kB)
+Collecting configargparse>=1.5.5 (from locust==2.37.1->-r /var/www/rfbot/requirements.txt (line 34))
+  Using cached configargparse-1.7.1-py3-none-any.whl.metadata (24 kB)
+Collecting flask-cors>=3.0.10 (from locust==2.37.1->-r /var/www/rfbot/requirements.txt (line 34))
+  Using cached flask_cors-6.0.0-py3-none-any.whl.metadata (961 bytes)
+Collecting gevent<25.0.0,>=24.10.1 (from locust==2.37.1->-r /var/www/rfbot/requirements.txt (line 34))
+  Using cached gevent-24.11.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (13 kB)
+Collecting geventhttpclient>=2.3.1 (from locust==2.37.1->-r /var/www/rfbot/requirements.txt (line 34))
+  Using cached geventhttpclient-2.3.3-cp311-cp311-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (9.7 kB)
+Collecting locust-cloud>=1.21.2 (from locust==2.37.1->-r /var/www/rfbot/requirements.txt (line 34))
+  Using cached locust_cloud-1.21.8-py3-none-any.whl.metadata (783 bytes)
+Collecting msgpack>=1.0.0 (from locust==2.37.1->-r /var/www/rfbot/requirements.txt (line 34))
+  Using cached msgpack-1.1.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (8.4 kB)
+Collecting psutil>=5.9.1 (from locust==2.37.1->-r /var/www/rfbot/requirements.txt (line 34))
+  Using cached psutil-7.0.0-cp36-abi3-manylinux_2_12_x86_64.manylinux2010_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (22 kB)
+Collecting pyzmq>=25.0.0 (from locust==2.37.1->-r /var/www/rfbot/requirements.txt (line 34))
+  Using cached pyzmq-26.4.0-cp311-cp311-manylinux_2_28_x86_64.whl.metadata (6.0 kB)
+Collecting setuptools>=70.0.0 (from locust==2.37.1->-r /var/www/rfbot/requirements.txt (line 34))
+  Using cached setuptools-80.8.0-py3-none-any.whl.metadata (6.6 kB)
+Collecting zope.event (from gevent<25.0.0,>=24.10.1->locust==2.37.1->-r /var/www/rfbot/requirements.txt (line 34))
+  Using cached zope.event-5.0-py3-none-any.whl.metadata (4.4 kB)
+Collecting zope.interface (from gevent<25.0.0,>=24.10.1->locust==2.37.1->-r /var/www/rfbot/requirements.txt (line 34))
+  Using cached zope.interface-7.2-cp311-cp311-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (44 kB)
+Collecting anyio (from httpx~=0.25.2->python-telegram-bot==20.7->-r /var/www/rfbot/requirements.txt (line 13))
+  Using cached anyio-4.9.0-py3-none-any.whl.metadata (4.7 kB)
+Collecting httpcore==1.* (from httpx~=0.25.2->python-telegram-bot==20.7->-r /var/www/rfbot/requirements.txt (line 13))
+  Using cached httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+Collecting sniffio (from httpx~=0.25.2->python-telegram-bot==20.7->-r /var/www/rfbot/requirements.txt (line 13))
+  Using cached sniffio-1.3.1-py3-none-any.whl.metadata (3.9 kB)
+Collecting h11>=0.16 (from httpcore==1.*->httpx~=0.25.2->python-telegram-bot==20.7->-r /var/www/rfbot/requirements.txt (line 13))
+  Using cached h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+Collecting annotated-types>=0.6.0 (from pydantic<2.12,>=2.4.1->aiogram==3.20.0->-r /var/www/rfbot/requirements.txt (line 14))
+  Using cached annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)
+Collecting pydantic-core==2.33.2 (from pydantic<2.12,>=2.4.1->aiogram==3.20.0->-r /var/www/rfbot/requirements.txt (line 14))
+  Using cached pydantic_core-2.33.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.8 kB)
+Collecting typing-inspection>=0.4.0 (from pydantic<2.12,>=2.4.1->aiogram==3.20.0->-r /var/www/rfbot/requirements.txt (line 14))
+  Using cached typing_inspection-0.4.1-py3-none-any.whl.metadata (2.6 kB)
+Collecting argon2-cffi>=23.1.0 (from pyseto<2.0.0,>=1.6.11->replit==4.1.1->-r /var/www/rfbot/requirements.txt (line 33))
+  Using cached argon2_cffi-23.1.0-py3-none-any.whl.metadata (5.2 kB)
+Collecting iso8601<3.0.0,>=1.0.2 (from pyseto<2.0.0,>=1.6.11->replit==4.1.1->-r /var/www/rfbot/requirements.txt (line 33))
+  Using cached iso8601-2.1.0-py3-none-any.whl.metadata (3.7 kB)
+Collecting pycryptodomex>=3.18.0 (from pyseto<2.0.0,>=1.6.11->replit==4.1.1->-r /var/www/rfbot/requirements.txt (line 33))
+  Using cached pycryptodomex-3.23.0-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (3.4 kB)
+Collecting cffi>=1.14 (from cryptography>=44.0.1->replit==4.1.1->-r /var/www/rfbot/requirements.txt (line 33))
+  Using cached cffi-1.17.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (1.5 kB)
+Collecting argon2-cffi-bindings (from argon2-cffi>=23.1.0->pyseto<2.0.0,>=1.6.11->replit==4.1.1->-r /var/www/rfbot/requirements.txt (line 33))
+  Using cached argon2_cffi_bindings-21.2.0-cp36-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.7 kB)
+Collecting pycparser (from cffi>=1.14->cryptography>=44.0.1->replit==4.1.1->-r /var/www/rfbot/requirements.txt (line 33))
+  Using cached pycparser-2.22-py3-none-any.whl.metadata (943 bytes)
+Collecting brotli (from geventhttpclient>=2.3.1->locust==2.37.1->-r /var/www/rfbot/requirements.txt (line 34))
+  Using cached Brotli-1.1.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (5.5 kB)
+Collecting platformdirs<5.0.0,>=4.3.6 (from locust-cloud>=1.21.2->locust==2.37.1->-r /var/www/rfbot/requirements.txt (line 34))
+  Using cached platformdirs-4.3.8-py3-none-any.whl.metadata (12 kB)
+Collecting python-socketio==5.13.0 (from python-socketio[client]==5.13.0->locust-cloud>=1.21.2->locust==2.37.1->-r /var/www/rfbot/requirements.txt (line 34))
+  Using cached python_socketio-5.13.0-py3-none-any.whl.metadata (3.2 kB)
+Collecting bidict>=0.21.0 (from python-socketio==5.13.0->python-socketio[client]==5.13.0->locust-cloud>=1.21.2->locust==2.37.1->-r /var/www/rfbot/requirements.txt (line 34))
+  Using cached bidict-0.23.1-py3-none-any.whl.metadata (8.7 kB)
+Collecting python-engineio>=4.11.0 (from python-socketio==5.13.0->python-socketio[client]==5.13.0->locust-cloud>=1.21.2->locust==2.37.1->-r /var/www/rfbot/requirements.txt (line 34))
+  Using cached python_engineio-4.12.1-py3-none-any.whl.metadata (2.2 kB)
+Collecting websocket-client>=0.54.0 (from python-socketio[client]==5.13.0->locust-cloud>=1.21.2->locust==2.37.1->-r /var/www/rfbot/requirements.txt (line 34))
+  Using cached websocket_client-1.8.0-py3-none-any.whl.metadata (8.0 kB)
+Collecting simple-websocket>=0.10.0 (from python-engineio>=4.11.0->python-socketio==5.13.0->python-socketio[client]==5.13.0->locust-cloud>=1.21.2->locust==2.37.1->-r /var/www/rfbot/requirements.txt (line 34))
+  Using cached simple_websocket-1.1.0-py3-none-any.whl.metadata (1.5 kB)
+Collecting wsproto (from simple-websocket>=0.10.0->python-engineio>=4.11.0->python-socketio==5.13.0->python-socketio[client]==5.13.0->locust-cloud>=1.21.2->locust==2.37.1->-r /var/www/rfbot/requirements.txt (line 34))
+  Using cached wsproto-1.2.0-py3-none-any.whl.metadata (5.6 kB)
+Using cached flask-3.1.0-py3-none-any.whl (102 kB)
+Using cached flask_sqlalchemy-3.1.1-py3-none-any.whl (25 kB)
+Using cached Flask_Login-0.6.3-py3-none-any.whl (17 kB)
+Using cached flask_wtf-1.2.2-py3-none-any.whl (12 kB)
+Using cached sqlalchemy-2.0.40-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.2 MB)
+Using cached psycopg2_binary-2.9.10-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.0 MB)
+Using cached werkzeug-3.1.3-py3-none-any.whl (224 kB)
+Using cached jinja2-3.1.6-py3-none-any.whl (134 kB)
+Using cached gunicorn-23.0.0-py3-none-any.whl (85 kB)
+Using cached python_telegram_bot-20.7-py3-none-any.whl (552 kB)
+Using cached aiogram-3.20.0-py3-none-any.whl (666 kB)
+Using cached aiohttp-3.11.18-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (1.7 MB)
+Using cached python_dotenv-1.1.0-py3-none-any.whl (20 kB)
+Using cached pillow-11.2.1-cp311-cp311-manylinux_2_28_x86_64.whl (4.6 MB)
+Using cached email_validator-2.2.0-py3-none-any.whl (33 kB)
+Using cached pytest-8.3.5-py3-none-any.whl (343 kB)
+Using cached pytest_flask-1.3.0-py3-none-any.whl (13 kB)
+Using cached pytest_asyncio-0.26.0-py3-none-any.whl (19 kB)
+Using cached PyJWT-2.10.1-py3-none-any.whl (22 kB)
+Using cached oauthlib-3.2.2-py3-none-any.whl (151 kB)
+Using cached requests-2.32.3-py3-none-any.whl (64 kB)
+Using cached replit-4.1.1-py3-none-any.whl (30 kB)
+Using cached locust-2.37.1-py3-none-any.whl (2.3 MB)
+Using cached aiofiles-24.1.0-py3-none-any.whl (15 kB)
+Using cached aiohttp_retry-2.9.1-py3-none-any.whl (10.0 kB)
+Using cached charset_normalizer-3.4.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (147 kB)
+Using cached gevent-24.11.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (6.8 MB)
+Using cached httpx-0.25.2-py3-none-any.whl (74 kB)
+Using cached httpcore-1.0.9-py3-none-any.whl (78 kB)
+Using cached idna-3.10-py3-none-any.whl (70 kB)
+Using cached magic_filter-1.0.12-py3-none-any.whl (11 kB)
+Using cached multidict-6.4.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (223 kB)
+Using cached pluggy-1.6.0-py3-none-any.whl (20 kB)
+Using cached protobuf-4.25.7-cp37-abi3-manylinux2014_x86_64.whl (294 kB)
+Using cached pydantic-2.11.5-py3-none-any.whl (444 kB)
+Using cached pydantic_core-2.33.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.0 MB)
+Using cached pyseto-1.8.4-py3-none-any.whl (29 kB)
+Downloading cryptography-45.0.3-cp311-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 4.4 MB/s eta 0:00:00
+Using cached iso8601-2.1.0-py3-none-any.whl (7.5 kB)
+Using cached typing_extensions-4.13.2-py3-none-any.whl (45 kB)
+Using cached urllib3-2.4.0-py3-none-any.whl (128 kB)
+Using cached yarl-1.20.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (358 kB)
+Using cached aiohappyeyeballs-2.6.1-py3-none-any.whl (15 kB)
+Using cached aiosignal-1.3.2-py2.py3-none-any.whl (7.6 kB)
+Using cached annotated_types-0.7.0-py3-none-any.whl (13 kB)
+Using cached argon2_cffi-23.1.0-py3-none-any.whl (15 kB)
+Using cached attrs-25.3.0-py3-none-any.whl (63 kB)
+Using cached blinker-1.9.0-py3-none-any.whl (8.5 kB)
+Using cached certifi-2025.4.26-py3-none-any.whl (159 kB)
+Using cached cffi-1.17.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (467 kB)
+Using cached click-8.2.1-py3-none-any.whl (102 kB)
+Using cached configargparse-1.7.1-py3-none-any.whl (25 kB)
+Using cached dnspython-2.7.0-py3-none-any.whl (313 kB)
+Using cached flask_cors-6.0.0-py3-none-any.whl (11 kB)
+Using cached frozenlist-1.6.0-cp311-cp311-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl (313 kB)
+Using cached geventhttpclient-2.3.3-cp311-cp311-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl (112 kB)
+Using cached greenlet-3.2.2-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (583 kB)
+Using cached h11-0.16.0-py3-none-any.whl (37 kB)
+Using cached itsdangerous-2.2.0-py3-none-any.whl (16 kB)
+Using cached locust_cloud-1.21.8-py3-none-any.whl (407 kB)
+Using cached python_socketio-5.13.0-py3-none-any.whl (77 kB)
+Using cached platformdirs-4.3.8-py3-none-any.whl (18 kB)
+Using cached bidict-0.23.1-py3-none-any.whl (32 kB)
+Using cached MarkupSafe-3.0.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (23 kB)
+Using cached msgpack-1.1.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (403 kB)
+Using cached propcache-0.3.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (232 kB)
+Using cached psutil-7.0.0-cp36-abi3-manylinux_2_12_x86_64.manylinux2010_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl (277 kB)
+Using cached pycryptodomex-3.23.0-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.3 MB)
+Using cached python_engineio-4.12.1-py3-none-any.whl (59 kB)
+Using cached pyzmq-26.4.0-cp311-cp311-manylinux_2_28_x86_64.whl (862 kB)
+Using cached setuptools-80.8.0-py3-none-any.whl (1.2 MB)
+Using cached simple_websocket-1.1.0-py3-none-any.whl (13 kB)
+Using cached typing_inspection-0.4.1-py3-none-any.whl (14 kB)
+Using cached websocket_client-1.8.0-py3-none-any.whl (58 kB)
+Using cached anyio-4.9.0-py3-none-any.whl (100 kB)
+Using cached sniffio-1.3.1-py3-none-any.whl (10 kB)
+Using cached argon2_cffi_bindings-21.2.0-cp36-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (86 kB)
+Using cached Brotli-1.1.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.9 MB)
+Using cached iniconfig-2.1.0-py3-none-any.whl (6.0 kB)
+Using cached packaging-25.0-py3-none-any.whl (66 kB)
+Using cached pycparser-2.22-py3-none-any.whl (117 kB)
+Using cached wsproto-1.2.0-py3-none-any.whl (24 kB)
+Using cached wtforms-3.2.1-py3-none-any.whl (152 kB)
+Using cached zope.event-5.0-py3-none-any.whl (6.8 kB)
+Using cached zope.interface-7.2-cp311-cp311-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl (259 kB)
+Installing collected packages: brotli, websocket-client, urllib3, typing-extensions, sniffio, setuptools, pyzmq, python-dotenv, PyJWT, pycryptodomex, pycparser, psycopg2-binary, psutil, protobuf, propcache, pluggy, platformdirs, Pillow, packaging, oauthlib, multidict, msgpack, MarkupSafe, magic-filter, itsdangerous, iso8601, iniconfig, idna, h11, greenlet, frozenlist, dnspython, configargparse, click, charset-normalizer, certifi, blinker, bidict, attrs, annotated-types, aiohappyeyeballs, aiofiles, zope.interface, zope.event, yarl, wtforms, wsproto, Werkzeug, typing-inspection, SQLAlchemy, requests, pytest, pydantic-core, Jinja2, httpcore, gunicorn, email-validator, cffi, anyio, aiosignal, simple-websocket, pytest-asyncio, pydantic, httpx, gevent, flask, cryptography, argon2-cffi-bindings, aiohttp, python-telegram-bot, python-engineio, pytest-flask, geventhttpclient, Flask-WTF, Flask-SQLAlchemy, Flask-Login, flask-cors, argon2-cffi, aiohttp-retry, aiogram, python-socketio, pyseto, replit, locust-cloud, locust
+  Attempting uninstall: setuptools
+    Found existing installation: setuptools 65.5.0
+    Uninstalling setuptools-65.5.0:
+      Successfully uninstalled setuptools-65.5.0
+
+Successfully installed Flask-Login-0.6.3 Flask-SQLAlchemy-3.1.1 Flask-WTF-1.2.2 Jinja2-3.1.6 MarkupSafe-3.0.2 Pillow-11.2.1 PyJWT-2.10.1 SQLAlchemy-2.0.40 Werkzeug-3.1.3 aiofiles-24.1.0 aiogram-3.20.0 aiohappyeyeballs-2.6.1 aiohttp-3.11.18 aiohttp-retry-2.9.1 aiosignal-1.3.2 annotated-types-0.7.0 anyio-4.9.0 argon2-cffi-23.1.0 argon2-cffi-bindings-21.2.0 attrs-25.3.0 bidict-0.23.1 blinker-1.9.0 brotli-1.1.0 certifi-2025.4.26 cffi-1.17.1 charset-normalizer-3.4.2 click-8.2.1 configargparse-1.7.1 cryptography-45.0.3 dnspython-2.7.0 email-validator-2.2.0 flask-3.1.0 flask-cors-6.0.0 frozenlist-1.6.0 gevent-24.11.1 geventhttpclient-2.3.3 greenlet-3.2.2 gunicorn-23.0.0 h11-0.16.0 httpcore-1.0.9 httpx-0.25.2 idna-3.10 iniconfig-2.1.0 iso8601-2.1.0 itsdangerous-2.2.0 locust-2.37.1 locust-cloud-1.21.8 magic-filter-1.0.12 msgpack-1.1.0 multidict-6.4.4 oauthlib-3.2.2 packaging-25.0 platformdirs-4.3.8 pluggy-1.6.0 propcache-0.3.1 protobuf-4.25.7 psutil-7.0.0 psycopg2-binary-2.9.10 pycparser-2.22 pycryptodomex-3.23.0 pydantic-2.11.5 pydantic-core-2.33.2 pyseto-1.8.4 pytest-8.3.5 pytest-asyncio-0.26.0 pytest-flask-1.3.0 python-dotenv-1.1.0 python-engineio-4.12.1 python-socketio-5.13.0 python-telegram-bot-20.7 pyzmq-26.4.0 replit-4.1.1 requests-2.32.3 setuptools-80.8.0 simple-websocket-1.1.0 sniffio-1.3.1 typing-extensions-4.13.2 typing-inspection-0.4.1 urllib3-2.4.0 websocket-client-1.8.0 wsproto-1.2.0 wtforms-3.2.1 yarl-1.20.0 zope.event-5.0 zope.interface-7.2
+[SUCCESS] وابستگی‌های پروژه با موفقیت نصب شدند.
+[INFO] در حال راه‌اندازی جداول پایگاه داده...
+[INFO] در حال راه‌اندازی جداول پایگاه داده (تخمین زمان: 1-2 دقیقه)...
+Creating database tables...
+Database tables created successfully.
+[SUCCESS] جداول پایگاه داده با موفقیت ایجاد شدند.
+[INFO] بررسی جداول موجود در دیتابیس...
+[SUCCESS] جداول بررسی شدند. جداول موجود:
+ public | categories                | table | neondb_owner
+ public | educational_categories    | table | neondb_owner
+ public | educational_content       | table | neondb_owner
+ public | educational_content_media | table | neondb_owner
+ public | inquiries                 | table | neondb_owner
+ public | product_categories        | table | neondb_owner
+ public | product_media             | table | neondb_owner
+ public | products                  | table | neondb_owner
+ public | service_categories        | table | neondb_owner
+ public | service_inquiries         | table | neondb_owner
+ public | service_media             | table | neondb_owner
+ public | services                  | table | neondb_owner
+ public | static_content            | table | neondb_owner
+ public | user                      | table | neondb_owner
+ public | users                     | table | neondb_owner
+Creating database tables...
+Database tables created successfully.
+[SUCCESS] جداول پایگاه داده با موفقیت ایجاد شدند.
+[INFO] در حال اجرای اسکریپت‌های اولیه...
+[INFO] اجرای seed_admin_data.py (تخمین زمان: کمتر از 1 دقیقه)...
+Traceback (most recent call last):
+  File "/var/www/rfbot/seed_admin_data.py", line 14, in <module>
+    from models import User, Category, Product, ProductMedia, Inquiry, EducationalContent, StaticContent
+ImportError: cannot import name 'Category' from 'models' (/var/www/rfbot/models.py)
+[WARNING] اجرای seed_admin_data.py با خطا مواجه شد. جزئیات در /tmp/rfbot_install_20250526_152102.log.
+[INFO] اجرای seed_categories.py (تخمین زمان: کمتر از 1 دقیقه)...
+در حال ساخت داده‌های آزمایشی برای دسته‌بندی محصولات...
+14 دسته‌بندی محصول با موفقیت اضافه شد.
+در حال ساخت داده‌های آزمایشی برای دسته‌بندی خدمات...
+12 دسته‌بندی خدمات با موفقیت اضافه شد.
+در حال ساخت داده‌های آزمایشی برای دسته‌بندی محتوای آموزشی...
+7 دسته‌بندی محتوای آموزشی با موفقیت اضافه شد.
+[SUCCESS] seed_categories.py با موفقیت اجرا شد.
+[INFO] در حال ایجاد سرویس‌های سیستمی...
+[SUCCESS] سرویس‌های سیستمی با موفقیت ایجاد شدند.
+[INFO] در حال پیکربندی Nginx...
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+[SUCCESS] پیکربندی Nginx با موفقیت تست شد.
+[INFO] در حال تنظیم دسترسی‌های فایل‌ها...
+[SUCCESS] دسترسی‌های فایل‌ها با موفقیت تنظیم شدند.
+[INFO] در حال راه‌اندازی سرویس‌ها...
+[SUCCESS] سرویس‌ها با موفقیت راه‌اندازی شدند.
+[INFO] در حال بررسی و حل مشکلات احتمالی...
+[INFO] 1. تنظیم فایروال (UFW)...
+./automate-setup.sh: line 815: ufw: command not found
+./automate-setup.sh: line 816: ufw: command not found
+./automate-setup.sh: line 817: ufw: command not found
+./automate-setup.sh: line 818: ufw: command not found
+./automate-setup.sh: line 819: ufw: command not found
+./automate-setup.sh: line 820: ufw: command not found
+[SUCCESS] فایروال تنظیم شد - پورت‌های 22, 80, 443, 5000 باز شدند.
+[INFO] بررسی اتصال شبکه...
+PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.
+64 bytes from 8.8.8.8: icmp_seq=1 ttl=110 time=32.7 ms
+
+--- 8.8.8.8 ping statistics ---
+1 packets transmitted, 1 received, 0% packet loss, time 0ms
+rtt min/avg/max/mdev = 32.688/32.688/32.688/0.000 ms
+[SUCCESS] اتصال به اینترنت برقرار است.
+[INFO] 2. بررسی متغیرهای محیطی...
+[SUCCESS] متغیرهای محیطی تنظیم شدند.
+[INFO] 3. تنظیم دسترسی‌های فایل (جامع)...
+usermod: user 'nginx' does not exist
+[SUCCESS] دسترسی‌های فایل تصحیح شدند.
+[INFO] 4. بررسی وضعیت سرویس‌ها...
+[SUCCESS] PostgreSQL فعال است.
+[SUCCESS] Nginx فعال است.
+[SUCCESS] سرویس وب فعال است.
+[SUCCESS] سرویس بات تلگرام فعال است.
+[INFO] تست اتصال به وب سرور...
+[WARNING] وب سرور در پورت 5000 پاسخ نمی‌دهد.
+[SUCCESS] Nginx در پورت 80 پاسخ می‌دهد.
+[INFO] 5. تنظیم سیستم لاگ‌گیری...
+[SUCCESS] سیستم لاگ‌گیری تنظیم شد.
+[SUCCESS] همه مشکلات احتمالی بررسی و حل شدند!
+root@5677gh:/tmp#

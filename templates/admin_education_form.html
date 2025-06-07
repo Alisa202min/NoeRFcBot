@@ -1,0 +1,246 @@
+{% extends 'admin_layout.html' %}
+{% set active_page = 'education' %}
+
+{% block title %}{{ title if title else ('ویرایش محتوای آموزشی' if content else 'افزودن محتوای آموزشی جدید') }} - RFCBot{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_index') }}">داشبورد ادمین</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_education') }}">محتوای آموزشی</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ title if title else ('ویرایش محتوا' if content else 'محتوای جدید') }}</li>
+                </ol>
+            </nav>
+            
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">{{ title if title else ('ویرایش محتوای آموزشی' if content else 'افزودن محتوای آموزشی جدید') }}</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('admin_education') }}?action=save" enctype="multipart/form-data" class="needs-validation" novalidate>
+                        {% if content %}
+                        <input type="hidden" name="id" value="{{ content.id }}">
+                        {% endif %}
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="title" class="form-label">عنوان <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="title" name="title" value="{{ content.title if content else '' }}" required>
+                                    <div class="invalid-feedback">
+                                        لطفاً عنوان را وارد کنید.
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="category" class="form-label">دسته‌بندی <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="category" name="category" required>
+                                        {% for cat in categories %}
+                                        <option value="{{ cat }}" {% if content and content.category == cat %}selected{% endif %}>{{ cat }}</option>
+                                        {% endfor %}
+                                        <option value="new_category">دسته‌بندی جدید</option>
+                                    </select>
+                                    <div class="invalid-feedback">
+                                        لطفاً یک دسته‌بندی انتخاب کنید.
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3" id="newCategoryDiv" style="display: none;">
+                                    <label for="new_category" class="form-label">دسته‌بندی جدید</label>
+                                    <input type="text" class="form-control" id="new_category" name="new_category" placeholder="نام دسته‌بندی جدید">
+                                    <div class="invalid-feedback">
+                                        لطفاً نام دسته‌بندی جدید را وارد کنید.
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="content_type" class="form-label">نوع محتوا <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="content_type" name="content_type" required>
+                                        <option value="text" {% if content and content.content_type == 'text' %}selected{% endif %}>متن</option>
+                                        <option value="video" {% if content and content.content_type == 'video' %}selected{% endif %}>ویدیو</option>
+                                        <option value="image" {% if content and content.content_type == 'image' %}selected{% endif %}>تصویر</option>
+                                    </select>
+                                    <div class="invalid-feedback">
+                                        لطفاً نوع محتوا را انتخاب کنید.
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="content_text" class="form-label">محتوا <span class="text-danger">*</span></label>
+                                    <textarea class="form-control" id="content_text" name="content" rows="12" required>{{ content.content if content else '' }}</textarea>
+                                    <div class="form-text">
+                                        می‌توانید از تگ‌های HTML برای قالب‌بندی محتوا استفاده کنید. مثال:
+                                        <code>&lt;h2&gt;عنوان&lt;/h2&gt; &lt;p&gt;متن پاراگراف&lt;/p&gt;</code>
+                                    </div>
+                                    <div class="invalid-feedback">
+                                        لطفاً محتوا را وارد کنید.
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3 upload-section">
+                                    <label for="file" class="form-label">آپلود فایل (می‌توانید چند فایل انتخاب کنید)</label>
+                                    <input type="file" class="form-control" id="file" name="file" multiple>
+                                    <div class="form-text text-info">
+                                        برای انتخاب چندین فایل، دکمه Ctrl یا Shift را نگه داشته و فایل‌ها را انتخاب کنید.
+                                    </div>
+                                </div>
+                                
+                                {% if media_list %}
+                                <div class="mt-3">
+                                    <h6 class="text-primary">فایل‌های ضمیمه موجود:</h6>
+                                    <div class="row row-cols-1 row-cols-md-3 g-3">
+                                        {% for media in media_list %}
+                                        <div class="col">
+                                            <div class="card h-100">
+                                                {% if media.file_type == 'photo' %}
+                                                <img src="{{ media.redirect_url }}" class="card-img-top" alt="تصویر ضمیمه">
+                                                {% elif media.file_type == 'video' %}
+                                                <div class="ratio ratio-16x9">
+                                                    <video controls>
+                                                        <source src="{{ media.redirect_url }}" type="video/mp4">
+                                                    </video>
+                                                </div>
+                                                {% elif media.file_type == 'file' %}
+                                                <div class="card-body text-center">
+                                                    <i class="bi bi-file-earmark-text fs-1 text-primary"></i>
+                                                    <p>فایل ضمیمه</p>
+                                                </div>
+                                                {% endif %}
+                                                <div class="card-footer d-flex justify-content-between">
+                                                    <a href="{{ media.redirect_url }}" class="btn btn-sm btn-primary" target="_blank">
+                                                        <i class="bi bi-download"></i> دانلود
+                                                    </a>
+                                                    <button type="button" class="btn btn-sm btn-danger" 
+                                                            onclick="confirmDeleteMedia('educational', {{ content.id }}, {{ media.id }}, '{{ media.file_type }}')">
+                                                        <i class="bi bi-trash"></i> حذف
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="card mb-4">
+                            <div class="card-header">پیش‌نمایش محتوا</div>
+                            <div class="card-body">
+                                <div id="contentPreview">
+                                    {{ content.content|safe if content else '<div class="alert alert-info">محتوایی برای نمایش وجود ندارد.</div>' }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('admin_education') }}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-right"></i> بازگشت
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i> 
+                                {{ 'به‌روزرسانی محتوا' if content else 'افزودن محتوا' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Form validation
+    const form = document.querySelector('.needs-validation');
+    form.addEventListener('submit', function(event) {
+        if (!form.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        form.classList.add('was-validated');
+    });
+
+    // Category field handling
+    const categorySelect = document.getElementById('category');
+    const newCategoryDiv = document.getElementById('newCategoryDiv');
+    
+    function updateCategoryField() {
+        if (categorySelect.value === 'new_category') {
+            newCategoryDiv.style.display = 'block';
+            document.getElementById('new_category').setAttribute('required', 'required');
+        } else {
+            newCategoryDiv.style.display = 'none';
+            document.getElementById('new_category').removeAttribute('required');
+        }
+    }
+    
+    categorySelect.addEventListener('change', updateCategoryField);
+    updateCategoryField();
+
+    // Content type handling
+    const contentTypeSelect = document.getElementById('content_type');
+    const contentTextarea = document.getElementById('content_text');
+    
+    function updateContentField() {
+        let placeholder = '';
+        if (contentTypeSelect.value === 'text') {
+            placeholder = 'متن محتوا را وارد کنید. می‌توانید از تگ‌های HTML استفاده کنید.';
+        } else if (contentTypeSelect.value === 'video') {
+            placeholder = 'لینک ویدیو یا کد امبد ویدیو را وارد کنید. مثال:\n<iframe src="https://www.example.com/embed/VIDEO_ID" frameborder="0" allowfullscreen></iframe>';
+        } else if (contentTypeSelect.value === 'image') {
+            placeholder = 'لینک تصویر یا کد HTML تصویر را وارد کنید. مثال:\n<img src="https://www.example.com/image.jpg" alt="توضیحات تصویر" class="img-fluid">';
+        }
+        contentTextarea.placeholder = placeholder;
+    }
+    
+    contentTypeSelect.addEventListener('change', updateContentField);
+    updateContentField();
+
+    // Live preview
+    const contentPreview = document.getElementById('contentPreview');
+    
+    contentTextarea.addEventListener('input', function() {
+        if (this.value) {
+            contentPreview.innerHTML = this.value;
+        } else {
+            contentPreview.innerHTML = '<div class="alert alert-info">محتوایی برای نمایش وجود ندارد.</div>';
+        }
+    });
+
+    // Media delete confirmation
+    window.confirmDeleteMedia = function(contentType, contentId, mediaId, mediaType) {
+        if (confirm('آیا از حذف این فایل رسانه‌ای اطمینان دارید؟ این عملیات غیرقابل بازگشت است.')) {
+            fetch(`/admin/delete_media?type=${contentType}&content_id=${contentId}&media_id=${mediaId}&media_type=${mediaType}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('فایل با موفقیت حذف شد.');
+                    const mediaCard = document.querySelector(`button[onclick*="${mediaId}"]`).closest('.col');
+                    mediaCard.remove();
+                } else {
+                    alert('خطا در حذف فایل: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('خطایی در عملیات حذف رخ داد.');
+            });
+        }
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}مشاهده جدول {{ table_name }} - RFCBot{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">داشبورد</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('database_management') }}">مدیریت دیتابیس</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">جدول {{ table_name }}</li>
+                </ol>
+            </nav>
+            
+            <h2 class="mb-4">
+                <i class="bi bi-table"></i> محتوای جدول {{ table_name }}
+            </h2>
+            
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-list-ul"></i> داده‌های جدول
+                    </h5>
+                    <div>
+                        <a href="{{ url_for('export_table', table_name=table_name) }}" class="btn btn-sm btn-light">
+                            <i class="bi bi-file-earmark-excel"></i> خروجی CSV
+                        </a>
+                        <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#truncateModal">
+                            <i class="bi bi-trash"></i> حذف محتوا
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    {% for column in columns %}
+                                    <th>{{ column }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in data %}
+                                <tr>
+                                    {% for column in columns %}
+                                    <td>
+                                        {% set value = row.__getattribute__(column) %}
+                                        {% if value is none %}
+                                        <span class="text-muted">خالی</span>
+                                        {% elif column == 'photo_url' or column == 'profile_image_url' and value %}
+                                        <a href="{{ value }}" target="_blank" class="btn btn-sm btn-primary">
+                                            <i class="bi bi-image"></i> نمایش تصویر
+                                        </a>
+                                        {% elif column == 'file_id' and value %}
+                                        <span class="d-inline-block text-truncate" style="max-width: 150px;">{{ value }}</span>
+                                        {% elif column == 'content' and value %}
+                                        <span class="d-inline-block text-truncate" style="max-width: 150px;">{{ value }}</span>
+                                        {% elif column == 'password_hash' and value %}
+                                        <span class="text-muted">[محافظت‌شده]</span>
+                                        {% elif column.endswith('at') and value %}
+                                        {{ value.strftime('%Y-%m-%d %H:%M:%S') }}
+                                        {% else %}
+                                        {{ value }}
+                                        {% endif %}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if pagination.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('view_table', table_name=table_name, page=pagination.prev_num) }}">
+                                    <i class="bi bi-chevron-right"></i> قبلی
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" tabindex="-1" aria-disabled="true">
+                                    <i class="bi bi-chevron-right"></i> قبلی
+                                </a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                                {% if page_num %}
+                                    {% if page_num == pagination.page %}
+                                    <li class="page-item active">
+                                        <a class="page-link" href="{{ url_for('view_table', table_name=table_name, page=page_num) }}">{{ page_num }}</a>
+                                    </li>
+                                    {% else %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('view_table', table_name=table_name, page=page_num) }}">{{ page_num }}</a>
+                                    </li>
+                                    {% endif %}
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <a class="page-link" href="#">...</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if pagination.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('view_table', table_name=table_name, page=pagination.next_num) }}">
+                                    بعدی <i class="bi bi-chevron-left"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" tabindex="-1" aria-disabled="true">
+                                    بعدی <i class="bi bi-chevron-left"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Truncate Table Modal -->
+<div class="modal fade" id="truncateModal" tabindex="-1" aria-labelledby="truncateModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="truncateModalLabel">حذف محتوای جدول</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle-fill"></i> هشدار: این عملیات غیرقابل بازگشت است!
+                </div>
+                <p>آیا مطمئن هستید که می‌خواهید محتوای جدول <strong>{{ table_name }}</strong> را حذف کنید؟</p>
+                <form action="{{ url_for('truncate_table') }}" method="POST" id="truncateForm">
+                    <input type="hidden" name="table_name" value="{{ table_name }}">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
+                <button type="button" class="btn btn-danger" onclick="document.getElementById('truncateForm').submit();">حذف محتوای جدول</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

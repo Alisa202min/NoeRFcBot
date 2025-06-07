@@ -1,0 +1,131 @@
+{% extends "admin_layout.html" %}
+
+{% block title %}{{ title }} - RFCBot{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_index') }}">داشبورد ادمین</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_products') }}">محصولات</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ title }}</li>
+                </ol>
+            </nav>
+            
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">{{ title }}</h5>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                    <div class="messages mb-4">
+                        {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+                    
+                    <form method="post" action="{{ url_for('admin_products', action='save') }}" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        {% if product %}
+                        <input type="hidden" name="id" value="{{ product.id }}">
+                        {% endif %}
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">نام محصول</label>
+                                    <input type="text" class="form-control" id="name" name="name" value="{{ product.name if product else '' }}" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="price" class="form-label">قیمت (تومان)</label>
+                                    <input type="number" class="form-control" id="price" name="price" value="{{ product.price if product else 0 }}" min="0">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="category_id" class="form-label">دسته‌بندی</label>
+                                    <select class="form-select" id="category_id" name="category_id">
+                                        <option value="">بدون دسته‌بندی</option>
+                                        {% for category in categories %}
+                                        <option value="{{ category.id }}" {% if product and product.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="brand" class="form-label">برند</label>
+                                    <input type="text" class="form-control" id="brand" name="brand" value="{{ product.brand if product else '' }}">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="model" class="form-label">مدل</label>
+                                    <input type="text" class="form-control" id="model" name="model" value="{{ product.model if product else '' }}">
+                                </div>
+                                
+                               
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="description" class="form-label">توضیحات</label>
+                                    <textarea class="form-control" id="description" name="description" rows="5">{{ product.description if product else '' }}</textarea>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="model_number" class="form-label">شماره مدل</label>
+                                    <input type="text" class="form-control" id="model_number" name="model_number" value="{{ product.model_number if product else '' }}">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="manufacturer" class="form-label">سازنده</label>
+                                    <input type="text" class="form-control" id="manufacturer" name="manufacturer" value="{{ product.manufacturer if product else '' }}">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="tags" class="form-label">برچسب‌ها</label>
+                                    <input type="text" class="form-control" id="tags" name="tags" value="{{ product.tags if product else '' }}" placeholder="برچسب‌ها را با کاما جدا کنید">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="in_stock" name="in_stock" {% if product and product.in_stock %}checked{% endif %}>
+                                        <label class="form-check-label" for="in_stock">موجود در انبار</label>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="featured" name="featured" {% if product and product.featured %}checked{% endif %}>
+                                        <label class="form-check-label" for="featured">محصول ویژه</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            برای مدیریت تصاویر و ویدیوهای اضافی، پس از ذخیره محصول به صفحه <a href="{{ url_for('admin_products', action='media', id=product.id) if product else '#' }}">مدیریت رسانه‌ها</a> مراجعه کنید.
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('admin_products') }}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> بازگشت به لیست
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> ذخیره محصول
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,219 @@
+Below is a comprehensive prompt for a Replit Agent to design a category management system for the RFCBot project, incorporating all features from the provided HTML and Python files, extending them to include separate category management for products, services, and educational content, and implementing a tree-like editable structure for category display and editing. The prompt ensures that no feature is overlooked and adheres to the requirements for three separate tabs, three database tables, four-level category hierarchy, and an editable tree view.
+Prompt for Replit Agent
+Objective: Design and implement a category management system for the RFCBot admin panel, extending the existing functionality to support separate category management for products, services, and educational content. The system must include three distinct tabs for each category type, backed by three separate database tables, support a four-level hierarchical structure, and provide an editable tree view for category display and management. Ensure all existing features from the provided files are preserved and enhanced, with no functionality overlooked.
+Context:
+The RFCBot project is a Telegram bot admin panel for managing a radio frequency/telecommunications catalog, using Flask, SQLite/PostgreSQL, and Bootstrap 5.3.
+Existing files include:
+admin_categories.html: Displays product and service categories in two tabs with tables, supporting add/edit/delete operations and parent-child relationships.
+admin_category_form.html (two versions): Form for adding/editing categories with name, parent category, and type (product/service).
+Flask routes in Python files for category management (e.g., /admin/categories, /admin/categories/add, /admin/categories/edit/<id>, /admin/categories/delete).
+Requirements:
+Separate categories into three types: products, services, and educational content.
+Use three database tables: product_categories, service_categories, educational_categories.
+Support a four-level hierarchy (root, level 1, level 2, level 3; level 4 nodes are leaf nodes with no children).
+Display categories in three tabs on a single page (admin_categories.html).
+Provide separate forms for adding/editing each category type (admin_product_category_form.html, admin_service_category_form.html, admin_educational_category_form.html).
+Implement an editable tree view for category display and management, allowing users to:
+View categories in a hierarchical tree structure.
+Edit node names and positions (drag-and-drop or buttons to move up/down).
+Add/remove nodes at any level (except adding children to level 4).
+Ensure changes are saved to the database.
+Preserve all existing features (e.g., modals, pagination, search, filtering) and integrate them into the new design.
+Use Persian (Farsi) for the UI, maintaining RTL direction and dark theme.
+Existing Features to Preserve and Enhance:
+Category Display (admin_categories.html):
+Two tabs for product and service categories, each with a table showing ID, Name, Parent Category, Product/Service Count, and Actions (Edit, View Subcategories, Delete).
+Add Category button linking to /admin/categories/add.
+Delete confirmation modal with warning about cascading deletion of subcategories and items.
+JavaScript to populate modal with category ID and name.
+Category Form (admin_category_form.html):
+Fields: Name (input:text, required), Parent Category (select, optional), Category Type (radio: product/service).
+Submit button: "ذخیره" (Save) with save icon (bi-save).
+Cancel button: "انصراف" (Cancel) linking to /admin/categories.
+Parent category dropdown excludes the current category (if editing).
+Help text for parent category selection.
+Flask Routes:
+/admin/categories: Lists categories, fetching product and service categories separately with parent names and item counts.
+/admin/categories/add: Handles GET (displays form) and POST (adds category).
+/admin/categories/edit/<id>: Handles GET (displays form with current data) and POST (updates category).
+/admin/categories/delete: Deletes a category and its subcategories/items.
+/admin/categories/subcategories/<id>: Views subcategories of a category.
+Validation: Ensures name is provided, prevents a category from being its own parent.
+Flash messages for success/error.
+Database Interaction:
+Table: categories with columns id, name, parent_id, cat_type (product/service).
+Queries to fetch categories, count products/services, and handle CRUD operations.
+Joins to retrieve parent category names.
+UI/UX:
+Bootstrap 5.3 dark theme, RTL direction, Persian language.
+Responsive tables with striped rows.
+Button groups for actions (Edit, Subcategories, Delete).
+Alerts for empty category lists with links to add new categories.
+New Requirements:
+Three Database Tables:
+product_categories: Stores product categories (id, name, parent_id).
+service_categories: Stores service categories (id, name, parent_id).
+educational_categories: Stores educational content categories (id, name, parent_id).
+Each table supports a four-level hierarchy (root, level 1, level 2, level 3; level 4 nodes cannot have children).
+parent_id references the same table (self-referential foreign key).
+Three Tabs in admin_categories.html:
+Tab 1: Product Categories.
+Tab 2: Service Categories.
+Tab 3: Educational Categories.
+Each tab displays a tree view of categories (instead of a table) with nodes expandable/collapsible.
+Actions per node: Edit (opens respective form), Delete (modal confirmation), Add Subcategory (opens form with parent pre-selected), Move Up/Down (reorder within same level).
+Editable Tree View:
+Use a JavaScript library (e.g., jsTree, TreeView, or custom implementation) to render a hierarchical tree.
+Features:
+Expand/collapse nodes to view subcategories.
+Edit node names inline (double-click or edit button).
+Drag-and-drop to reorder nodes or change parent (within hierarchy constraints).
+Add node button/icon per level (except level 4).
+Delete node button/icon (with modal confirmation).
+Save changes via AJAX to update the database.
+Constraints:
+Level 1 nodes have no parent (parent_id = NULL).
+Level 4 nodes cannot have children.
+Prevent circular references (e.g., a node becoming its own parent).
+Three Separate Forms:
+admin_product_category_form.html: For product categories, linking to product_categories table.
+admin_service_category_form.html: For service categories, linking to service_categories table.
+admin_educational_category_form.html: For educational categories, linking to educational_categories table.
+Each form includes:
+Name (input:text, required).
+Parent Category (select, optional, lists only same-type categories, excludes current category if editing).
+Submit button: "ذخیره" (Save).
+Cancel button: "انصراف" (Cancel).
+Validation to enforce hierarchy constraints (e.g., no children for level 4 nodes).
+Flask Routes:
+Update existing routes to handle three category types:
+/admin/categories: Display three-tab page.
+/admin/product_categories/add, /admin/service_categories/add, /admin/educational_categories/add: Add category for each type.
+/admin/product_categories/edit/<id>, /admin/service_categories/edit/<id>, /admin/educational_categories/edit/<id>: Edit category.
+/admin/product_categories/delete, /admin/service_categories/delete, /admin/educational_categories/delete: Delete category.
+New routes for tree operations:
+/admin/product_categories/move: Reorder or reparent node (AJAX).
+/admin/service_categories/move, /admin/educational_categories/move: Same for other types.
+Validation:
+Ensure name is unique within the same type and level.
+Enforce four-level hierarchy.
+Prevent deletion if category has associated items (products, services, or educational content).
+Integration with Existing Features:
+Maintain search/filtering (e.g., search by category name in tree view).
+Support pagination for large trees (if needed, e.g., load subtrees dynamically).
+Preserve modal-based deletion with warnings about cascading effects.
+Integrate with existing product/service/educational content management (e.g., update dropdowns in admin_product_form.html, admin_service_form.html, admin_education_form.html to use new tables).
+UI Enhancements:
+Add visual indicators for hierarchy levels (e.g., indentation, icons).
+Highlight leaf nodes (level 4) to indicate no children allowed.
+Use tooltips for actions (e.g., "Add Subcategory", "Edit Name").
+Ensure accessibility (ARIA labels, keyboard navigation).
+Database Schema:
+sql
+CREATE TABLE product_categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    parent_id INTEGER,
+    level INTEGER NOT NULL CHECK (level >= 1 AND level <= 4),
+    FOREIGN KEY (parent_id) REFERENCES product_categories(id),
+    UNIQUE(name, parent_id)
+);
+
+CREATE TABLE service_categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    parent_id INTEGER,
+    level INTEGER NOT NULL CHECK (level >= 1 AND level <= 4),
+    FOREIGN KEY (parent_id) REFERENCES service_categories(id),
+    UNIQUE(name, parent_id)
+);
+
+CREATE TABLE educational_categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    parent_id INTEGER,
+    level INTEGER NOT NULL CHECK (level >= 1 AND level <= 4),
+    FOREIGN KEY (parent_id) REFERENCES educational_categories(id),
+    UNIQUE(name, parent_id)
+);
+Implementation Steps:
+Database Setup:
+Create the three tables above.
+Update Database class in database.py to include methods for CRUD operations on each table.
+Add methods to enforce hierarchy constraints (e.g., check level, prevent children for level 4).
+Flask Routes:
+Refactor /admin/categories to fetch categories from all three tables and pass to admin_categories.html.
+Create separate routes for adding/editing/deleting each category type.
+Implement AJAX routes for tree operations (move, reorder).
+Templates:
+Update admin_categories.html:
+Add third tab for educational categories.
+Replace tables with tree views using jsTree or similar.
+Include buttons/icons for add/edit/delete/move actions.
+Create three form templates:
+admin_product_category_form.html
+admin_service_category_form.html
+admin_educational_category_form.html
+Each mirrors admin_category_form.html but targets specific category type and table.
+JavaScript:
+Integrate jsTree (or similar) for tree rendering.
+Implement event handlers for:
+Inline editing (update name).
+Drag-and-drop or move buttons (update parent_id, level).
+Add/delete nodes (open form or trigger deletion).
+Use AJAX to save changes to the database.
+Validation:
+Client-side: Prevent invalid actions (e.g., adding children to level 4).
+Server-side: Validate hierarchy, uniqueness, and associations before saving.
+Integration:
+Update product/service/educational content forms to use new category tables.
+Ensure search/filtering works with tree view.
+Maintain pagination for large datasets if needed.
+Sample Tree View JavaScript (using jsTree):
+javascript
+$('#product-categories-tree').jstree({
+    core: {
+        data: /* Fetch from /admin/product_categories/tree */,
+        check_callback: true // Enable drag-and-drop
+    },
+    plugins: ['dnd', 'contextmenu'],
+    contextmenu: {
+        items: {
+            edit: { label: 'ویرایش', action: function(data) { /* Open edit form */ } },
+            add: { label: 'افزودن زیرگروه', action: function(data) { /* Open add form */ } },
+            delete: { label: 'حذف', action: function(data) { /* Open delete modal */ } }
+        }
+    }
+}).on('move_node.jstree', function(e, data) {
+    // AJAX to /admin/product_categories/move
+    $.ajax({
+        url: '/admin/product_categories/move',
+        method: 'POST',
+        data: {
+            id: data.node.id,
+            parent_id: data.parent,
+            position: data.position
+        }
+    });
+});
+Deliverables:
+Updated database.py with new table management.
+Modified app.py with new routes.
+Updated admin_categories.html with three tabs and tree views.
+New templates: admin_product_category_form.html, admin_service_category_form.html, admin_educational_category_form.html.
+JavaScript/CSS for tree view integration.
+Documentation of new routes and database schema.
+Constraints:
+Maintain Persian UI with RTL and dark theme.
+Ensure compatibility with existing Bootstrap 5.3.
+Handle large category trees efficiently (e.g., lazy loading if needed).
+Prevent data loss during tree operations.
+Support both SQLite and PostgreSQL (if applicable).
+Success Criteria:
+Users can manage product, service, and educational categories independently via three tabs.
+Four-level hierarchy is enforced.
+Editable tree view allows full control over category structure.
+All existing features (add/edit/delete, modals, validation) are preserved.
+UI is intuitive, responsive, and accessible.
+Please implement this system, ensuring all specified features are included and no existing functionality is lost. Provide the complete code for templates, routes, and database changes, along with setup instructions.
+This prompt is detailed, covering all existing features, new requirements, and implementation guidance. It ensures the Replit Agent understands the context, preserves all functionality, and implements the new tree-based category management system with three separate tabs and tables. Let me know if you need further refinements or specific code snippets to assist with implementation!

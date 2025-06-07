@@ -1,0 +1,178 @@
+{% extends "admin_layout.html" %}
+{% block content %}
+<div class="container-fluid mt-3">
+    <h2 class="mb-4">مدیریت دیتابیس</h2>
+
+    <!-- PostgreSQL Status -->
+    <div class="card mb-3">
+        <div class="card-header">وضعیت PostgreSQL</div>
+        <div class="card-body">
+            <p><strong>نسخه:</strong> {{ pg_version }}</p>
+            <p><strong>هاست:</strong> {{ pg_host }}</p>
+            <p><strong>دیتابیس:</strong> {{ pg_database }}</p>
+            <p><strong>کاربر:</strong> {{ pg_user }}</p>
+        </div>
+    </div>
+
+    <!-- Database Statistics -->
+    <div class="card mb-3">
+        <div class="card-header">آمار پایگاه داده</div>
+        <div class="card-body">
+            <ul class="list-group">
+                {% for table_name, count in table_counts.items() %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ table_name }}
+                    <span class="badge bg-primary rounded-pill">{{ count }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Tabs for Tables and Structures -->
+    <ul class="nav nav-tabs" id="databaseTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tables-tab" data-bs-toggle="tab" data-bs-target="#tables" type="button" role="tab">جداول</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="structures-tab" data-bs-toggle="tab" data-bs-target="#structures" type="button" role="tab">ساختارها</button>
+        </li>
+    </ul>
+    <div class="tab-content" id="databaseTabsContent">
+        <!-- Tables Tab -->
+        <div class="tab-pane fade show active" id="tables" role="tabpanel">
+            <div class="card mt-3">
+                <div class="card-body">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>نام جدول</th>
+                                <th>تعداد رکوردها</th>
+                                <th>عملیات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for table_name, count in table_counts.items() %}
+                            <tr>
+                                <td>{{ table_name }}</td>
+                                <td>{{ count }}</td>
+                                <td>
+                                    <a href="{{ url_for('admin_view_table', table=table_name) }}" class="btn btn-sm btn-info">
+                                        <i class="bi bi-eye"></i> مشاهده
+                                    </a>
+                                    <form action="{{ url_for('admin_database_fix', table=table_name) }}" method="post" style="display: inline;">
+                                        <button type="submit" class="btn btn-sm btn-warning">
+                                            <i class="bi bi-wrench"></i> اصلاح
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <!-- Structures Tab -->
+        <div class="tab-pane fade" id="structures" role="tabpanel">
+            <div class="card mt-3">
+                <div class="card-body">
+                    <div class="accordion" id="structuresAccordion">
+                        {% for table_name, columns in table_structures.items() %}
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="heading-{{ table_name }}">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ table_name }}">
+                                    {{ table_name }}
+                                </button>
+                            </h2>
+                            <div id="collapse-{{ table_name }}" class="accordion-collapse collapse" data-bs-parent="#structuresAccordion">
+                                <div class="accordion-body">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>نام ستون</th>
+                                                <th>نوع داده</th>
+                                                <th>اجباری</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for column in columns %}
+                                            <tr>
+                                                <td>{{ column.name }}</td>
+                                                <td>{{ column.type }}</td>
+                                                <td>{{ 'بله' if not column.nullable else 'خیر' }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SQL Query Modal -->
+    <div class="mt-3">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#sqlModal">
+            اجرای کوئری SQL
+        </button>
+    </div>
+    <div class="modal fade" id="sqlModal" tabindex="-1" aria-labelledby="sqlModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="sqlModalLabel">اجرای کوئری SQL</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="{{ url_for('execute_sql') }}" method="post">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="sql_query" class="form-label">کوئری SQL</label>
+                            <textarea class="form-control" id="sql_query" name="sql_query" rows="5" required></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">بستن</button>
+                        <button type="submit" class="btn btn-primary">اجرا</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- SQL Query Results -->
+    {% if sql_results is defined %}
+    <div class="card mt-3">
+        <div class="card-header">نتایج کوئری SQL</div>
+        <div class="card-body">
+            {% if sql_results %}
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        {% for column in sql_columns %}
+                        <th>{{ column }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in sql_results %}
+                    <tr>
+                        {% for column in sql_columns %}
+                        <td>{{ row[column] }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>هیچ نتیجه‌ای یافت نشد.</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

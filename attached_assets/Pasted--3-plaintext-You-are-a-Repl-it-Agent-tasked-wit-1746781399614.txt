@@ -1,0 +1,102 @@
+
+### پرامپت 3: داده‌های نمونه و بهبود پایگاه داده
+```plaintext
+You are a Repl.it Agent tasked with adding sample data to the RFCBot Telegram bot’s PostgreSQL database and improving database methods for better NULL checking. The bot, built with aiogram, serves as a catalog for radio frequency and telecommunications devices for Persian users. Focus on populating the database with sample categories, products, services, media, and inquiries to demonstrate all functionality without user input, and fix NULL issues in `database.py`. Do not add new features or reference SQLite3.
+
+### Project Overview
+- **Purpose**: Fully demonstrate bot and admin panel functionality with sample data.
+- **Priority**: Add sample data and improve `database.py`.
+
+### Database (PostgreSQL)
+- **categories**, **products**, **services**, **product_media**, **service_media** (as above).
+- **inquiries**:
+  ```sql
+  CREATE TABLE inquiries (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      description TEXT,
+      product_id INTEGER,
+      service_id INTEGER,
+      date TEXT NOT NULL,
+      CONSTRAINT fk_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
+      CONSTRAINT fk_service FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE SET NULL
+  );
+  ```
+- **educational_content**:
+  ```sql
+  CREATE TABLE educational_content (
+      id SERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      category TEXT NOT NULL,
+      type TEXT NOT NULL
+  );
+  ```
+- **pages**:
+  ```sql
+  CREATE TABLE pages (
+      id SERIAL PRIMARY KEY,
+      slug TEXT NOT NULL UNIQUE,
+      title TEXT NOT NULL,
+      content TEXT
+  );
+  ```
+
+### Tasks
+1. **Add Sample Data**:
+   - Insert atleast 20 sample data for each tablr 4-level categories, products, services, media, inquiries, educational content, and pages:
+     ```sql
+     -- Categories (Products)
+     INSERT INTO categories (name, cat_type) VALUES ('محصولات', 'product') RETURNING id;
+     INSERT INTO categories (name, parent_id, cat_type) VALUES ('دستگاه‌های رادیوفرکانسی', 1, 'product') RETURNING id;
+     INSERT INTO categories (name, parent_id, cat_type) VALUES ('اسیلوسکوپ', 2, 'product') RETURNING id;
+     INSERT INTO categories (name, parent_id, cat_type) VALUES ('اسیلوسکوپ اچ‌پی PPU400', 3, 'product');
+     -- Categories (Services)
+     INSERT INTO categories (name, cat_type) VALUES ('خدمات', 'service') RETURNING id;
+     INSERT INTO categories (name, parent_id, cat_type) VALUES ('تست و تعمیر دستگاه‌های رادیوفرکانسی', 5, 'service') RETURNING id;
+     INSERT INTO categories (name, parent_id, cat_type) VALUES ('تعمیر اسیلوسکوپ', 6, 'service') RETURNING id;
+     INSERT INTO categories (name, parent_id, cat_type) VALUES ('تعمیر اساسی اسیلوسکوپ اچ‌پی 400', 7, 'service');
+     -- Products
+     INSERT INTO products (name, price, description, category_id) VALUES (
+         'اسیلوسکوپ اچ‌پی PPU400', 5000, 'اسیلوسکوپ پیشرفته برای تست فرکانس', 4
+     ) RETURNING id;
+     INSERT INTO product_media (product_id, file_id, file_type) VALUES (1, 'sample_photo_id_1', 'photo');
+     INSERT INTO product_media (product_id, file_id, file_type) VALUES (1, 'sample_video_id_1', 'video');
+     -- Services
+     INSERT INTO services (name, price, description, category_id) VALUES (
+         'تعمیر اسیلوسکوپ اچ‌پی 400', 2000, 'تعمیر کامل با گارانتی', 8
+     ) RETURNING id;
+     INSERT INTO service_media (service_id, file_id, file_type) VALUES (1, 'sample_photo_id_2', 'photo');
+     -- Inquiries
+     INSERT INTO inquiries (user_id, name, phone, description, product_id, date) VALUES (
+         123, 'علی محمدی', '09123456789', 'درخواست قیمت', 1, '2025-05-09'
+     );
+     -- Educational Content
+     INSERT INTO educational_content (title, content, category, type) VALUES (
+         'راهنمای استفاده از اسیلوسکوپ', 'متن آموزشی...', 'اسیلوسکوپ', 'text'
+     );
+     -- Pages
+     INSERT INTO pages (slug, title, content) VALUES ('faq', 'سوالات متداول', 'سوالات متداول فروشگاه...');
+     ```
+2. **Improve Database Methods**:
+   - Add NULL checks in `database.py`:
+     ```python
+     import psycopg2
+     def get_product(product_id):
+         with psycopg2.connect(os.getenv('DATABASE_URL')) as conn:
+             with conn.cursor() as cur:
+                 cur.execute("SELECT * FROM products WHERE id = %s", (product_id,))
+                 return cur.fetchone() or None
+     ```
+3. **Verify Data**:
+   - Ensure sample data displays correctly in bot and admin panel (`admin_products.html`, `admin_inquiries.html`).
+
+### Deliverables
+- SQL script for sample data.
+- Updated `database.py` with NULL checks.
+- Report confirming sample data functionality.
+```
+
+---

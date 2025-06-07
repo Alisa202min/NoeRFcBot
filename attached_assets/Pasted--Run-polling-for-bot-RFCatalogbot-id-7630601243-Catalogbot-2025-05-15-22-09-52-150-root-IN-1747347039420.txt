@@ -1,0 +1,29 @@
+ Run polling for bot @RFCatalogbot id=7630601243 - 'Catalogbot'
+2025-05-15 22:09:52,150 - root - INFO - Contact information requested by user: 7625738591
+2025-05-15 22:09:53,427 - root - INFO - Contact information sent successfully
+2025-05-15 22:09:53,427 - aiogram.event - INFO - Update id=542671862 is handled. Duration 1279 ms by bot id=7630601243
+2025-05-15 22:09:55,336 - root - INFO - About information requested by user: 7625738591
+2025-05-15 22:09:56,291 - root - INFO - About information sent successfully
+2025-05-15 22:09:56,291 - aiogram.event - INFO - Update id=542671863 is handled. Duration 956 ms by bot id=7630601243
+2025-05-15 22:10:14,014 - root - INFO - Educational content requested by user: 7625738591
+2025-05-15 22:10:14,108 - root - ERROR - Error in cmd_education: 1 validation error for InlineKeyboardButton
+text
+  Input should be a valid string [type=string_type, input_value=RealDictRow([('id', 2), (... ('children_count', 2)]), input_type=RealDictRow]
+    For further information visit https://errors.pydantic.dev/2.11/v/string_type
+Traceback (most recent call last):
+  File "/home/runner/workspace/handlers.py", line 170, in cmd_education
+    keyboard = education_categories_keyboard(categories)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/keyboards.py", line 173, in education_categories_keyboard
+    keyboard.append([InlineKeyboardButton(text=category, callback_data=callback_data)])
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/pydantic/main.py", line 253, in __init__
+    validated_self = self.__pydantic_validator__.validate_python(data, self_instance=self)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pydantic_core._pydantic_core.ValidationError: 1 validation error for InlineKeyboardButton
+text
+  Input should be a valid string [type=string_type, input_value=RealDictRow([('id', 2), (... ('children_count', 2)]), input_type=RealDictRow]
+    For further information visit https://errors.pydantic.dev/2.11/v/string_type
+
+2025-05-15 22:10:14,302 - aiogram.event - INFO - Update id=542671864 is handled. Duration 288 ms by bot id=7630601243
+درباره RFCBot

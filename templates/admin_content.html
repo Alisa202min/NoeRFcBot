@@ -1,0 +1,115 @@
+{% extends "admin_layout.html" %}
+{% set active_page = 'content' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h4>مدیریت محتوای ثابت</h4>
+    </div>
+    <div class="card-body">
+        <ul class="nav nav-tabs" id="contentTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="contact-tab" data-bs-toggle="tab" data-bs-target="#contact" type="button" role="tab">
+                    تماس با ما
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="about-tab" data-bs-toggle="tab" data-bs-target="#about" type="button" role="tab">
+                    درباره ما
+                </button>
+            </li>
+        </ul>
+        
+        <div class="tab-content p-3" id="contentTabsContent">
+            <!-- Contact Content -->
+            <div class="tab-pane fade show active" id="contact" role="tabpanel">
+                <form action="{{ url_for('admin_static_content') }}" method="post">
+                    <input type="hidden" name="content_type" value="contact">
+                    
+                    <div class="mb-3">
+                        <label for="contactContent" class="form-label">محتوای صفحه تماس با ما</label>
+                        <textarea class="form-control" id="contactContent" name="content" rows="12">{{ contact_content.content if contact_content else '' }}</textarea>
+                        <div class="form-text">
+                            می‌توانید از تگ‌های HTML برای قالب‌بندی محتوا استفاده کنید. مثال:
+                            <code>&lt;h2&gt;عنوان&lt;/h2&gt; &lt;p&gt;متن پاراگراف&lt;/p&gt;</code>
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-4">
+                        <div class="card-header">پیش‌نمایش</div>
+                        <div class="card-body">
+                            <div id="contactPreview">
+                                {{ contact_content.content|safe if contact_content else '<div class="alert alert-info">محتوایی برای نمایش وجود ندارد.</div>'|safe }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> به‌روزرسانی محتوای تماس با ما
+                    </button>
+                </form>
+            </div>
+            
+            <!-- About Content -->
+            <div class="tab-pane fade" id="about" role="tabpanel">
+                <form action="{{ url_for('admin_static_content') }}" method="post">
+                    <input type="hidden" name="content_type" value="about">
+                    
+                    <div class="mb-3">
+                        <label for="aboutContent" class="form-label">محتوای صفحه درباره ما</label>
+                        <textarea class="form-control" id="aboutContent" name="content" rows="12">{{ about_content.content if about_content else '' }}</textarea>
+                        <div class="form-text">
+                            می‌توانید از تگ‌های HTML برای قالب‌بندی محتوا استفاده کنید. مثال:
+                            <code>&lt;h2&gt;عنوان&lt;/h2&gt; &lt;p&gt;متن پاراگراف&lt;/p&gt;</code>
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-4">
+                        <div class="card-header">پیش‌نمایش</div>
+                        <div class="card-body">
+                            <div id="aboutPreview">
+                                {{ about_content.content|safe if about_content else '<div class="alert alert-info">محتوایی برای نمایش وجود ندارد.</div>'|safe }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> به‌روزرسانی محتوای درباره ما
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.4.0/purify.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Live preview for contact content
+    const contactTextarea = document.getElementById('contactContent');
+    const contactPreview = document.getElementById('contactPreview');
+    
+    if (contactTextarea && contactPreview) {
+        contactTextarea.addEventListener('input', function() {
+            contactPreview.innerHTML = this.value 
+                ? DOMPurify.sanitize(this.value, { ALLOWED_TAGS: ['h2', 'p', 'strong', 'em', 'ul', 'li', 'a'], ALLOWED_ATTR: ['href'] })
+                : '<div class="alert alert-info">محتوایی برای نمایش وجود ندارد.</div>';
+        });
+    }
+    
+    // Live preview for about content
+    const aboutTextarea = document.getElementById('aboutContent');
+    const aboutPreview = document.getElementById('aboutPreview');
+    
+    if (aboutTextarea && aboutPreview) {
+        aboutTextarea.addEventListener('input', function() {
+            aboutPreview.innerHTML = this.value 
+                ? DOMPurify.sanitize(this.value, { ALLOWED_TAGS: ['h2', 'p', 'strong', 'em', 'ul', 'li', 'a'], ALLOWED_ATTR: ['href'] })
+                : '<div class="alert alert-info">محتوایی برای نمایش وجود ندارد.</div>';
+        });
+    }
+});
+</script>
+{% endblock %})themp

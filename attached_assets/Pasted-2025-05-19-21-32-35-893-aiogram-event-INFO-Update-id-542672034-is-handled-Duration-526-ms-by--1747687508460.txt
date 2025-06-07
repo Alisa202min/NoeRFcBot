@@ -1,0 +1,19 @@
+2025-05-19 21:32:35,893 - aiogram.event - INFO - Update id=542672034 is handled. Duration 526 ms by bot id=7630601243
+2025-05-19 21:32:39,084 - root - INFO - Selected educational category ID: 9
+2025-05-19 21:32:39,205 - root - INFO - All educational categories: [RealDictRow([('id', 2), ('name', 'آنتن\u200cها'), ('parent_id', None), ('parent_name', None), ('content_count', 0), ('children_count', 2)]), RealDictRow([('id', 3), ('name', 'تعمیر و نگهداری'), ('parent_id', None), ('parent_name', None), ('content_count', 0), ('children_count', 2)]), RealDictRow([('id', 1), ('name', 'مبانی ارتباطات رادیویی'), ('parent_id', None), ('parent_name', None), ('content_count', 0), ('children_count', 2)]), RealDictRow([('id', 7), ('name', 'استانداردهای ارتباطی'), ('parent_id', 1), ('parent_name', 'مبانی ارتباطات رادیویی'), ('content_count', 0), ('children_count', 0)]), RealDictRow([('id', 6), ('name', 'سیگنال\u200cهای رادیویی'), ('parent_id', 1), ('parent_name', 'مبانی ارتباطات رادیویی'), ('content_count', 0), ('children_count', 0)]), RealDictRow([('id', 4), ('name', 'آنتن\u200cهای دایرکشنال'), ('parent_id', 2), ('parent_name', 'آنتن\u200cها'), ('content_count', 0), ('children_count', 0)]), RealDictRow([('id', 5), ('name', 'آنتن\u200cهای همه\u200cجهته'), ('parent_id', 2), ('parent_name', 'آنتن\u200cها'), ('content_count', 0), ('children_count', 0)]), RealDictRow([('id', 9), ('name', 'عیب\u200cیابی تجهیزات'), ('parent_id', 3), ('parent_name', 'تعمیر و نگهداری'), ('content_count', 0), ('children_count', 0)]), RealDictRow([('id', 8), ('name', 'نگهداری پیشگیرانه'), ('parent_id', 3), ('parent_name', 'تعمیر و نگهداری'), ('content_count', 0), ('children_count', 0)])]
+2025-05-19 21:32:39,206 - root - INFO - Category name: عیب‌یابی تجهیزات
+2025-05-19 21:32:39,265 - root - ERROR - خطا در نمایش محتوای آموزشی دسته‌بندی: column ec.content_type does not exist
+LINE 2: ... SELECT ec.id, ec.title, ec.content, ec.category, ec.content...
+                                                             ^
+
+2025-05-19 21:32:39,265 - root - ERROR - Traceback (most recent call last):
+  File "/home/runner/workspace/handlers.py", line 300, in callback_educational_category
+    content_list = db.get_all_educational_content(category_id=category_id)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/database.py", line 918, in get_all_educational_content
+    cursor.execute(query, params)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/psycopg2/extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: column ec.content_type does not exist
+LINE 2: ... SELECT ec.id, ec.title, ec.content, ec.category, ec.content...

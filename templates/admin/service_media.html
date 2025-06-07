@@ -1,0 +1,263 @@
+{% extends "admin_layout.html" %}
+
+{% block title %}رسانه‌های خدمت: {{ service.name }} - RFCBot{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_index') }}">داشبورد ادمین</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_services') }}">خدمات</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">رسانه‌های خدمت: {{ service.name }}</li>
+                </ol>
+            </nav>
+            
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">رسانه‌های خدمت: {{ service.name }}</h5>
+                    <a href="{{ url_for('admin_services') }}" class="btn btn-sm btn-light">
+                        <i class="bi bi-arrow-left"></i> بازگشت به لیست خدمات
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                    <div class="messages mb-4">
+                        {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h6 class="mb-0">اطلاعات خدمت</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>نام:</strong> {{ service.name }}</p>
+                                    <p><strong>قیمت:</strong> {{ '{:,}'.format(service.price) }} تومان</p>
+                                    <p><strong>دسته‌بندی:</strong> {{ service.category.name if service.category else 'بدون دسته‌بندی' }}</p>
+                                    <p><strong>تعداد رسانه‌ها:</strong> {{ media|length }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h6>مدیریت رسانه‌ها</h6>
+                    <form id="mediaUploadForm" method="POST" action="{{ url_for('admin_services', action='upload_media') }}" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="service_id" value="{{ service.id }}">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="file" class="form-label">افزودن فایل جدید</label>
+                                    <input type="file" class="form-control" id="file" name="file" accept="image/*,video/mp4" multiple required onchange="previewMediaFile(this)">
+                                    <div class="form-text">
+                                        <ul class="mb-0 mt-2">
+                                            <li>می‌توانید چندین فایل تصویر یا ویدیو را همزمان انتخاب کنید.</li>
+                                            <li>فرمت‌های مجاز: JPG، PNG، GIF و MP4</li>
+                                            <li>حداکثر اندازه هر فایل: 16 مگابایت</li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="file_type" class="form-label">نوع رسانه</label>
+                                    <select class="form-select" id="file_type" name="file_type" required>
+                                        <option value="photo">تصویر</option>
+                                        <option value="video">ویدیو</option>
+                                    </select>
+                                </div>
+
+                                <div id="mediaPreviewContainer" class="mt-2" style="display: none;">
+                                    <div class="card p-2">
+                                        <div id="preview-container" class="d-flex flex-wrap">
+                                            <!-- پیش‌نمایش‌ها اینجا اضافه می‌شوند -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 d-flex align-items-end">
+                                <button type="button" class="btn btn-primary w-100" id="uploadBtn" onclick="uploadMedia()">
+                                    <i class="bi bi-upload"></i> آپلود فایل‌ها
+                                </button>
+                            </div>
+                        </div>
+                        <div class="progress mt-3 mb-3">
+                            <div id="mediaUploadProgress" class="progress-bar bg-success" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <div id="mediaUploadStatus" class="text-muted mb-3"></div>
+                    </form>
+
+                    <div class="alert alert-success" id="uploadSuccessAlert" style="display: none;" role="alert">
+                        <i class="bi bi-check-circle-fill me-2"></i> فایل‌ها با موفقیت آپلود شدند.
+                    </div>
+
+                    <div class="row">
+                        {% if media|length > 0 %}
+                            {% for item in media %}
+                            <div class="col-md-3 mb-4">
+                                <div class="card h-100">
+                                    {% if item.file_type == 'photo' %}
+                                    <img src="/static/{{ item.file_id }}" class="card-img-top service-img-preview" alt="تصویر خدمت">
+                                    {% elif item.file_type == 'video' %}
+                                    <div class="ratio ratio-16x9">
+                                        <video controls>
+                                            <source src="/static/{{ item.file_id }}" type="video/mp4">
+                                            مرورگر شما از پخش ویدیویی پشتیبانی نمی‌کند.
+                                        </video>
+                                    </div>
+                                    {% endif %}
+                                    <div class="card-body">
+                                        <p class="card-text text-center">
+                                            <span class="badge bg-secondary">{{ item.file_type }}</span>
+                                        </p>
+                                    </div>
+                                    <div class="card-footer">
+                                        <form method="post" action="{{ url_for('admin_services', action='delete_media') }}">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="media_id" value="{{ item.id }}">
+                                            <input type="hidden" name="service_id" value="{{ service.id }}">
+                                            <button type="submit" class="btn btn-sm btn-danger w-100">
+                                                <i class="bi bi-trash"></i> حذف
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="col-12">
+                                <div class="alert alert-info">
+                                    هیچ رسانه‌ای برای این خدمت وجود ندارد.
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function previewMediaFile(input) {
+    const container = document.getElementById('mediaPreviewContainer');
+    const previewContainer = document.getElementById('preview-container');
+    previewContainer.innerHTML = '';
+
+    if (input.files.length > 0) {
+        container.style.display = 'block';
+        for (let file of input.files) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const previewItem = document.createElement('div');
+                previewItem.className = 'preview-item m-2 text-center';
+
+                if (file.type.startsWith('image/')) {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'img-thumbnail';
+                    img.style.maxHeight = '150px';
+                    img.style.maxWidth = '150px';
+                    previewItem.appendChild(img);
+                } else if (file.type.startsWith('video/')) {
+                    const video = document.createElement('div');
+                    video.className = 'video-preview bg-dark d-flex align-items-center justify-content-center rounded';
+                    video.style.width = '150px';
+                    video.style.height = '150px';
+                    const icon = document.createElement('i');
+                    icon.className = 'bi bi-play-circle-fill text-white';
+                    icon.style.fontSize = '3rem';
+                    video.appendChild(icon);
+                    previewItem.appendChild(video);
+                }
+
+                const fileNameDiv = document.createElement('div');
+                fileNameDiv.className = 'small mt-1 text-truncate';
+                fileNameDiv.style.maxWidth = '150px';
+                fileNameDiv.textContent = file.name;
+
+                const fileSize = file.size;
+                let sizeText = fileSize < 1024 ? fileSize + ' B' :
+                              fileSize < 1024 * 1024 ? (fileSize / 1024).toFixed(1) + ' KB' :
+                              (fileSize / (1024 * 1024)).toFixed(1) + ' MB';
+
+                const fileSizeDiv = document.createElement('div');
+                fileSizeDiv.className = 'small text-muted';
+                fileSizeDiv.textContent = sizeText;
+
+                previewItem.appendChild(fileNameDiv);
+                previewItem.appendChild(fileSizeDiv);
+                previewContainer.appendChild(previewItem);
+            };
+            reader.readAsDataURL(file);
+        }
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+function uploadMedia() {
+    const uploadForm = document.getElementById('mediaUploadForm');
+    const formData = new FormData(uploadForm);
+    const fileInput = document.getElementById('file');
+    const progress = document.getElementById('mediaUploadProgress');
+    const status = document.getElementById('mediaUploadStatus');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const successAlert = document.getElementById('uploadSuccessAlert');
+
+    if (!fileInput.files || fileInput.files.length === 0) {
+        alert('لطفاً حداقل یک فایل انتخاب کنید.');
+        return false;
+    }
+
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = '<i class="bi bi-hourglass"></i> در حال آپلود...';
+
+    const xhr = new XMLHttpRequest();
+    xhr.upload.addEventListener('progress', function(e) {
+        if (e.lengthComputable) {
+            const percentComplete = Math.round((e.loaded / e.total) * 100);
+            progress.style.width = percentComplete + '%';
+            status.textContent = 'در حال آپلود فایل‌ها... ' + percentComplete + '%';
+        }
+    });
+
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = '<i class="bi bi-upload"></i> آپلود فایل‌ها';
+            if (xhr.status === 200) {
+                progress.style.width = '100%';
+                status.textContent = 'فایل‌ها با موفقیت آپلود شدند.';
+                successAlert.style.display = 'block';
+                fileInput.value = '';
+                document.getElementById('mediaPreviewContainer').style.display = 'none';
+                setTimeout(() => window.location.reload(), 2000);
+            } else {
+                progress.className = 'progress-bar bg-danger';
+                status.textContent = 'خطا در آپلود فایل‌ها: ' + (xhr.responseText || 'لطفاً دوباره تلاش کنید.');
+            }
+        }
+    };
+
+    xhr.open('POST', uploadForm.action, true);
+    xhr.send(formData);
+
+    progress.style.width = '0%';
+    status.textContent = 'در حال شروع آپلود...';
+    progress.className = 'progress-bar bg-success';
+}
+</script>
+{% endblock %}

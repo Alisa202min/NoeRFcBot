@@ -1,173 +1,518 @@
 {% extends "admin_layout.html" %}
-{% set active_page = 'categories' %}
+
+{% block title %}مدیریت دسته‌بندی‌ها - RFCBot{% endblock %}
 
 {% block content %}
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h4>مدیریت دسته‌بندی‌ها</h4>
-        <a href="/admin/categories/add" class="btn btn-primary">
-            <i class="bi bi-plus-circle"></i> افزودن دسته‌بندی جدید
-        </a>
-    </div>
-    <div class="card-body">
-        <ul class="nav nav-tabs mb-3" id="categoryTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="products-tab" data-bs-toggle="tab" data-bs-target="#products" type="button" role="tab">
-                    دسته‌بندی محصولات
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="services-tab" data-bs-toggle="tab" data-bs-target="#services" type="button" role="tab">
-                    دسته‌بندی خدمات
-                </button>
-            </li>
-        </ul>
-        
-        <div class="tab-content" id="categoryTabsContent">
-            <div class="tab-pane fade show active" id="products" role="tabpanel">
-                {% if product_categories %}
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>شناسه</th>
-                                    <th>نام</th>
-                                    <th>دسته‌بندی والد</th>
-                                    <th>محصولات</th>
-                                    <th>عملیات</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for category in product_categories %}
-                                    <tr>
-                                        <td>{{ category.id }}</td>
-                                        <td>{{ category.name }}</td>
-                                        <td>{{ category.parent_name or '-' }}</td>
-                                        <td>{{ category.product_count }}</td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                <a href="/admin/categories/edit/{{ category.id }}" class="btn btn-primary">
-                                                    <i class="bi bi-pencil"></i>
-                                                </a>
-                                                <a href="/admin/categories/subcategories/{{ category.id }}" class="btn btn-info">
-                                                    <i class="bi bi-folder"></i>
-                                                </a>
-                                                <button type="button" class="btn btn-danger" 
-                                                        data-bs-toggle="modal" 
-                                                        data-bs-target="#deleteModal" 
-                                                        data-category-id="{{ category.id }}"
-                                                        data-category-name="{{ category.name }}">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <div class="alert alert-info">
-                        هیچ دسته‌بندی محصولی تعریف نشده است.
-                        <a href="/admin/categories/add" class="alert-link">افزودن دسته‌بندی جدید</a>
-                    </div>
-                {% endif %}
-            </div>
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-4">
+                <i class="bi bi-folder"></i> مدیریت طبقه‌بندی
+            </h2>
             
-            <div class="tab-pane fade" id="services" role="tabpanel">
-                {% if service_categories %}
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>شناسه</th>
-                                    <th>نام</th>
-                                    <th>دسته‌بندی والد</th>
-                                    <th>خدمات</th>
-                                    <th>عملیات</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for category in service_categories %}
-                                    <tr>
-                                        <td>{{ category.id }}</td>
-                                        <td>{{ category.name }}</td>
-                                        <td>{{ category.parent_name or '-' }}</td>
-                                        <td>{{ category.product_count }}</td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                <a href="/admin/categories/edit/{{ category.id }}" class="btn btn-primary">
-                                                    <i class="bi bi-pencil"></i>
-                                                </a>
-                                                <a href="/admin/categories/subcategories/{{ category.id }}" class="btn btn-info">
-                                                    <i class="bi bi-folder"></i>
-                                                </a>
-                                                <button type="button" class="btn btn-danger" 
-                                                        data-bs-toggle="modal" 
-                                                        data-bs-target="#deleteModal" 
-                                                        data-category-id="{{ category.id }}"
-                                                        data-category-name="{{ category.name }}">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
+            <!-- تب‌های مدیریت دسته‌بندی -->
+            <ul class="nav nav-tabs mb-4" id="categoryTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="product-categories-tab" data-bs-toggle="tab" 
+                            data-bs-target="#product-categories" type="button" role="tab" 
+                            aria-controls="product-categories" aria-selected="true">
+                        <i class="bi bi-box"></i> دسته‌بندی محصولات
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="service-categories-tab" data-bs-toggle="tab" 
+                            data-bs-target="#service-categories" type="button" role="tab" 
+                            aria-controls="service-categories" aria-selected="false">
+                        <i class="bi bi-tools"></i> دسته‌بندی خدمات
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="education-categories-tab" data-bs-toggle="tab" 
+                            data-bs-target="#education-categories" type="button" role="tab" 
+                            aria-controls="education-categories" aria-selected="false">
+                        <i class="bi bi-book"></i> دسته‌بندی محتوای آموزشی
+                    </button>
+                </li>
+            </ul>
+            
+            <!-- محتوای تب‌ها -->
+            <div class="tab-content" id="categoryTabsContent">
+                <!-- تب دسته‌بندی محصولات -->
+                <div class="tab-pane fade show active" id="product-categories" role="tabpanel" aria-labelledby="product-categories-tab">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">دسته‌بندی‌های محصولات</h5>
+                            <button type="button" class="btn btn-light" data-bs-toggle="modal" data-bs-target="#addCategoryModal" 
+                                    onclick="setFormType('ProductCategory')">
+                                <i class="bi bi-plus-circle"></i> افزودن دسته‌بندی جدید
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            {% if product_categories %}
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>شناسه</th>
+                                            <th>نام</th>
+                                            <th>والد</th>
+                                            <th>عملیات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for category in product_categories %}
+                                        <tr>
+                                            <td>{{ category.id }}</td>
+                                            <td>{{ category.name }}</td>
+                                            <td>
+                                                {% if category.parent %}
+                                                {{ category.parent.name }}
+                                                {% else %}
+                                                -
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <button type="button" class="btn btn-sm btn-warning" 
+                                                            onclick="editCategory({{ category.id }}, '{{ category.name | e }}', 'ProductCategory', {% if category.parent_id %}{{ category.parent_id }}{% else %}null{% endif %})">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-sm btn-danger" 
+                                                            onclick="confirmDelete({{ category.id }}, '{{ category.name | e }}', 'ProductCategory')">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p class="text-muted">هیچ دسته‌بندی محصولی یافت نشد.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- تب دسته‌بندی خدمات -->
+                <div class="tab-pane fade" id="service-categories" role="tabpanel" aria-labelledby="service-categories-tab">
+                    <div class="card">
+                        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">دسته‌بندی‌های خدمات</h5>
+                            <button type="button" class="btn btn-light" data-bs-toggle="modal" data-bs-target="#addCategoryModal"
+                                    onclick="setFormType('ServiceCategory')">
+                                <i class="bi bi-plus-circle"></i> افزودن دسته‌بندی جدید
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            {% if service_categories %}
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>شناسه</th>
+                                            <th>نام</th>
+                                            <th>والد</th>
+                                            <th>عملیات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for category in service_categories %}
+                                        <tr>
+                                            <td>{{ category.id }}</td>
+                                            <td>{{ category.name }}</td>
+                                            <td>
+                                                {% if category.parent %}
+                                                {{ category.parent.name }}
+                                                {% else %}
+                                                -
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <button type="button" class="btn btn-sm btn-warning" 
+                                                            onclick="editCategory({{ category.id }}, '{{ category.name | e }}', 'ServiceCategory', {% if category.parent_id %}{{ category.parent_id }}{% else %}null{% endif %})">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-sm btn-danger" 
+                                                            onclick="confirmDelete({{ category.id }}, '{{ category.name | e }}', 'ServiceCategory')">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p class="text-muted">هیچ دسته‌بندی خدماتی یافت نشد.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- تب دسته‌بندی محتوای آموزشی -->
+                <div class="tab-pane fade" id="education-categories" role="tabpanel" aria-labelledby="education-categories-tab">
+                    <div class="card">
+                        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">دسته‌بندی‌های محتوای آموزشی</h5>
+                            <button type="button" class="btn btn-light" data-bs-toggle="modal" data-bs-target="#addCategoryModal"
+                                    onclick="setFormType('EducationalCategory')">
+                                <i class="bi bi-plus-circle"></i> افزودن دسته‌بندی جدید
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            {% if educational_categories %}
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>شناسه</th>
+                                            <th>نام</th>
+                                            <th>والد</th>
+                                            <th>عملیات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for category in educational_categories %}
+                                        <tr>
+                                            <td>{{ category.id }}</td>
+                                            <td>{{ category.name }}</td>
+                                            <td>
+                                                {% if category.parent %}
+                                                {{ category.parent.name }}
+                                                {% else %}
+                                                -
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <button type="button" class="btn btn-sm btn-warning" 
+                                                            onclick="editCategory({{ category.id }}, '{{ category.name | e }}', 'EducationalCategory', {% if category.parent_id %}{{ category.parent_id }}{% else %}null{% endif %})">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-sm btn-danger" 
+                                                            onclick="confirmDelete({{ category.id }}, '{{ category.name | e }}', 'EducationalCategory')">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p class="text-muted">هیچ دسته‌بندی محتوای آموزشی یافت نشد.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- نمایش ساختار درختی دسته‌بندی‌ها -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">ساختار درختی دسته‌بندی‌ها</h5>
+                </div>
+                <div class="card-body">
+                    <h6>دسته‌بندی محصولات:</h6>
+                    <ul class="list-group mb-4">
+                        {% if product_tree %}
+                        {% for item in product_tree %}
+                        <li class="list-group-item">
+                            <i class="bi bi-folder"></i> {{ item.name }}
+                            {% if item.children %}
+                            <ul class="list-group mt-2">
+                                {% for child in item.children %}
+                                <li class="list-group-item">
+                                    <i class="bi bi-file"></i> {{ child.name }}
+                                    {% if child.children %}
+                                    <ul class="list-group mt-2">
+                                        {% for grandchild in child.children %}
+                                        <li class="list-group-item">
+                                            <i class="bi bi-file"></i> {{ grandchild.name }}
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                    {% endif %}
+                                </li>
                                 {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <div class="alert alert-info">
-                        هیچ دسته‌بندی خدماتی تعریف نشده است.
-                        <a href="/admin/categories/add" class="alert-link">افزودن دسته‌بندی جدید</a>
-                    </div>
-                {% endif %}
+                            </ul>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                        {% else %}
+                        <li class="list-group-item text-muted">هیچ دسته‌بندی محصولی یافت نشد.</li>
+                        {% endif %}
+                    </ul>
+                    
+                    <h6>دسته‌بندی خدمات:</h6>
+                    <ul class="list-group mb-4">
+                        {% if service_tree %}
+                        {% for item in service_tree %}
+                        <li class="list-group-item">
+                            <i class="bi bi-folder"></i> {{ item.name }}
+                            {% if item.children %}
+                            <ul class="list-group mt-2">
+                                {% for child in item.children %}
+                                <li class="list-group-item">
+                                    <i class="bi bi-file"></i> {{ child.name }}
+                                    {% if child.children %}
+                                    <ul class="list-group mt-2">
+                                        {% for grandchild in child.children %}
+                                        <li class="list-group-item">
+                                            <i class="bi bi-file"></i> {{ grandchild.name }}
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                    {% endif %}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                        {% else %}
+                        <li class="list-group-item text-muted">هیچ دسته‌بندی خدماتی یافت نشد.</li>
+                        {% endif %}
+                    </ul>
+                    
+                    <h6>دسته‌بندی محتوای آموزشی:</h6>
+                    <ul class="list-group mb-4">
+                        {% if educational_tree %}
+                        {% for item in educational_tree %}
+                        <li class="list-group-item">
+                            <i class="bi bi-folder"></i> {{ item.name }}
+                            {% if item.children %}
+                            <ul class="list-group mt-2">
+                                {% for child in item.children %}
+                                <li class="list-group-item">
+                                    <i class="bi bi-file"></i> {{ child.name }}
+                                    {% if child.children %}
+                                    <ul class="list-group mt-2">
+                                        {% for grandchild in child.children %}
+                                        <li class="list-group-item">
+                                            <i class="bi bi-file"></i> {{ grandchild.name }}
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                    {% endif %}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                        {% else %}
+                        <li class="list-group-item text-muted">هیچ دسته‌بندی محتوای آموزشی یافت نشد.</li>
+                        {% endif %}
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Delete Confirmation Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+<!-- Modal افزودن/ویرایش دسته‌بندی -->
+<div class="modal fade" id="addCategoryModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">تایید حذف</h5>
+                <h5 class="modal-title" id="categoryModalTitle">افزودن دسته‌بندی جدید</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                آیا از حذف دسته‌بندی "<span id="categoryName"></span>" اطمینان دارید؟
-                <div class="alert alert-warning mt-2">
-                    <i class="bi bi-exclamation-triangle"></i> هشدار: با حذف این دسته‌بندی، تمام زیردسته‌ها و محصولات/خدمات مرتبط نیز حذف خواهند شد.
-                </div>
+                <form id="categoryForm" method="post">
+                    <input type="hidden" id="categoryId" name="id">
+                    <input type="hidden" id="formAction" name="action" value="add">
+                    <input type="hidden" id="categoryType" name="categoryType" value="ProductCategory">
+                    
+                    <div class="mb-3">
+                        <label for="categoryName" class="form-label">نام دسته‌بندی</label>
+                        <input type="text" class="form-control" id="categoryName" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="parentCategory" class="form-label">دسته‌بندی والد (اختیاری)</label>
+                        <select class="form-select" id="parentCategory" name="parent_id">
+                            <option value="">بدون والد</option>
+                            <!-- لیست دسته‌بندی‌های محصول -->
+                            <optgroup label="دسته‌بندی‌های محصول" id="product-parent-options">
+                                {% for category in product_categories %}
+                                <option value="{{ category.id }}" data-type="ProductCategory">{{ category.name }}</option>
+                                {% endfor %}
+                            </optgroup>
+                            <!-- لیست دسته‌بندی‌های خدمات -->
+                            <optgroup label="دسته‌بندی‌های خدمات" id="service-parent-options">
+                                {% for category in service_categories %}
+                                <option value="{{ category.id }}" data-type="ServiceCategory">{{ category.name }}</option>
+                                {% endfor %}
+                            </optgroup>
+                            <!-- لیست دسته‌بندی‌های محتوای آموزشی -->
+                            <optgroup label="دسته‌بندی‌های محتوای آموزشی" id="education-parent-options">
+                                {% for category in educational_categories %}
+                                <option value="{{ category.id }}" data-type="EducationalCategory">{{ category.name }}</option>
+                                {% endfor %}
+                            </optgroup>
+                        </select>
+                    </div>
+                </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
-                <form id="deleteCategoryForm" method="post" action="/admin/categories/delete">
-                    <input type="hidden" id="categoryId" name="category_id" value="">
+                <button type="submit" class="btn btn-primary" form="categoryForm">ذخیره</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal تایید حذف -->
+<div class="modal fade" id="deleteCategoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">تایید حذف دسته‌بندی</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>آیا از حذف دسته‌بندی "<span id="deleteCategoryName"></span>" اطمینان دارید؟</p>
+                <p class="text-danger">توجه: با حذف این دسته‌بندی، تمام زیردسته‌های آن بی‌والد و اشیاء مرتبط بدون دسته‌بندی خواهند شد.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
+                <form id="deleteCategoryForm" method="post">
+                    <input type="hidden" id="deleteCategoryId" name="id">
+                    <input type="hidden" id="deleteCategoryType" name="categoryType" value="ProductCategory">
                     <button type="submit" class="btn btn-danger">حذف</button>
                 </form>
             </div>
         </div>
     </div>
 </div>
+
+<!-- نمایش پیام‌های فلش -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Setup delete modal
-        const deleteModal = document.getElementById('deleteModal');
-        if (deleteModal) {
-            deleteModal.addEventListener('show.bs.modal', function(event) {
-                const button = event.relatedTarget;
-                const categoryId = button.getAttribute('data-category-id');
-                const categoryName = button.getAttribute('data-category-name');
-                
-                document.getElementById('categoryId').value = categoryId;
-                document.getElementById('categoryName').textContent = categoryName;
-            });
+    // تنظیم نوع فرم و مسیر action
+    function setFormType(type) {
+        const categoryTypeInput = document.getElementById('categoryType');
+        const categoryForm = document.getElementById('categoryForm');
+        const formActionInput = document.getElementById('formAction');
+        categoryTypeInput.value = type;
+
+        // تنظیم مسیر action بر اساس نوع دسته‌بندی
+        if (type === 'ProductCategory') {
+            categoryForm.action = formActionInput.value === 'add' 
+                ? "{{ url_for('add_product_category') }}" 
+                : "{{ url_for('update_product_category') }}";
+        } else if (type === 'ServiceCategory') {
+            categoryForm.action = formActionInput.value === 'add' 
+                ? "{{ url_for('add_service_category') }}" 
+                : "{{ url_for('update_service_category') }}";
+        } else if (type === 'EducationalCategory') {
+            categoryForm.action = formActionInput.value === 'add' 
+                ? "{{ url_for('add_educational_category') }}" 
+                : "{{ url_for('update_educational_category') }}";
         }
+
+        updateParentCategoryOptions();
+    }
+
+    // به‌روزرسانی گزینه‌های دسته‌بندی والد بر اساس نوع انتخاب‌شده
+    function updateParentCategoryOptions() {
+        const categoryType = document.getElementById('categoryType').value;
+        const parentSelect = document.getElementById('parentCategory');
+        const options = parentSelect.querySelectorAll('option[data-type]');
+        const categoryId = document.getElementById('categoryId').value;
+
+        options.forEach(option => {
+            // فقط گزینه‌هایی که هم‌نوع هستند و خود دسته‌بندی (در حالت ویرایش) نیست رو نمایش بده
+            if (option.getAttribute('data-type') === categoryType && option.value !== categoryId) {
+                option.style.display = '';
+            } else {
+                option.style.display = 'none';
+                if (option.selected) {
+                    parentSelect.value = '';
+                }
+            }
+        });
+    }
+
+    // ویرایش دسته‌بندی
+    function editCategory(id, name, type, parentId) {
+        document.getElementById('categoryModalTitle').textContent = 'ویرایش دسته‌بندی';
+        const form = document.getElementById('categoryForm');
+        document.getElementById('formAction').value = 'edit';
+        document.getElementById('categoryId').value = id;
+        document.getElementById('categoryName').value = name;
+        document.getElementById('categoryType').value = type;
+
+        // تنظیم مسیر action بر اساس نوع و ویرایش
+        setFormType(type);
+
+        if (parentId) {
+            document.getElementById('parentCategory').value = parentId;
+        } else {
+            document.getElementById('parentCategory').value = '';
+        }
+
+        updateParentCategoryOptions();
+        new bootstrap.Modal(document.getElementById('addCategoryModal')).show();
+    }
+
+    // تایید حذف دسته‌بندی
+    function confirmDelete(id, name, type) {
+        document.getElementById('deleteCategoryName').textContent = name;
+        document.getElementById('deleteCategoryId').value = id;
+        document.getElementById('deleteCategoryType').value = type;
+        const deleteForm = document.getElementById('deleteCategoryForm');
+
+        // تنظیم مسیر action برای حذف
+        if (type === 'ProductCategory') {
+            deleteForm.action = "{{ url_for('delete_product_category') }}";
+        } else if (type === 'ServiceCategory') {
+            deleteForm.action = "{{ url_for('delete_service_category') }}";
+        } else if (type === 'EducationalCategory') {
+            deleteForm.action = "{{ url_for('delete_educational_category') }}";
+        }
+
+        new bootstrap.Modal(document.getElementById('deleteCategoryModal')).show();
+    }
+
+    // بستن مودال بعد از ارسال موفق
+    document.getElementById('categoryForm').addEventListener('submit', function(event) {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('addCategoryModal'));
+        modal.hide();
+    });
+
+    document.getElementById('deleteCategoryForm').addEventListener('submit', function(event) {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('deleteCategoryModal'));
+        modal.hide();
+    });
+
+    // به‌روزرسانی گزینه‌های والد در هنگام بارگیری صفحه
+    document.addEventListener('DOMContentLoaded', function() {
+        updateParentCategoryOptions();
     });
 </script>
 {% endblock %}

@@ -1,0 +1,621 @@
+Below is an updated prompt for the Replit Agent to implement an automated testing suite for the RFCBot Telegram bot, incorporating the additional requirement to verify that the category hierarchies displayed when users interact with the bot (via buttons or commands for Products, Services, and Educational Content) exactly match the tree-like structure stored in the PostgreSQL database (product_categories, service_categories, educational_categories). The prompt ensures that the bot’s category presentation is fully synchronized with the database’s four-level hierarchical structure, tests all relevant functionalities, and includes checks for both the bot and admin panel interactions. The testing suite uses Pytest, python-telegram-bot, mock objects, and integrates with a CI/CD pipeline.
+Prompt for Replit Agent
+Objective: Develop a comprehensive automated testing suite for the RFCBot Telegram bot, ensuring that all functionalities, especially the category hierarchies displayed when users select Products, Services, or Educational Content (via buttons or commands), exactly match the four-level tree-like structure stored in the PostgreSQL database (product_categories, service_categories, educational_categories). The tests must verify that the bot’s responses reflect the database state, that admin panel changes are synchronized with the bot, and that all database interactions are correct. Use Pytest, python-telegram-bot, mock Telegram API calls, and integrate with a CI/CD pipeline (GitHub Actions) for continuous testing.
+Context:
+The RFCBot is a Telegram bot for a radio frequency/telecommunications catalog, built with Flask, python-telegram-bot (assumed), and a PostgreSQL database.
+The admin panel (app.py, templates like admin_categories.html) manages:
+Categories in three tables (product_categories, service_categories, educational_categories) with a four-level hierarchy (root, level 1, level 2, level 3; level 4 nodes are leaf nodes).
+Products (products table), services (services table), educational content (educational_content table), and inquiries (inquiries table).
+The bot (bot.py, assumed) responds to commands (e.g., /start, /products, /services, /education, /inquiries) and likely uses buttons (inline keyboards) for navigating categories.
+Key features:
+Users can press buttons (e.g., "محصولات" for Products, "خدمات" for Services, "مطالب آموزشی" for Educational Content) to view category hierarchies.
+The bot displays categories in a tree-like structure, mirroring the database’s four-level hierarchy.
+Admin panel changes (e.g., adding/editing categories) must be immediately visible to the bot.
+Key files:
+app.py: Flask routes for admin panel and bot control (/control/start, /control/stop).
+database.py: Database class for PostgreSQL interactions.
+admin_categories.html: Manages categories in three tabs with a jsTree-based tree view.
+Templates for adding/editing categories, products, services, and educational content.
+Requirements:
+Test all bot commands and conversation flows, ensuring category hierarchies match the database.
+Verify that pressing Products, Services, or Educational Content buttons displays categories in a tree-like structure identical to the database (same parent-child relationships, levels, and names).
+Test admin panel CRUD operations and ensure changes are reflected in the bot’s responses.
+Use PostgreSQL with a test database schema.
+Mock Telegram API to avoid real requests.
+Include stress tests and CI/CD integration.
+Ensure tests cover edge cases (e.g., empty categories, deep hierarchies).
+Existing Features to Test:
+Bot Functionality:
+Commands: /start (welcome message), /products (list product categories), /services (list service categories), /education (list educational categories), /inquiries (submit inquiry).
+Buttons: Inline keyboard buttons for "محصولات" (Products), "خدمات" (Services), "مطالب آموزشی" (Educational Content), triggering category navigation.
+Conversation Flows: Selecting a category, drilling down to subcategories, viewing items, submitting inquiries.
+Category Display: When a user selects a category type (via button or command), the bot presents a tree-like structure (e.g., inline keyboard with parent-child relationships) matching the database’s hierarchy.
+Error Handling: Invalid commands, unavailable items, database errors.
+Admin Panel Integration:
+CRUD operations on categories (product_categories, service_categories, educational_categories).
+CRUD operations on products, services, and educational content.
+Inquiry management.
+Configuration settings (e.g., BOT_TOKEN, ADMIN_ID).
+Database Schema:
+sql
+CREATE TABLE product_categories (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    parent_id INTEGER,
+    level INTEGER NOT NULL CHECK (level >= 1 AND level <= 4),
+    FOREIGN KEY (parent_id) REFERENCES product_categories(id),
+    UNIQUE(name, parent_id)
+);
+CREATE TABLE service_categories (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    parent_id INTEGER,
+    level INTEGER NOT NULL CHECK (level >= 1 AND level <= 4),
+    FOREIGN KEY (parent_id) REFERENCES service_categories(id),
+    UNIQUE(name, parent_id)
+);
+CREATE TABLE educational_categories (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    parent_id INTEGER,
+    level INTEGER NOT NULL CHECK (level >= 1 AND level <= 4),
+    FOREIGN KEY (parent_id) REFERENCES educational_categories(id),
+    UNIQUE(name, parent_id)
+);
+CREATE TABLE products (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    price INTEGER NOT NULL,
+    description TEXT,
+    photo_url TEXT,
+    category_id INTEGER NOT NULL,
+    FOREIGN KEY (category_id) REFERENCES product_categories(id)
+);
+CREATE TABLE services (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    price INTEGER NOT NULL,
+    description TEXT,
+    photo_url TEXT,
+    category_id INTEGER NOT NULL,
+    FOREIGN KEY (category_id) REFERENCES service_categories(id)
+);
+CREATE TABLE educational_content (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    category_id INTEGER NOT NULL,
+    content_type TEXT NOT NULL,
+    FOREIGN KEY (category_id) REFERENCES educational_categories(id)
+);
+CREATE TABLE inquiries (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    phone TEXT,
+    description TEXT,
+    product_id INTEGER,
+    date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+);
+Flask Routes:
+/admin/categories: Manages categories in three tabs with tree view.
+/admin/<type>_categories/add, /edit/<id>, /delete, /move: CRUD for categories.
+/admin/products, /services, /education, /inquiries: Manage respective entities.
+/control/start, /control/stop: Bot process control.
+/webhook (assumed): Handles Telegram updates if using webhooks.
+Testing Requirements:
+Category Hierarchy Verification:
+When a user presses the Products, Services, or Educational Content button (or issues /products, /services, /education), the bot must display categories in a tree-like structure (e.g., inline keyboard or text) that exactly matches the database’s hierarchy:
+Same parent-child relationships (e.g., level 1 nodes have no parent, level 2 nodes reference level 1, etc.).
+Same category names and levels (1 to 4).
+No level 4 node has children.
+Test navigation through the hierarchy (e.g., selecting a level 1 category shows level 2 subcategories).
+Verify that admin panel changes (e.g., adding a subcategory, moving a node) are immediately reflected in the bot’s category display.
+Unit Tests:
+Test individual commands (/start, /products, etc.) and button responses.
+Verify database queries for fetching categories and items.
+Integration Tests:
+Test full conversation flows (e.g., press Products → select category → view product → submit inquiry).
+Ensure admin panel changes are visible to the bot.
+Database Synchronization:
+Confirm that the bot queries the same PostgreSQL database as the admin panel.
+Test cascading effects (e.g., deleting a category removes associated products).
+Stress Tests:
+Simulate multiple users interacting with category buttons to ensure performance.
+Error Handling:
+Test invalid inputs, empty categories, and API failures.
+CI/CD:
+Run tests automatically on code changes using GitHub Actions.
+Environment:
+Use a test PostgreSQL database (temporary schema or separate instance).
+Mock Telegram API to avoid real requests.
+Use a test bot token and chat for isolation.
+Implementation Steps:
+Setup Testing Environment:
+Create a tests/ directory with:
+test_bot.py: Tests for commands and button responses.
+test_flows.py: Tests for conversation flows and category hierarchy.
+test_db.py: Tests for database integration.
+test_admin.py: Tests for admin panel routes.
+conftest.py: Shared fixtures.
+Install dependencies:
+bash
+pip install pytest pytest-asyncio python-telegram-bot pytest-mock psycopg2-binary locust
+Configure a test PostgreSQL database:
+Create a test database: rfcbot_test.
+Connection string: postgresql://test_user:test_password@localhost:5432/rfcbot_test.
+Initialize tables using the schema above.
+Obtain a test bot token from @BotFather and store it in an environment variable (TEST_BOT_TOKEN).
+Use ngrok for webhook testing if the bot uses webhooks:
+bash
+ngrok http 5000
+Update database.py for Test Support:
+Modify the Database class to accept a custom connection for testing:
+python
+class Database:
+    def __init__(self, conn=None):
+        self.conn = conn or psycopg2.connect(
+            dbname=os.environ.get("DB_NAME", "rfcbot"),
+            user=os.environ.get("DB_USER", "user"),
+            password=os.environ.get("DB_PASSWORD", "password"),
+            host=os.environ.get("DB_HOST", "localhost"),
+            port=os.environ.get("DB_PORT", "5432")
+        )
+        self.create_tables()
+
+    def create_tables(self):
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS product_categories (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    parent_id INTEGER,
+                    level INTEGER NOT NULL CHECK (level >= 1 AND level <= 4),
+                    FOREIGN KEY (parent_id) REFERENCES product_categories(id),
+                    UNIQUE(name, parent_id)
+                );
+                -- Repeat for service_categories, educational_categories, products, services, educational_content, inquiries
+            """)
+            self.conn.commit()
+
+    def get_categories(self, cat_type):
+        table = f'{cat_type}_categories'
+        with self.conn.cursor() as cur:
+            cur.execute(f"""
+                SELECT id, name, parent_id, level FROM {table} ORDER BY name
+            """)
+            return [{'id': row[0], 'name': row[1], 'parent_id': row[2], 'level': row[3]} for row in cur.fetchall()]
+
+    def get_category_tree(self, cat_type):
+        """Return categories in a tree structure for comparison."""
+        categories = self.get_categories(cat_type)
+        tree = []
+        def build_tree(parent_id=None):
+            nodes = []
+            for cat in categories:
+                if cat['parent_id'] == parent_id or (parent_id is None and cat['parent_id'] is None):
+                    node = {'id': cat['id'], 'name': cat['name'], 'level': cat['level'], 'children': build_tree(cat['id'])}
+                    nodes.append(node)
+            return nodes
+        return build_tree()
+
+    # Add methods for products, services, educational content, inquiries (as in previous examples)
+Write Test Fixtures (tests/conftest.py):
+python
+import pytest
+import psycopg2
+from telegram.ext import Application
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from database import Database
+from flask import Flask
+
+@pytest.fixture(scope="session")
+def db():
+    """Fixture for test PostgreSQL database."""
+    conn = psycopg2.connect(
+        dbname="rfcbot_test",
+        user="test_user",
+        password="test_password",
+        host="localhost",
+        port="5432"
+    )
+    db = Database(conn=conn)
+    db.create_tables()
+    yield db
+    with conn.cursor() as cur:
+        cur.execute("""
+            DROP TABLE IF EXISTS inquiries, products, services, educational_content,
+            product_categories, service_categories, educational_categories CASCADE
+        """)
+        conn.commit()
+    conn.close()
+
+@pytest.fixture
+async def app():
+    """Fixture for Telegram bot application."""
+    app = Application.builder().token("TEST_BOT_TOKEN").build()
+    from bot import start, products, services, education, inquiries, callback_query_handler
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("products", products))
+    app.add_handler(CommandHandler("services", services))
+    app.add_handler(CommandHandler("education", education))
+    app.add_handler(CommandHandler("inquiries", inquiries))
+    app.add_handler(CallbackQueryHandler(callback_query_handler))
+    yield app
+    await app.shutdown()
+
+@pytest.fixture
+def flask_client():
+    """Fixture for Flask test client."""
+    from app import app
+    app.config['TESTING'] = True
+    with app.test_client() as client:
+        yield client
+Write Bot Command and Button Tests (tests/test_bot.py):
+python
+import pytest
+from telegram import Update, Message, Chat, User, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler
+
+@pytest.mark.asyncio
+async def test_start_command(app, mocker):
+    """Test the /start command."""
+    reply_mock = mocker.patch('telegram.Message.reply_text')
+    update = Update(
+        update_id=1,
+        message=Message(
+            message_id=1,
+            chat=Chat(id=123, type="private"),
+            from_user=User(id=456, is_bot=False, first_name="Test"),
+            text="/start"
+        )
+    )
+    await app.process_update(update)
+    reply_mock.assert_called_once()
+    assert reply_mock.call_args[0][0] == "سلام! به ربات فروشگاه تجهیزات فرکانس رادیویی خوش آمدید!"
+
+@pytest.mark.asyncio
+async def test_products_button(app, db, mocker):
+    """Test the Products button and category hierarchy."""
+    # Setup category hierarchy
+    with db.conn.cursor() as cur:
+        cur.execute("INSERT INTO product_categories (name, level) VALUES (%s, %s) RETURNING id",
+                   ('تجهیزات رادیویی', 1))
+        cat1_id = cur.fetchone()[0]
+        cur.execute("INSERT INTO product_categories (name, parent_id, level) VALUES (%s, %s, %s) RETURNING id",
+                   ('رادیوها', cat1_id, 2))
+        cat2_id = cur.fetchone()[0]
+        cur.execute("INSERT INTO products (name, price, description, category_id) VALUES (%s, %s, %s, %s)",
+                   ('رادیو VHF', 1000, 'رادیو با کیفیت', cat2_id))
+        db.conn.commit()
+
+    # Mock reply_markup to capture inline keyboard
+    reply_mock = mocker.patch('telegram.Message.reply_text')
+    update = Update(
+        update_id=2,
+        message=Message(
+            message_id=2,
+            chat=Chat(id=123, type="private"),
+            from_user=User(id=456, is_bot=False, first_name="Test"),
+            text="/products"
+        )
+    )
+    await app.process_update(update)
+
+    # Verify category hierarchy in response
+    reply_mock.assert_called_once()
+    keyboard = reply_mock.call_args[1]['reply_markup']
+    assert isinstance(keyboard, InlineKeyboardMarkup)
+    buttons = [button.text for row in keyboard.inline_keyboard for button in row]
+    assert "تجهیزات رادیویی" in buttons
+
+    # Simulate selecting 'تجهیزات رادیویی'
+    callback_mock = mocker.patch('telegram.Update.callback_query.answer')
+    update = Update(
+        update_id=3,
+        callback_query={
+            'id': '123',
+            'from': User(id=456, is_bot=False, first_name="Test"),
+            'chat_instance': 'test',
+            'data': f'category:product:{cat1_id}',
+            'message': Message(
+                message_id=3,
+                chat=Chat(id=123, type="private")
+            )
+        }
+    )
+    await app.process_update(update)
+    reply_mock.assert_called()
+    keyboard = reply_mock.call_args[1]['reply_markup']
+    buttons = [button.text for row in keyboard.inline_keyboard for button in row]
+    assert "رادیوها" in buttons
+Write Category Hierarchy Tests (tests/test_flows.py):
+python
+import pytest
+from telegram import Update, Message, Chat, User, InlineKeyboardMarkup
+from telegram.ext import Application
+
+def compare_trees(bot_tree, db_tree):
+    """Compare bot's category tree with database tree."""
+    if len(bot_tree) != len(db_tree):
+        return False
+    for bot_node, db_node in zip(bot_tree, db_tree):
+        if bot_node['name'] != db_node['name'] or bot_node['level'] != db_node['level']:
+            return False
+        if not compare_trees(bot_node.get('children', []), db_node.get('children', [])):
+            return False
+    return True
+
+@pytest.mark.asyncio
+async def test_products_category_hierarchy(app, db, mocker):
+    """Test that Products button displays correct category hierarchy."""
+    # Setup complex hierarchy
+    with db.conn.cursor() as cur:
+        cur.execute("INSERT INTO product_categories (name, level) VALUES (%s, %s) RETURNING id",
+                   ('تجهیزات اصلی', 1))
+        cat1_id = cur.fetchone()[0]
+        cur.execute("INSERT INTO product_categories (name, parent_id, level) VALUES (%s, %s, %s) RETURNING id",
+                   ('رادیوها', cat1_id, 2))
+        cat2_id = cur.fetchone()[0]
+        cur.execute("INSERT INTO product_categories (name, parent_id, level) VALUES (%s, %s, %s) RETURNING id",
+                   ('رادیو VHF', cat2_id, 3))
+        cat3_id = cur.fetchone()[0]
+        cur.execute("INSERT INTO product_categories (name, parent_id, level) VALUES (%s, %s, %s)",
+                   ('مدل خاص', cat3_id, 4))
+        db.conn.commit()
+
+    # Mock reply_markup to capture tree
+    reply_mock = mocker.patch('telegram.Message.reply_text')
+    update = Update(
+        update_id=4,
+        message=Message(
+            message_id=4,
+            chat=Chat(id=123, type="private"),
+            from_user=User(id=456, is_bot=False, first_name="Test"),
+            text="/products"
+        )
+    )
+    await app.process_update(update)
+
+    # Extract bot's tree from inline keyboard
+    reply_mock.assert_called_once()
+    keyboard = reply_mock.call_args[1]['reply_markup']
+    bot_tree = [{'name': button.text, 'level': 1, 'children': []} for row in keyboard.inline_keyboard for button in row]
+
+    # Get database tree
+    db_tree = db.get_category_tree('product')
+
+    # Compare trees
+    assert compare_trees(bot_tree, db_tree[:len(bot_tree)])
+
+    # Test deeper navigation
+    callback_mock = mocker.patch('telegram.Update.callback_query.answer')
+    update = Update(
+        update_id=5,
+        callback_query={
+            'id': '123',
+            'from': User(id=456, is_bot=False, first_name="Test"),
+            'chat_instance': 'test',
+            'data': f'category:product:{cat1_id}',
+            'message': Message(
+                message_id=5,
+                chat=Chat(id=123, type="private")
+            )
+        }
+    )
+    await app.process_update(update)
+    keyboard = reply_mock.call_args[1]['reply_markup']
+    bot_subtree = [{'name': button.text, 'level': 2, 'children': []} for row in keyboard.inline_keyboard for button in row]
+    db_subtree = db_tree[0]['children']
+    assert compare_trees(bot_subtree, db_subtree)
+Write Database Integration Tests (tests/test_db.py):
+python
+import pytest
+
+@pytest.mark.asyncio
+async def test_inquiry_submission(app, db, mocker):
+    """Test inquiry submission and database sync."""
+    with db.conn.cursor() as cur:
+        cur.execute("INSERT INTO product_categories (name, level) VALUES (%s, %s) RETURNING id",
+                   ('رادیوها', 1))
+        cat_id = cur.fetchone()[0]
+        cur.execute("INSERT INTO products (name, price, description, category_id) VALUES (%s, %s, %s, %s) RETURNING id",
+                   ('رادیو UHF', 2000, 'رادیو پیشرفته', cat_id))
+        product_id = cur.fetchone()[0]
+        db.conn.commit()
+
+    reply_mock = mocker.patch('telegram.Message.reply_text')
+    update = Update(
+        update_id=6,
+        message=Message(
+            message_id=6,
+            chat=Chat(id=123, type="private"),
+            from_user=User(id=456, is_bot=False, first_name="Test"),
+            text="استعلام قیمت: رادیو UHF"
+        )
+    )
+    await app.process_update(update)
+
+    with db.conn.cursor() as cur:
+        cur.execute("SELECT user_id, name, product_id FROM inquiries")
+        inquiry = cur.fetchone()
+        assert inquiry
+        assert inquiry[0] == 456
+        assert inquiry[1] == "Test"
+        assert inquiry[2] == product_id
+Write Admin Panel Tests (tests/test_admin.py):
+python
+import pytest
+
+def test_admin_categories_add(flask_client, db):
+    """Test adding a category and verify bot sees it."""
+    response = flask_client.post('/admin/product_categories/add', data={
+        'name': 'آنتن‌های جدید',
+        'parent_id': ''
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    assert b"دسته‌بندی آنتن‌های جدید با موفقیت ایجاد شد" in response.data
+
+    # Verify in database
+    with db.conn.cursor() as cur:
+        cur.execute("SELECT name, level FROM product_categories WHERE name = %s", ('آنتن‌های جدید',))
+        category = cur.fetchone()
+        assert category
+        assert category[0] == "آنتن‌های جدید"
+        assert category[1] == 1
+Assumed bot.py Implementation:
+python
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, Filters
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from database import Database
+import os
+
+db = Database()
+
+async def start(update, context):
+    await update.message.reply_text("سلام! به ربات فروشگاه تجهیزات فرکانس رادیویی خوش آمدید!")
+
+async def products(update, context):
+    categories = db.get_categories('product')
+    keyboard = [[InlineKeyboardButton(cat['name'], callback_data=f'category:product:{cat["id"]}')]
+               for cat in categories if cat['level'] == 1]
+    await update.message.reply_text("دسته‌بندی محصولات:", reply_markup=InlineKeyboardMarkup(keyboard))
+
+async def services(update, context):
+    categories = db.get_categories('service')
+    keyboard = [[InlineKeyboardButton(cat['name'], callback_data=f'category:service:{cat["id"]}')]
+               for cat in categories if cat['level'] == 1]
+    await update.message.reply_text("دسته‌بندی خدمات:", reply_markup=InlineKeyboardMarkup(keyboard))
+
+async def education(update, context):
+    categories = db.get_categories('educational')
+    keyboard = [[InlineKeyboardButton(cat['name'], callback_data=f'category:educational:{cat["id"]}')]
+               for cat in categories if cat['level'] == 1]
+    await update.message.reply_text("دسته‌بندی مطالب آموزشی:", reply_markup=InlineKeyboardMarkup(keyboard))
+
+async def callback_query_handler(update, context):
+    query = update.callback_query
+    await query.answer()
+    data = query.data.split(':')
+    if data[0] == 'category':
+        cat_type, cat_id = data[1], int(data[2])
+        categories = db.get_categories(cat_type)
+        subcategories = [cat for cat in categories if cat['parent_id'] == cat_id]
+        if subcategories:
+            keyboard = [[InlineKeyboardButton(cat['name'], callback_data=f'category:{cat_type}:{cat["id"]}')]
+                       for cat in subcategories]
+            await query.message.reply_text("زیرگروه‌ها:", reply_markup=InlineKeyboardMarkup(keyboard))
+        else:
+            items = db.get_items_by_category(cat_type, cat_id)  # Implement in Database class
+            response = "\n".join([f"{item['name']}: {item['price']}" for item in items])
+            await query.message.reply_text(response or "هیچ موردی یافت نشد.")
+
+async def inquiries(update, context):
+    text = update.message.text
+    if text.startswith("استعلام قیمت: "):
+        product_name = text.replace("استعلام قیمت: ", "")
+        with db.conn.cursor() as cur:
+            cur.execute("SELECT id FROM products WHERE name = %s", (product_name,))
+            product = cur.fetchone()
+            if product:
+                cur.execute("INSERT INTO inquiries (user_id, name, product_id) VALUES (%s, %s, %s)",
+                           (update.message.from_user.id, update.message.from_user.first_name, product[0]))
+                db.conn.commit()
+                await update.message.reply_text("استعلام شما ثبت شد!")
+            else:
+                await update.message.reply_text("محصول یافت نشد.")
+
+def main():
+    app = Application.builder().token(os.environ.get("BOT_TOKEN")).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("products", products))
+    app.add_handler(CommandHandler("services", services))
+    app.add_handler(CommandHandler("education", education))
+    app.add_handler(CommandHandler("inquiries", inquiries))
+    app.add_handler(CallbackQueryHandler(callback_query_handler))
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
+Stress Testing with Locust:
+python
+from locust import HttpUser, task, between
+
+class BotUser(HttpUser):
+    wait_time = between(1, 5)
+
+    @task
+    def send_products(self):
+        self.client.post("/webhook", json={
+            "update_id": 1,
+            "message": {
+                "message_id": 1,
+                "chat": {"id": 123, "type": "private"},
+                "from": {"id": 456, "is_bot": False},
+                "text": "/products"
+            }
+        })
+CI/CD Setup (.github/workflows/test.yml):
+yaml
+name: Run Tests
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: rfcbot_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run tests
+        run: pytest tests/
+        env:
+          TEST_BOT_TOKEN: ${{ secrets.TEST_BOT_TOKEN }}
+          DB_NAME: rfcbot_test
+          DB_USER: test_user
+          DB_PASSWORD: test_password
+          DB_HOST: localhost
+          DB_PORT: 5432
+Deliverables:
+tests/ directory with conftest.py, test_bot.py, test_flows.py, test_db.py, test_admin.py.
+Updated database.py with test support.
+Sample bot.py (if not provided).
+locustfile.py for stress testing.
+GitHub Actions workflow (test.yml).
+Documentation in README.md with testing instructions.
+Constraints:
+Ensure tests run in a test PostgreSQL database to avoid affecting production.
+Mock Telegram API to prevent real requests.
+Maintain Persian UI (e.g., button texts like "محصولات").
+Support four-level category hierarchy with no children for level 4 nodes.
+Handle large hierarchies efficiently in tests.
+Success Criteria:
+Tests verify that Products, Services, and Educational Content buttons display category hierarchies identical to the database’s tree structure.
+Admin panel changes (e.g., adding/moving categories) are immediately visible in the bot.
+All commands, conversation flows, and database interactions are tested.
+Stress tests confirm performance under load.
+CI/CD pipeline runs tests automatically on code changes.
+Additional Notes:
+If bot.py differs significantly, provide its structure for precise handler integration.
+If inline keyboards are not used, adjust tests to verify text-based hierarchy display.
+For webhook-based bots, include ngrok setup instructions and test /webhook endpoint.
+Please implement this testing suite, ensuring all specified features are covered, and provide the complete code, setup instructions, and documentation. Verify that the category hierarchies displayed by the bot match the PostgreSQL database exactly.
+This prompt is comprehensive, addressing the requirement to verify that the category hierarchies for Products, Services, and Educational Content match the database’s tree structure, while covering all bot and admin panel functionalities. It includes specific tests for hierarchy comparison, uses PostgreSQL, and ensures synchronization between the bot and admin panel. Let me know if you need further refinements or assistance with specific aspects of the implementation!

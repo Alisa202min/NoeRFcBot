@@ -1,8 +1,16 @@
 import os
 import csv
-import logging
+from logging_config import get_logger
+import aiohttp
+import json
 from typing import Dict, List, Optional, Any, Tuple, Union
 from datetime import datetime
+from werkzeug.utils import secure_filename
+from aiogram import Bot, types
+
+
+logger = get_logger('bot')
+
 
 def format_price(price: int) -> str:
     """
@@ -16,12 +24,13 @@ def format_price(price: int) -> str:
     """
     return f"{price:,} تومان"
 
-def format_product_details(product: Dict) -> str:
+def format_product_details(product: Dict, media_files: List[Dict] = None) -> str:
     """
     Format product details for display
     
     Args:
         product: Product dictionary
+        media_files: List of media files (optional)
         
     Returns:
         Formatted product details
@@ -30,7 +39,56 @@ def format_product_details(product: Dict) -> str:
     price = format_price(product['price'])
     description = product['description'] or "توضیحات موجود نیست"
     
-    return f"📦 *{name}*\n\n💰 قیمت: {price}\n\n📝 توضیحات:\n{description}"
+    result = f"📦 *{name}*\n\n💰 قیمت: {price}\n\n📝 توضیحات:\n{description}"
+    
+    # Add media info if available
+    if media_files and len(media_files) > 0:
+        photo_count = sum(1 for m in media_files if m['file_type'] == 'photo')
+        video_count = sum(1 for m in media_files if m['file_type'] == 'video')
+        
+        media_info = []
+        if photo_count > 0:
+            media_info.append(f"🖼 {photo_count} تصویر")
+        if video_count > 0:
+            media_info.append(f"🎬 {video_count} ویدیو")
+            
+        if media_info:
+            result += "\n\n" + " | ".join(media_info)
+    
+    return result
+    
+def format_service_details(service: Dict, media_files: List[Dict] = None) -> str:
+    """
+    Format service details for display
+    
+    Args:
+        service: Service dictionary
+        media_files: List of media files (optional)
+        
+    Returns:
+        Formatted service details
+    """
+    name = service['name']
+    price = format_price(service['price']) if service['price'] is not None else "تماس بگیرید"
+    description = service['description'] or "توضیحات موجود نیست"
+    
+    result = f"🔧 *{name}*\n\n💰 قیمت: {price}\n\n📝 توضیحات:\n{description}"
+    
+    # Add media info if available
+    if media_files and len(media_files) > 0:
+        photo_count = sum(1 for m in media_files if m['file_type'] == 'photo')
+        video_count = sum(1 for m in media_files if m['file_type'] == 'video')
+        
+        media_info = []
+        if photo_count > 0:
+            media_info.append(f"🖼 {photo_count} تصویر")
+        if video_count > 0:
+            media_info.append(f"🎬 {video_count} ویدیو")
+            
+        if media_info:
+            result += "\n\n" + " | ".join(media_info)
+    
+    return result
 
 def format_inquiry_details(inquiry: Dict) -> str:
     """
@@ -50,14 +108,16 @@ def format_inquiry_details(inquiry: Dict) -> str:
     except:
         formatted_date = date_str
     
-    # Get product name if available
-    product_info = f"\n🛍 محصول: {inquiry['product_name']}" if inquiry.get('product_name') else ""
+    # Get product/service name if available
+    is_service = inquiry.get('product_type') == 'service'
+    item_prefix = "🔧 خدمت" if is_service else "🛍 محصول"
+    item_info = f"\n{item_prefix}: {inquiry['product_name']}" if inquiry.get('product_name') else ""
     
     return (
         f"📝 *استعلام قیمت*\n\n"
         f"👤 نام: {inquiry['name']}\n"
         f"📞 شماره تماس: {inquiry['phone']}\n"
-        f"📅 تاریخ: {formatted_date}{product_info}\n\n"
+        f"📅 تاریخ: {formatted_date}{item_info}\n\n"
         f"توضیحات: {inquiry['description'] or 'بدون توضیحات'}"
     )
 
@@ -74,13 +134,9 @@ def format_educational_content(content: Dict) -> str:
     title = content['title']
     content_text = content['content']
     category = content['category']
-    content_type = content['type']
     
-    # Format based on content type
-    if content_type == 'link':
-        return f"📚 *{title}*\n\n🔗 لینک: {content_text}\n\n📂 دسته‌بندی: {category}"
-    else:
-        return f"📚 *{title}*\n\n{content_text}\n\n📂 دسته‌بندی: {category}"
+    # Simplified format - all content is now text-based
+    return f"📚 *{title}*\n\n{content_text}\n\n📂 دسته‌بندی: {category}"
 
 def is_valid_phone_number(phone: str) -> bool:
     """
@@ -189,7 +245,7 @@ def import_initial_data(db, csv_path: str = None) -> Tuple[int, int]:
     Returns:
         Tuple of (success_count, error_count)
     """
-    from configuration import CSV_PATH
+    from config import CSV_PATH
     
     if csv_path is None:
         csv_path = CSV_PATH
@@ -278,3 +334,144 @@ def generate_csv_template(output_path: str, entity_type: str) -> bool:
     except Exception as e:
         logging.error(f"Error generating CSV template: {e}")
         return False
+
+async def create_telegraph_page(title: str, content: str, author: str = "RFCatalogbot") -> Optional[str]:
+    """
+    Create a Telegraph page for longer educational content
+    
+    Args:
+        title: Title of the page
+        content: Content of the page (can include simple HTML)
+        author: Author name (default: "RFCatalogbot")
+        
+    Returns:
+        URL of the created page, or None if failed
+    """
+    try:
+        # Format content for Telegraph (convert to HTML nodes)
+        # Simple conversion for basic formatting - paragraphs
+        html_content = []
+        for paragraph in content.split('\n\n'):
+            if paragraph.strip():
+                # Skip empty paragraphs
+                html_content.append({
+                    'tag': 'p',
+                    'children': [paragraph.strip()]
+                })
+        
+        # First create a Telegraph account to get an access token
+        create_account_url = 'https://api.telegra.ph/createAccount'
+        account_data = {
+            'short_name': author,
+            'author_name': author
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            # Step 1: Create an account and get access token
+            async with session.post(create_account_url, data=account_data) as response:
+                if response.status == 200:
+                    account_result = await response.json()
+                    if not account_result.get('ok'):
+                        logging.error(f"Telegraph API error creating account: {account_result}")
+                        return None
+                    
+                    access_token = account_result.get('result', {}).get('access_token')
+                    if not access_token:
+                        logging.error("No access token received from Telegraph API")
+                        return None
+                    
+                    # Step 2: Create the page using the access token
+                    create_page_url = 'https://api.telegra.ph/createPage'
+                    
+                    # Generate a path from title (simple slugify)
+                    import re
+                    path = re.sub(r'[^\w\s-]', '', title.lower())
+                    path = re.sub(r'[\s_-]+', '-', path)
+                    
+                    # Prepare page creation data
+                    page_data = {
+                        'access_token': access_token,
+                        'title': title,
+                        'author_name': author,
+                        'content': json.dumps(html_content),
+                        'return_content': False
+                    }
+                    
+                    # Create the page
+                    async with session.post(create_page_url, data=page_data) as page_response:
+                        if page_response.status == 200:
+                            page_result = await page_response.json()
+                            if page_result.get('ok'):
+                                page_url = page_result.get('result', {}).get('url')
+                                if page_url:
+                                    logging.info(f"Created Telegraph page: {page_url}")
+                                    return page_url
+                            
+                            logging.error(f"Telegraph API error creating page: {page_result}")
+                        else:
+                            logging.error(f"Telegraph API HTTP error: {page_response.status}")
+                else:
+                    logging.error(f"Telegraph API HTTP error creating account: {response.status}")
+        
+        return None
+    except Exception as e:
+        logging.error(f"Error creating Telegraph page: {str(e)}")
+        return None
+
+
+
+
+def allowed_file(filename):
+    """
+    بررسی مجاز بودن پسوند فایل
+
+    Args:
+        filename: نام فایل
+
+    Returns:
+        bool: آیا فایل مجاز است
+    """
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4'}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def save_uploaded_file(file, upload_dir):
+    """
+    ذخیره فایل آپلودشده
+
+    Args:
+        file: فایل آپلودشده
+        upload_dir: دایرکتوری مقصد
+
+    Returns:
+        str: مسیر فایل ذخیره‌شده یا None
+    """
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        os.makedirs(upload_dir, exist_ok=True)
+        file_path = os.path.join(upload_dir, filename)
+        file.save(file_path)
+        return file_path
+    return None
+
+def create_directory(directory):
+    """
+    ایجاد دایرکتوری
+
+    Args:
+        directory: مسیر دایرکتوری
+    """
+    os.makedirs(directory, exist_ok=True)
+
+async def upload_file_to_telegram(file_path: str, bot:  Bot, file_type: str = 'photo') -> str:
+    logger.debug(f"Uploading file to Telegram: {file_path}, type: {file_type}")
+    try:
+        with open(file_path, 'rb') as file:
+            if file_type == 'video':
+                response = await bot.send_video(chat_id=bot.id, video=file)
+                return response.video.file_id
+            else:
+                response = await bot.send_photo(chat_id=bot.id, photo=file)
+                return response.photo[-1].file_id
+    except Exception as e:
+        logger.error(f"Failed to upload file {file_path}: {str(e)}\n{traceback.format_exc()}")
+        return None

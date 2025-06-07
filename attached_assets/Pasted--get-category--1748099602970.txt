@@ -1,0 +1,126 @@
+
+
+**عنوان**: اصلاح خطای `get_category` برای همه دسته‌بندی‌ها، بهبود مدیریت خطای دیتابیس، و حفظ رفتار دسته‌بندی‌های خالی
+
+**دستورالعمل**:
+
+Replit Agent، این دستور حیاتیه و باید با دقت اجرا بشه. ما توی پروژه **هیچ جدولی به نام `categories`** نداریم و نباید هیچ ارجاعی بهش توی کد باشه. همچنین، **هیچ مفهومی مثل `category_type` یا متغیر مشابه نباید توی کد استفاده بشه**. دسته‌بندی‌های سیستم ما کاملاً جدا طراحی شدن و هر کدوم جدول و منطق مستقل خودشون رو دارن:
+- `product_categories` برای دسته‌بندی‌های محصولات
+- `service_categories` برای دسته‌بندی‌های خدمات
+- `educational_categories` برای دسته‌بندی‌های محتوای آموزشی
+
+این جداسازی توی همه لایه‌های سیستم (دیتابیس، کد، رابط کاربری) اعمال شده. کد باید مستقیماً با جدول مربوطه کار کنه یا از توابع جداگانه برای هر نوع دسته‌بندی استفاده کنه.
+
+**مشکلات فعلی**:
+1. **خطای `get_category`**:
+   - خطای `AttributeError: 'Database' object has no attribute 'get_category'` توی فایل `handlers.py` (خط 676 برای `show_product_categories` و خط 750 برای `show_service_categories`) رخ می‌ده، چون متد `get_category` توی کلاس `Database` وجود نداره.
+   - این خطا برای محصولات و خدمات دیده شده، ولی ممکنه برای محتوای آموزشی (مثل تابع `show_educational_categories`) هم وجود داشته باشه.
+2. **مدیریت خطای دیتابیس**:
+   - کد فعلی برای قطع اتصال دیتابیس (مثل `SSL connection has been closed unexpectedly`) تلاش مجدد برای اتصال داره، ولی اگه اتصال بعد از تلاش مجدد برقرار نشه، خطای خام به لاگ می‌ره. باید به کاربر یه پیام خطای واضح و کاربرپسند نشون داده بشه (مثل «مشکلی در ارتباط با پایگاه داده به وجود آمده، لطفاً بعداً دوباره امتحان کنید»).
+3. **دسته‌بندی‌های خالی**:
+   - اگه دسته‌بندی‌ای (مثل ID 19 یا 14) هیچ محصول، سرویس، یا محتوای آموزشی نداشته باشه، کد باید پیغام درستی بده (مثل «فعلاً محصولی/سرویسی/مطلبی برای این دسته‌بندی تعریف نشده»). این رفتار درسته و نباید تغییر کنه.
+
+**منطق اصلاح**:
+1. **اصلاح خطای `get_category`**:
+   - فایل `database.py` رو چک کن و ببین متد `get_category` توی کلاس `Database` تعریف شده یا نه.
+   - اگه وجود نداره یا به جدول `categories` ارجاع می‌ده، حذفش کن و متدهای جداگانه برای هر نوع دسته‌بندی اضافه کن:
+     ```python
+     class Database:
+         def get_product_category(self, category_id):
+             with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                 cursor.execute('SELECT id, name, parent_id FROM product_categories WHERE id = %s', (category_id,))
+                 return cursor.fetchone()
+
+         def get_service_category(self, category_id):
+             with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                 cursor.execute('SELECT id, name, parent_id FROM service_categories WHERE id = %s', (category_id,))
+                 return cursor.fetchone()
+
+         def get_educational_category(self, category_id):
+             with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                 cursor.execute('SELECT id, name, parent_id FROM educational_categories WHERE id = %s', (category_id,))
+                 return cursor.fetchone()
+     ```
+
+2. **اصلاح فایل `handlers.py`**:
+   - توی تابع `show_product_categories` (خط 676)، فراخوانی `db.get_category(parent_id)` رو با `db.get_product_category(parent_id)` جایگزین کن:
+     ```python
+     # قبل
+     parent_category = db.get_category(parent_id)
+     # بعد
+     parent_category = db.get_product_category(parent_id)
+     ```
+   - توی تابع `show_service_categories` (خط 750)، فراخوانی `db.get_category(parent_id)` رو با `db.get_service_category(parent_id)` جایگزین کن:
+     ```python
+     # قبل
+     parent_category = db.get_category(parent_id)
+     # بعد
+     parent_category = db.get_service_category(parent_id)
+     ```
+   - اگه تابع `show_educational_categories` وجود داره (یا مشابهش برای محتوای آموزشی)، فراخوانی `db.get_category` رو با `db.get_educational_category` جایگزین کن:
+     ```python
+     parent_category = db.get_educational_category(parent_id)
+     ```
+   - اگه تابع `show_educational_categories` وجود نداره، ولی خطای `get_category` توی توابع مربوط به محتوای آموزشی دیده می‌شه، فایل‌های مربوطه (مثل `handlers.py` یا فایل‌های دیگه) رو اسکن کن و فراخوانی‌های `db.get_category` رو با `db.get_educational_category` اصلاح کن.
+
+3. **بهبود مدیریت خطای دیتابیس**:
+   - توی فایل `database.py` (یا هر فایل دیگه‌ای که اتصال دیتابیس رو مدیریت می‌کنه)، منطق تلاش مجدد برای اتصال رو بررسی کن.
+   - اگه اتصال بعد از تلاش مجدد برقرار نشد، یه استثنا (exception) بنداز و توی توابع `show_product_categories`, `show_service_categories`, و `show_educational_categories` (اگه وجود داره) این استثنا رو بگیر و پیام خطای کاربرپسند به کاربر نشون بده:
+     ```python
+     from psycopg2 import OperationalError
+
+     class Database:
+         def reconnect(self):
+             try:
+                 # منطق فعلی تلاش مجدد
+                 self.conn = psycopg2.connect(...)  # پارامترهای اتصال
+             except OperationalError as e:
+                 raise DatabaseConnectionError(f"Failed to reconnect to database: {str(e)}")
+
+     # توی handlers.py
+     async def show_product_categories(message: types.Message, db: Database, parent_id: Optional[int] = None):
+         try:
+             categories = db.get_product_categories(parent_id)  # فرضاً متد برای گرفتن دسته‌بندی‌ها
+             parent_category = db.get_product_category(parent_id) if parent_id else None
+             # بقیه کد...
+         except DatabaseConnectionError:
+             await message.answer("مشکلی در ارتباط با پایگاه داده به وجود آمده، لطفاً بعداً دوباره امتحان کنید.")
+             return
+     ```
+   - همین منطق رو برای `show_service_categories` و `show_educational_categories` هم اعمال کن.
+
+4. **حفظ رفتار دسته‌بندی‌های خالی**:
+   - مطمئن شو که اگه دسته‌بندی‌ای هیچ زیرمجموعه یا آیتمی (محصول، سرویس، محتوای آموزشی) نداره، پیغام درستی مثل «فعلاً محصولی/سرویسی/مطلبی برای این دسته‌بندی تعریف نشده» نشون داده می‌شه.
+   - کد فعلی برای دسته‌بندی‌های خالی (مثل ID 19 و 14) درست کار می‌کنه، پس این بخش رو تغییر نده، فقط چک کن که پیغام‌ها واضح و کاربرپسند باشن.
+
+5. **اسکن ارجاعات به `categories` و `get_category`**:
+   - با `grep -r "categories" .` و `grep -r "get_category" .` کل پروژه رو اسکن کن.
+   - هر ارجاع به جدول `categories` رو با جدول مناسب (`product_categories`, `service_categories`, `educational_categories`) جایگزین کن.
+   - هر فراخوانی `db.get_category` رو با متد مناسب (`get_product_category`, `get_service_category`, `get_educational_category`) جایگزین کن، بسته به context (محصولات، خدمات، یا محتوای آموزشی).
+
+6. **همگام‌سازی با سرور**:
+   - بعد از اصلاح کد توی Replit، تغییرات رو به سرور منتقل کن:
+     ```bash
+     scp -r /path/to/replit/project user@server:/var/www/rfbot
+     ```
+   - سرویس سرور رو ری‌استارت کن:
+     ```bash
+     sudo systemctl restart rfbot-telegram
+     ```
+
+**هشدارهای مهم**:
+- **هیچ ارجاعی به `categories` نباید توی کد بمونه**. این جدول وجود نداره.
+- **هیچ متغیر یا پارامتری مثل `category_type` اضافه نکن**. از توابع جداگانه برای هر نوع دسته‌بندی استفاده کن.
+- خطای `get_category` رو برای همه دسته‌بندی‌ها (محصولات، خدمات، محتوای آموزشی) بررسی و اصلاح کن، حتی اگه توی لاگ فقط برای محصولات و خدمات دیده شده.
+- رفتار دسته‌بندی‌های خالی رو تغییر نده؛ فقط مطمئن شو پیغام‌ها واضحن.
+- قبل از اعمال تغییرات، نسخه پشتیبان از فایل‌های `database.py` و `handlers.py` بگیر.
+
+**خروجی مورد انتظار**:
+- خطای `AttributeError: 'Database' object has no attribute 'get_category'` برای محصولات، خدمات، و محتوای آموزشی برطرف شده.
+- اگه اتصال دیتابیس بعد از تلاش مجدد برقرار نشد، پیام خطای کاربرپسند به کاربر نشون داده می‌شه.
+- دسته‌بندی‌های خالی پیغام درستی مثل «فعلاً محصولی/سرویسی/مطلبی تعریف نشده» نشون می‌دن.
+- بات توی Replit و سرور بدون خطا کار می‌کنه.
+- گزارش کاملی از فایل‌ها، خطوط اصلاح‌شده، و توابع جدید ارائه بشه.
+
+Replit Agent، این تغییرات رو با دقت اعمال کن و گزارش بده که کدوم فایل‌ها و خطوط رو اصلاح کردی. اگه context کد مشخص نیست یا نمی‌دونی کدوم متد رو استفاده کنی، قبل از تغییر از من بپرس. این موضوع حیاتیه و نباید فراموش بشه!
+

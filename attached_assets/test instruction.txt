@@ -1,0 +1,186 @@
+
+متن دستورالعمل
+**Prompt for Replit Agent**
+
+**Objective**: Develop a comprehensive automated testing suite for the RFCBot Telegram bot, ensuring that all functionalities, especially the category hierarchies displayed when users select Products, Services, or Educational Content (via buttons or commands), exactly match the four-level tree-like structure stored in the PostgreSQL database (product_categories, service_categories, educational_categories). The tests must verify that the bot’s responses reflect the database state, that admin panel changes are synchronized with the bot, and that all database interactions are correct. Use Pytest, python-telegram-bot, mock Telegram API calls, and integrate with a CI/CD pipeline (GitHub Actions) for continuous testing.
+
+**Context**:
+The RFCBot is a Telegram bot for a radio frequency/telecommunications catalog, built with Flask, python-telegram-bot (assumed), and a PostgreSQL database.
+
+The admin panel (file: app.py, templates like admin_categories.html) manages:
+- Categories in three tables (product_categories, service_categories, educational_categories) with a four-level hierarchy (root, level 1, level 2, level 3; level 4 nodes are leaf nodes).
+- Products (products table), services (services table), educational content (educational_content table), and inquiries (inquiries table).
+
+The bot (file: bot.py, assumed) responds to commands (e.g., /start, /products, /services, /education, /inquiries) and likely uses buttons (inline keyboards) for navigating categories.
+
+**Key features**:
+- Users can press buttons (e.g., "محصولات" for Products, "خدمات" for Services, "مطالب آموزشی" for Educational Content) to view category hierarchies.
+- The bot displays categories in a tree-like structure, mirroring the database’s four-level hierarchy.
+- Admin panel changes (e.g., adding/editing categories) must be immediately visible to the bot.
+
+**Key files**:
+- app.py: Flask routes for admin panel and bot control (/control/start, /control/stop).
+- database.py: Database class for PostgreSQL interactions.
+- admin_categories.html: Manages categories in three tabs with a jsTree-based tree view.
+- Templates for adding/editing categories, products, services, and educational content.
+
+**Requirements**:
+- Test all bot commands and conversation flows, ensuring category hierarchies match the database.
+- Verify that pressing Products, Services, or Educational Content buttons displays categories in a tree-like structure identical to the database (same parent-child relationships, levels, and names).
+- Test admin panel CRUD operations and ensure changes are reflected in the bot’s responses.
+- Use PostgreSQL with a test database schema.
+- Mock Telegram API to avoid real requests.
+- Include stress tests and CI/CD integration.
+- Ensure tests cover edge cases (e.g., empty categories, deep hierarchies).
+
+**Existing Features to Test**:
+**Bot Functionality**:
+- Commands: /start (welcome message), /products (list product categories), /services (list service categories), /education (list educational categories), /inquiries (submit inquiry).
+- Buttons: Inline keyboard buttons for "محصولات" (Products), "خدمات" (Services), "مطالب آموزشی" (Educational Content), triggering category navigation.
+- Conversation Flows: Selecting a category, drilling down to subcategories, viewing items, submitting inquiries.
+- Category Display: When a user selects a category type (via button or command), the bot presents a tree-like structure (e.g., inline keyboard with parent-child relationships) matching the database’s hierarchy.
+- Error Handling: Invalid commands, unavailable items, database errors.
+
+**Admin Panel Integration**:
+- CRUD operations on categories (product_categories, service_categories, educational_categories).
+- CRUD operations on products, services, and educational content.
+- Inquiry management.
+- Configuration settings (e.g., BOT_TOKEN, ADMIN_ID).
+
+**Database Schema** (file: schema.sql):
+- Tables for product_categories, service_categories, educational_categories, products, services, educational_content, and inquiries, with a four-level hierarchy and foreign key constraints.
+
+**Flask Routes**:
+- /admin/categories: Manages categories in three tabs with tree view.
+- /admin/<type>_categories/add, /edit/<id>, /delete, /move: CRUD for categories.
+- /admin/products, /services, /education, /inquiries: Manage respective entities.
+- /control/start, /control/stop: Bot process control.
+- /webhook (assumed): Handles Telegram updates if using webhooks.
+
+**Testing Requirements**:
+**Category Hierarchy Verification**:
+- When a user presses the Products, Services, or Educational Content button (or issues /products, /services, /education), the bot must display categories in a tree-like structure (e.g., inline keyboard or text) that exactly matches the database’s hierarchy:
+  - Same parent-child relationships (e.g., level 1 nodes have no parent, level 2 nodes reference level 1, etc.).
+  - Same category names and levels (1 to 4).
+  - No level 4 node has children.
+- Test navigation through the hierarchy (e.g., selecting a level 1 category shows level 2 subcategories).
+- Verify that admin panel changes (e.g., adding a subcategory, moving a node) are immediately reflected in the bot’s category display.
+
+**Unit Tests**:
+- Test individual commands (/start, /products, etc.) and button responses.
+- Verify database queries for fetching categories and items.
+
+**Integration Tests**:
+- Test full conversation flows (e.g., press Products → select category → view product → submit inquiry).
+- Ensure admin panel changes are visible to the bot.
+
+**Database Synchronization**:
+- Confirm that the bot queries the same PostgreSQL database as the admin panel.
+- Test cascading effects (e.g., deleting a category removes associated products).
+
+**Stress Tests**:
+- Simulate multiple users interacting with category buttons to ensure performance.
+
+**Error Handling**:
+- Test invalid inputs, empty categories, and API failures.
+
+**CI/CD**:
+- Run tests automatically on code changes using GitHub Actions.
+
+**Environment**:
+- Use a test PostgreSQL database (temporary schema or separate instance).
+- Mock Telegram API to avoid real requests.
+- Use a test bot token and chat for isolation.
+
+**Implementation Steps**:
+**Setup Testing Environment**:
+- Create a tests/ directory with:
+  - test_bot.py: Tests for commands and button responses.
+  - test_flows.py: Tests for conversation flows and category hierarchy.
+  - test_db.py: Tests for database integration.
+  - test_admin.py: Tests for admin panel routes.
+  - conftest.py: Shared fixtures.
+- Install dependencies (file: requirements.txt).
+- Configure a test PostgreSQL database:
+  - Create a test database: rfcbot_test.
+  - Connection string: postgresql://test_user:test_password@localhost:5432/rfcbot_test.
+  - Initialize tables using the schema (file: schema.sql).
+- Obtain a test bot token from @BotFather and store it in an environment variable (TEST_BOT_TOKEN).
+- Use ngrok for webhook testing if the bot uses webhooks (file: ngrok_setup.sh).
+
+**Update database.py for Test Support** (file: database.py):
+- Modify the Database class to accept a custom connection for testing and include methods for category and item retrieval.
+
+**Write Test Fixtures** (file: tests/conftest.py):
+- Fixtures for PostgreSQL database, Telegram bot application, and Flask test client.
+
+**Write Bot Command and Button Tests** (file: tests/test_bot.py):
+- Test commands like /start and button responses for Products, ensuring correct category hierarchy display.
+
+**Write Category Hierarchy Tests** (file: tests/test_flows.py):
+- Verify that the bot’s category tree matches the database’s tree structure, including navigation through subcategories.
+
+**Write Database Integration Tests** (file: tests/test_db.py):
+- Test inquiry submission and database synchronization.
+
+**Write Admin Panel Tests** (file: tests/test_admin.py):
+- Test category CRUD operations and verify bot visibility.
+
+**Assumed bot.py Implementation** (file: bot.py):
+- Handlers for commands (/start, /products, etc.), button callbacks, and inquiry processing.
+
+**Stress Testing with Locust** (file: locustfile.py):
+- Simulate multiple users sending /products commands to test performance.
+
+**CI/CD Setup** (file: .github/workflows/test.yml):
+- GitHub Actions workflow to run tests on code changes with PostgreSQL service.
+
+**Deliverables**:
+- tests/ directory with conftest.py, test_bot.py, test_flows.py, test_db.py, test_admin.py.
+- Updated database.py with test support.
+- Sample bot.py (if not provided).
+- locustfile.py for stress testing.
+- GitHub Actions workflow (test.yml).
+- Documentation in README.md with testing instructions.
+
+**Constraints**:
+- Ensure tests run in a test PostgreSQL database to avoid affecting production.
+- Mock Telegram API to prevent real requests.
+- Maintain Persian UI (e.g., button texts like "محصولات").
+- Support four-level category hierarchy with no children for level 4 nodes.
+- Handle large hierarchies efficiently in tests.
+
+**Success Criteria**:
+- Tests verify that Products, Services, and Educational Content buttons display category hierarchies identical to the database’s tree structure.
+- Admin panel changes (e.g., adding/moving categories) are immediately visible in the bot.
+- All commands, conversation flows, and database interactions are tested.
+- Stress tests confirm performance under load.
+- CI/CD pipeline runs tests automatically on code changes.
+
+**Additional Notes**:
+- If bot.py differs significantly, provide its structure for precise handler integration.
+- If inline keyboards are not used, adjust tests to verify text-based hierarchy display.
+- For webhook-based bots, include ngrok setup instructions and test /webhook endpoint.
+
+Please implement this testing suite, ensuring all specified features are covered, and provide the complete code, setup instructions, and documentation. Verify that the category hierarchies displayed by the bot match the PostgreSQL database exactly.
+
+This prompt is comprehensive, addressing the requirement to verify that the category hierarchies for Products, Services, and Educational Content match the database’s tree structure, while covering all bot and admin panel functionalities. It includes specific tests for hierarchy comparison, uses PostgreSQL, and ensures synchronization between the bot and admin panel. Let me know if you need further refinements or assistance with specific aspects of the implementation!
+
+---
+
+**فایل‌های پیوست**:
+- schema.sql
+- app.py
+- database.py
+- admin_categories.html
+- bot.py
+- requirements.txt
+- ngrok_setup.sh
+- tests/conftest.py
+- tests/test_bot.py
+- tests/test_flows.py
+- tests/test_db.py
+- tests/test_admin.py
+- locustfile.py
+- .github/workflows/test.yml
+- README.md

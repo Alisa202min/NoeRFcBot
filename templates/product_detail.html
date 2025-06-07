@@ -1,0 +1,149 @@
+{% extends 'layout.html' %}
+
+{% block title %}{{ product.name }} | محصولات{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <!-- گالری تصاویر -->
+        <div class="col-md-4 order-1 order-md-2 mb-4">
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">تصاویر و ویدیو محصول</h5>
+        </div>
+        <div class="card-body">
+            {% if media %}
+                <div class="row row-cols-1 row-cols-sm-2 g-3">
+                    {% for item in media %}
+                        <div class="col">
+                            {% if item.file_type == 'photo' %}
+                                <img src="/static/{{ item.file_id }}" class="img-fluid rounded" alt="{{ product.name }}" style="max-height: 400px; object-fit: cover;">
+                            {% elif item.file_type == 'video' %}
+                                <video controls class="img-fluid rounded" style="max-height: 150px;">
+                                    <source src="/static/{{ item.file_id }}" type="video/mp4">
+                                    مرورگر شما از پخش ویدیویی پشتیبانی نمی‌کند.
+                                </video>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-3">
+                    <i class="bi bi-image text-muted display-4"></i>
+                    <p class="mt-2">بدون تصویر</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+            <!-- وضعیت موجودی -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi {% if product.in_stock %}bi-check-circle-fill text-success{% else %}bi-x-circle-fill text-danger{% endif %} me-2 fs-5"></i>
+                        <span>وضعیت: {{ 'موجود' if product.in_stock else 'ناموجود' }}</span>
+                    </div>
+                    {% if product.featured %}
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-star-fill text-warning me-2 fs-5"></i>
+                            <span>محصول ویژه</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- اطلاعات محصول -->
+        <div class="col-md-8 order-2 order-md-1">
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h2 class="card-title fw-bold mb-3">{{ product.name }}</h2>
+                    <p class="card-text text-muted">
+                        <i class="bi bi-tag-fill me-1"></i> دسته‌بندی: 
+                        {{ product.category.name if product.category else 'بدون دسته‌بندی' }}
+                    </p>
+
+                    <!-- قیمت -->
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="fs-5 fw-bold text-primary">{{ "{:,}".format(product.price) }}</span>
+                        <span class="me-1">تومان</span>
+                    </div>
+
+                    <!-- مشخصات -->
+                    {% if product.brand or product.model %}
+                    <div class="mb-3">
+                        {% if product.brand %}
+                        <p class="mb-1"><strong>برند:</strong> {{ product.brand }}</p>
+                        {% endif %}
+                        {% if product.model %}
+                        <p class="mb-1"><strong>مدل:</strong> {{ product.model }}</p>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-4">
+                        <h4 class="mb-2">توضیحات محصول</h4>
+                        <div class="product-description">
+                            {{ product.description|safe }}
+                        </div>
+                    </div>
+
+                    <!-- تگ‌ها -->
+                    {% if product.tags %}
+                    <div class="mb-3">
+                        <h5 class="mb-2">برچسب‌ها</h5>
+                        <div>
+                            {% for tag in product.tags.split(',') %}
+                                <span class="badge bg-secondary me-1 mb-1">{{ tag.strip() }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- دکمه استعلام قیمت -->
+                    <div class="mt-4">
+                        <div class="d-grid d-md-block">
+                            <a href="https://t.me/RFCatalogbot?start=product_{{ product.id }}" class="btn btn-primary">
+                                <i class="bi bi-telegram me-1"></i> استعلام قیمت از طریق تلگرام
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- محصولات مرتبط -->
+    {% if related_products %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <h3 class="mb-3">محصولات مرتبط</h3>
+            <div class="row">
+                {% for related in related_products %}
+                <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                    <div class="card h-100 shadow-sm product-card" onclick="window.location.href='{{ url_for('product_detail', product_id=related.id) }}';" style="cursor: pointer;">
+                        {% set main_media = related.media.filter_by(file_type='photo').first() %}
+                        {% if main_media %}
+                            <img src="/static/{{ main_media.file_id }}" class="card-img-top" alt="{{ related.name }}" style="height: 180px; object-fit: cover;">
+                        {% else %}
+                            <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 180px;">
+                                <i class="bi bi-image text-muted display-4"></i>
+                            </div>
+                        {% endif %}
+                        <div class="card-body">
+                            <h5 class="card-title">{{ related.name }}</h5>
+                            <p class="card-text text-primary fw-bold">{{ "{:,}".format(related.price) }} تومان</p>
+                            <div class="mt-2 d-grid">
+                                <a href="{{ url_for('product_detail', product_id=related.id) }}" class="btn btn-outline-primary btn-sm">مشاهده جزئیات</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
