@@ -1,4 +1,4 @@
-```python
+
 import os
 from logging_config import get_logger
 from aiogram.types import FSInputFile
@@ -47,4 +47,3 @@ def format_price(price: float | int) -> str:
     except (TypeError, ValueError) as e:
         logger.error(f"Error formatting price: {price}, error: {str(e)}")
         return "نامشخص"
-```

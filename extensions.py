@@ -40,9 +40,9 @@ class Database:
             self.user_repo = UserRepository(self.Session)
             self.inquiry_repo = InquiryRepository(self.Session)
             self.static_content_repo = StaticContentRepository(self.Session)
-            logger.info("Database و repositoryها با موفقیت مقداردهی شدند")
+            logger.info("Database and repository Initialized successfully")
         except Exception as e:
-            logger.error(f"خطا در مقداردهی Database: {str(e)}", exc_info=True)
+            logger.error(f"Error in  initialize Database: {str(e)}", exc_info=True)
             raise
 
     # توابع محصول
@@ -58,6 +58,11 @@ class Database:
         """به‌روزرسانی file_id رسانه محصول."""
         return self.product_repo.update_product_media_file_id(media_id, new_file_id)
 
+
+    def get_product_categories(self, parent_id: int = None) -> list[dict]:
+        """گرفتن دسته‌بندی‌های محصول با تعداد زیرمجموعه‌ها و محصولات."""
+        return self.product_repo.get_product_categories(parent_id)
+        
     def get_product_category(self, category_id: int) -> dict | None:
         """گرفتن دسته‌بندی محصول با شناسه."""
         return self.product_repo.get_product_category(category_id)
@@ -134,5 +139,8 @@ class Database:
     def get_static_content(self, content_type: str) -> dict | None:
         """گرفتن محتوای ثابت با نوع."""
         return self.static_content_repo.get_static_content(content_type)
+
+    
+
 
 database = Database()

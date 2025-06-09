@@ -6,7 +6,7 @@
 from aiogram import Router
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 from logging_config import get_logger
 from extensions import database
 from bot import bot
@@ -14,28 +14,24 @@ from configuration import (
     PRODUCTS_BTN, SERVICES_BTN, INQUIRY_BTN, EDUCATION_BTN,
     CONTACT_BTN, ABOUT_BTN, SEARCH_BTN
 )
-from handlers import (
-    start_router, products_router, services_router,
-    educational_router, inquiry_router ,UserStates
-)
+from handlers.base_handlers import router as base_router
+import UserStates
+from handlers.product_handlers import router as products_router
+from handlers.service_handlers import router as services_router
+from handlers.education_handlers import router as educational_router
+from handlers.inquiry_handlers import router as inquiry_router
 
-# نمونه‌های گلوبال
 db = database
 logger = get_logger('bot')
 
-
-
-# روتر اصلی
 router = Router(name="main_router")
 
-# وارد کردن روترهای جداگانه
-router.include_router(start_router)
+router.include_router(base_router)
 router.include_router(products_router)
 router.include_router(services_router)
 router.include_router(educational_router)
 router.include_router(inquiry_router)
 
-# هندلرهای عمومی
 @router.message(lambda message: message.text == CONTACT_BTN)
 async def cmd_contact(message: Message):
     """Handle /contact command or Contact button"""
@@ -123,7 +119,7 @@ async def handle_search_input(message: Message, state: FSMContext):
         response_text = f"🔍 نتایج جستجو برای: *{search_query}*\n\n"
         response_text += f"📊 تعداد کل نتایج: {total_results}\n\n"
 
-        from handlers.utils import format_price
+        from handlers_utils import format_price
 
         if search_results['products']:
             response_text += f"🛍️ *محصولات ({len(search_results['products'])})*\n"
@@ -164,41 +160,6 @@ async def handle_search_input(message: Message, state: FSMContext):
         logger.error(f"Error in handle_search_input: {str(e)}", exc_info=True)
         await message.answer("⚠️ متأسفانه در جستجو خطایی رخ داد.")
         await state.clear()
-
-
-@router.callback_query(lambda c: c.data.startswith("category:"))
-async def callback_category(callback: CallbackQuery, state: FSMContext):
-    """Handle category selection"""
-    try:
-        category_id = int(callback.data.split(':', 1)[1])
-        state_data = await state.get_data()
-        cat_type = state_data.get('cat_type', 'product')
-
-        logger.info(f"Processing category ID {category_id} as {cat_type} type")
-
-        if cat_type == 'product':
-            if not db.check_category_exists('product_categories', category_id):
-                logger.warning(f"Category {category_id} not found in product_categories")
-                await callback.message.answer("⚠️ این دسته‌بندی محصول وجود ندارد.")
-                await callback.answer()
-                return
-            await show_product_categories(callback.message, state, category_id)
-        elif cat_type == 'service':
-            if not db.check_category_exists('service_categories', category_id):
-                logger.warning(f"Category {category_id} not found in service_categories")
-                await callback.message.answer("⚠️ این دسته‌بندی خدمت وجود ندارد.")
-                await callback.answer()
-                return
-            await show_service_categories(callback.message, state, category_id)
-        else:
-            logger.error(f"Unknown category type: {cat_type}")
-            await callback.message.answer("⚠️ نوع دسته‌بندی نامشخص است.")
-
-        await callback.answer()
-    except Exception as e:
-        logger.error(f"Error in callback_category: {str(e)}", exc_info=True)
-        await callback.message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد.")
-        await callback.answer()
 
 @router.callback_query(lambda c: c.data == "back_to_main")
 async def callback_back_to_main(callback: CallbackQuery, state: FSMContext):

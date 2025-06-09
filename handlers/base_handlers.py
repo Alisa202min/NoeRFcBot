@@ -2,9 +2,10 @@ import traceback
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command, CommandStart
+from aiogram.fsm.context import FSMContext
 from logging_config import get_logger
-from bot import bot
-from keyboards import main_menu_keyboard, get_main_keyboard
+
+from keyboards import main_menu_keyboard
 from extensions import database
 from configuration import CONTACT_BTN, ABOUT_BTN
 
@@ -13,7 +14,7 @@ router = Router(name="base_router")
 db = database
 
 @router.message(CommandStart())
-async def cmd_start(message: Message, state):
+async def cmd_start(message: Message, state: FSMContext):
     """Handle /start command - initial entry point"""
     try:
         logger.info(f"Start command received from user: {message.from_user.id}")
@@ -44,7 +45,7 @@ async def cmd_help(message: Message):
         "👉 برای اطلاعات تماس: /contact یا دکمه «تماس با ما»\n"
         "👉 برای اطلاعات درباره ما: /about یا دکمه «درباره ما»"
     )
-    await message.answer(help_text, reply_markup=get_main_keyboard())
+    await message.answer(help_text, reply_markup=main_menu_keyboard())
 
 @router.message(lambda message: message.text == CONTACT_BTN)
 @router.callback_query(F.data == "contact")
@@ -107,5 +108,5 @@ async def handle_unknown_callback(callback: CallbackQuery):
         f"Unknown callback: update_id={callback.id}, "
         f"user_id={callback.from_user.id}, data={callback.data}"
     )
-    await callback.message.answer("این عملیات پشتیبانی نمی‌شود!", reply_markup=get_main_keyboard())
+    await callback.message.answer("این عملیات پشتیبانی نمی‌شود!", reply_markup=main_menu_keyboard())
     await callback.answer()

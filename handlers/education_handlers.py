@@ -1,15 +1,18 @@
+
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InputMediaPhoto, InputMediaVideo
 from configuration import EDUCATION_BTN, EDUCATION_PREFIX, ADMIN_ID
 from logging_config import get_logger
 from extensions import database
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.types import InputMediaPhoto, InputMediaVideo
 from bot import bot
 from keyboards import education_categories_keyboard, education_content_keyboard, education_detail_keyboard
-from utils import create_telegraph_page
+from .handlers_utils import is_valid_telegram_file_id, upload_file_to_telegram
+from aiogram.filters import Command
+from utils.utils import create_telegraph_page
 import os
 import traceback
+from models import EducationalContentMedia
 
 logger = get_logger('bot')
 router = Router(name="educational_router")
@@ -18,7 +21,7 @@ db = database
 @router.message(lambda message: message.text == EDUCATION_BTN)
 @router.message(Command("education"))
 async def cmd_education(message: Message):
-    """Handle Education button"""
+    """Handle Education button or /education command"""
     try:
         logger.info(f"Educational content requested by user: {message.from_user.id}")
         categories = db.get_educational_categories()
@@ -29,7 +32,7 @@ async def cmd_education(message: Message):
 
         keyboard = education_categories_keyboard(categories)
         await message.answer(
-            "📚 *محتوای آموزشی*\n\nلطفا یکی از دسته‌بندی‌های زیر را انتخاب کنید:", 
+            "📚 *محتوای آموزشی*\n\nلطفا یکی از دسته‌بندی‌های زیر را انتخاب کنید:",
             reply_markup=keyboard,
             parse_mode="Markdown"
         )
@@ -56,7 +59,7 @@ async def callback_educational(callback: CallbackQuery):
             category['content_count'] = content_count + legacy_count
 
         keyboard = education_categories_keyboard(categories)
-        await callback.message.answer("🎓 دسته‌بندی محتوای آموزشی را انتخاب کنید:", 
+        await callback.message.answer("🎓 دسته‌بندی محتوای آموزشی را انتخاب کنید:",
                                    reply_markup=keyboard)
     except Exception as e:
         logger.error(f"Error in callback_educational: {str(e)}\n{traceback.format_exc()}")
@@ -82,7 +85,7 @@ async def callback_educational_category(callback: CallbackQuery):
             return
 
         keyboard = education_content_keyboard(content_list, category_id)
-        await callback.message.answer(f"📚 محتوای آموزشی در دسته‌بندی '{category_info['name']}':", 
+        await callback.message.answer(f"📚 محتوای آموزشی در دسته‌بندی '{category_info['name']}':",
                                    reply_markup=keyboard)
     except Exception as e:
         logger.error(f"Error in callback_educational_category: {str(e)}\n{traceback.format_exc()}")
@@ -98,7 +101,7 @@ async def callback_educational_categories(callback: CallbackQuery):
         return
 
     keyboard = education_categories_keyboard(categories)
-    await callback.message.answer("🎓 دسته‌بندی محتوای آموزشی را انتخاب کنید:", 
+    await callback.message.answer("🎓 دسته‌بندی محتوای آموزشی را انتخاب کنید:",
                                reply_markup=keyboard)
 
 @router.callback_query(F.data.startswith(f"{EDUCATION_PREFIX}:"))
@@ -195,15 +198,8 @@ async def process_media_file(media, idx, bot, caption_text):
     local_path = media.get('local_path', '')
     file_type = media.get('file_type', 'photo')
 
-    def is_valid_telegram_file_id(file_id: str) -> bool):
-        if not file_id or not isinstance(file_id, str):
-            return False
-        file_id = file_id.strip()
-        return len(file_id) > 20 and all(c.isalnum() or c in ['-', '_', '.'] for c in file_id)
-    
-    logger.info(f"f"Processing media {media_id}: file_id={file_id}: file_id={file_id}, local_path={local_path}, type={file_type}")
+    logger.info(f"Processing media {media_id}: file_id={file_id}, local_path={local_path}, type={file_type}")
 
-    logger.info(f"Processing media {media_id}: {message_text}")
     if not file_id or file_id.startswith('educational_content_image_'):
         if not local_path:
             logger.error(f"No local path for media {media_id} with file_id {file_id}")
@@ -215,99 +211,71 @@ async def process_media_file(media, idx, bot, caption_text):
             return None
 
         try:
-            from .utils import upload_file_to_telegram
-            telegram_file_id = await upload_file_to_file_to_telegram(full_path, bot, file_type)
-            if not telegram_file_id or not is_valid_file_id(telegram_file_id):
+            telegram_file_id = await upload_file_to_telegram(full_path, bot, file_type)
+            if not telegram_file_id or not is_valid_telegram_file_id(telegram_file_id):
                 logger.error(f"Invalid file_id returned from upload: {telegram_file_id}")
                 return None
 
             session = db.Session()
             try:
                 media_record = session.query(EducationalContentMedia).filter_by(id=media_id).first()
-                media_id=media_id)
                 if media_record:
-                    media_record.file_id = id = telegram_file_id
+                    media_record.file_id = telegram_file_id
                     session.commit()
-                    logger.info(f"Updated file_id for media for id: {media_id} to {id}")
-                        else:
-                            return None
+                    logger.info(f"Updated file_id for media {media_id} to {telegram_file_id}")
+                    file_id = telegram_file_id
                 else:
-                    logger.error(f"Media record {media_id} not found in media record")
+                    logger.error(f"Media record {media_id} not found")
                     return None
             except Exception as e:
-                logger.error(f"Failed to update database for media {id}: {str(e)}")
+                logger.error(f"Failed to update database for media {media_id}: {str(e)}")
+                session.rollback()
                 return None
-            else:
-                session.close()
-                return None
-
             finally:
-                file_id = None
-
+                session.close()
         except Exception as e:
             logger.error(f"Error uploading local file {full_path}: {str(e)}")
             return None
     else:
         try:
             await bot.get_file(file_id)
-            try:
-                logger.info(f"Validated file_id {file_id} for media {media_id}")
-            except:
-                return None
+            logger.info(f"Validated file_id {file_id} for media {media_id}")
         except TelegramBadRequest as e:
             logger.warning(f"File_id {file_id} inaccessible: {str(e)}")
             if not local_path:
-                logger.warning(f"No local path for media {file_id}")
+                logger.warning(f"No local path for media {media_id}")
                 return None
-            if local_path:
-                full_path = local_path if local_path.startswith('static/') else f"static/{local_path}" else local_path
-                if os.path.exists(full_path):
-                    if os.path.exists(full_path):
-                        try:
-                            from from .utils import upload_file_to_file
-                            telegram_file_id = await file_to_file(full_path, bot, file_type, file_type)
-                            if not telegram_file_id or not is_valid_telegram_id(telegram_file_id):
-                                logger.error(f"Invalid file_id from upload: {telegram_file_id}")
-                                return None
-                            elif os.path.isfile(full_path):
-                                return None
 
-                            session = None
-                            try:
-                                return None
-                            except Exception as e:
-                                return None
-                            
-                        except:
-                            try:
-                                media_record = None
-                                if media_id == media_id:
-                                    return None
-                                elif media == None:
-                                    return None
-                            else:
-                                try:
-                                    return None
-                                except:
-                                    return None
-                            finally:
-                                try:
-                                    return None
-                                except:
-                                    return None
-                        except Exception as e:
-                            logger.error(f"Error re-uploading file {full_path}: {e}")
-                            return None
-                        file_id = None
-                    else:
-                        logger.error(f"Local file not found: {full_path}")
-                        return None
-                else:
-                    logger.error(f"No local path for media {media_id}")
+            full_path = local_path if local_path.startswith('static/') else f"static/{local_path}"
+            if not os.path.exists(full_path):
+                logger.error(f"Local file not found: {full_path}")
+                return None
+
+            try:
+                telegram_file_id = await upload_file_to_telegram(full_path, bot, file_type)
+                if not telegram_file_id or not is_valid_telegram_file_id(telegram_file_id):
+                    logger.error(f"Invalid file_id from upload: {telegram_file_id}")
                     return None
 
-            else:
-                return None
+                session = db.Session()
+                try:
+                    media_record = session.query(EducationalContentMedia).filter_by(id=media_id).first()
+                    if media_record:
+                        media_record.file_id = telegram_file_id
+                        session.commit()
+                        logger.info(f"Updated file_id for media {media_id} to {telegram_file_id}")
+                        file_id = telegram_file_id
+                    else:
+                        logger.error(f"Media record {media_id} not found")
+                        return None
+                except Exception as e:
+                    logger.error(f"Failed to update database for media {media_id}: {str(e)}")
+                    session.rollback()
+                    return None
+                finally:
+                    session.close()
+            except Exception as e:
+                logger.error(f"Error re-uploading file {full_path}: {str(e)}")
                 return None
 
     try:
@@ -318,12 +286,14 @@ async def process_media_file(media, idx, bot, caption_text):
                 parse_mode="Markdown"
             )
         elif file_type == 'video':
-            return media
-        return InputMediaVideo(
-            media=file_id,
-            caption=caption_text if idx == 0 else "",
-            parse_mode="Markdown"
-        )
+            return InputMediaVideo(
+                media=file_id,
+                caption=caption_text if idx == 0 else "",
+                parse_mode="Markdown"
+            )
+        else:
+            logger.error(f"Unsupported file type {file_type} for media {media_id}")
+            return None
     except Exception as e:
         logger.error(f"Failed to create media item for file_id {file_id}: {str(e)}")
         return None

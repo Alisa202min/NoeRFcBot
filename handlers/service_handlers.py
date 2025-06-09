@@ -1,74 +1,18 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-from configuration import SERVICES_BTN
+from configuration import SERVICES_BTN, SERVICE_PREFIX
 from logging_config import get_logger
 from extensions import database
-from .media import send_service_media
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+from bot import bot
 
+from keyboards import service_categories_keyboard, service_content_keyboard, service_detail_keyboard
+from aiogram.filters import Command
+import traceback
+from handlers.handlers_utils import format_price
 logger = get_logger('bot')
 router = Router(name="services_router")
 db = database
-
-async def show_service_categories(message: Message | CallbackQuery, state: FSMContext, parent_id=None):
-    """Show service categories"""
-    try:
-        await state.update_data(cat_type='service')
-        logger.info(f"show_service_categories called with parent_id={parent_id}")
-        categories = db.get_service_categories(parent_id=parent_id)
-
-        if not categories:
-            if parent_id:
-                services = db.get_services(parent_id)
-                if services:
-                    await show_services_list(message, services, parent_id)
-                else:
-                    await message.answer("خدمتی در این دسته‌بندی وجود ندارد.")
-            else:
-                await message.answer("دسته‌بندی خدمات موجود نیست.")
-            return
-
-        kb = InlineKeyboardBuilder()
-        for category in categories:
-            subcategory_count = category.get('subcategory_count', 0)
-            service_count = category.get('service_count', 0)
-            total_items = subcategory_count + service_count
-            display_name = f"{category['name']} ({total_items})" if total_items > 0 else category['name']
-            kb.button(text=display_name, callback_data=f"category:{category['id']}")
-
-        if parent_id:
-            parent_category = db.get_service_category(parent_id)
-            if parent_category and parent_category.get('parent_id'):
-                kb.button(text="🔙 بازگشت", callback_data=f"category:{parent_category['parent_id']}")
-            else:
-                kb.button(text="🔙 بازگشت به دسته‌بندی‌های اصلی", callback_data="services")
-        else:
-            kb.button(text="🔙 بازگشت به منوی اصلی", callback_data="back_to_main")
-        kb.adjust(1)
-
-        if isinstance(message, CallbackQuery):
-            await message.message.answer("دسته‌بندی خدمات را انتخاب کنید:", reply_markup=kb.as_markup())
-            await message.answer()
-        else:
-            await message.answer("دسته‌بندی خدمات را انتخاب کنید:", reply_markup=kb.as_markup())
-        await state.set_state(UserStates.browse_categories)
-    except Exception as e:
-        logger.error(f"Error in show_service_categories: {str(e)}")
-        await message.answer("⚠️ خطایی در نمایش دسته‌بندی‌های خدمات رخ داد.")
-
-async def show_services_list(message: Message | CallbackQuery, services, parent_id):
-    """Show list of services in a category"""
-    kb = InlineKeyboardBuilder()
-    for service in services:
-        kb.button(text=service['name'], callback_data=f"service:{service['id']}")
-    kb.button(text="🔙 بازگشت", callback_data=f"category:{parent_id}")
-    kb.adjust(1)
-    if isinstance(message, CallbackQuery):
-        await message.message.answer("خدمات این دسته‌بندی:", reply_markup=kb.as_markup())
-        await message.answer()
-    else:
-        await message.answer("خدمات این دسته‌بندی:", reply_markup=kb.as_markup())
 
 @router.message(lambda message: message.text == SERVICES_BTN)
 @router.message(Command("services"))
@@ -76,61 +20,127 @@ async def cmd_services(message: Message, state: FSMContext):
     """Handle /services command or Services button"""
     try:
         logger.info(f"Services requested by user: {message.from_user.id}")
-        await state.update_data(cat_type='service')
-        await show_service_categories(message, state)
+        categories = db.get_service_categories()
+        if not categories:
+            await message.answer("⚠️ دسته‌بندی خدمات در حال حاضر در دسترس نیست. لطفا بعدا تلاش کنید.")
+            logger.warning("No service categories found in database")
+            return
+
+        keyboard = service_categories_keyboard(categories)
+        await message.answer(
+            "🔧 *دسته‌بندی خدمات*\n\nلطفا یکی از دسته‌بندی‌های زیر را انتخاب کنید:",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        logger.info(f"Service categories sent: {len(categories)} categories")
     except Exception as e:
         logger.error(f"Error in cmd_services: {str(e)}\n{traceback.format_exc()}")
         await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
 
 @router.callback_query(F.data == "services")
-async def callback_services(callback: CallbackQuery, state: FSMContext):
+async def callback_services(callback: CallbackQuery):
     """Handle services button click"""
-    logger.debug(f"callback_services called with data: {callback.data}")
-    await show_service_categories(callback, state)
+    await callback.answer()
+    try:
+        categories = db.get_service_categories()
+        if not categories:
+            await callback.message.answer("در حال حاضر دسته‌بندی خدمات موجود نیست.")
+            return
 
-@router.callback_query(F.data.startswith("service:"))
+        for category in categories:
+            category_id = category['id']
+            subcategory_count = int(category.get('subcategory_count', 0))
+            service_count = int(category.get('service_count', 0))
+            category['content_count'] = subcategory_count + service_count
+
+        keyboard = service_categories_keyboard(categories)
+        await callback.message.answer("🔧 دسته‌بندی خدمات را انتخاب کنید:",
+                                   reply_markup=keyboard)
+    except Exception as e:
+        logger.error(f"Error in callback_services: {str(e)}\n{traceback.format_exc()}")
+        await callback.message.answer("⚠️ خطایی در نمایش دسته‌بندی خدمات رخ داد.")
+
+@router.callback_query(F.data.startswith(f"{SERVICE_PREFIX}cat_"))
+async def callback_service_category(callback: CallbackQuery):
+    """Handle service category selection"""
+    await callback.answer()
+    try:
+        category_id = int(callback.data.replace(f"{SERVICE_PREFIX}cat_", ""))
+        logger.info(f"Selected service category ID: {category_id}")
+        category_info = db.get_service_category(category_id)
+        if not category_info:
+            logger.error(f"Service category not found for ID: {category_id}")
+            await callback.message.answer("⚠️ دسته‌بندی مورد نظر یافت نشد.")
+            return
+
+        services = db.get_services(category_id=category_id)
+        if not services:
+            logger.warning(f"No services found for category ID: {category_id}")
+            await callback.message.answer(f"⚠️ خدماتی برای دسته‌بندی '{category_info['name']}' موجود نیست.")
+            return
+
+        keyboard = service_content_keyboard(services, category_id)
+        await callback.message.answer(f"🔧 خدمات در دسته‌بندی '{category_info['name']}':",
+                                   reply_markup=keyboard)
+    except Exception as e:
+        logger.error(f"Error in callback_service_category: {str(e)}\n{traceback.format_exc()}")
+        await callback.message.answer("⚠️ خطایی در نمایش خدمات رخ داد.")
+
+@router.callback_query(F.data == f"{SERVICE_PREFIX}categories")
+async def callback_service_categories(callback: CallbackQuery):
+    """Handle going back to service categories"""
+    await callback.answer()
+    try:
+        categories = db.get_service_categories()
+        if not categories:
+            await callback.message.answer("در حال حاضر دسته‌بندی خدمات موجود نیست.")
+            return
+
+        keyboard = service_categories_keyboard(categories)
+        await callback.message.answer("🔧 دسته‌بندی خدمات را انتخاب کنید:",
+                                   reply_markup=keyboard)
+    except Exception as e:
+        logger.error(f"Error in callback_service_categories: {str(e)}\n{traceback.format_exc()}")
+        await callback.message.answer("⚠️ خطایی در نمایش دسته‌بندی‌ها رخ داد.")
+
+@router.callback_query(F.data.startswith(f"{SERVICE_PREFIX}:"))
 async def callback_service(callback: CallbackQuery, state: FSMContext):
     """Handle service selection"""
     await callback.answer()
-    service_id = int(callback.data.split(':', 1)[1])
-    service = db.get_service(service_id)
+    try:
+        service_id = int(callback.data.replace(f"{SERVICE_PREFIX}:", ""))
+        logger.info(f"Selected service ID: {service_id}")
+        service = db.get_service(service_id)
+        if not service:
+            logger.error(f"Service not found for ID: {service_id}")
+            await callback.message.answer("⚠️ خدمت مورد نظر یافت نشد.")
+            return
 
-    if not service:
-        await callback.message.answer("خدمت مورد نظر یافت نشد.")
-        return
+        category_id = service.get('category_id', 0)
+        keyboard = service_detail_keyboard(service_id, category_id)
+        service_text = (
+            f"🔧 *{service['name']}*\n\n"
+            f"💰 قیمت: {format_price(service['price'])}\n\n"
+            f"📝 توضیحات:\n{service['description'] or 'بدون توضیحات'}\n"
+        )
+        if service.get('tags'):
+            service_text += f"🏷️ برچسب‌ها: {service['tags']}\n"
+        if service.get('available'):
+            service_text += "✅ در دسترس\n"
+        else:
+            service_text += "❌ غیرفعال\n"
+        if service.get('featured'):
+            service_text += "⭐️ خدمت ویژه\n"
 
-    await state.update_data(service_id=service_id)
-    await state.set_state(UserStates.view_service)
+        media_items = db.get_service_media(service_id)
+        await send_service_media_group_to_user(
+            bot=bot,
+            chat_id=callback.message.chat.id,
+            media_items=media_items,
+            caption=service_text,
+            reply_markup=keyboard
+        )
+    except Exception as e:
+        logger.error(f"Error in callback_service: {str(e)}\n{traceback.format_exc()}")
+        await callback.message.answer("⚠️ خطایی در نمایش خدمت رخ داد.")
 
-    media_files = db.get_service_media(service_id)
-    logger.debug(f"Service details: {service}")
-
-    service_text = f"🛠️ {service['name']}\n\n"
-    if 'price' in service and service['price']:
-        service_text += f"💰 قیمت: {service['price']} تومان\n\n"
-
-    additional_info = []
-    if 'tags' in service and service['tags']:
-        additional_info.append(f"🏷️ برچسب‌ها: {service['tags']}")
-    if 'featured' in service and service['featured']:
-        additional_info.append("⭐ خدمت ویژه")
-    if 'available' in service and service['available']:
-        additional_info.append("✅ در دسترس")
-    if additional_info:
-        service_text += "\n\n".join(additional_info) + "\n\n"
-    if 'description' in service and service['description']:
-        service_text += f"📝 توضیحات:\n{service['description']}\n\n"
-
-    kb = InlineKeyboardBuilder()
-    kb.button(text="🛍️ استعلام قیمت", callback_data=f"inquiry:service:{service_id}")
-    kb.button(text="🔙 بازگشت", callback_data=f"category:{service['category_id']}")
-    kb.adjust(1)
-    keyboard = kb.as_markup()
-
-    if media_files:
-        try:
-            await send_service_media(callback.message.chat.id, media_files, service, keyboard)
-        except Exception as e:
-            logger.debug(f"Error sending service media: {str(e)}\n{traceback.format_exc()}")
-            await callback.message.reply("⚠️ خطایی در ارسال رسانه‌های خدمت رخ داد.")
-    await callback.message.answer(service_text, reply_markup=keyboard)

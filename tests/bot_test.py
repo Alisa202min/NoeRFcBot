@@ -121,8 +121,7 @@ class TestTelegramBot(unittest.TestCase):
         print("\n=== تست ابزارهای handlers ===")
         
         try:
-            import handlers
-            from handlers import UserStates
+           
             
             # تست کلاس UserStates
             self.assertIsNotNone(UserStates.browse_categories, "حالت browse_categories باید تعریف شده باشد")

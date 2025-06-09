@@ -251,7 +251,7 @@ def import_initial_data(db, csv_path: str = None) -> Tuple[int, int]:
         csv_path = CSV_PATH
     
     if not os.path.exists(csv_path):
-        logging.warning(f"CSV file not found: {csv_path}")
+        logger.warning(f"CSV file not found: {csv_path}")
         return (0, 0)
     
     try:
@@ -267,13 +267,13 @@ def import_initial_data(db, csv_path: str = None) -> Tuple[int, int]:
             elif 'content' in headers:
                 entity_type = 'educational'
             else:
-                logging.error("Unknown CSV format")
+                logger.error("Unknown CSV format")
                 return (0, 0)
         
         # Import data
         return db.import_from_csv(entity_type, csv_path)
     except Exception as e:
-        logging.error(f"Error importing data from CSV: {e}")
+        logger.error(f"Error importing data from CSV: {e}")
         return (0, 0)
 
 def generate_csv_template(output_path: str, entity_type: str) -> bool:
@@ -332,7 +332,7 @@ def generate_csv_template(output_path: str, entity_type: str) -> bool:
         
         return True
     except Exception as e:
-        logging.error(f"Error generating CSV template: {e}")
+        logger.error(f"Error generating CSV template: {e}")
         return False
 
 async def create_telegraph_page(title: str, content: str, author: str = "RFCatalogbot") -> Optional[str]:
@@ -372,12 +372,12 @@ async def create_telegraph_page(title: str, content: str, author: str = "RFCatal
                 if response.status == 200:
                     account_result = await response.json()
                     if not account_result.get('ok'):
-                        logging.error(f"Telegraph API error creating account: {account_result}")
+                        logger.error(f"Telegraph API error creating account: {account_result}")
                         return None
                     
                     access_token = account_result.get('result', {}).get('access_token')
                     if not access_token:
-                        logging.error("No access token received from Telegraph API")
+                        logger.error("No access token received from Telegraph API")
                         return None
                     
                     # Step 2: Create the page using the access token
@@ -404,18 +404,18 @@ async def create_telegraph_page(title: str, content: str, author: str = "RFCatal
                             if page_result.get('ok'):
                                 page_url = page_result.get('result', {}).get('url')
                                 if page_url:
-                                    logging.info(f"Created Telegraph page: {page_url}")
+                                    logger.info(f"Created Telegraph page: {page_url}")
                                     return page_url
                             
-                            logging.error(f"Telegraph API error creating page: {page_result}")
+                            logger.error(f"Telegraph API error creating page: {page_result}")
                         else:
-                            logging.error(f"Telegraph API HTTP error: {page_response.status}")
+                            logger.error(f"Telegraph API HTTP error: {page_response.status}")
                 else:
-                    logging.error(f"Telegraph API HTTP error creating account: {response.status}")
+                    logger.error(f"Telegraph API HTTP error creating account: {response.status}")
         
         return None
     except Exception as e:
-        logging.error(f"Error creating Telegraph page: {str(e)}")
+        logger.error(f"Error creating Telegraph page: {str(e)}")
         return None
 
 
