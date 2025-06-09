@@ -3,12 +3,11 @@ import os
 from logging_config import get_logger
 logger = get_logger('app')
 from flask import Flask
-from extensions import db  # Import db from extensions.py
+from extensions import db, database
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_login import LoginManager
 from dotenv import load_dotenv
-from configuration import load_config  # Import load_config to get DATABASE_URL
-# Configure Flask-Uploads
+from configuration import load_config
 from utils_upload import UploadSet, IMAGES, VIDEO, configure_uploads
 
 
@@ -19,6 +18,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "رمز موقت برای ربات RFCBot")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.config['WTF_CSRF_ENABLED'] = False
+
 # Load configuration
 config = load_config()
 app.config["SQLALCHEMY_DATABASE_URI"] = config.get("DATABASE_URL") or os.environ.get("SQLALCHEMY_DATABASE_URI") or os.environ.get("DATABASE_URL")
@@ -34,11 +34,17 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 
 # Initialize SQLAlchemy with the app
 db.init_app(app)
+with app.app_context():
+    init_models(app)  # Bind models to db
+    db.create_all()
 
+# Initialize Database with the database URL
 
+with app.app_context():
+    database.initialize(app.config["SQLALCHEMY_DATABASE_URI"])
 
 # Add mp4 to allowed formats
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4'} 
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4'}
 app.config['UPLOADED_MEDIA_DEST'] = 'static/uploads'
 app.config['UPLOADS_DEFAULT_DEST'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload size
@@ -65,18 +71,11 @@ def load_user(user_id):
 
 # Create database tables and initialize admin user
 with app.app_context():
-    # Import models here to ensure they're registered with SQLAlchemy
-   
-    
-    # Create tables
     db.create_all()
-    
-    # Create admin user if not exists
     from models import User
     admin = User.query.filter_by(username='admin').first()
     if not admin:
         admin = User(username='admin', email='admin@example.com', is_admin=True)
-        admin.set_password('admin')  # Set a default password - should be changed immediately
+        admin.set_password('admin')
         db.session.add(admin)
         db.session.commit()
-

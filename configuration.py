@@ -58,7 +58,8 @@ def load_config():
             "WEBHOOK_PATH": os.environ.get("WEBHOOK_PATH", "/api/webhook"),
             "DATABASE_URL": os.environ.get("DATABASE_URL"),
             "LOG_LEVEL": os.environ.get("LOG_LEVEL", "DEBUG"),
-            "UPLOAD_FOLDER": os.environ.get("UPLOAD_FOLDER", "data/uploads")
+            "UPLOAD_FOLDER": os.environ.get("UPLOAD_FOLDER", "static/uploads"),
+            "ALLOWED_FILE_TYPES": ["photo", "video", "animation", "document"]  # انواع فایل‌های مجاز
         }
 
         # Create data directory if it doesn't exist
@@ -145,5 +146,6 @@ ADMIN_PREFIX = config.get("ADMIN_PREFIX", "admin_")
 WEBHOOK_HOST = config.get("WEBHOOK_HOST", "https://example.com")
 WEBHOOK_PATH = config.get("WEBHOOK_PATH", "/api/webhook")
 DATABASE_URL = config.get("DATABASE_URL", os.environ.get("DATABASE_URL"))
-UPLOAD_FOLDER = config.get("UPLOAD_FOLDER", "data/uploads")
+UPLOAD_FOLDER = config.get("UPLOAD_FOLDER",os.environ.get("UPLOAD_FOLDER","static/uploads")) 
 ADMIN_ID = config.get("ADMIN_ID", os.environ.get("ADMIN_ID"))
+ALLOWED_FILE_TYPES = config.get("ALLOWED_FILE_TYPES", ["photo", "video", "animation", "document"])  # انواع فایل‌های مجاز

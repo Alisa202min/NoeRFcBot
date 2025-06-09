@@ -1,6 +1,6 @@
 {
-  
-   
+    "BOT_TOKEN": "7352064139:AAFPh39M2Tbu_rSgANNs8MoRyxdTizv8mRU",
+    "ADMIN_ID": "7625738591",
     "DB_TYPE": "postgresql",
     "DATA_DIR": "data",
     "DB_PATH": "data/database.db",
@@ -32,5 +32,16 @@
     "ADMIN_WELCOME": "به پنل مدیریت خوش آمدید. لطفاً یکی از گزینه‌های زیر را انتخاب کنید:",
     "ADMIN_ACCESS_DENIED": "شما دسترسی به پنل مدیریت ندارید.",
     "SEARCH_PROMPT": "لطفاً عبارت جستجو را وارد کنید:",
-    "ERROR_MESSAGE": "خطایی رخ داد. لطفاً دوباره تلاش کنید."
+    "ERROR_MESSAGE": "خطایی رخ داد. لطفاً دوباره تلاش کنید.",
+    "WEBHOOK_HOST": "https://example.com",
+    "WEBHOOK_PATH": "/api/webhook",
+    "DATABASE_URL": "postgresql://neondb_owner:npg_hSwe5AizDj4r@ep-bold-mode-a6snp0go.us-west-2.aws.neon.tech/neondb?sslmode=require",
+    "LOG_LEVEL": "DEBUG",
+    "UPLOAD_FOLDER": "static/uploads",
+    "ALLOWED_FILE_TYPES": [
+        "photo",
+        "video",
+        "animation",
+        "document"
+    ]
 }

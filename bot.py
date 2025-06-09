@@ -2,7 +2,6 @@
 import os
 import sys
 import asyncio
-import logging
 from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommand
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -10,7 +9,7 @@ from aiogram.enums import ParseMode
 from dotenv import load_dotenv
 from aiohttp import web, ClientSession
 from logging_config import get_logger
-
+import traceback
 
 
 # Get bot logger
@@ -131,4 +130,5 @@ if __name__ == "__main__":
     except (KeyboardInterrupt, SystemExit):
         logger.info("Bot stopped")
     except Exception as e:
-        logger.error(f"Error in bot: {e}")
+        logger.error(f"Error in bot: {e}\n{traceback.format_exc()}")
+        
