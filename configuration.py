@@ -26,13 +26,15 @@ def load_config():
             "DATA_DIR": "data",
             "DB_PATH": os.path.join("data", "database.db"),
             "CSV_PATH": os.path.join("data", "initial_data.csv"),
-            "PRODUCT_PREFIX": "product_",
-            "SERVICE_PREFIX": "service_",
-            "CATEGORY_PREFIX": "category_",
-            "BACK_PREFIX": "back_",
-            "INQUIRY_PREFIX": "inquiry_",
-            "EDUCATION_PREFIX": "edu_",
-            "ADMIN_PREFIX": "admin_",
+            # Callback prefixes for use with CallbackFormatter
+            "PRODUCT_PREFIX": "product_",  # Prefix for product-related callbacks (e.g., product_cat_2, product:123)
+            "SERVICE_PREFIX": "service_",  # Prefix for service-related callbacks (e.g., service_cat_2, service:123)
+            "CATEGORY_PREFIX": "category_",  # Prefix for category selection (e.g., category:2)
+            "BACK_PREFIX": "back_",  # Prefix for back navigation (e.g., back_product_123)
+            "INQUIRY_PREFIX": "inquiry_",  # Prefix for inquiry callbacks (e.g., inquiry:product:123)
+            "EDUCATION_PREFIX": "edu_",  # Prefix for educational content (e.g., edu_cat_2, edu:123)
+            "ADMIN_PREFIX": "admin_",  # Prefix for admin-related callbacks
+            # Button text for main menu and interactions
             "PRODUCTS_BTN": "محصولات 🛍",
             "SERVICES_BTN": "خدمات 🛠",
             "INQUIRY_BTN": "استعلام قیمت 📝",
@@ -42,6 +44,7 @@ def load_config():
             "BACK_BTN": "بازگشت ↩️",
             "SEARCH_BTN": "جستجو 🔍",
             "ADMIN_BTN": "پنل ادمین 👤",
+            # Default texts
             "START_TEXT": "🌟 به ربات جامع محصولات و خدمات خوش آمدید! \n\n            این ربات امکانات زیر را در اختیار شما قرار می‌دهد:\n\n            📦 محصولات:\n            • مشاهده محصولات در دسته‌بندی‌های مختلف\n            • جزئیات کامل هر محصول شامل قیمت و توضیحات\n            • امکان مشاهده تصاویر محصولات\n\n            🛠 خدمات:\n            • دسترسی به لیست خدمات قابل ارائه\n            • اطلاعات کامل هر خدمت و شرایط ارائه\n            • امکان استعلام قیمت مستقیم\n\n            📝 استعلام قیمت:\n            • درخواست استعلام قیمت برای محصولات و خدمات\n            • فرم ساده و سریع برای ثبت درخواست\n            • پیگیری آسان درخواست‌ها\n\n            📚 مطالب آموزشی:\n            • دسترسی به محتوای آموزشی دسته‌بندی شده\n            • مقالات و راهنماهای کاربردی\n            • به‌روزرسانی مستمر محتوا\n\n            🔍 امکانات دیگر:\n            • جستجو در محصولات و خدمات\n            • تماس مستقیم با پشتیبانی\n            • اطلاعات تماس و درباره ما\n\n            لطفاً از منوی زیر بخش مورد نظر خود را انتخاب کنید:",
             "NOT_FOUND_TEXT": "موردی یافت نشد.",
             "CONTACT_DEFAULT": "با ما از طریق ایمیل info@example.com در تماس باشید.",
@@ -54,12 +57,13 @@ def load_config():
             "ADMIN_ACCESS_DENIED": "شما دسترسی به پنل مدیریت ندارید.",
             "SEARCH_PROMPT": "لطفاً عبارت جستجو را وارد کنید:",
             "ERROR_MESSAGE": "خطایی رخ داد. لطفاً دوباره تلاش کنید.",
+            # Webhook and database settings
             "WEBHOOK_HOST": os.environ.get("WEBHOOK_HOST", "https://example.com"),
             "WEBHOOK_PATH": os.environ.get("WEBHOOK_PATH", "/api/webhook"),
             "DATABASE_URL": os.environ.get("DATABASE_URL"),
             "LOG_LEVEL": os.environ.get("LOG_LEVEL", "DEBUG"),
             "UPLOAD_FOLDER": os.environ.get("UPLOAD_FOLDER", "static/uploads"),
-            "ALLOWED_FILE_TYPES": ["photo", "video", "animation", "document"]  # انواع فایل‌های مجاز
+            "ALLOWED_FILE_TYPES": ["photo", "video", "animation", "document"]  # Allowed file types for uploads
         }
 
         # Create data directory if it doesn't exist
@@ -124,16 +128,16 @@ config = load_config()
 
 # Button text
 PRODUCTS_BTN = config.get("PRODUCTS_BTN", "محصولات 🛍")
-SERVICES_BTN = config.get("SERVICES_BTN", "خدمات 🔧")
-INQUIRY_BTN = config.get("INQUIRY_BTN", "استعلام قیمت 💰")
-EDUCATION_BTN = config.get("EDUCATION_BTN", "محتوای آموزشی 📚")
-CONTACT_BTN = config.get("CONTACT_BTN", "تماس با ما ☎️")
+SERVICES_BTN = config.get("SERVICES_BTN", "خدمات 🛠")
+INQUIRY_BTN = config.get("INQUIRY_BTN", "استعلام قیمت 📝")
+EDUCATION_BTN = config.get("EDUCATION_BTN", "مطالب آموزشی 📚")
+CONTACT_BTN = config.get("CONTACT_BTN", "تماس با ما 📞")
 ABOUT_BTN = config.get("ABOUT_BTN", "درباره ما ℹ️")
-BACK_BTN = config.get("BACK_BTN", "بازگشت به منوی اصلی 🏠")
+BACK_BTN = config.get("BACK_BTN", "بازگشت ↩️")
 SEARCH_BTN = config.get("SEARCH_BTN", "جستجو 🔍")
-ADMIN_BTN = config.get("ADMIN_BTN", "پنل مدیریت 👨‍💼")
+ADMIN_BTN = config.get("ADMIN_BTN", "پنل ادمین 👤")
 
-# Callback prefixes
+# Callback prefixes for use with CallbackFormatter
 PRODUCT_PREFIX = config.get("PRODUCT_PREFIX", "product_")
 SERVICE_PREFIX = config.get("SERVICE_PREFIX", "service_")
 CATEGORY_PREFIX = config.get("CATEGORY_PREFIX", "category_")
@@ -148,4 +152,4 @@ WEBHOOK_PATH = config.get("WEBHOOK_PATH", "/api/webhook")
 DATABASE_URL = config.get("DATABASE_URL", os.environ.get("DATABASE_URL"))
 UPLOAD_FOLDER = config.get("UPLOAD_FOLDER",os.environ.get("UPLOAD_FOLDER","static/uploads")) 
 ADMIN_ID = config.get("ADMIN_ID", os.environ.get("ADMIN_ID"))
-ALLOWED_FILE_TYPES = config.get("ALLOWED_FILE_TYPES", ["photo", "video", "animation", "document"])  # انواع فایل‌های مجاز
+ALLOWED_FILE_TYPES = config.get("ALLOWED_FILE_TYPES", ["photo", "video", "animation", "document"])  # Allowed file types for uploads

@@ -1,4 +1,3 @@
-
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
@@ -26,7 +25,7 @@ async def cmd_inquiry(message: Message, state: FSMContext):
             "لطفا نام و نام خانوادگی خود را وارد کنید:"
         )
         await message.answer(inquiry_text, parse_mode="Markdown")
-        
+
         await state.set_state(UserStates.UserStates.inquiry_name)
         logger.info(f"User {message.from_user.id} entered inquiry name state")
     except Exception as e:
