@@ -70,7 +70,12 @@ class Database:
     def get_all_product_categories(self) -> list[dict]:
         """گرفتن همه دسته‌بندی‌های محصول."""
         return self.product_repo.get_all_product_categories()
+        
+    def get_products(self, category_id: int) -> list[dict]:
+        """گرفتن محصولات یعک دسته بندی با شناسه دسته بندی ."""
+        return self.product_repo.get_products(category_id)
 
+    
     # توابع سرویس
     def get_service(self, service_id: int) -> dict | None:
         """گرفتن سرویس با شناسه."""

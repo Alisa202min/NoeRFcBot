@@ -2,6 +2,7 @@
 import os
 import sys
 import asyncio
+import threading
 from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommand
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -9,32 +10,37 @@ from aiogram.enums import ParseMode
 from dotenv import load_dotenv
 from aiohttp import web, ClientSession
 from logging_config import get_logger
-from extensions import database  # Import database
-from models import Base  # Import Base for table creation
+from extensions import database
+from models import Base
 from sqlalchemy import create_engine
 import traceback
 from handlers import handlers_utils
-# Get bot logger
-logger = get_logger('bot')
 
-# Load environment variables
+logger = get_logger('bot')
 load_dotenv()
 
-# Initialize bot and dispatcher
 bot_token = os.environ.get('BOT_TOKEN')
 if not bot_token:
     logger.error("BOT_TOKEN not set in environment variables")
     exit(1)
 
 logger.info(f"Using bot token starting with: {bot_token[:10]}...")
+bot_instance = None
+lock = threading.Lock()
 
-# Create bot instance
-try:
-    bot = Bot(token=bot_token)
-    logger.info("Bot instance created successfully")
-except Exception as e:
-    logger.error(f"Error creating bot instance: {e}")
-    raise
+def get_bot():
+    global bot_instance
+    with lock:
+        if bot_instance is None:
+            try:
+                bot_instance = Bot(token=bot_token)
+                logger.info("Bot instance created successfully")
+            except Exception as e:
+                logger.error(f"Error creating bot instance: {e}")
+                raise
+        return bot_instance
+
+bot = get_bot()
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 

@@ -202,3 +202,21 @@ class ProductRepository:
             return []
         finally:
             session.close()
+
+    def get_products(self, category_id: int) -> List[Dict]:
+        """Get all products in a category"""
+       
+        try:
+            products = self.session.query(Product).filter_by(category_id=category_id).order_by(Product.name).all()
+            return [{
+                'id': p.id,
+                'name': p.name,
+                'price': p.price,
+                'description': p.description,
+                'category_id': p.category_id
+            } for p in products]
+        except Exception as e:
+            logger.error(f"Error getting products: {str(e)}")
+            return []
+        finally:
+            self.session.close()

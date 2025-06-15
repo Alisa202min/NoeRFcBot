@@ -9,10 +9,13 @@ from configuration import (
     PRODUCT_PREFIX, SERVICE_PREFIX, EDUCATION_PREFIX, INQUIRY_PREFIX, 
     CATEGORY_PREFIX, BACK_PREFIX
 )
+from logging_config import get_logger
+
+logger = get_logger('callback_formatter')
 
 class CallbackFormatter:
     """Class to format and parse callback data"""
-    
+
     # Define callback patterns and their types
     CALLBACK_PATTERNS = [
         # Static callbacks
@@ -108,38 +111,42 @@ class CallbackFormatter:
             'params': {'type': str, 'id': int}
         }
     ]
-    
+
     def __init__(self):
         """Initialize formatter with callback patterns"""
         self.pattern_map = {p['type']: p for p in self.CALLBACK_PATTERNS}
-    
+        logger.debug(f"CallbackFormatter initialized with {len(self.CALLBACK_PATTERNS)} patterns")
+
     def write(self, callback_type: str, **kwargs) -> str:
         """
         Format callback data for sending
-        
+
         Args:
             callback_type: Type of callback (e.g., 'product_category', 'back_to_main')
             **kwargs: Parameters required for the callback type (e.g., category_id)
-            
+
         Returns:
             Formatted callback data (e.g., 'product_cat_2')
-            
+
         Raises:
             ValueError: If callback_type is invalid or required params are missing
         """
         if callback_type not in self.pattern_map:
+            logger.error(f"Invalid callback type: {callback_type}")
             raise ValueError(f"Invalid callback type: {callback_type}")
-        
+
         pattern_info = self.pattern_map[callback_type]
         params = pattern_info['params']
-        
+
         # Validate required parameters
         for param_name, param_type in params.items():
             if param_name not in kwargs:
+                logger.error(f"Missing required parameter: {param_name} for {callback_type}")
                 raise ValueError(f"Missing required parameter: {param_name} for {callback_type}")
             if not isinstance(kwargs[param_name], param_type):
+                logger.error(f"Invalid type for {param_name}: expected {param_type}, got {type(kwargs[param_name])}")
                 raise ValueError(f"Invalid type for {param_name}: expected {param_type}, got {type(kwargs[param_name])}")
-        
+
         # Generate callback data based on type
         if callback_type == 'product_category':
             return f"{PRODUCT_PREFIX}_cat_{kwargs['category_id']}"
@@ -164,14 +171,14 @@ class CallbackFormatter:
         else:
             # Static callbacks
             return callback_type
-    
+
     def read(self, callback_data: str) -> Optional[Tuple[str, Dict[str, Any]]]:
         """
         Parse callback data and extract type and parameters
-        
+
         Args:
             callback_data: Raw callback data (e.g., 'product_cat_2')
-            
+
         Returns:
             Tuple of (callback_type, params_dict) if matched, else None
         """
@@ -185,6 +192,7 @@ class CallbackFormatter:
                     if i <= len(match.groups()):
                         params[param_name] = param_type(match.group(i))
                 return callback_type, params
+        logger.error(f"Unknown callback: {callback_data}")
         return None
 
 # Singleton instance for use across the application

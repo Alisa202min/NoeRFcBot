@@ -1,7 +1,7 @@
-from aiogram import Router, F
+from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-from configuration import PRODUCTS_BTN, PRODUCT_PREFIX
+from configuration import PRODUCTS_BTN
 from logging_config import get_logger
 from extensions import database
 from bot import bot
@@ -10,6 +10,7 @@ from keyboards import product_categories_keyboard, product_content_keyboard, pro
 from aiogram.filters import Command
 import traceback
 from handlers.handlers_utils import format_price
+from callback_formatter import callback_formatter
 
 logger = get_logger('bot')
 router = Router(name="products_router")
@@ -38,7 +39,7 @@ async def cmd_products(message: Message, state: FSMContext):
         logger.error(f"Error in cmd_products: {str(e)}\n{traceback.format_exc()}")
         await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
 
-@router.callback_query(F.data == "products")
+@router.callback_query(F.data == callback_formatter.write('products'))
 async def callback_products(callback: CallbackQuery):
     """Handle products button click"""
     await callback.answer()
@@ -46,6 +47,7 @@ async def callback_products(callback: CallbackQuery):
         categories = db.get_product_categories()
         if not categories:
             await callback.message.answer("در حال حاضر دسته‌بندی محصولات موجود نیست.")
+            logger.warning("No product categories found")
             return
 
         for category in categories:
@@ -56,18 +58,26 @@ async def callback_products(callback: CallbackQuery):
 
         keyboard = product_categories_keyboard(categories)
         await callback.message.answer("🛍️ دسته‌بندی محصولات را انتخاب کنید:",
-                                   reply_markup=keyboard)
+                                     reply_markup=keyboard)
+        logger.info(f"Product categories sent to user: {callback.from_user.id}")
     except Exception as e:
         logger.error(f"Error in callback_products: {str(e)}\n{traceback.format_exc()}")
         await callback.message.answer("⚠️ خطایی در نمایش دسته‌بندی محصولات رخ داد.")
 
-@router.callback_query(F.data.startswith(f"{PRODUCT_PREFIX}cat_"))
+@router.callback_query(lambda c: callback_formatter.read(c.data)[0] == 'product_category' if callback_formatter.read(c.data) else False)
 async def callback_product_category(callback: CallbackQuery):
     """Handle product category selection"""
     await callback.answer()
     try:
-        category_id = int(callback.data.replace(f"{PRODUCT_PREFIX}cat_", ""))
-        logger.info(f"Selected product category ID: {category_id}")
+        result = callback_formatter.read(callback.data)
+        if not result or result[0] != 'product_category':
+            logger.error(f"Invalid callback data: {callback.data}")
+            await callback.message.answer("⚠️ داده نامعتبر است.")
+            return
+
+        _, params = result
+        category_id = params['category_id']
+        logger.info(f"Selected product category ID: {category_id} by user: {callback.from_user.id}")
         category_info = db.get_product_category(category_id)
         if not category_info:
             logger.error(f"Product category not found for ID: {category_id}")
@@ -82,12 +92,13 @@ async def callback_product_category(callback: CallbackQuery):
 
         keyboard = product_content_keyboard(products, category_id)
         await callback.message.answer(f"🛍️ محصولات در دسته‌بندی '{category_info['name']}':",
-                                   reply_markup=keyboard)
+                                     reply_markup=keyboard)
+        logger.info(f"Products sent for category ID: {category_id}")
     except Exception as e:
         logger.error(f"Error in callback_product_category: {str(e)}\n{traceback.format_exc()}")
         await callback.message.answer("⚠️ خطایی در نمایش محصولات رخ داد.")
 
-@router.callback_query(F.data == f"{PRODUCT_PREFIX}categories")
+@router.callback_query(F.data == callback_formatter.write('products'))
 async def callback_product_categories(callback: CallbackQuery):
     """Handle going back to product categories"""
     await callback.answer()
@@ -95,61 +106,121 @@ async def callback_product_categories(callback: CallbackQuery):
         categories = db.get_product_categories()
         if not categories:
             await callback.message.answer("در حال حاضر دسته‌بندی محصولات موجود نیست.")
+            logger.warning("No product categories found")
             return
 
         keyboard = product_categories_keyboard(categories)
         await callback.message.answer("🛍️ دسته‌بندی محصولات را انتخاب کنید:",
-                                   reply_markup=keyboard)
+                                     reply_markup=keyboard)
+        logger.info(f"Product categories sent to user: {callback.from_user.id}")
     except Exception as e:
         logger.error(f"Error in callback_product_categories: {str(e)}\n{traceback.format_exc()}")
         await callback.message.answer("⚠️ خطایی در نمایش دسته‌بندی‌ها رخ داد.")
 
-@router.callback_query(F.data.startswith(f"{PRODUCT_PREFIX}:"))
-async def callback_product(callback: CallbackQuery, state: FSMContext):
+@router.callback_query(lambda c: callback_formatter.read(c.data)[0] == 'product_item' if callback_formatter.read(c.data) else False)
+async def callback_product(callback: CallbackQuery):
     """Handle product selection"""
     await callback.answer()
     try:
-        product_id = int(callback.data.replace(f"{PRODUCT_PREFIX}:", ""))
-        logger.info(f"Selected product ID: {product_id}")
+        result = callback_formatter.read(callback.data)
+        if not result or result[0] != 'product_item':
+            logger.error(f"Invalid callback data: {callback.data}")
+            await callback.message.answer("⚠️ داده نامعتبر است.")
+            return
+
+        _, params = result
+        product_id = params['product_id']
+        logger.info(f"Selected product ID: {product_id} by user: {callback.from_user.id}")
         product = db.get_product(product_id)
         if not product:
             logger.error(f"Product not found for ID: {product_id}")
             await callback.message.answer("⚠️ محصول مورد نظر یافت نشد.")
             return
 
-        category_id = product.get('category_id', 0)
-        keyboard = product_detail_keyboard(product_id, category_id)
-        product_text = (
-            f"📦 *{product['name']}*\n\n"
-            f"💰 قیمت: {format_price(product['price'])}\n\n"
-            f"📝 توضیحات:\n{product['description'] or 'بدون توضیحات'}\n"
-        )
+        # Build detailed caption with all relevant fields
+        additional_info = []
+        if product.get('name'):
+            additional_info.append(f"🛍️ *{product['name']}*")
+        if product.get('price'):
+            additional_info.append(f"💰 قیمت: {format_price(product['price'])}")
+        if product.get('description'):
+            additional_info.append(f"📝 توضیحات: {product['description']}")
         if product.get('brand'):
-            product_text += f"🏭 برند: {product['brand']}\n"
+            additional_info.append(f"🏢 برند: {product['brand']}")
         if product.get('model'):
-            product_text += f"📱 مدل: {product['model']}\n"
+            additional_info.append(f"📱 مدل: {product['model']}")
         if product.get('model_number'):
-            product_text += f"📋 شماره مدل: {product['model_number']}\n"
+            additional_info.append(f"📋 شماره مدل: {product['model_number']}")
         if product.get('manufacturer'):
-            product_text += f"🏭 سازنده: {product['manufacturer']}\n"
+            additional_info.append(f"🏭 سازنده: {product['manufacturer']}")
         if product.get('tags'):
-            product_text += f"🏷️ برچسب‌ها: {product['tags']}\n"
+            additional_info.append(f"🏷️ برچسب‌ها: {product['tags']}")
         if product.get('in_stock'):
-            product_text += "✅ موجود در انبار\n"
-        else:
-            product_text += "❌ ناموجود\n"
+            additional_info.append("✅ موجود در انبار")
         if product.get('featured'):
-            product_text += "⭐️ محصول ویژه\n"
+            additional_info.append("⭐ محصول ویژه")
 
-        media_items = db.get_product_media(product_id)
+        text = "\n\n".join(additional_info) if additional_info else "ℹ️ اطلاعات محصول در دسترس نیست."
+        keyboard = product_detail_keyboard(product_id, product.get('category_id'))
+        chat_id = callback.message.chat.id
+
+        media = db.get_product_media(product_id)
+        # لاگ خروجی خام
+        logger.debug(f"Raw media from db.get_product_media for product {product_id}: {media}")
+
+        # اعتبارسنجی ورودی‌ها
+        if not isinstance(bot, Bot):
+            logger.error(f"bot باید نمونه Bot باشد، نوع: {type(bot)}")
+            await callback.message.answer("⚠️ خطای داخلی سرور. لطفا بعداً تلاش کنید.")
+            return
+        if not isinstance(chat_id, int):
+            logger.error(f"chat_id باید عدد باشد، نوع: {type(chat_id)}")
+            await callback.message.answer("⚠️ خطای داخلی سرور. لطفا بعداً تلاش کنید.")
+            return
+        if not media:
+            logger.warning(f"هیچ مدیایی برای محصول {product_id} پیدا نشد")
+            await callback.message.answer(text, reply_markup=keyboard, parse_mode="Markdown")
+            return
+        if not isinstance(media, list):
+            logger.error(f"media باید لیست باشد، نوع: {type(media)}")
+            await callback.message.answer(text, reply_markup=keyboard, parse_mode="Markdown")
+            return
+
+        # تبدیل media به media_items
+        media_items = [
+            {
+                'id': m.get('id'),
+                'file_id': m.get('file_id'),
+                'file_type': m.get('file_type'),
+                'local_path': m.get('local_path')
+            } for m in media
+        ]
+        logger.debug(f"Initial media_items for product {product_id}: {media_items}")
+
+        # Filter out incomplete media items
+        
+        media_items = [item for item in media_items if item['id'] and item['file_type'] and (item['file_id'] or item['local_path'])]
+        logger.debug(f"Filtered media_items for product {product_id}: {media_items}")
+
+      
+
+
+        
+        if not media_items:
+            logger.warning(f"media_items خالی یا ناقص است برای محصول {product_id}")
+            await callback.message.answer(text, reply_markup=keyboard, parse_mode="Markdown")
+            return
+
+        # فراخوانی تابع
+        logger.debug(f"Calling send_product_media_group_to_user with bot: {type(bot)}, chat_id: {chat_id}, media_items: {media_items}, caption: {text}")
         await send_product_media_group_to_user(
             bot=bot,
-            chat_id=callback.message.chat.id,
+            chat_id=chat_id,
             media_items=media_items,
-            caption=product_text,
+            caption=text,
             reply_markup=keyboard
         )
+        logger.info(f"Product {product_id} sent to chat_id: {chat_id}")
     except Exception as e:
         logger.error(f"Error in callback_product: {str(e)}\n{traceback.format_exc()}")
         await callback.message.answer("⚠️ خطایی در نمایش محصول رخ داد.")
-

@@ -100,13 +100,4 @@ async def cmd_about(message_or_callback: Message | CallbackQuery):
             await message_or_callback.answer()
         else:
             await message_or_callback.answer(response)
-
-@router.callback_query()
-async def handle_unknown_callback(callback: CallbackQuery):
-    """Handle unknown callback queries"""
-    logger.debug(
-        f"Unknown callback: update_id={callback.id}, "
-        f"user_id={callback.from_user.id}, data={callback.data}"
-    )
-    await callback.message.answer("این عملیات پشتیبانی نمی‌شود!", reply_markup=main_menu_keyboard())
-    await callback.answer()
+ 
