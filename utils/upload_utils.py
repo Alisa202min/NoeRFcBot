@@ -4,11 +4,11 @@ from extensions import database
 from models import ProductMedia, ServiceMedia, EducationalContentMedia
 from logging_config import get_logger
 
-logger = get_logger('media')
+logger = get_logger('bot')  # اصلاح نام لاگر از 'but' به 'bot'
 
 class UploadManager:
     """
-    ابزارهای آپلود و ذخیره رسانه‌ها در دیتابیس.
+    ابزارهای آپلود و ذخیره رسانه‌ها در پایگاه داده.
     """
     def __init__(self):
         """
@@ -16,25 +16,26 @@ class UploadManager:
         """
         self.db = database
 
-    async def store_product_media(self, product_id: int, file_id: str, file_type: str = 'photo', local_path: str = None) -> bool:
+    async def store_product_media(
+        self, product_id: int, file_id: str, file_type: str = 'photo', local_path: Optional[str] = None
+    ) -> bool:
         """
-        ذخیره رسانه جدید برای محصول در دیتابیس.
+        ذخیره رسانه جدید برای محصول در پایگاه داده.
 
         Args:
             product_id: شناسه محصول
-            file_id: file_id تلگرام
-            file_type: نوع رسانه (پیش‌فرض: 'photo')
+            file_id: شناسه فایل در تلگرام
+            file_type: نوع رسانه (مانند 'photo'، 'video'، 'animation'، 'document')، پیش‌فرض: 'photo'
             local_path: مسیر محلی فایل (اختیاری)
 
         Returns:
-            True اگه موفق، False در غیر این صورت
+            bool: True در صورت موفقیت، False در صورت شکست
         """
         try:
             if not file_id:
                 logger.error(f"file_id برای رسانه محصول {product_id} خالی است")
                 return False
 
-            # استفاده از database برای ایجاد رکورد
             media = ProductMedia(
                 product_id=product_id,
                 file_id=file_id,
@@ -52,18 +53,20 @@ class UploadManager:
         finally:
             self.db.session.close()
 
-    async def store_service_media(self, service_id: int, file_id: str, file_type: str = 'photo', local_path: str = None) -> bool:
+    async def store_service_media(
+        self, service_id: int, file_id: str, file_type: str = 'photo', local_path: Optional[str] = None
+    ) -> bool:
         """
-        ذخیره رسانه جدید برای سرویس در دیتابیس.
+        ذخیره رسانه جدید برای سرویس در پایگاه داده.
 
         Args:
             service_id: شناسه سرویس
-            file_id: file_id تلگرام
-            file_type: نوع رسانه (پیش‌فرض: 'photo')
+            file_id: شناسه فایل در تلگرام
+            file_type: نوع رسانه (مانند 'photo'، 'video'، 'animation'، 'document')، پیش‌فرض: 'photo'
             local_path: مسیر محلی فایل (اختیاری)
 
         Returns:
-            True اگه موفق، False در غیر این صورت
+            bool: True در صورت موفقیت، False در صورت شکست
         """
         try:
             if not file_id:
@@ -87,18 +90,20 @@ class UploadManager:
         finally:
             self.db.session.close()
 
-    async def store_educational_content_media(self, content_id: int, file_id: str, file_type: str = 'photo', local_path: str = None) -> bool:
+    async def store_educational_content_media(
+        self, content_id: int, file_id: str, file_type: str = 'photo', local_path: Optional[str] = None
+    ) -> bool:
         """
-        ذخیره رسانه جدید برای محتوای آموزشی در دیتابیس.
+        ذخیره رسانه جدید برای محتوای آموزشی در پایگاه داده.
 
         Args:
             content_id: شناسه محتوای آموزشی
-            file_id: file_id تلگرام
-            file_type: نوع رسانه (پیش‌فرض: 'photo')
+            file_id: شناسه فایل در تلگرام
+            file_type: نوع رسانه (مانند 'photo'، 'video'، 'animation'، 'document')، پیش‌فرض: 'photo'
             local_path: مسیر محلی فایل (اختیاری)
 
         Returns:
-            True اگه موفق، False در غیر این صورت
+            bool: True در صورت موفقیت، False در صورت شکست
         """
         try:
             if not file_id:
@@ -124,15 +129,15 @@ class UploadManager:
 
     async def process_uploaded_media(self, update: Update, entity_type: str, entity_id: int) -> bool:
         """
-        پردازش رسانه آپلود شده از آپدیت تلگرام و ذخیره در دیتابیس.
+        پردازش رسانه آپلودشده از آپدیت تلگرام و ذخیره آن در پایگاه داده.
 
         Args:
             update: آپدیت تلگرام حاوی رسانه
-            entity_type: نوع موجودیت ('product', 'service', 'educational_content')
+            entity_type: نوع موجودیت ('product'، 'service'، 'educational_content')
             entity_id: شناسه موجودیت
 
         Returns:
-            True اگه موفق، False در غیر این صورت
+            bool: True در صورت موفقیت، False در صورت شکست
         """
         try:
             message = update.message
@@ -167,5 +172,5 @@ class UploadManager:
                 logger.error(f"نوع موجودیت {entity_type} پشتیبانی نمی‌شود")
                 return False
         except Exception as e:
-            logger.error(f"خطا در پردازش رسانه آپلود شده برای {entity_type} {entity_id}: {str(e)}")
+            logger.error(f"خطا در پردازش رسانه آپلودشده برای {entity_type} {entity_id}: {str(e)}")
             return False

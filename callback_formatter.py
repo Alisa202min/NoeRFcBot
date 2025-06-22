@@ -131,46 +131,53 @@ class CallbackFormatter:
         Raises:
             ValueError: If callback_type is invalid or required params are missing
         """
-        if callback_type not in self.pattern_map:
-            logger.error(f"Invalid callback type: {callback_type}")
-            raise ValueError(f"Invalid callback type: {callback_type}")
+        try:
+            if callback_type not in self.pattern_map:
+                logger.error(f"Invalid callback type: {callback_type}")
+                raise ValueError(f"Invalid callback type: {callback_type}")
 
-        pattern_info = self.pattern_map[callback_type]
-        params = pattern_info['params']
+            pattern_info = self.pattern_map[callback_type]
+            params = pattern_info['params']
 
-        # Validate required parameters
-        for param_name, param_type in params.items():
-            if param_name not in kwargs:
-                logger.error(f"Missing required parameter: {param_name} for {callback_type}")
-                raise ValueError(f"Missing required parameter: {param_name} for {callback_type}")
-            if not isinstance(kwargs[param_name], param_type):
-                logger.error(f"Invalid type for {param_name}: expected {param_type}, got {type(kwargs[param_name])}")
-                raise ValueError(f"Invalid type for {param_name}: expected {param_type}, got {type(kwargs[param_name])}")
+            # Validate required parameters
+            for param_name, param_type in params.items():
+                if param_name not in kwargs:
+                    logger.error(f"Missing required parameter: {param_name} for {callback_type}")
+                    raise ValueError(f"Missing required parameter: {param_name} for {callback_type}")
+                if not isinstance(kwargs[param_name], param_type):
+                    logger.error(f"Invalid type for {param_name}: expected {param_type}, got {type(kwargs[param_name])}")
+                    raise ValueError(f"Invalid type for {param_name}: expected {param_type}, got {type(kwargs[param_name])}")
 
-        # Generate callback data based on type
-        if callback_type == 'product_category':
-            return f"{PRODUCT_PREFIX}_cat_{kwargs['category_id']}"
-        elif callback_type == 'service_category':
-            return f"{SERVICE_PREFIX}_cat_{kwargs['category_id']}"
-        elif callback_type == 'edu_category':
-            return f"{EDUCATION_PREFIX}_cat_{kwargs['category_id']}"
-        elif callback_type == 'edu_categories':
-            return f"{EDUCATION_PREFIX}categories"
-        elif callback_type == 'edu_content':
-            return f"{EDUCATION_PREFIX}:{kwargs['content_id']}"
-        elif callback_type == 'category':
-            return f"{CATEGORY_PREFIX}:{kwargs['category_id']}"
-        elif callback_type == 'product_item':
-            return f"{PRODUCT_PREFIX}:{kwargs['product_id']}"
-        elif callback_type == 'service_item':
-            return f"{SERVICE_PREFIX}:{kwargs['service_id']}"
-        elif callback_type == 'inquiry':
-            return f"{INQUIRY_PREFIX}:{kwargs['inquiry_type']}:{kwargs['item_id']}"
-        elif callback_type == 'back':
-            return f"{BACK_PREFIX}_{kwargs['type']}_{kwargs['id']}"
-        else:
-            # Static callbacks
-            return callback_type
+            # Generate callback data based on type
+            if callback_type == 'product_category':
+                callback_data = f"{PRODUCT_PREFIX}_cat_{kwargs['category_id']}"
+            elif callback_type == 'service_category':
+                callback_data = f"{SERVICE_PREFIX}_cat_{kwargs['category_id']}"
+            elif callback_type == 'edu_category':
+                callback_data = f"{EDUCATION_PREFIX}_cat_{kwargs['category_id']}"
+            elif callback_type == 'edu_categories':
+                callback_data = f"{EDUCATION_PREFIX}categories"
+            elif callback_type == 'edu_content':
+                callback_data = f"{EDUCATION_PREFIX}:{kwargs['content_id']}"
+            elif callback_type == 'category':
+                callback_data = f"{CATEGORY_PREFIX}:{kwargs['category_id']}"
+            elif callback_type == 'product_item':
+                callback_data = f"{PRODUCT_PREFIX}:{kwargs['product_id']}"
+            elif callback_type == 'service_item':
+                callback_data = f"{SERVICE_PREFIX}:{kwargs['service_id']}"
+            elif callback_type == 'inquiry':
+                callback_data = f"{INQUIRY_PREFIX}:{kwargs['inquiry_type']}:{kwargs['item_id']}"
+            elif callback_type == 'back':
+                callback_data = f"{BACK_PREFIX}_{kwargs['type']}_{kwargs['id']}"
+            else:
+                # Static callbacks
+                callback_data = callback_type
+
+            logger.debug(f"Callback data generated: type={callback_type}, data={callback_data}, params={kwargs}")
+            return callback_data
+        except Exception as e:
+            logger.error(f"Error generating callback data for type {callback_type}: {str(e)}")
+            raise
 
     def read(self, callback_data: str) -> Optional[Tuple[str, Dict[str, Any]]]:
         """
@@ -182,18 +189,23 @@ class CallbackFormatter:
         Returns:
             Tuple of (callback_type, params_dict) if matched, else None
         """
-        for pattern_info in self.CALLBACK_PATTERNS:
-            match = pattern_info['pattern'].match(callback_data)
-            if match:
-                callback_type = pattern_info['type']
-                params = {}
-                param_names = list(pattern_info['params'].keys())
-                for i, (param_name, param_type) in enumerate(pattern_info['params'].items(), 1):
-                    if i <= len(match.groups()):
-                        params[param_name] = param_type(match.group(i))
-                return callback_type, params
-        logger.error(f"Unknown callback: {callback_data}")
-        return None
+        try:
+            for pattern_info in self.CALLBACK_PATTERNS:
+                match = pattern_info['pattern'].match(callback_data)
+                if match:
+                    callback_type = pattern_info['type']
+                    params = {}
+                    param_names = list(pattern_info['params'].keys())
+                    for i, (param_name, param_type) in enumerate(pattern_info['params'].items(), 1):
+                        if i <= len(match.groups()):
+                            params[param_name] = param_type(match.group(i))
+                    logger.debug(f"Callback data parsed: data={callback_data}, type={callback_type}, params={params}")
+                    return callback_type, params
+            logger.error(f"Unknown callback: {callback_data}")
+            return None
+        except Exception as e:
+            logger.error(f"Error parsing callback data {callback_data}: {str(e)}")
+            return None
 
 # Singleton instance for use across the application
 callback_formatter = CallbackFormatter()

@@ -1,219 +1,440 @@
+import traceback
 import os
-from logging_config import get_logger
-from typing import List, Dict, Optional
 from aiogram import Bot
-from aiogram.types import FSInputFile, InputMediaPhoto, InputMediaVideo, InputMediaDocument, InputMediaAnimation
-from aiogram.exceptions import TelegramAPIError
-from extensions import database
-from configuration import ADMIN_ID, UPLOAD_FOLDER
+from aiogram.types import InputMediaPhoto, InputMediaVideo, InputMediaDocument, InlineKeyboardMarkup, FSInputFile
+from aiogram.exceptions import TelegramAPIError, TelegramBadRequest
+from logging_config import get_logger
 
 logger = get_logger('bot')
-db = database
-
-async def is_valid_file_id(bot: Bot, file_id: str) -> bool:
-    """Check if a file_id is valid by requesting file info from Telegram."""
-    if not isinstance(bot, Bot):
-        logger.error(f"Bot parameter must be an aiogram.Bot instance, got: {type(bot)}")
-        return False
-    try:
-        await bot.get_file(file_id)
-        return True
-    except TelegramAPIError:
-        return False
-
-async def send_product_media_and_get_file_id(
-    bot: Bot, media_id: int, file_id: str, file_type: str, local_path: Optional[str] = None
-) -> str:
-    """
-    Send product media to admin and return file_id.
-    Reuses valid file_id if available; otherwise, uploads local file.
-    """
-    if not isinstance(bot, Bot):
-        logger.error(f"Bot parameter must be an aiogram.Bot instance, got: {type(bot)}")
-        return ''
-
-    if not ADMIN_ID:
-        logger.error("ADMIN_ID is not defined in configuration")
-        return ''
-
-    try:
-        # Check if file_id is a valid Telegram file_id
-        if file_id and await is_valid_file_id(bot, file_id):
-            logger.debug(f"Reusing valid Telegram file_id: {file_id}")
-            return file_id
-
-        effective_path = local_path or file_id
-        if not effective_path:
-            logger.error(f"No local_path or file_id provided for ProductMedia id: {media_id}")
-            return ''
-
-        normalized_path = effective_path.lstrip('/')
-        if normalized_path.startswith('uploads/'):
-            normalized_path = normalized_path[len('uploads/'):]
-        full_path = os.path.join(UPLOAD_FOLDER, normalized_path)
-        logger.debug(f"Full path for ProductMedia id {media_id}: {full_path}")
-
-        if not os.path.exists(full_path):
-            logger.error(f"File not found: {full_path}")
-            return ''
-
-        media_source = FSInputFile(full_path)
-        if file_type == 'photo':
-            sent_message = await bot.send_photo(chat_id=ADMIN_ID, photo=media_source)
-            new_file_id = sent_message.photo[-1].file_id
-        elif file_type == 'video':
-            sent_message = await bot.send_video(chat_id=ADMIN_ID, video=media_source)
-            new_file_id = sent_message.video.file_id
-        elif file_type == 'animation':
-            sent_message = await bot.send_animation(chat_id=ADMIN_ID, animation=media_source)
-            new_file_id = sent_message.animation.file_id
-        elif file_type == 'document':
-            sent_message = await bot.send_document(chat_id=ADMIN_ID, document=media_source)
-            new_file_id = sent_message.document.file_id
-        else:
-            logger.error(f"Invalid file type: {file_type}")
-            return ''
-
-        success = db.update_product_media_file_id(media_id, new_file_id)
-        if not success:
-            logger.error(f"Failed to update file_id for ProductMedia id: {media_id}")
-            return ''
-
-        logger.info(f"New file_id {new_file_id} saved for ProductMedia id: {media_id}")
-        return new_file_id
-
-    except TelegramAPIError as e:
-        logger.error(f"Telegram API error for ProductMedia id {media_id}: {e}")
-        return ''
-    except Exception as e:
-        logger.error(f"Unexpected error in send_product_media_and_get_file_id for media_id {media_id}: {e}", exc_info=True)
-        return ''
 
 async def send_product_media_group_to_user(
-    bot: Bot, chat_id: int, media_items: List[Dict], caption: Optional[str] = None, reply_markup=None
+    bot: Bot,
+    chat_id: int,
+    media_items: list,
+    caption: str = None,
+    reply_markup: InlineKeyboardMarkup = None,
+    parse_mode: str = "Markdown"
 ):
-    """
-    Send a group of product media to a user as a media group.
-    Expects a list of dictionaries containing media details.
-    If reply_markup is provided, sends it with a separate message.
-    """
-    if not isinstance(bot, Bot):
-        logger.error(f"Bot parameter must be an aiogram.Bot instance, got: {type(bot)}")
-        return
+    """Send a media group for a product to user with caption and optional reply markup."""
+    try:
+        # Validate bot instance
+        if not isinstance(bot, Bot):
+            logger.error(f"Invalid bot instance in send_product_media_group: expected aiogram.Bot, got {type(bot)}")
+            raise ValueError("Bot instance must be of type aiogram.Bot")
 
-    if not isinstance(chat_id, int):
-        logger.error(f"chat_id must be an integer, got: {type(chat_id)}")
-        return
+        logger.debug(f"Preparing to send product media group to chat_id: {chat_id}, media_items: {len(media_items)}")
 
-    if not isinstance(media_items, list):
-        logger.error(f"media_items must be a list, got: {type(media_items)}")
-        if caption:
-            await bot.send_message(chat_id=chat_id, text=caption, parse_mode="Markdown", reply_markup=reply_markup)
-        return
+        # Validate media items
+        if not media_items:
+            logger.warning(f"No media items provided for product to chat_id: {chat_id}")
+            if caption:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=caption,
+                    reply_markup=reply_markup,
+                    parse_mode=parse_mode
+                )
+                logger.info(f"Sent fallback text message for product to chat_id: {chat_id} with reply_markup: {reply_markup is not None}")
+            return
 
-    if not media_items:
-        logger.warning("media_items is empty")
-        if caption:
-            await bot.send_message(chat_id=chat_id, text=caption, parse_mode="Markdown", reply_markup=reply_markup)
-        return
+        # Build media group
+        media_group = []
+        for idx, item in enumerate(media_items):
+            file_type = item.get('file_type')
+            file_id = item.get('file_id')
+            local_path = item.get('local_path')
 
-    media_group = []
-    valid_file_ids = []
-    for idx, item in enumerate(media_items):
-        if not isinstance(item, dict):
-            logger.error(f"Invalid item in media_items at index {idx}: {item}")
-            continue
-
-        media_id = item.get('id')
-        file_id = item.get('file_id')
-        file_type = item.get('file_type')
-        local_path = item.get('local_path')
-
-        if not all([media_id, file_type, file_id]):
-            logger.error(f"Incomplete item in media_items at index {idx}: {item}")
-            continue
-
-        # Use Telegram file_id if valid
-        if await is_valid_file_id(bot, file_id):
-            media_source = file_id
-            logger.debug(f"Using existing Telegram file_id for ProductMedia id {media_id}: {file_id}")
-        else:
-            media_source = await send_product_media_and_get_file_id(
-                bot=bot, media_id=media_id, file_id=file_id, file_type=file_type, local_path=local_path
-            )
-
-        if not media_source:
-            effective_path = local_path or file_id
-            if effective_path:
-                normalized_path = effective_path.lstrip('/')
-                if normalized_path.startswith('uploads/'):
-                    normalized_path = normalized_path[len('uploads/'):]
-                full_path = os.path.join(UPLOAD_FOLDER, normalized_path)
-                if os.path.exists(full_path):
-                    media_source = FSInputFile(full_path)
-                    logger.debug(f"Using local file for ProductMedia id {media_id}: {full_path}")
-                else:
-                    logger.warning(f"Local file not found for ProductMedia id {media_id}: {full_path}")
-                    continue
-            else:
-                logger.warning(f"No valid local_path or file_id for ProductMedia id {media_id}")
+            if not file_type:
+                logger.warning(f"Skipping invalid product media item (missing file_type): {item}")
                 continue
 
-        if not media_source:
-            logger.warning(f"No valid media source for ProductMedia id {media_id}")
-            continue
+            # Use local_path if provided, otherwise check file_id
+            effective_path = local_path
+            media_source = None
 
-        try:
-            if file_type == 'photo':
-                media_item = InputMediaPhoto(
-                    media=media_source, caption=caption if idx == 0 and caption else '', parse_mode="Markdown"
-                )
-            elif file_type == 'video':
-                media_item = InputMediaVideo(
-                    media=media_source, caption=caption if idx == 0 and caption else '', parse_mode="Markdown"
-                )
-            elif file_type == 'animation':
-                media_item = InputMediaAnimation(
-                    media=media_source, caption=caption if idx == 0 and caption else '', parse_mode="Markdown"
-                )
-            elif file_type == 'document':
-                media_item = InputMediaDocument(
-                    media=media_source, caption=caption if idx == 0 and caption else '', parse_mode="Markdown"
-                )
-            else:
-                logger.warning(f"File type {file_type} not supported for ProductMedia id {media_id}")
-                continue
-            media_group.append(media_item)
-            valid_file_ids.append(media_source)
-        except Exception as e:
-            logger.error(f"Error creating InputMedia for ProductMedia id {media_id}: {e}")
-            continue
-
-    if media_group:
-        try:
-            logger.debug(f"Sending media group with {len(media_group)} items: {valid_file_ids}")
-            await bot.send_media_group(chat_id=chat_id, media=media_group)
-            logger.info(f"Media group sent to chat_id {chat_id} with {len(media_group)} items")
-            if reply_markup:
-                await bot.send_message(chat_id=chat_id, text=".", reply_markup=reply_markup)
-        except TelegramAPIError as e:
-            logger.error(f"Failed to send media group to chat_id {chat_id}: {e}")
-            # Fallback to sending individual media
-            for idx, media_item in enumerate(media_group):
+            # If file_id exists, check if it's a valid Telegram file ID
+            if file_id:
                 try:
-                    if isinstance(media_item, InputMediaPhoto):
-                        await bot.send_photo(chat_id=chat_id, photo=media_item.media, caption=caption if idx == 0 else "")
-                    elif isinstance(media_item, InputMediaVideo):
-                        await bot.send_video(chat_id=chat_id, video=media_item.media, caption=caption if idx == 0 else "")
-                    elif isinstance(media_item, InputMediaAnimation):
-                        await bot.send_animation(chat_id=chat_id, animation=media_item.media, caption=caption if idx == 0 else "")
-                    elif isinstance(media_item, InputMediaDocument):
-                        await bot.send_document(chat_id=chat_id, document=media_item.media, caption=caption if idx == 0 else "")
-                except TelegramAPIError as e2:
-                    logger.error(f"Failed to send individual media item {idx} to chat_id {chat_id}: {e2}")
-            if caption and not media_group:
-                await bot.send_message(chat_id=chat_id, text=caption, parse_mode="Markdown", reply_markup=reply_markup)
-    else:
-        logger.warning(f"No valid media items to send to chat_id {chat_id}")
+                    file = await bot.get_file(file_id)
+                    if file.file_path:
+                        media_source = file_id
+                        logger.debug(f"Valid Telegram file_id for product item: {file_id}")
+                except (TelegramBadRequest, TelegramAPIError) as e:
+                    logger.debug(f"Invalid Telegram file_id for product item: {file_id}, error: {str(e)}")
+                    # If file_id is invalid and local_path is empty, use file_id as local path
+                    if not local_path:
+                        effective_path = file_id
+
+            # Handle local file if no valid file_id or local_path is set
+            if not media_source and effective_path:
+                if not effective_path.startswith('static/'):
+                    corrected_path = os.path.join('static', effective_path)
+                else:
+                    corrected_path = effective_path
+                if not os.path.exists(corrected_path):
+                    logger.warning(f"Skipping product media item with non-existent local file: {corrected_path}")
+                    continue
+                try:
+                    media_source = FSInputFile(corrected_path)
+                except (IOError, OSError) as e:
+                    logger.warning(f"Skipping product media item due to file access error: {corrected_path}, error: {str(e)}")
+                    continue
+
+            if not media_source:
+                logger.warning(f"Skipping invalid product media item (no valid file_id or local file): {item}")
+                continue
+
+            media_kwargs = {'caption': caption if idx == 0 else None, 'parse_mode': parse_mode}
+            try:
+                if file_type == 'photo':
+                    media_group.append(InputMediaPhoto(media=media_source, **media_kwargs))
+                elif file_type == 'video':
+                    media_group.append(InputMediaVideo(media=media_source, **media_kwargs))
+                elif file_type == 'document':
+                    media_group.append(InputMediaDocument(media=media_source, **media_kwargs))
+                else:
+                    logger.warning(f"Unsupported media type for product: {file_type} for item: {item}")
+                    continue
+            except Exception as e:
+                logger.error(f"Error creating product media item {item}: {str(e)}")
+                continue
+
+        if not media_group:
+            logger.warning(f"No valid media items to send for product to chat_id: {chat_id}")
+            if caption:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=caption,
+                    reply_markup=reply_markup,
+                    parse_mode=parse_mode
+                )
+                logger.info(f"Sent fallback text message for product to chat_id: {chat_id} with reply_markup: {reply_markup is not None}")
+            return
+
+        # Send media group
+        logger.debug(f"Sending product media group with {len(media_group)} items: {[m.media.path if hasattr(m.media, 'path') else m.media for m in media_group]}")
+        await bot.send_media_group(chat_id=chat_id, media=media_group)
+
+        # Send reply markup separately if provided
+        if reply_markup:
+            try:
+                buttons = [[btn.text + f" ({btn.callback_data})" for btn in row] for row in reply_markup.inline_keyboard]
+                logger.debug(f"Sending product reply markup to chat_id: {chat_id} with buttons: {buttons}")
+            except Exception as e:
+                logger.error(f"Error logging reply_markup for chat_id: {chat_id}: {str(e)}")
+            await bot.send_message(
+                chat_id=chat_id,
+                text="گزینه‌های موجود:",
+                reply_markup=reply_markup,
+                parse_mode=parse_mode
+            )
+            logger.info(f"Sent product reply markup to chat_id: {chat_id}")
+
+    except TelegramAPIError as e:
+        logger.error(f"Telegram API error sending product media group to chat_id: {chat_id}: {str(e)}")
         if caption:
-            await bot.send_message(chat_id=chat_id, text=caption, parse_mode="Markdown", reply_markup=reply_markup)
+            await bot.send_message(
+                chat_id=chat_id,
+                text=caption,
+                reply_markup=reply_markup,
+                parse_mode=parse_mode
+            )
+            logger.info(f"Sent fallback text message for product due to Telegram API error to chat_id: {chat_id}")
+    except Exception as e:
+        logger.error(f"Error in send_product_media_group_to_user for chat_id: {chat_id}: {str(e)}\n{traceback.format_exc()}")
+        if caption:
+            await bot.send_message(
+                chat_id=chat_id,
+                text=caption,
+                reply_markup=reply_markup,
+                parse_mode=parse_mode
+            )
+            logger.info(f"Sent fallback text message for product due to error to chat_id: {chat_id}")
+
+async def send_service_media_group_to_user(
+    bot: Bot,
+    chat_id: int,
+    media_items: list,
+    caption: str = None,
+    reply_markup: InlineKeyboardMarkup = None,
+    parse_mode: str = "Markdown"
+):
+    """Send a media group for a service to user with caption and optional reply markup."""
+    try:
+        # Validate bot instance
+        if not isinstance(bot, Bot):
+            logger.error(f"Invalid bot instance in send_service_media_group: expected aiogram.Bot, got {type(bot)}")
+            raise ValueError("Bot instance must be of type aiogram.Bot")
+
+        logger.debug(f"Preparing to send service media group to chat_id: {chat_id}, media_items: {len(media_items)}")
+
+        # Validate media items
+        if not media_items:
+            logger.warning(f"No media items provided for service to chat_id: {chat_id}")
+            if caption:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=caption,
+                    reply_markup=reply_markup,
+                    parse_mode=parse_mode
+                )
+                logger.info(f"Sent fallback text message for service to chat_id: {chat_id} with reply_markup: {reply_markup is not None}")
+            return
+
+        # Build media group
+        media_group = []
+        for idx, item in enumerate(media_items):
+            file_type = item.get('file_type')
+            file_id = item.get('file_id')
+            local_path = item.get('local_path')
+
+            if not file_type:
+                logger.warning(f"Skipping invalid service media item (missing file_type): {item}")
+                continue
+
+            # Use local_path if provided, otherwise check file_id
+            effective_path = local_path
+            media_source = None
+
+            # If file_id exists, check if it's a valid Telegram file ID
+            if file_id:
+                try:
+                    file = await bot.get_file(file_id)
+                    if file.file_path:
+                        media_source = file_id
+                        logger.debug(f"Valid Telegram file_id for service item: {file_id}")
+                except (TelegramBadRequest, TelegramAPIError) as e:
+                    logger.debug(f"Invalid Telegram file_id for service item: {file_id}, error: {str(e)}")
+                    # If file_id is invalid and local_path is empty, use file_id as local path
+                    if not local_path:
+                        effective_path = file_id
+
+            # Handle local file if no valid file_id or local_path is set
+            if not media_source and effective_path:
+                if not effective_path.startswith('static/'):
+                    corrected_path = os.path.join('static', effective_path)
+                else:
+                    corrected_path = effective_path
+                if not os.path.exists(corrected_path):
+                    logger.warning(f"Skipping service media item with non-existent local file: {corrected_path}")
+                    continue
+                try:
+                    media_source = FSInputFile(corrected_path)
+                except (IOError, OSError) as e:
+                    logger.warning(f"Skipping service media item due to file access error: {corrected_path}, error: {str(e)}")
+                    continue
+
+            if not media_source:
+                logger.warning(f"Skipping invalid service media item (no valid file_id or local file): {item}")
+                continue
+
+            media_kwargs = {'caption': caption if idx == 0 else None, 'parse_mode': parse_mode}
+            try:
+                if file_type == 'photo':
+                    media_group.append(InputMediaPhoto(media=media_source, **media_kwargs))
+                elif file_type == 'video':
+                    media_group.append(InputMediaVideo(media=media_source, **media_kwargs))
+                elif file_type == 'document':
+                    media_group.append(InputMediaDocument(media=media_source, **media_kwargs))
+                else:
+                    logger.warning(f"Unsupported media type for service: {file_type} for item: {item}")
+                    continue
+            except Exception as e:
+                logger.error(f"Error creating service media item {item}: {str(e)}")
+                continue
+
+        if not media_group:
+            logger.warning(f"No valid media items to send for service to chat_id: {chat_id}")
+            if caption:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=caption,
+                    reply_markup=reply_markup,
+                    parse_mode=parse_mode
+                )
+                logger.info(f"Sent fallback text message for service to chat_id: {chat_id} with reply_markup: {reply_markup is not None}")
+            return
+
+        # Send media group
+        logger.debug(f"Sending service media group with {len(media_group)} items: {[m.media.path if hasattr(m.media, 'path') else m.media for m in media_group]}")
+        await bot.send_media_group(chat_id=chat_id, media=media_group)
+
+        # Send reply markup separately if provided
+        if reply_markup:
+            try:
+                buttons = [[btn.text + f" ({btn.callback_data})" for btn in row] for row in reply_markup.inline_keyboard]
+                logger.debug(f"Sending service reply markup to chat_id: {chat_id} with buttons: {buttons}")
+            except Exception as e:
+                logger.error(f"Error logging reply_markup for chat_id: {chat_id}: {str(e)}")
+            await bot.send_message(
+                chat_id=chat_id,
+                text="گزینه‌های موجود:",
+                reply_markup=reply_markup,
+                parse_mode=parse_mode
+            )
+            logger.info(f"Sent service reply markup to chat_id: {chat_id}")
+
+    except TelegramAPIError as e:
+        logger.error(f"Telegram API error sending service media group to chat_id: {chat_id}: {str(e)}")
+        if caption:
+            await bot.send_message(
+                chat_id=chat_id,
+                text=caption,
+                reply_markup=reply_markup,
+                parse_mode=parse_mode
+            )
+            logger.info(f"Sent fallback text message for service due to Telegram API error to chat_id: {chat_id}")
+    except Exception as e:
+        logger.error(f"Error in send_service_media_group_to_user for chat_id: {chat_id}: {str(e)}\n{traceback.format_exc()}")
+        if caption:
+            await bot.send_message(
+                chat_id=chat_id,
+                text=caption,
+                reply_markup=reply_markup,
+                parse_mode=parse_mode
+            )
+            logger.info(f"Sent fallback text message for service due to error to chat_id: {chat_id}")
+
+async def send_educational_media_group_to_user(
+    bot: Bot,
+    chat_id: int,
+    media_items: list,
+    caption: str = None,
+    reply_markup: InlineKeyboardMarkup = None,
+    parse_mode: str = "Markdown"
+):
+    """Send a media group for educational content to user with caption and optional reply markup."""
+    try:
+        # Validate bot instance
+        if not isinstance(bot, Bot):
+            logger.error(f"Invalid bot instance in send_educational_media_group: expected aiogram.Bot, got {type(bot)}")
+            raise ValueError("Bot instance must be of type aiogram.Bot")
+
+        logger.debug(f"Preparing to send educational media group to chat_id: {chat_id}, media_items: {len(media_items)}")
+
+        # Validate media items
+        if not media_items:
+            logger.warning(f"No media items provided for educational content to chat_id: {chat_id}")
+            if caption:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=caption,
+                    reply_markup=reply_markup,
+                    parse_mode=parse_mode
+                )
+                logger.info(f"Sent fallback text message for educational content to chat_id: {chat_id} with reply_markup: {reply_markup is not None}")
+            return
+
+        # Build media group
+        media_group = []
+        for idx, item in enumerate(media_items):
+            file_type = item.get('file_type')
+            file_id = item.get('file_id')
+            local_path = item.get('local_path')
+
+            if not file_type:
+                logger.warning(f"Skipping invalid educational media item (missing file_type): {item}")
+                continue
+
+            # Use local_path if provided, otherwise check file_id
+            effective_path = local_path
+            media_source = None
+
+            # If file_id exists, check if it's a valid Telegram file ID
+            if file_id:
+                try:
+                    file = await bot.get_file(file_id)
+                    if file.file_path:
+                        media_source = file_id
+                        logger.debug(f"Valid Telegram file_id for educational item: {file_id}")
+                except (TelegramBadRequest, TelegramAPIError) as e:
+                    logger.debug(f"Invalid Telegram file_id for educational item: {file_id}, error: {str(e)}")
+                    # If file_id is invalid and local_path is empty, use file_id as local path
+                    if not local_path:
+                        effective_path = file_id
+
+            # Handle local file if no valid file_id or local_path is set
+            if not media_source and effective_path:
+                if not effective_path.startswith('static/'):
+                    corrected_path = os.path.join('static', effective_path)
+                else:
+                    corrected_path = effective_path
+                if not os.path.exists(corrected_path):
+                    logger.warning(f"Skipping educational media item with non-existent local file: {corrected_path}")
+                    continue
+                try:
+                    media_source = FSInputFile(corrected_path)
+                except (IOError, OSError) as e:
+                    logger.warning(f"Skipping educational media item due to file access error: {corrected_path}, error: {str(e)}")
+                    continue
+
+            if not media_source:
+                logger.warning(f"Skipping invalid educational media item (no valid file_id or local file): {item}")
+                continue
+
+            media_kwargs = {'caption': caption if idx == 0 else None, 'parse_mode': parse_mode}
+            try:
+                if file_type == 'photo':
+                    media_group.append(InputMediaPhoto(media=media_source, **media_kwargs))
+                elif file_type == 'video':
+                    media_group.append(InputMediaVideo(media=media_source, **media_kwargs))
+                elif file_type == 'document':
+                    media_group.append(InputMediaDocument(media=media_source, **media_kwargs))
+                else:
+                    logger.warning(f"Unsupported media type for educational content: {file_type} for item: {item}")
+                    continue
+            except Exception as e:
+                logger.error(f"Error creating educational media item {item}: {str(e)}")
+                continue
+
+        if not media_group:
+            logger.warning(f"No valid media items to send for educational content to chat_id: {chat_id}")
+            if caption:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=caption,
+                    reply_markup=reply_markup,
+                    parse_mode=parse_mode
+                )
+                logger.info(f"Sent fallback text message for educational content to chat_id: {chat_id} with reply_markup: {reply_markup is not None}")
+            return
+
+        # Send media group
+        logger.debug(f"Sending educational media group with {len(media_group)} items: {[m.media.path if hasattr(m.media, 'path') else m.media for m in media_group]}")
+        await bot.send_media_group(chat_id=chat_id, media=media_group)
+
+        # Send reply markup separately if provided
+        if reply_markup:
+            try:
+                buttons = [[btn.text + f" ({btn.callback_data})" for btn in row] for row in reply_markup.inline_keyboard]
+                logger.debug(f"Sending educational reply markup to chat_id: {chat_id} with buttons: {buttons}")
+            except Exception as e:
+                logger.error(f"Error logging reply_markup for chat_id: {chat_id}: {str(e)}")
+            await bot.send_message(
+                chat_id=chat_id,
+                text="گزینه‌های موجود:",
+                reply_markup=reply_markup,
+                parse_mode=parse_mode
+            )
+            logger.info(f"Sent educational reply markup to chat_id: {chat_id}")
+
+    except TelegramAPIError as e:
+        logger.error(f"Telegram API error sending educational media group to chat_id: {chat_id}: {str(e)}")
+        if caption:
+            await bot.send_message(
+                chat_id=chat_id,
+                text=caption,
+                reply_markup=reply_markup,
+                parse_mode=parse_mode
+            )
+            logger.info(f"Sent fallback text message for educational content due to Telegram API error to chat_id: {chat_id}")
+    except Exception as e:
+        logger.error(f"Error in send_educational_media_group_to_user for chat_id: {chat_id}: {str(e)}\n{traceback.format_exc()}")
+        if caption:
+            await bot.send_message(
+                chat_id=chat_id,
+                text=caption,
+                reply_markup=reply_markup,
+                parse_mode=parse_mode
+            )
+            logger.info(f"Sent fallback text message for educational content due to error to chat_id: {chat_id}")

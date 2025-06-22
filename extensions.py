@@ -1,10 +1,11 @@
+import traceback
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker, DeclarativeBase
 from logging_config import get_logger
 from repositories.product_repository import ProductRepository
 from repositories.service_repository import ServiceRepository
-from repositories.tutorial_repository import TutorialRepository
+from repositories.education_content_repository import EducationalContentRepository
 from repositories.user_repository import UserRepository
 from repositories.inquiry_repository import InquiryRepository
 from repositories.static_content_repository import StaticContentRepository
@@ -36,7 +37,7 @@ class Database:
             self.Session = scoped_session(sessionmaker(bind=self.engine))
             self.product_repo = ProductRepository(self.Session)
             self.service_repo = ServiceRepository(self.Session)
-            self.tutorial_repo = TutorialRepository(self.Session)
+            self.tutorial_repo = EducationalContentRepository (self.Session)
             self.user_repo = UserRepository(self.Session)
             self.inquiry_repo = InquiryRepository(self.Session)
             self.static_content_repo = StaticContentRepository(self.Session)
@@ -97,6 +98,18 @@ class Database:
         """گرفتن همه دسته‌بندی‌های سرویس."""
         return self.service_repo.get_all_service_categories()
 
+    def get_service_categories(self, parent_id: int = None) -> list[dict]:
+        """Retrieve service categories with optional parent_id filter."""
+        try:
+            query = self.Session().query(ServiceCategory)
+            if parent_id is not None:
+                query = query.filter(ServiceCategory.parent_id == parent_id)
+            categories = query.all()
+            result = [{'id': cat.id, 'name': cat.name} for cat in categories]
+            return result
+        except Exception as e:
+            logger.error(f"Error in ServiceRepository.get_service_categories: {str(e)}\n{traceback.format_exc()}")
+            return []
     # توابع محتوای آموزشی
     def get_educational_content(self, content_id: int) -> dict | None:
         """گرفتن محتوای آموزشی با شناسه."""

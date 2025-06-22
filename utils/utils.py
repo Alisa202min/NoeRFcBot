@@ -1,3 +1,4 @@
+
 import os
 import csv
 from logging_config import get_logger
@@ -7,112 +8,145 @@ from typing import Dict, List, Optional, Any, Tuple, Union
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from aiogram import Bot, types
-
+import traceback
 
 logger = get_logger('bot')
 
 
 def format_price(price: int) -> str:
     """
-    Format price with thousand separator
-    
+    قالب‌بندی قیمت با جداکننده هزارگان
+
     Args:
-        price: Price as integer
-        
+        price: قیمت به صورت عدد صحیح
+
     Returns:
-        Formatted price string
+        رشته قیمت قالب‌بندی‌شده
     """
     return f"{price:,} تومان"
 
 def format_product_details(product: Dict, media_files: List[Dict] = None) -> str:
     """
-    Format product details for display
-    
+    قالب‌بندی جزئیات محصول برای نمایش
+
     Args:
-        product: Product dictionary
-        media_files: List of media files (optional)
-        
+        product: دیکشنری محصول
+        media_files: لیست فایل‌های رسانه (اختیاری)
+
     Returns:
-        Formatted product details
+        جزئیات محصول قالب‌بندی‌شده
     """
     name = product['name']
     price = format_price(product['price'])
     description = product['description'] or "توضیحات موجود نیست"
-    
+
     result = f"📦 *{name}*\n\n💰 قیمت: {price}\n\n📝 توضیحات:\n{description}"
-    
-    # Add media info if available
+
+    # افزودن اطلاعات رسانه در صورت وجود
     if media_files and len(media_files) > 0:
         photo_count = sum(1 for m in media_files if m['file_type'] == 'photo')
         video_count = sum(1 for m in media_files if m['file_type'] == 'video')
-        
+
         media_info = []
         if photo_count > 0:
             media_info.append(f"🖼 {photo_count} تصویر")
         if video_count > 0:
             media_info.append(f"🎬 {video_count} ویدیو")
-            
+
         if media_info:
             result += "\n\n" + " | ".join(media_info)
-    
+
     return result
-    
+
 def format_service_details(service: Dict, media_files: List[Dict] = None) -> str:
     """
-    Format service details for display
-    
+    قالب‌بندی جزئیات سرویس برای نمایش
+
     Args:
-        service: Service dictionary
-        media_files: List of media files (optional)
-        
+        service: دیکشنری سرویس
+        media_files: لیست فایل‌های رسانه (اختیاری)
+
     Returns:
-        Formatted service details
+        جزئیات سرویس قالب‌بندی‌شده
     """
     name = service['name']
     price = format_price(service['price']) if service['price'] is not None else "تماس بگیرید"
     description = service['description'] or "توضیحات موجود نیست"
-    
+
     result = f"🔧 *{name}*\n\n💰 قیمت: {price}\n\n📝 توضیحات:\n{description}"
-    
-    # Add media info if available
+
+    # افزودن اطلاعات رسانه در صورت وجود
     if media_files and len(media_files) > 0:
         photo_count = sum(1 for m in media_files if m['file_type'] == 'photo')
         video_count = sum(1 for m in media_files if m['file_type'] == 'video')
-        
+
         media_info = []
         if photo_count > 0:
             media_info.append(f"🖼 {photo_count} تصویر")
         if video_count > 0:
             media_info.append(f"🎬 {video_count} ویدیو")
-            
+
         if media_info:
             result += "\n\n" + " | ".join(media_info)
-    
+
+    return result
+
+def format_educational_content(content: Dict, media_files: List[Dict] = None) -> str:
+    """
+    قالب‌بندی محتوای آموزشی برای نمایش
+
+    Args:
+        content: دیکشنری محتوای آموزشی
+        media_files: لیست فایل‌های رسانه (اختیاری)
+
+    Returns:
+        محتوای آموزشی قالب‌بندی‌شده
+    """
+    title = content['title']
+    content_text = content['content'] or "محتوا موجود نیست"
+    category = content['category'] or "بدون دسته‌بندی"
+
+    result = f"📚 *{title}*\n\n📝 محتوا:\n{content_text}\n\n📂 دسته‌بندی: {category}"
+
+    # افزودن اطلاعات رسانه در صورت وجود
+    if media_files and len(media_files) > 0:
+        photo_count = sum(1 for m in media_files if m['file_type'] == 'photo')
+        video_count = sum(1 for m in media_files if m['file_type'] == 'video')
+
+        media_info = []
+        if photo_count > 0:
+            media_info.append(f"🖼 {photo_count} تصویر")
+        if video_count > 0:
+            media_info.append(f"🎬 {video_count} ویدیو")
+
+        if media_info:
+            result += "\n\n" + " | ".join(media_info)
+
     return result
 
 def format_inquiry_details(inquiry: Dict) -> str:
     """
-    Format inquiry details for display
-    
+    قالب‌بندی جزئیات استعلام برای نمایش
+
     Args:
-        inquiry: Inquiry dictionary
-        
+        inquiry: دیکشنری استعلام
+
     Returns:
-        Formatted inquiry details
+        جزئیات استعلام قالب‌بندی‌شده
     """
-    # Format date
+    # قالب‌بندی تاریخ
     date_str = inquiry['date']
     try:
         date_obj = datetime.fromisoformat(date_str)
         formatted_date = date_obj.strftime("%Y-%m-%d %H:%M:%S")
     except:
         formatted_date = date_str
-    
-    # Get product/service name if available
+
+    # دریافت نام محصول/سرویس در صورت وجود
     is_service = inquiry.get('product_type') == 'service'
     item_prefix = "🔧 خدمت" if is_service else "🛍 محصول"
     item_info = f"\n{item_prefix}: {inquiry['product_name']}" if inquiry.get('product_name') else ""
-    
+
     return (
         f"📝 *استعلام قیمت*\n\n"
         f"👤 نام: {inquiry['name']}\n"
@@ -121,51 +155,34 @@ def format_inquiry_details(inquiry: Dict) -> str:
         f"توضیحات: {inquiry['description'] or 'بدون توضیحات'}"
     )
 
-def format_educational_content(content: Dict) -> str:
-    """
-    Format educational content for display
-    
-    Args:
-        content: Content dictionary
-        
-    Returns:
-        Formatted content
-    """
-    title = content['title']
-    content_text = content['content']
-    category = content['category']
-    
-    # Simplified format - all content is now text-based
-    return f"📚 *{title}*\n\n{content_text}\n\n📂 دسته‌بندی: {category}"
-
 def is_valid_phone_number(phone: str) -> bool:
     """
-    Validate phone number format
-    
+    اعتبارسنجی فرمت شماره تلفن
+
     Args:
-        phone: Phone number to validate
-        
+        phone: شماره تلفن برای اعتبارسنجی
+
     Returns:
-        True if valid, False otherwise
+        True اگر معتبر باشد، False در غیر این صورت
     """
-    # Simple validation: should be at least 10 digits
+    # اعتبارسنجی ساده: باید حداقل 10 رقم باشد
     digits = ''.join(filter(str.isdigit, phone))
     return len(digits) >= 10
 
 def get_category_path(db, category_id: int) -> str:
     """
-    Get full category path
-    
+    دریافت مسیر کامل دسته‌بندی
+
     Args:
-        db: Database instance
-        category_id: Category ID
-        
+        db: نمونه پایگاه داده
+        category_id: شناسه دسته‌بندی
+
     Returns:
-        Full category path (e.g., "Electronics > Sensors > Temperature")
+        مسیر کامل دسته‌بندی (مثال: "تجهیزات الکترونیکی > سنسورها > سنسور دما")
     """
     path = []
     current_id = category_id
-    
+
     while current_id is not None:
         category = db.get_category(current_id)
         if category:
@@ -173,24 +190,24 @@ def get_category_path(db, category_id: int) -> str:
             current_id = category['parent_id']
         else:
             break
-    
-    # Reverse to get top-down order
+
+    # معکوس کردن برای ترتیب از بالا به پایین
     path.reverse()
     return " > ".join(path)
 
 def create_sample_data(db) -> None:
     """
-    Create sample data for initial setup
-    
+    ایجاد داده‌های نمونه برای راه‌اندازی اولیه
+
     Args:
-        db: Database instance
+        db: نمونه پایگاه داده
     """
-    # Create product categories
+    # ایجاد دسته‌بندی‌های محصول
     electronics_id = db.add_category("تجهیزات الکترونیکی", None, 'product')
     sensors_id = db.add_category("سنسورها", electronics_id, 'product')
     temp_sensors_id = db.add_category("سنسور دما", sensors_id, 'product')
-    
-    # Create products
+
+    # ایجاد محصولات
     db.add_product(
         name="سنسور دما حرفه‌ای",
         price=500000,
@@ -198,7 +215,7 @@ def create_sample_data(db) -> None:
         category_id=temp_sensors_id,
         photo_url="https://example.com/temp_sensor.jpg"
     )
-    
+
     db.add_product(
         name="سنسور رطوبت",
         price=350000,
@@ -206,27 +223,27 @@ def create_sample_data(db) -> None:
         category_id=sensors_id,
         photo_url="https://example.com/humidity_sensor.jpg"
     )
-    
-    # Create service categories
+
+    # ایجاد دسته‌بندی‌های سرویس
     services_id = db.add_category("خدمات فنی", None, 'service')
     repair_id = db.add_category("تعمیرات", services_id, 'service')
-    
-    # Create services
+
+    # ایجاد سرویس‌ها
     db.add_product(
         name="تعمیر سنسور",
         price=200000,
         description="تعمیر انواع سنسورهای الکترونیکی",
         category_id=repair_id
     )
-    
-    # Create educational content
+
+    # ایجاد محتوای آموزشی
     db.add_educational_content(
         title="اصول کار با سنسورها",
         content="در این مطلب با اصول کار با سنسورهای الکترونیکی آشنا می‌شوید.",
         category="آموزش سنسورها",
         content_type="text"
     )
-    
+
     db.add_educational_content(
         title="ویدیوی آموزشی نصب سنسور",
         content="https://example.com/sensor_installation_video",
@@ -236,30 +253,30 @@ def create_sample_data(db) -> None:
 
 def import_initial_data(db, csv_path: str = None) -> Tuple[int, int]:
     """
-    Import initial data from CSV file
-    
+    وارد کردن داده‌های اولیه از فایل CSV
+
     Args:
-        db: Database instance
-        csv_path: Path to CSV file, or None to use default
-        
+        db: نمونه پایگاه داده
+        csv_path: مسیر فایل CSV، یا None برای استفاده از پیش‌فرض
+
     Returns:
-        Tuple of (success_count, error_count)
+        تاپل (تعداد موفقیت‌ها، تعداد خطاها)
     """
     from config import CSV_PATH
-    
+
     if csv_path is None:
         csv_path = CSV_PATH
-    
+
     if not os.path.exists(csv_path):
-        logger.warning(f"CSV file not found: {csv_path}")
+        logger.warning(f"فایل CSV پیدا نشد: {csv_path}")
         return (0, 0)
-    
+
     try:
-        # Try to determine entity type from CSV
+        # تشخیص نوع موجودیت از CSV
         with open(csv_path, 'r', newline='', encoding='utf-8') as csvfile:
             reader = csv.DictReader(csvfile)
             headers = reader.fieldnames
-            
+
             if 'price' in headers:
                 entity_type = 'products'
             elif 'parent_id' in headers:
@@ -267,25 +284,25 @@ def import_initial_data(db, csv_path: str = None) -> Tuple[int, int]:
             elif 'content' in headers:
                 entity_type = 'educational'
             else:
-                logger.error("Unknown CSV format")
+                logger.error("فرمت CSV ناشناخته")
                 return (0, 0)
-        
-        # Import data
+
+        # وارد کردن داده‌ها
         return db.import_from_csv(entity_type, csv_path)
     except Exception as e:
-        logger.error(f"Error importing data from CSV: {e}")
+        logger.error(f"خطا در وارد کردن داده‌ها از CSV: {e}")
         return (0, 0)
 
 def generate_csv_template(output_path: str, entity_type: str) -> bool:
     """
-    Generate a CSV template file
-    
+    تولید فایل قالب CSV
+
     Args:
-        output_path: Path to save CSV file
-        entity_type: Type of entity (products/categories/educational)
-        
+        output_path: مسیر ذخیره فایل CSV
+        entity_type: نوع موجودیت (products/categories/educational)
+
     Returns:
-        True if successful, False otherwise
+        True اگر موفق، False در غیر این صورت
     """
     try:
         with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
@@ -293,7 +310,7 @@ def generate_csv_template(output_path: str, entity_type: str) -> bool:
                 fieldnames = ['name', 'price', 'description', 'photo_url', 'category_name']
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
-                # Add sample row
+                # افزودن ردیف نمونه
                 writer.writerow({
                     'name': 'سنسور دما',
                     'price': '500000',
@@ -301,12 +318,12 @@ def generate_csv_template(output_path: str, entity_type: str) -> bool:
                     'photo_url': 'https://example.com/photo1.jpg',
                     'category_name': 'سنسورها'
                 })
-            
+
             elif entity_type == 'categories':
                 fieldnames = ['name', 'parent_name', 'type']
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
-                # Add sample rows
+                # افزودن ردیف‌های نمونه
                 writer.writerow({
                     'name': 'تجهیزات الکترونیکی',
                     'parent_name': '',
@@ -317,78 +334,76 @@ def generate_csv_template(output_path: str, entity_type: str) -> bool:
                     'parent_name': 'تجهیزات الکترونیکی',
                     'type': 'product'
                 })
-            
+
             elif entity_type == 'educational':
                 fieldnames = ['title', 'content', 'category', 'type']
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
-                # Add sample row
+                # افزودن ردیف نمونه
                 writer.writerow({
                     'title': 'اصول کار با سنسورها',
                     'content': 'در این مطلب با اصول کار با سنسورهای الکترونیکی آشنا می‌شوید.',
                     'category': 'آموزش سنسورها',
                     'type': 'text'
                 })
-        
+
         return True
     except Exception as e:
-        logger.error(f"Error generating CSV template: {e}")
+        logger.error(f"خطا در تولید قالب CSV: {e}")
         return False
 
 async def create_telegraph_page(title: str, content: str, author: str = "RFCatalogbot") -> Optional[str]:
     """
-    Create a Telegraph page for longer educational content
-    
+    ایجاد صفحه تلگراف برای محتوای آموزشی طولانی
+
     Args:
-        title: Title of the page
-        content: Content of the page (can include simple HTML)
-        author: Author name (default: "RFCatalogbot")
-        
+        title: عنوان صفحه
+        content: محتوای صفحه (می‌تواند شامل HTML ساده باشد)
+        author: نام نویسنده (پیش‌فرض: "RFCatalogbot")
+
     Returns:
-        URL of the created page, or None if failed
+        URL صفحه ایجادشده، یا None در صورت شکست
     """
     try:
-        # Format content for Telegraph (convert to HTML nodes)
-        # Simple conversion for basic formatting - paragraphs
+        # قالب‌بندی محتوا برای تلگراف (تبدیل به گره‌های HTML)
         html_content = []
         for paragraph in content.split('\n\n'):
             if paragraph.strip():
-                # Skip empty paragraphs
                 html_content.append({
                     'tag': 'p',
                     'children': [paragraph.strip()]
                 })
-        
-        # First create a Telegraph account to get an access token
+
+        # ایجاد حساب تلگراف برای دریافت توکن دسترسی
         create_account_url = 'https://api.telegra.ph/createAccount'
         account_data = {
             'short_name': author,
             'author_name': author
         }
-        
+
         async with aiohttp.ClientSession() as session:
-            # Step 1: Create an account and get access token
+            # مرحله 1: ایجاد حساب و دریافت توکن دسترسی
             async with session.post(create_account_url, data=account_data) as response:
                 if response.status == 200:
                     account_result = await response.json()
                     if not account_result.get('ok'):
-                        logger.error(f"Telegraph API error creating account: {account_result}")
+                        logger.error(f"خطای API تلگراف در ایجاد حساب: {account_result}")
                         return None
-                    
+
                     access_token = account_result.get('result', {}).get('access_token')
                     if not access_token:
-                        logger.error("No access token received from Telegraph API")
+                        logger.error("هیچ توکن دسترسی از API تلگراف دریافت نشد")
                         return None
-                    
-                    # Step 2: Create the page using the access token
+
+                    # مرحله 2: ایجاد صفحه با استفاده از توکن دسترسی
                     create_page_url = 'https://api.telegra.ph/createPage'
-                    
-                    # Generate a path from title (simple slugify)
+
+                    # تولید مسیر از عنوان (slugify ساده)
                     import re
                     path = re.sub(r'[^\w\s-]', '', title.lower())
                     path = re.sub(r'[\s_-]+', '-', path)
-                    
-                    # Prepare page creation data
+
+                    # آماده‌سازی داده‌های ایجاد صفحه
                     page_data = {
                         'access_token': access_token,
                         'title': title,
@@ -396,30 +411,27 @@ async def create_telegraph_page(title: str, content: str, author: str = "RFCatal
                         'content': json.dumps(html_content),
                         'return_content': False
                     }
-                    
-                    # Create the page
+
+                    # ایجاد صفحه
                     async with session.post(create_page_url, data=page_data) as page_response:
                         if page_response.status == 200:
                             page_result = await page_response.json()
                             if page_result.get('ok'):
                                 page_url = page_result.get('result', {}).get('url')
                                 if page_url:
-                                    logger.info(f"Created Telegraph page: {page_url}")
+                                    logger.info(f"صفحه تلگراف ایجاد شد: {page_url}")
                                     return page_url
-                            
-                            logger.error(f"Telegraph API error creating page: {page_result}")
+
+                            logger.error(f"خطای API تلگراف در ایجاد صفحه: {page_result}")
                         else:
-                            logger.error(f"Telegraph API HTTP error: {page_response.status}")
+                            logger.error(f"خطای HTTP API تلگراف: {page_response.status}")
                 else:
-                    logger.error(f"Telegraph API HTTP error creating account: {response.status}")
-        
+                    logger.error(f"خطای HTTP API تلگراف در ایجاد حساب: {response.status}")
+
         return None
     except Exception as e:
-        logger.error(f"Error creating Telegraph page: {str(e)}")
+        logger.error(f"خطا در ایجاد صفحه تلگراف: {str(e)}")
         return None
-
-
-
 
 def allowed_file(filename):
     """
@@ -462,8 +474,19 @@ def create_directory(directory):
     """
     os.makedirs(directory, exist_ok=True)
 
-async def upload_file_to_telegram(file_path: str, bot:  Bot, file_type: str = 'photo') -> str:
-    logger.debug(f"Uploading file to Telegram: {file_path}, type: {file_type}")
+async def upload_file_to_telegram(file_path: str, bot: Bot, file_type: str = 'photo') -> str:
+    """
+    آپلود فایل به تلگرام
+
+    Args:
+        file_path: مسیر فایل
+        bot: نمونه بات تلگرام
+        file_type: نوع فایل ('photo' یا 'video')، پیش‌فرض: 'photo'
+
+    Returns:
+        str: شناسه فایل یا None در صورت شکست
+    """
+    logger.debug(f"آپلود فایل به تلگرام: {file_path}، نوع: {file_type}")
     try:
         with open(file_path, 'rb') as file:
             if file_type == 'video':
@@ -473,5 +496,5 @@ async def upload_file_to_telegram(file_path: str, bot:  Bot, file_type: str = 'p
                 response = await bot.send_photo(chat_id=bot.id, photo=file)
                 return response.photo[-1].file_id
     except Exception as e:
-        logger.error(f"Failed to upload file {file_path}: {str(e)}\n{traceback.format_exc()}")
+        logger.error(f"خطا در آپلود فایل {file_path}: {str(e)}\n{traceback.format_exc()}")
         return None

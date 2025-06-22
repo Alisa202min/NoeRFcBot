@@ -2,6 +2,7 @@ from typing import Dict, List, Optional
 from sqlalchemy.orm import scoped_session
 from models import Service, ServiceMedia, ServiceCategory
 from logging_config import get_logger
+import traceback
 
 logger = get_logger('app')
 
@@ -12,7 +13,7 @@ class ServiceRepository:
     def __init__(self, session: scoped_session):
         """
         مقداردهی اولیه با session دیتابیس.
-        
+
         آرگومان‌ها:
             session: نمونه scoped_session برای تعامل با دیتابیس
         """
@@ -21,10 +22,10 @@ class ServiceRepository:
     def get_service(self, service_id: int) -> Optional[Dict]:
         """
         گرفتن اطلاعات سرویس با شناسه.
-        
+
         آرگومان‌ها:
             service_id: شناسه سرویس
-        
+
         خروجی:
             دیکشنری اطلاعات سرویس یا None اگه پیدا نشه
         """
@@ -54,10 +55,10 @@ class ServiceRepository:
     def get_service_media(self, service_id: int) -> List[Dict]:
         """
         گرفتن رسانه‌های مرتبط با سرویس.
-        
+
         آرگومان‌ها:
             service_id: شناسه سرویس
-        
+
         خروجی:
             لیست دیکشنری‌های رسانه‌ها
         """
@@ -83,11 +84,11 @@ class ServiceRepository:
     def update_service_media_file_id(self, media_id: int, new_file_id: str) -> bool:
         """
         به‌روزرسانی file_id رسانه سرویس.
-        
+
         آرگومان‌ها:
             media_id: شناسه رسانه
             new_file_id: file_id جدید تلگرام
-        
+
         خروجی:
             True اگه موفق باشه، False در غیر این صورت
         """
@@ -113,10 +114,10 @@ class ServiceRepository:
     def get_service_category(self, category_id: int) -> Optional[Dict]:
         """
         گرفتن اطلاعات دسته‌بندی سرویس با شناسه.
-        
+
         آرگومان‌ها:
             category_id: شناسه دسته‌بندی
-        
+
         خروجی:
             دیکشنری اطلاعات دسته‌بندی یا None اگه پیدا نشه
         """
@@ -139,7 +140,7 @@ class ServiceRepository:
     def get_all_service_categories(self) -> List[Dict]:
         """
         گرفتن همه دسته‌بندی‌های سرویس.
-        
+
         خروجی:
             لیست دیکشنری‌های دسته‌بندی‌ها
         """
@@ -155,6 +156,68 @@ class ServiceRepository:
             ]
         except Exception as e:
             logger.error(f"خطا در گرفتن همه دسته‌بندی‌های سرویس: {str(e)}")
+            return []
+        finally:
+            self.session.close()
+
+    def get_service_categories(self, parent_id: Optional[int] = None) -> List[Dict]:
+        """
+        گرفتن دسته‌بندی‌های سرویس با تعداد زیرمجموعه‌ها و سرویس‌ها.
+
+        آرگومان‌ها:
+            parent_id: شناسه دسته‌بندی والد (اختیاری)
+
+        خروجی:
+            لیست دیکشنری‌های دسته‌بندی‌ها با اطلاعات اضافی
+        """
+        session = self.session()
+        try:
+            query = session.query(ServiceCategory)
+            if parent_id is None:
+                query = query.filter(ServiceCategory.parent_id.is_(None))
+            else:
+                query = query.filter_by(parent_id=parent_id)
+            categories = query.order_by(ServiceCategory.name).all()
+            result = []
+            for category in categories:
+                subcategory_count = session.query(ServiceCategory).filter_by(parent_id=category.id).count()
+                service_count = session.query(Service).filter_by(category_id=category.id).count()
+                result.append({
+                    'id': category.id,
+                    'name': category.name,
+                    'parent_id': category.parent_id,
+                    'subcategory_count': subcategory_count,
+                    'service_count': service_count,
+                    'total_items': subcategory_count + service_count
+                })
+            return result
+        except Exception as e:
+            logger.error(f"خطا در گرفتن دسته‌بندی‌های سرویس: {str(e)}")
+            return []
+        finally:
+            session.close()
+
+    def get_services(self, category_id: int) -> List[Dict]:
+        """
+        گرفتن همه سرویس‌های یک دسته‌بندی.
+
+        آرگومان‌ها:
+            category_id: شناسه دسته‌بندی
+
+        خروجی:
+            لیست دیکشنری‌های سرویس‌ها
+        """
+        try:
+            services = self.session.query(Service).filter_by(category_id=category_id).order_by(Service.name).all()
+            return [{
+                'id': s.id,
+                'name': s.name,
+                'price': s.price,
+                'description': s.description,
+                'category_id': s.category_id
+            } for s in services]
+        except Exception as e:
+            logger.error(f"خطا در گرفتن سرویس‌ها: {str(e)}")
             return []
         finally:
             self.session.close()

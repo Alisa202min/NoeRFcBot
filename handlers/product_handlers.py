@@ -6,7 +6,7 @@ from logging_config import get_logger
 from extensions import database
 from bot import bot
 from utils.media_utils import send_product_media_group_to_user
-from keyboards import product_categories_keyboard, product_content_keyboard, product_detail_keyboard
+from keyboards import product_categories_keyboard, product_content_keyboard, product_detail_keyboard, main_menu_keyboard
 from aiogram.filters import Command
 import traceback
 from handlers.handlers_utils import format_price
@@ -15,6 +15,9 @@ from callback_formatter import callback_formatter
 logger = get_logger('bot')
 router = Router(name="products_router")
 db = database
+
+# Debug log to confirm router initialization
+logger.info(f"Product handlers router initialized with {len(router.callback_query.handlers)} callback handlers")
 
 @router.message(lambda message: message.text == PRODUCTS_BTN)
 @router.message(Command("products"))
@@ -34,7 +37,7 @@ async def cmd_products(message: Message, state: FSMContext):
             reply_markup=keyboard,
             parse_mode="Markdown"
         )
-        logger.info(f"Product categories sent: {len(categories)} categories")
+        logger.info(f"Product categories sent: {len(categories)} categories to user: {message.from_user.id}")
     except Exception as e:
         logger.error(f"Error in cmd_products: {str(e)}\n{traceback.format_exc()}")
         await message.answer("⚠️ متأسفانه در پردازش درخواست شما خطایی رخ داد. لطفا مجددا تلاش کنید.")
@@ -93,7 +96,7 @@ async def callback_product_category(callback: CallbackQuery):
         keyboard = product_content_keyboard(products, category_id)
         await callback.message.answer(f"🛍️ محصولات در دسته‌بندی '{category_info['name']}':",
                                      reply_markup=keyboard)
-        logger.info(f"Products sent for category ID: {category_id}")
+        logger.info(f"Products sent for category ID: {category_id} to user: {callback.from_user.id}")
     except Exception as e:
         logger.error(f"Error in callback_product_category: {str(e)}\n{traceback.format_exc()}")
         await callback.message.answer("⚠️ خطایی در نمایش محصولات رخ داد.")
@@ -165,28 +168,29 @@ async def callback_product(callback: CallbackQuery):
         chat_id = callback.message.chat.id
 
         media = db.get_product_media(product_id)
-        # لاگ خروجی خام
         logger.debug(f"Raw media from db.get_product_media for product {product_id}: {media}")
 
-        # اعتبارسنجی ورودی‌ها
+        # Validate inputs
         if not isinstance(bot, Bot):
-            logger.error(f"bot باید نمونه Bot باشد، نوع: {type(bot)}")
+            logger.error(f"bot must be a Bot instance, got: {type(bot)}")
             await callback.message.answer("⚠️ خطای داخلی سرور. لطفا بعداً تلاش کنید.")
             return
         if not isinstance(chat_id, int):
-            logger.error(f"chat_id باید عدد باشد، نوع: {type(chat_id)}")
+            logger.error(f"chat_id must be an integer, got: {type(chat_id)}")
             await callback.message.answer("⚠️ خطای داخلی سرور. لطفا بعداً تلاش کنید.")
             return
         if not media:
-            logger.warning(f"هیچ مدیایی برای محصول {product_id} پیدا نشد")
+            logger.warning(f"No media found for product {product_id}")
             await callback.message.answer(text, reply_markup=keyboard, parse_mode="Markdown")
+            logger.info(f"Product {product_id} sent to chat_id {chat_id} without media")
             return
         if not isinstance(media, list):
-            logger.error(f"media باید لیست باشد، نوع: {type(media)}")
+            logger.error(f"media must be a list, got: {type(media)}")
             await callback.message.answer(text, reply_markup=keyboard, parse_mode="Markdown")
+            logger.info(f"Product {product_id} sent to chat_id {chat_id} without media")
             return
 
-        # تبدیل media به media_items
+        # Convert media to media_items
         media_items = [
             {
                 'id': m.get('id'),
@@ -198,20 +202,16 @@ async def callback_product(callback: CallbackQuery):
         logger.debug(f"Initial media_items for product {product_id}: {media_items}")
 
         # Filter out incomplete media items
-        
         media_items = [item for item in media_items if item['id'] and item['file_type'] and (item['file_id'] or item['local_path'])]
         logger.debug(f"Filtered media_items for product {product_id}: {media_items}")
 
-      
-
-
-        
         if not media_items:
-            logger.warning(f"media_items خالی یا ناقص است برای محصول {product_id}")
+            logger.warning(f"No valid media_items for product {product_id}")
             await callback.message.answer(text, reply_markup=keyboard, parse_mode="Markdown")
+            logger.info(f"Product {product_id} sent to chat_id {chat_id} without media")
             return
 
-        # فراخوانی تابع
+        # Send media group
         logger.debug(f"Calling send_product_media_group_to_user with bot: {type(bot)}, chat_id: {chat_id}, media_items: {media_items}, caption: {text}")
         await send_product_media_group_to_user(
             bot=bot,
@@ -220,7 +220,60 @@ async def callback_product(callback: CallbackQuery):
             caption=text,
             reply_markup=keyboard
         )
-        logger.info(f"Product {product_id} sent to chat_id: {chat_id}")
+        logger.info(f"Product {product_id} sent to chat_id {chat_id} with media and keyboard")
     except Exception as e:
         logger.error(f"Error in callback_product: {str(e)}\n{traceback.format_exc()}")
         await callback.message.answer("⚠️ خطایی در نمایش محصول رخ داد.")
+
+@router.callback_query(lambda c: callback_formatter.read(c.data)[0] == 'inquiry' if callback_formatter.read(c.data) else False)
+async def callback_inquiry(callback: CallbackQuery):
+    """Handle price inquiry button click"""
+    await callback.answer()
+    try:
+        logger.debug(f"Processing inquiry callback: {callback.data}")
+        result = callback_formatter.read(callback.data)
+        if not result or result[0] != 'inquiry':
+            logger.error(f"Invalid inquiry callback data: {callback.data}")
+            await callback.message.answer("⚠️ داده نامعتبر است.")
+            return
+
+        _, params = result
+        inquiry_type = params['inquiry_type']
+        item_id = params['item_id']
+        logger.info(f"Inquiry requested for {inquiry_type} ID: {item_id} by user: {callback.from_user.id}")
+
+        if inquiry_type == 'product':
+            product = db.get_product(item_id)
+            if not product:
+                logger.error(f"Product not found for ID: {item_id}")
+                await callback.message.answer("⚠️ محصول مورد نظر یافت نشد.")
+                return
+            await callback.message.answer(
+                f"📝 درخواست استعلام قیمت برای محصول '{product['name']}' ثبت شد. به زودی با شما تماس خواهیم گرفت.",
+                parse_mode="Markdown"
+            )
+            logger.info(f"Price inquiry for product ID: {item_id} sent to user: {callback.from_user.id}")
+        else:
+            logger.warning(f"Unsupported inquiry type: {inquiry_type}")
+            await callback.message.answer("⚠️ نوع استعلام پشتیبانی نمی‌شود.")
+    except Exception as e:
+        logger.error(f"Error in callback_inquiry: {str(e)}\n{traceback.format_exc()}")
+        await callback.message.answer("⚠️ خطایی در پردازش استعلام رخ داد.")
+
+@router.callback_query(lambda c: callback_formatter.read(c.data)[0] == 'back_to_main' if callback_formatter.read(c.data) else False)
+async def callback_back_to_main(callback: CallbackQuery):
+    """Handle return to main menu button click"""
+    await callback.answer()
+    try:
+        logger.debug(f"Processing back_to_main callback: {callback.data}")
+        logger.info(f"Return to main menu requested by user: {callback.from_user.id}")
+        keyboard = main_menu_keyboard()
+        await callback.message.answer(
+            "🏠 به منوی اصلی خوش آمدید!\nلطفا یک گزینه را انتخاب کنید:",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        logger.info(f"Main menu sent to user: {callback.from_user.id}")
+    except Exception as e:
+        logger.error(f"Error in callback_back_to_main: {str(e)}\n{traceback.format_exc()}")
+        await callback.message.answer("⚠️ خطایی در بازگشت به منوی اصلی رخ داد.")
